@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Text file backups
+**/*.rs.bk
+
+# Build results
+target/
+# this is moved to vm/testdata, others are present locally
+contracts/hackatom/contract.wasm
+contracts/hackatom/hash.txt
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# Auto-gen
+.cargo-ok
+
+*.pyc
+__pycache__/
+compiled
+logs
+Cargo.lock

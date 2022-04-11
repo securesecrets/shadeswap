@@ -10,6 +10,8 @@ target/
 contracts/hackatom/contract.wasm
 contracts/hackatom/hash.txt
 
+**/contract.wasm
+
 # IDEs
 .vscode/
 .idea/

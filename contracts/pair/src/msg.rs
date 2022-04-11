@@ -1,22 +1,16 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use shadeswap_shared::fadroma::{
-    scrt_callback::Callback,
-    scrt_link::{ContractLink, ContractInstantiationInfo}
-};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
-    pub pair_contract: ContractInstantiationInfo,
+    pub count: i32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    SetConfig {
-        pair_contract: Option<ContractInstantiationInfo>,
-    },
-    CreatePair { }
+    Increment {},
+    Reset { count: i32 },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -31,4 +25,3 @@ pub enum QueryMsg {
 pub struct CountResponse {
     pub count: i32,
 }
-

@@ -1,46 +1,63 @@
-use cosmwasm_std::testing::mock_env;
-use cosmwasm_std::Env;
-use cosmwasm_std::HumanAddr;
-use cosmwasm_std::Extern;
-use cosmwasm_std::testing::mock_dependencies;
-use cosmwasm_std::Querier;
-use cosmwasm_std::Api;
-use cosmwasm_std::Storage;
-use shadeswap_shared::fadroma::ContractInstantiationInfo;
+
+pub use shadeswap_shared::{
+    fadroma::{
+        scrt_addr::Canonize,
+        scrt_link::{ContractLink, ContractInstantiationInfo},
+        scrt::{
+            from_binary,
+            testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage},
+            to_binary, Api, Binary, Env, HandleResponse, HumanAddr, Querier, StdError,
+            StdResult, Storage, Uint128, Extern
+        },
+        scrt_storage::{load, save},
+    },
+    msg::factory::{ QueryResponse},
+    Pagination, TokenPair, TokenType,
+};
+
 
 use crate::msg::InitMsg;
-use crate::state::State;
+use crate::state::Config;
 
 #[cfg(test)]
 pub mod tests {
+    use super::*;
+    use crate::contract::create_pair;
+    use crate::contract::init;
+    use crate::state::config_read;
     use crate::state::config_write;
-use cosmwasm_std::to_binary;
-use cosmwasm_std::StdResult;
-use crate::state::config_read;
-use crate::contract::init;
-use crate::contract::create_pair;
-use crate::msg::InitMsg;
-use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env};
-    use cosmwasm_std::{coins, from_binary, StdError};
+    pub use shadeswap_shared::{
+        fadroma::{
+            scrt_addr::Canonize,
+            scrt_link::{ContractLink, ContractInstantiationInfo},
+            scrt::{
+                from_binary,
+                testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage},
+                to_binary, Api, Binary, Env, HandleResponse, HumanAddr, Querier, StdError,
+                StdResult, Storage, Uint128,
+            },
+            scrt_storage::{load, save},
+        },
+        msg::factory::{ QueryResponse},
+        Pagination, TokenPair, TokenType,
+    };
 
     #[test]
-    fn ok_init()  -> StdResult<()> {
+    fn ok_init() -> StdResult<()> {
         let ref mut deps = mkdeps();
         let env = mkenv("admin");
         let config = mkconfig(0);
         assert!(init(deps, env, (&config).into()).is_ok());
-        assert_eq!(config, config_read(&deps.storage).load()?);
+        assert_eq!(config, config_read(deps)?);
         Ok(())
     }
 
     #[test]
     fn create_pair_ok() -> StdResult<()> {
         let ref mut deps = mkdeps();
-        
         let config = mkconfig(0);
 
-        config_write(&mut deps.storage).save(&config)?;
+        config_write(deps, &config)?;
 
         let result = create_pair(deps, mkenv("sender"));
 
@@ -97,12 +114,13 @@ use super::*;
     }*/
 }
 
-fn mkconfig(id: u64) -> State {
-    State::from_init_msg(InitMsg {
+fn mkconfig(id: u64) -> Config<HumanAddr> {
+    Config::from_init_msg(InitMsg {
         pair_contract: ContractInstantiationInfo {
             id,
             code_hash: "2341586789".into(),
-        }
+        },
+        amm_settings: todo!(),
     })
 }
 
@@ -114,10 +132,11 @@ fn mkenv(sender: impl Into<HumanAddr>) -> Env {
     mock_env(sender, &[])
 }
 
-impl Into<InitMsg> for &State {
+impl Into<InitMsg> for &Config<HumanAddr> {
     fn into(self) -> InitMsg {
         InitMsg {
-            pair_contract: self.pair_contract.clone()
+            pair_contract: self.pair_contract.clone(),
+            amm_settings: todo!(),
         }
     }
 }

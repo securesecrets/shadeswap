@@ -1,8 +1,9 @@
 [workspace]
 members = [
     "packages/shadeswap-shared",
-    "contracts/pair",
-    "contracts/factory"
+    "contracts/amm_pair",
+    "contracts/factory",
+    "contracts/router"
 ]
 
 [profile.release]

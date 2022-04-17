@@ -1,7 +1,10 @@
-use crate::state::get_amm_pairs;
+use crate::state::load_amm_pairs;
+use crate::state::save_amm_pairs;
+use secret_toolkit::utils::HandleCallback;
 use secret_toolkit::utils::InitCallback;
 use shadeswap_shared::Pagination;
 use shadeswap_shared::TokenPair;
+use shadeswap_shared::amm_pair::AMMPair;
 use shadeswap_shared::msg::factory::QueryResponse;
 use shadeswap_shared::{
     fadroma::{
@@ -43,9 +46,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     return match msg {
-        HandleMsg::CreatePair {} => create_pair(deps, env),
+        HandleMsg::CreateAMMPair {} => create_pair(deps, env),
         HandleMsg::SetConfig { .. } => set_config(deps, env, msg),
-        HandleMsg::AddPair { pair, signature } => add_pair(deps, env, pair, signature),
+        HandleMsg::AddAMMPairs { ammPairs } => add_amm_pairs(deps, env, ammPairs),
+        HandleMsg:: RegisterAMMPair{} => todo!()
     };
 }
 
@@ -54,16 +58,21 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ListPairs { pagination } => list_pairs(deps, pagination),
+        QueryMsg::GetConfig {} => get_config(deps),
+        QueryMsg::ListAMMPairs { pagination } => list_pairs(deps, pagination),
+        QueryMsg::GetAMMPairAddress {  } => todo!(),
+        QueryMsg::GetAMMSettings => todo!(),
     }
 }
 
-pub fn add_pair<S: Storage, A: Api, Q: Querier>(
+pub fn add_amm_pairs<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    pair: TokenPair<HumanAddr>,
-    signature: Binary,
+    amm_pairs: Vec<AMMPair<HumanAddr>>
 ) -> StdResult<HandleResponse> {
+
+    save_amm_pairs(deps, amm_pairs)?;
+
     Ok(HandleResponse {
         messages: vec![],
         log: vec![],
@@ -75,7 +84,7 @@ pub fn list_pairs<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     pagination: Pagination,
 ) -> StdResult<Binary> {
-    let amm_pairs = get_amm_pairs(deps, pagination)?;
+    let amm_pairs = load_amm_pairs(deps, pagination)?;
 
     to_binary(&QueryResponse::ListAMMPairs {  amm_pairs })
 }
@@ -104,6 +113,18 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
     }
 }
 
+pub fn get_config<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<Binary> {
+    let Config {
+        pair_contract,
+        amm_settings
+    } = config_read(deps)?;
+
+    to_binary(&QueryResponse::Config {
+        pair_contract,
+        amm_settings
+    })
+}
+
 pub fn create_pair<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     _env: Env,
@@ -122,14 +143,3 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
         data: None,
     })
 }
-
-/*
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::GetCount {} => to_binary(&query_count(deps)?),
-    }
-}
-*/

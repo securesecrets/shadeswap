@@ -13,14 +13,15 @@ use shadeswap_shared::{
         scrt_link::{ContractInstantiationInfo, ContractLink},
         scrt_storage::{load, ns_load, ns_remove, ns_save, save},
     },
-    Pagination,
+    Pagination, TokenType, TokenPair,
 };
 
 use secret_toolkit::utils::{HandleCallback, InitCallback, Query};
 
 use crate::msg::InitMsg;
 
-const NS_EXCHANGES: &[u8] = b"exchanges";
+const NS_AMM_PAIRS: &[u8] = b"amm_pairs";
+const AMM_PAIR_COUNT_KEY : &[u8] = b"amm_pairs_count";
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub const PAGINATION_LIMIT: u8 = 30;
@@ -72,11 +73,61 @@ pub fn config_read<S: Storage, A: Api, Q: Querier>(
         .humanize(&deps.api)
 }
 
-pub(crate) fn get_amm_pairs<S: Storage, A: Api, Q: Querier>(
+pub(crate) fn generate_pair_key(pair: &TokenPair<CanonicalAddr>) -> Vec<u8> {
+    let mut bytes: Vec<&[u8]> = Vec::new();
+
+    match &pair.0 {
+        TokenType::NativeToken { denom } => bytes.push(denom.as_bytes()),
+        TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_slice()),
+    }
+
+    match &pair.1 {
+        TokenType::NativeToken { denom } => bytes.push(denom.as_bytes()),
+        TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_slice()),
+    }
+
+    bytes.sort();
+
+    bytes.concat()
+}
+
+pub(crate) fn save_amm_pairs<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    exchanges: Vec<AMMPair<HumanAddr>>,
+) -> StdResult<()> {
+    let mut count = load_amm_pairs_count(&deps.storage)?;
+
+    for exchange in exchanges {
+        let exchange = exchange.canonize(&deps.api)?;
+        let key = generate_pair_key(&exchange.pair);
+
+        let result: Option<CanonicalAddr> = ns_load(&deps.storage, NS_AMM_PAIRS, &key)?;
+        if result.is_some() {
+            return Err(StdError::generic_err(format!(
+                "Exchange ({}) already exists",
+                exchange.pair
+            )));
+        }
+        ns_save(&mut deps.storage, NS_AMM_PAIRS, &key, &exchange.address)?;
+        ns_save(
+            &mut deps.storage,
+            NS_AMM_PAIRS,
+            count.to_string().as_bytes(),
+            &exchange,
+        )?;
+         
+        count += 1;
+    }
+
+    save_amm_pairs_count(&mut deps.storage, count)
+}
+
+
+pub(crate) fn load_amm_pairs<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     pagination: Pagination,
 ) -> StdResult<Vec<AMMPair<HumanAddr>>> {
-    let count = 0;
+    let count = load_amm_pairs_count(&deps.storage)?;
 
     if pagination.start >= count {
         return Ok(vec![]);
@@ -89,11 +140,21 @@ pub(crate) fn get_amm_pairs<S: Storage, A: Api, Q: Querier>(
 
     for i in pagination.start..end {
         let exchange: AMMPair<CanonicalAddr> =
-            ns_load(&deps.storage, NS_EXCHANGES, i.to_string().as_bytes())?
+            ns_load(&deps.storage, NS_AMM_PAIRS, i.to_string().as_bytes())?
                 .ok_or_else(|| StdError::generic_err("AMMPair doesn't exist in storage."))?;
 
         result.push(exchange.humanize(&deps.api)?);
     }
 
     Ok(result)
+}
+
+#[inline]
+pub fn load_amm_pairs_count(storage: &impl Storage) -> StdResult<u64> {
+    Ok(load(storage, AMM_PAIR_COUNT_KEY)?.unwrap_or(0))
+}
+
+#[inline]
+pub fn save_amm_pairs_count(storage: &mut impl Storage, count: u64) -> StdResult<()> {
+    save(storage, AMM_PAIR_COUNT_KEY, &count)
 }

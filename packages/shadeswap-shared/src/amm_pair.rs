@@ -36,16 +36,16 @@ impl Humanize<AMMPair<HumanAddr>> for AMMPair<CanonicalAddr> {
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
 pub struct AMMSettings<A> {
     pub swap_fee: Fee,
-    pub sienna_fee: Fee,
-    pub sienna_burner: Option<A>,
+    pub shadeswap_fee: Fee,
+    pub shadeswap_burner: Option<A>,
 }
 
 impl AMMSettings<HumanAddr> {
     pub fn canonize(&self, api: &impl Api) -> StdResult<AMMSettings<CanonicalAddr>> {
         Ok(AMMSettings {
             swap_fee: self.swap_fee,
-            sienna_fee: self.sienna_fee,
-            sienna_burner: if let Some(info) = &self.sienna_burner {
+            shadeswap_fee: self.shadeswap_fee,
+            shadeswap_burner: if let Some(info) = &self.shadeswap_burner {
                 Some(info.canonize(api)?)
             } else {
                 None
@@ -58,8 +58,8 @@ impl AMMSettings<CanonicalAddr> {
     pub fn humanize(self, api: &impl Api) -> StdResult<AMMSettings<HumanAddr>> {
         Ok(AMMSettings {
             swap_fee: self.swap_fee,
-            sienna_fee: self.sienna_fee,
-            sienna_burner: if let Some(info) = self.sienna_burner {
+            shadeswap_fee: self.shadeswap_fee,
+            shadeswap_burner: if let Some(info) = self.shadeswap_burner {
                 Some(info.humanize(api)?)
             } else {
                 None

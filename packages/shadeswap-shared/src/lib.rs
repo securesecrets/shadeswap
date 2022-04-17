@@ -7,6 +7,7 @@ pub use token_pair::*;
 pub use token_type::*;
 mod token_pair;
 mod token_type;
+mod display;
 
 #[cfg(not(target_arch = "wasm32"))]
 

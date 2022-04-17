@@ -1,4 +1,6 @@
 
+use shadeswap_shared::amm_pair::Fee;
+use shadeswap_shared::amm_pair::AMMSettings;
 pub use shadeswap_shared::{
     fadroma::{
         scrt_addr::Canonize,
@@ -20,12 +22,18 @@ use crate::msg::InitMsg;
 use crate::state::Config;
 
 #[cfg(test)]
-pub mod tests {
-    use super::*;
+pub mod test_contract {
+    use crate::contract::handle;
+    use crate::contract::query;
+    use crate::msg::HandleMsg;
+    use crate::msg::QueryMsg;
+    use crate::state::PAGINATION_LIMIT;
+use super::*;
     use crate::contract::create_pair;
     use crate::contract::init;
     use crate::state::config_read;
     use crate::state::config_write;
+    use shadeswap_shared::amm_pair::AMMPair;
     pub use shadeswap_shared::{
         fadroma::{
             scrt_addr::Canonize,
@@ -43,7 +51,7 @@ pub mod tests {
     };
 
     #[test]
-    fn ok_init() -> StdResult<()> {
+    fn init_ok() -> StdResult<()> {
         let ref mut deps = mkdeps();
         let env = mkenv("admin");
         let config = mkconfig(0);
@@ -52,8 +60,29 @@ pub mod tests {
         Ok(())
     }
 
+
     #[test]
-    fn create_pair_ok() -> StdResult<()> {
+    fn get_set_config_ok() -> StdResult<()> {
+        let ref mut deps = mkdeps();
+        let env = mkenv("admin");
+        init(deps, env.clone(), (&mkconfig(0)).into());
+
+        let new_config = mkconfig(5);
+        handle(
+            deps,
+            env,
+            HandleMsg::SetConfig { pair_contract: Some(new_config.pair_contract.clone())}
+        )
+        .unwrap();
+
+        let response: QueryResponse = from_binary(&query(deps, QueryMsg::GetConfig {})?)?;
+        let compare: QueryResponse = (&new_config).into();
+        assert_eq!(compare, response);
+        Ok(())
+    }
+
+    #[test]
+    fn create_amm_pair_ok() -> StdResult<()> {
         let ref mut deps = mkdeps();
         let config = mkconfig(0);
 
@@ -63,6 +92,60 @@ pub mod tests {
 
         assert!(result.is_ok());
         Ok(())
+    }
+    
+    #[test]
+    fn add_amm_pairs() {
+        let ref mut deps = mkdeps();
+        let config = mkconfig(0);
+        let env = mkenv("admin");
+
+        init(deps, env.clone(), (&config).into()).unwrap();
+
+        let mut amm_pairs: Vec<AMMPair<HumanAddr>> = vec![];
+
+        for i in 0..5 {
+            amm_pairs.push(AMMPair {
+                pair: TokenPair::<HumanAddr>(
+                    TokenType::CustomToken {
+                        contract_addr: format!("token_0_addr_{}", i).into(),
+                        token_code_hash: format!("token_0_hash_{}", i),
+                    },
+                    TokenType::CustomToken {
+                        contract_addr: format!("token_1_addr_{}", i).into(),
+                        token_code_hash: format!("token_1_hash_{}", i),
+                    },
+                ),
+                address: format!("pair_addr_{}", i).into(),
+            });
+        }
+
+        handle(
+            deps,
+            env,
+            HandleMsg::AddAMMPairs {
+                ammPairs: amm_pairs.clone()[0..].into(),
+            },
+        )
+        .unwrap();
+
+        let result = query(
+            deps,
+            QueryMsg::ListAMMPairs {
+                pagination: pagination(0, PAGINATION_LIMIT),
+            },
+        )
+        .unwrap();
+
+        let response: QueryResponse = from_binary(&result).unwrap();
+
+        match response {
+            QueryResponse::ListAMMPairs { amm_pairs: stored } => {
+                assert_eq!(amm_pairs, stored)
+            }
+            _ => panic!("QueryResponse::ListExchanges"),
+        }
+
     }
 
     /*
@@ -114,13 +197,130 @@ pub mod tests {
     }*/
 }
 
+pub mod test_state {
+    use shadeswap_shared::amm_pair::AMMPair;
+
+    use crate::state::{save_amm_pairs_count, load_amm_pairs_count, save_amm_pairs, load_amm_pairs, generate_pair_key};
+
+    use super::*;
+
+    fn swap_pair<A: Clone>(pair: &TokenPair<A>) -> TokenPair<A> {
+        TokenPair(pair.1.clone(), pair.0.clone())
+    }
+
+    #[test]
+    fn generate_pair_key_ok() -> StdResult<()> {
+        fn cmp_pair<S: Storage, A: Api, Q: Querier>(
+            deps: &Extern<S, A, Q>,
+            pair: TokenPair<HumanAddr>,
+        ) -> StdResult<()> {
+            let stored_pair = pair.canonize(&deps.api)?;
+            let key = generate_pair_key(&stored_pair);
+
+            let pair = swap_pair(&pair);
+
+            let stored_pair = pair.canonize(&deps.api)?;
+            let swapped_key = generate_pair_key(&stored_pair);
+
+            assert_eq!(key, swapped_key);
+
+            Ok(())
+        }
+
+        let ref deps = mkdeps();
+
+        cmp_pair(
+            deps,
+            TokenPair(
+                TokenType::CustomToken {
+                    contract_addr: HumanAddr("first_addr".into()),
+                    token_code_hash: "13123adasd".into(),
+                },
+                TokenType::CustomToken {
+                    contract_addr: HumanAddr("scnd_addr".into()),
+                    token_code_hash: "4534qwerqqw".into(),
+                },
+            ),
+        )?;
+
+        cmp_pair(
+            deps,
+            TokenPair(
+                TokenType::NativeToken {
+                    denom: "test1".into(),
+                },
+                TokenType::NativeToken {
+                    denom: "test2".into(),
+                },
+            ),
+        )?;
+
+        cmp_pair(
+            deps,
+            TokenPair(
+                TokenType::NativeToken {
+                    denom: "test3".into(),
+                },
+                TokenType::CustomToken {
+                    contract_addr: HumanAddr("third_addr".into()),
+                    token_code_hash: "asd21312asd".into(),
+                },
+            ),
+        )?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn store_and_get_amm_pairs_ok() {
+        let ref mut deps = mkdeps();
+        let mut amm_pairs: Vec<AMMPair<HumanAddr>> = vec![];
+        amm_pairs.push(AMMPair {
+            pair: TokenPair::<HumanAddr>(
+                TokenType::CustomToken {
+                    contract_addr: format!("token_0_addr_{}", 0).into(),
+                    token_code_hash: format!("token_0_hash_{}", 0),
+                },
+                TokenType::CustomToken {
+                    contract_addr: format!("token_1_addr_{}", 0).into(),
+                    token_code_hash: format!("token_1_hash_{}", 0),
+                },
+            ),
+            address: format!("pair_addr_{}", 0).into(),
+        });
+        save_amm_pairs(deps, amm_pairs.clone()).unwrap();
+        let result = load_amm_pairs(deps, pagination(0, 1)).unwrap();
+
+        //Check Count was updated
+        assert_eq!(1, load_amm_pairs_count(&mut deps.storage).unwrap());
+
+        //Check number of result was returned
+        assert_eq!(1, result.len());
+
+        //Match result
+        assert_eq!(amm_pairs[0], result[0]);
+    }
+
+    #[test]
+    fn save_and_load_amm_pairs_count_ok() {
+        let ref mut deps = mkdeps();
+        save_amm_pairs_count(&mut deps.storage, 1).unwrap();
+        assert_eq!(1, load_amm_pairs_count(&mut deps.storage).unwrap());
+        assert_ne!(2, load_amm_pairs_count(&mut deps.storage).unwrap())
+    }
+}
+
 fn mkconfig(id: u64) -> Config<HumanAddr> {
     Config::from_init_msg(InitMsg {
         pair_contract: ContractInstantiationInfo {
             id,
             code_hash: "2341586789".into(),
         },
-        amm_settings: todo!(),
+        amm_settings: AMMSettings {
+            swap_fee: Fee::new(28, 10000),
+            shadeswap_fee: Fee::new(2, 10000),
+            shadeswap_burner: None,
+        },
     })
 }
 
@@ -132,11 +332,28 @@ fn mkenv(sender: impl Into<HumanAddr>) -> Env {
     mock_env(sender, &[])
 }
 
+fn pagination(start: u64, limit: u8) -> Pagination {
+    Pagination { start, limit }
+}
+
 impl Into<InitMsg> for &Config<HumanAddr> {
     fn into(self) -> InitMsg {
         InitMsg {
             pair_contract: self.pair_contract.clone(),
-            amm_settings: todo!(),
+            amm_settings: AMMSettings {
+                swap_fee: Fee::new(28, 10000),
+                shadeswap_fee: Fee::new(2, 10000),
+                shadeswap_burner: None,
+            },
+        }
+    }
+}
+
+impl Into<QueryResponse> for &Config<HumanAddr> {
+    fn into(self) -> QueryResponse {
+        QueryResponse::Config {
+            pair_contract: self.pair_contract.clone(),
+            amm_settings: self.amm_settings.clone(),
         }
     }
 }

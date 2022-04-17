@@ -39,8 +39,9 @@ pub mod amm_pair {
 }
 
 pub mod factory {
-    use crate::fadroma::HumanAddr;
-use schemars::JsonSchema;
+    use crate::{fadroma::HumanAddr, amm_pair::AMMSettings};
+    use fadroma::ContractInstantiationInfo;
+    use schemars::JsonSchema;
     use serde::{Serialize, Deserialize};
 
     use crate::amm_pair::AMMPair;
@@ -51,6 +52,10 @@ use schemars::JsonSchema;
     pub enum QueryResponse{
         ListAMMPairs {
             amm_pairs: Vec<AMMPair<HumanAddr>>,
-        }
+        },
+        Config {
+            pair_contract: ContractInstantiationInfo,
+            amm_settings: AMMSettings<HumanAddr>
+        } 
     }
 }

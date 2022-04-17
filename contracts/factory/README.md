@@ -21,3 +21,25 @@ View code
 `INIT='{"count": 100000000}'`
 `CODE_ID=1`
 `secretcli tx compute instantiate $CODE_ID "$INIT" --from a --label "my counter" -y --keyring-backend test`
+
+
+
+# sSCRT Staking Contract
+# Overseer Contract
+* [Introduction](#Introduction)
+* [Sections](#Sections)
+    * [Init](#Init)
+    * [Admin](#Admin)
+        * Messages
+            * [SetConfig](#SetConfig)
+            * [CreateAMMPair](#CreateAMMPair)
+            * [AddAMMPairs](#AddAMMPairs)
+    * [User](#User)
+        * Queries
+            * [GetConfig](#GetConfig)
+            * [GetAMMPairAddress](#GetAMMPairAddress)
+            * [ListAMMPairs](#ListAMMPairs)
+            * [GetAMMSettings](#GetAMMSettings)
+    * [Hooks](#Hook)
+        * Messages
+            * [RegisterAMMPair](#RegisterAMMPair)

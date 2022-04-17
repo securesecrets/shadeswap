@@ -1,3 +1,4 @@
+use shadeswap_shared::amm_pair::AMMPair;
 use shadeswap_shared::{Pagination, amm_pair::AMMSettings};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -21,20 +22,24 @@ pub enum HandleMsg {
     SetConfig {
         pair_contract: Option<ContractInstantiationInfo>,
     },
-    CreatePair { },
-    AddPair {
-        pair: TokenPair<HumanAddr>,
-        signature: Binary,
-    }
+    CreateAMMPair { },
+    AddAMMPairs {
+        ammPairs: Vec<AMMPair<HumanAddr>>
+    },
+    RegisterAMMPair { }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     // GetCount returns the current count as a json-encoded number
-    ListPairs {
+    ListAMMPairs {
         pagination: Pagination
     },
+    GetAMMPairAddress {
+    },
+    GetAMMSettings,
+    GetConfig
 }
 
 // We define a custom struct for each query response

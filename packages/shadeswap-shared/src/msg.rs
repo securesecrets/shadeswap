@@ -1,6 +1,14 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use amm_
+use fadroma::{    
+    scrt_callback::Callback,
+    scrt_link::{ContractLink, ContractInstantiationInfo},
+    scrt::{Binary, Decimal, HumanAddr, Uint128},
+};
+
+use crate::token_pair_amount::TokenPairAmount;
+use crate::token_type_amount::TokenTypeAmount;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
     pub count: i32,
@@ -25,13 +33,15 @@ pub struct CountResponse {
 }
 
 pub mod amm_pair {
+    use super::*;
     use crate::amm_pair::AMMPair;
     use serde::{Deserialize, Serialize};
     use schemars::JsonSchema;
     use secret_toolkit::utils::{InitCallback, HandleCallback, Query};
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-    pub struct InitMsg {       
+    pub struct InitMsg {      
+        pub symbol: String, 
         pub amm_pair: AMMPair<HumanAddr>,
         pub lp_token_contract: ContractInstantiationInfo,      
         pub factory_info: ContractLink<HumanAddr>,
@@ -86,7 +96,7 @@ pub mod amm_pair {
         PairInfo {
             liquidity_token: ContractLink<HumanAddr>,
             factory: ContractLink<HumanAddr>,
-            pair: TokenPair<HumanAddr>,
+            amm_pair: AMMPair<HumanAddr>,
             amount_0: Uint128,
             amount_1: Uint128,
             total_liquidity: Uint128,

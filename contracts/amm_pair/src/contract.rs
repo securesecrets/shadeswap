@@ -1,4 +1,3 @@
-use token::{{TokenType, TokenTypeAmount, TokenPairAmount}};
 use shadeswap_shared::msg::amm_pair::{InitMsg, HandleMsg, InvokeMsg};
 use crate::state::{Config, store_config, load_config};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
@@ -14,9 +13,9 @@ use shadeswap_shared::{
         scrt_callback::Callback,
         scrt_link::ContractLink,
         scrt_vk::ViewingKey,
-    }
+    },
+    composable_snip20::msg::{InitMsg as Snip20ComposableMsg, InitConfig as Snip20ComposableConfig},
 };
-use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip20ComposableConfig}};
 
 const PAIR_CONTRACT_VERSION: u32 = 1;
 pub const BLOCK_SIZE: usize = 256;
@@ -26,7 +25,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
-    if msg.pair.0 == msg.pair.1 {
+    if msg.amm_pair.0 == msg.amm_pair.1 {
         return Err(StdError::generic_err(
             "Creating Pair Contract with the same token.",
         ));
@@ -36,16 +35,16 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 
     let viewing_key = ViewingKey::new(&env, msg.prng_seed.as_slice(), msg.entropy.as_slice());
 
-    register_pair_token(&env, &mut messages, &msg.pair.0, &viewing_key)?;
-    register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;
+    register_pair_token(&env, &mut messages, &msg.amm_pair.pair.0, &viewing_key)?;
+    register_pair_token(&env, &mut messages, &msg.amm_pair.pair.1, &viewing_key)?;
 
     // Create LP token and store it
     messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
         msg: to_binary(&Snip20ComposableMsg {
             name: format!(
-                "ShadeSwap Pair Contract Provider (LP) token for {}-{}",
-                &msg.pair.0, &msg.pair.1
+                "ShadeSwap AMM Pair Contract Provider (LP) token for {}-{}",
+                &msg.amm_pair.pair.0, &msg.amm_pair.pair.1
             ),
             admin: Some(env.contract.address.clone()),
             symbol: msg.symbol.to_string(),
@@ -71,13 +70,11 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         send: vec![],
         label: format!(
             "{}-{}-ShadeSwap-Pair-Token-{}",
-            &msg.pair.0, &msg.pair.1, &env.contract.address
+            &msg.amm_pair.pair.0, &msg.amm_pair.pair.1, &env.contract.address
         ),
         callback_code_hash: msg.lp_token_contract.code_hash.clone(),
     }));
 
-    // Execute the HandleMsg::RegisterExchange method of
-    // the factory contract in order to register this address
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: msg.callback.contract.address,
         callback_code_hash: msg.callback.contract.code_hash,
@@ -86,15 +83,16 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     }));
 
     let config = Config {
+        symbol: msg.symbol,
         factory_info: msg.factory_info,
         lp_token_info: ContractLink {
             code_hash: msg.lp_token_contract.code_hash,
             // We get the address when the instantiated LP token calls OnLpTokenInit
             address: HumanAddr::default(),
         },
-        pair: msg.pair,
+        amm_pair: msg.amm_pair,
         contract_addr: env.contract.address.clone(),
-        viewing_key,
+        //viewing_key,
     };
 
     store_config(deps, &config)?;

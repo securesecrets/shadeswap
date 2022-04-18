@@ -6,8 +6,8 @@ use fadroma::{
     scrt::{Binary, Decimal, HumanAddr, Uint128},
 };
 
-use crate::token_pair_amount::TokenPairAmount;
-use crate::token_type_amount::TokenTypeAmount;
+use crate::token_pair_amount::{TokenPairAmount};
+use crate::token_type_amount::{TokenTypeAmount};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {

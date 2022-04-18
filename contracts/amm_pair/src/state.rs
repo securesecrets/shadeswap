@@ -7,47 +7,49 @@ use shadeswap_shared::{
             Querier, StdResult, Storage, StdError
         },
         scrt_storage::{load, save}
-    }
+    },
+    amm_pair::AMMPair
 };
+
 use serde::{Serialize,Deserialize};
-use crate::amm_pair::AMMPair;
 
 pub static CONFIG_KEY: &[u8] = b"config";
 
-use token::TokenPair;
+
 pub const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub(crate) struct Config<A: Clone> {
+    pub symbol:        String,
     pub factory_info:  ContractLink<A>,
     pub lp_token_info: ContractLink<A>,
-    pub pair:          AMMPair<A>,
+    pub amm_pair:          AMMPair<A>,
     pub contract_addr: A,
-    pub viewing_key:ViewingKey,
+    //pub viewing_key:ViewingKey,
 }
 
 
 impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
     fn canonize (&self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
         Ok(Config {
-            symbol:        self.symbol.canonize(api)?,
+            symbol:        self.symbol.to_string(),
             factory_info:  self.factory_info.canonize(api)?,
             lp_token_info: self.lp_token_info.canonize(api)?,
-            amm_pair:      self.pair.canonize(api)?,
+            amm_pair:      self.amm_pair.canonize(api)?,
             contract_addr: self.contract_addr.canonize(api)?,
-            viewing_key:   self.viewing_key.clone()
+           //  viewing_key:   self.viewing_key.clone()
         })
     }
 }
 impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
     fn humanize (&self, api: &impl Api) -> StdResult<Config<HumanAddr>> {
         Ok(Config {
-            symbol:        self.symbol.humanize(api)?,
+            symbol:        self.symbol.to_string(),
             factory_info:  self.factory_info.humanize(api)?,
             lp_token_info: self.lp_token_info.humanize(api)?,
             amm_pair:      self.amm_pair.humanize(api)?,
             contract_addr: self.contract_addr.humanize(api)?,
-            viewing_key:   self.viewing_key.clone()
+           // viewing_key:   self.viewing_key.clone()
         })
     }
 }

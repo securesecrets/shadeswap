@@ -49,6 +49,7 @@ fadroma = { path = "../../libraries/fadroma-next/lib", features = [
   "scrt-admin",
   "scrt-vk"
 ] }
+composable-snip20 = { path = "../../libraries/fadroma-next/lib/composable-snip20" }
 
 [dev-dependencies]
 cosmwasm-schema = "0.10.1"

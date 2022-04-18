@@ -39,7 +39,7 @@ serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 schemars = "0.7"
 cosmwasm-std = { version = "0.10", package = "secret-cosmwasm-std" }
 cosmwasm-storage = { version = "0.10", package = "secret-cosmwasm-storage" }
-# secret-toolkit = "0.2.0" # Uncomment this for extra tools
+secret-toolkit = "0.2.0" # Uncomment this for extra tools
 
 [dev-dependencies]
 cosmwasm-schema = "0.10.1"

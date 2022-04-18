@@ -1,19 +1,16 @@
 use shadeswap_shared::{
     fadroma::{
-        scrt_link::{ContractLink},
+        scrt_link::{ContractLink},    
+        scrt_addr::{Humanize, Canonize},
+        scrt::{
+            Api, CanonicalAddr, Extern, HumanAddr, Uint128,
+            Querier, StdResult, Storage, StdError
+        },
+        scrt_storage::{load, save}
     }
-    fadroma::
-    fadroma::scrt_addr::{Humanize, Canonize}
-    fadroma::scrt::{
-    Api, CanonicalAddr, Extern, HumanAddr, Uint128,
-    Querier, StdResult, Storage, StdError
-    }
-    amm_pair::AMMPair
 };
-use 
-use fadroma::scrt_storage::{load, save};
-}
 use serde::{Serialize,Deserialize};
+use crate::amm_pair::AMMPair;
 
 pub static CONFIG_KEY: &[u8] = b"config";
 
@@ -33,9 +30,10 @@ pub(crate) struct Config<A: Clone> {
 impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
     fn canonize (&self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
         Ok(Config {
+            symbol:        self.symbol.canonize(api)?,
             factory_info:  self.factory_info.canonize(api)?,
             lp_token_info: self.lp_token_info.canonize(api)?,
-            pair:          self.pair.canonize(api)?,
+            amm_pair:      self.pair.canonize(api)?,
             contract_addr: self.contract_addr.canonize(api)?,
             viewing_key:   self.viewing_key.clone()
         })
@@ -44,9 +42,10 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
 impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
     fn humanize (&self, api: &impl Api) -> StdResult<Config<HumanAddr>> {
         Ok(Config {
+            symbol:        self.symbol.humanize(api)?,
             factory_info:  self.factory_info.humanize(api)?,
             lp_token_info: self.lp_token_info.humanize(api)?,
-            pair:          self.pair.humanize(api)?,
+            amm_pair:      self.amm_pair.humanize(api)?,
             contract_addr: self.contract_addr.humanize(api)?,
             viewing_key:   self.viewing_key.clone()
         })

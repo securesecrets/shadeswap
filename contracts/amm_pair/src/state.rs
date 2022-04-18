@@ -3,11 +3,12 @@ use shadeswap_shared::{
         scrt_link::{ContractLink},
     }
     fadroma::
-    fadroma::scrt_addr::{Humanize, Canonize};
+    fadroma::scrt_addr::{Humanize, Canonize}
     fadroma::scrt::{
     Api, CanonicalAddr, Extern, HumanAddr, Uint128,
     Querier, StdResult, Storage, StdError
     }
+    amm_pair::AMMPair
 };
 use 
 use fadroma::scrt_storage::{load, save};
@@ -23,7 +24,7 @@ pub const BLOCK_SIZE: usize = 256;
 pub(crate) struct Config<A: Clone> {
     pub factory_info:  ContractLink<A>,
     pub lp_token_info: ContractLink<A>,
-    pub pair:          TokenPair<A>,
+    pub pair:          AMMPair<A>,
     pub contract_addr: A,
     pub viewing_key:ViewingKey,
 }

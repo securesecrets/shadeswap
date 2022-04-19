@@ -56,6 +56,12 @@ pub mod factory {
         Config {
             pair_contract: ContractInstantiationInfo,
             amm_settings: AMMSettings<HumanAddr>
-        } 
+        },
+        GetAMMPairAddress {
+            address: HumanAddr
+        },
+        GetAMMSettings {
+            settings: AMMSettings<HumanAddr>,
+        }
     }
 }

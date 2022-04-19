@@ -23,7 +23,9 @@ use crate::state::Config;
 
 #[cfg(test)]
 pub mod test_contract {
-    use crate::contract::handle;
+    use crate::contract::create_signature;
+use crate::contract::EPHEMERAL_STORAGE_KEY;
+use crate::contract::handle;
     use crate::contract::query;
     use crate::msg::HandleMsg;
     use crate::msg::QueryMsg;
@@ -84,6 +86,45 @@ use super::*;
     #[test]
     fn create_amm_pair_ok() -> StdResult<()> {
         let ref mut deps = mkdeps();
+        let env = mkenv("admin");
+        let config = mkconfig(0);
+
+        config_write(deps, &config)?;
+
+        let signature = create_signature(&env)?;
+        save(&mut deps.storage, EPHEMERAL_STORAGE_KEY, &signature)?;
+
+        let pair = TokenPair(
+            TokenType::CustomToken {
+                contract_addr: HumanAddr("token_addr".into()),
+                token_code_hash: "13123adasd".into(),
+            },
+            TokenType::NativeToken {
+                denom: "test1".into(),
+            },
+        );
+
+        handle(
+            deps,
+            env,
+            HandleMsg::RegisterAMMPair { 
+                pair: pair.clone(),
+                signature,
+            },
+        )?;
+
+        let result: Option<Binary> = load(&deps.storage, EPHEMERAL_STORAGE_KEY)?;
+        match result {
+            None => {}
+            _ => panic!("Ephemeral storage should be empty!"),
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn register_amm_pair_ok() -> StdResult<()> {
+        let ref mut deps = mkdeps();
         let config = mkconfig(0);
 
         config_write(deps, &config)?;
@@ -124,7 +165,7 @@ use super::*;
             deps,
             env,
             HandleMsg::AddAMMPairs {
-                ammPairs: amm_pairs.clone()[0..].into(),
+                amm_pair: amm_pairs.clone()[0..].into(),
             },
         )
         .unwrap();

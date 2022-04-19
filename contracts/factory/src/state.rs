@@ -122,6 +122,17 @@ pub(crate) fn save_amm_pairs<S: Storage, A: Api, Q: Querier>(
     save_amm_pairs_count(&mut deps.storage, count)
 }
 
+pub(crate) fn get_address_for_pair<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    pair: &TokenPair<HumanAddr>,
+) -> StdResult<HumanAddr> {
+    let key = generate_pair_key(&pair.canonize(&deps.api)?);
+
+    let canonical = ns_load(&deps.storage, NS_AMM_PAIRS, &key)?
+        .ok_or_else(|| StdError::generic_err("Address doesn't exist in storage."))?;
+
+    deps.api.human_address(&canonical)
+}
 
 pub(crate) fn load_amm_pairs<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,

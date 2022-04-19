@@ -24,9 +24,12 @@ pub enum HandleMsg {
     },
     CreateAMMPair { },
     AddAMMPairs {
-        ammPairs: Vec<AMMPair<HumanAddr>>
+        amm_pair: Vec<AMMPair<HumanAddr>>
     },
-    RegisterAMMPair { }
+    RegisterAMMPair {
+        pair: TokenPair<HumanAddr>,
+        signature: Binary,
+    }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -37,6 +40,7 @@ pub enum QueryMsg {
         pagination: Pagination
     },
     GetAMMPairAddress {
+        pair: TokenPair<HumanAddr>
     },
     GetAMMSettings,
     GetConfig

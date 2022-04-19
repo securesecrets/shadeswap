@@ -3,8 +3,7 @@ use cosmwasm_std::{
     StdError, StdResult, Storage,
 };
 
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
-use crate::state::{config, config_read, State};
+use crate::{msg::{HandleMsg, InitMsg, QueryMsg}, state::{config, config_read, State}};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,

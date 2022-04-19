@@ -19,7 +19,7 @@ use shadeswap_shared::{
     },
  
 };
-use  composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip20ComposableConfig}};
+use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip20ComposableConfig}};
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
 pub const BLOCK_SIZE: usize = 256;

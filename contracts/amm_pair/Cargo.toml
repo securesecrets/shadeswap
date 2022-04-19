@@ -34,7 +34,6 @@ backtraces = ["cosmwasm-std/backtraces"]
 debug-print = ["cosmwasm-std/debug-print"]
 
 
-
 [dependencies]
 snafu = { version = "0.6.3" }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }

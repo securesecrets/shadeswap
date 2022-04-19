@@ -1,4 +1,4 @@
-use shadeswap_shared::msg::amm_pair::{{InitMsg, HandleMsg, InvokeMsg}};
+use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg, InvokeMsg, QueryMsgResponse}};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
@@ -17,11 +17,11 @@ use shadeswap_shared::{
         scrt_link::ContractLink,
         scrt_vk::ViewingKey,
     },
-    composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip20ComposableConfig}}
+ 
 };
+use  composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip20ComposableConfig}};
 
-
-const PAIR_CONTRACT_VERSION: u32 = 1;
+const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
 pub const BLOCK_SIZE: usize = 256;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
@@ -247,6 +247,31 @@ fn swap_tokens(
         ],
         data: None,
     })
+}
+
+pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
+    match msg {
+        QueryMsg::PairInfo => {
+            let config = load_config(deps)?;
+
+            let balances = config.amm_pair.pair.query_balances(
+                &deps.querier,
+                config.contract_addr,
+                config.viewing_key.0,
+            )?;
+            let total_liquidity = query_liquidity(&deps.querier, &config.lp_token_info)?;
+
+            to_binary(&QueryMsgResponse::PairInfo {
+                liquidity_token: config.lp_token_info,
+                factory: config.factory_info,
+                amm_pair: config.amm_pair,
+                amount_0: balances[0],
+                amount_1: balances[1],
+                total_liquidity,
+                contract_version: AMM_PAIR_CONTRACT_VERSION,
+            })
+        }       
+    }
 }
 
 
@@ -513,4 +538,22 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
             remove_liquidity(deps, env, amount, recipient)
         }
     }
+}
+fn query_liquidity(
+    querier: &impl Querier,
+    lp_token_info: &ContractLink<HumanAddr>,
+) -> StdResult<Uint128> {
+    let result = snip20::token_info_query(
+        querier,
+        BLOCK_SIZE,
+        lp_token_info.code_hash.clone(),
+        lp_token_info.address.clone(),
+    )?;
+
+    //If this happens, the LP token has been incorrectly configured
+    if result.total_supply.is_none() {
+        unreachable!("LP token has no available supply.");
+    }
+
+    Ok(result.total_supply.unwrap())
 }

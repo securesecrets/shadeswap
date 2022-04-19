@@ -38,7 +38,7 @@ pub mod amm_pair {
     use serde::{Deserialize, Serialize};
     use schemars::JsonSchema;
 
-    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {      
         pub symbol: String, 
         pub amm_pair: AMMPair<HumanAddr>,
@@ -49,7 +49,7 @@ pub mod amm_pair {
         pub entropy: Binary,
     }
     
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum HandleMsg {
         AddLiquidityToAMMContract {
@@ -71,7 +71,7 @@ pub mod amm_pair {
         OnLpTokenInitAddr
     }
     
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
         SwapTokens {
@@ -83,13 +83,13 @@ pub mod amm_pair {
         },
     }
     
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         PairInfo,    
     }
     
-    #[derive(Serialize, Deserialize)]
+    #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsgResponse {
         PairInfo {

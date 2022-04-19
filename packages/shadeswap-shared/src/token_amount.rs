@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::token_type::TokenType;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TokenAmount<A> {
     pub token: TokenType<A>,
     pub amount: Uint128

@@ -40,7 +40,7 @@ schemars = "0.7"
 cosmwasm-std = { version = "0.10", package = "secret-cosmwasm-std" }
 cosmwasm-storage = { version = "0.10", package = "secret-cosmwasm-storage" }
 # secret-toolkit = "0.2.0" # Uncomment this for extra tools
-secret-toolkit = { version = "0.2" }
+# secret-toolkit = { version = "0.2" }
 fadroma = { path = "../../libraries/fadroma-next/lib", features = [
   "scrt",
   "scrt-addr",
@@ -50,6 +50,8 @@ fadroma = { path = "../../libraries/fadroma-next/lib", features = [
   "scrt-admin",
   "scrt-vk"
 ] }
+
+composable-snip20 = { path = "../../libraries/fadroma-next/lib/composable-snip20" }
 
 [dev-dependencies]
 cosmwasm-schema = "0.10.1"

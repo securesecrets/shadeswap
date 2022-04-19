@@ -1,5 +1,13 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use fadroma::{    
+    scrt_callback::Callback,
+    scrt_link::{ContractLink, ContractInstantiationInfo},
+    scrt::{Binary, Decimal, HumanAddr, Uint128},
+};
+
+use crate::token_pair_amount::{TokenPairAmount};
+use crate::token_amount::{TokenAmount};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -25,16 +33,74 @@ pub struct CountResponse {
 }
 
 pub mod amm_pair {
+    use super::*;
+    use crate::amm_pair::AMMPair;
     use serde::{Deserialize, Serialize};
     use schemars::JsonSchema;
-    use secret_toolkit::utils::{InitCallback, HandleCallback, Query};
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-    pub struct InitMsg {
+    pub struct InitMsg {      
+        pub symbol: String, 
+        pub amm_pair: AMMPair<HumanAddr>,
+        pub lp_token_contract: ContractInstantiationInfo,      
+        pub factory_info: ContractLink<HumanAddr>,
+        pub callback: Callback<HumanAddr>,
+        pub prng_seed: Binary,
+        pub entropy: Binary,
     }
-
-    impl InitCallback for InitMsg {
-        const BLOCK_SIZE: usize = 256;
+    
+    #[derive(Serialize, Deserialize, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HandleMsg {
+        AddLiquidityToAMMContract {
+            deposit: TokenPairAmount<HumanAddr>,
+        },
+        SwapTokens {
+            /// The token type to swap from.
+            offer: TokenAmount<HumanAddr>,
+            expected_return: Option<Uint128>,
+            to: Option<HumanAddr>,
+        },
+        // SNIP20 receiver interface
+        ReceiveCallback {
+            from: HumanAddr,
+            msg: Option<Binary>,
+            amount: Uint128,
+        },
+        // Sent by the LP token contract so that we can record its address.
+        OnLpTokenInitAddr
+    }
+    
+    #[derive(Serialize, Deserialize, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum InvokeMsg {
+        SwapTokens {
+            expected_return: Option<Uint128>,
+            to: Option<HumanAddr>,
+        },
+        RemoveLiquidity {
+            recipient: HumanAddr,
+        },
+    }
+    
+    #[derive(Serialize, Deserialize, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum QueryMsg {
+        PairInfo,    
+    }
+    
+    #[derive(Serialize, Deserialize, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum QueryMsgResponse {
+        PairInfo {
+            liquidity_token: ContractLink<HumanAddr>,
+            factory: ContractLink<HumanAddr>,
+            amm_pair: AMMPair<HumanAddr>,
+            amount_0: Uint128,
+            amount_1: Uint128,
+            total_liquidity: Uint128,
+            contract_version: u32,
+        },
     }
 }
 
@@ -45,7 +111,6 @@ pub mod factory {
     use serde::{Serialize, Deserialize};
 
     use crate::amm_pair::AMMPair;
-
     
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]

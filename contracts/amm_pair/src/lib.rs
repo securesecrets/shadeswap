@@ -1,11 +1,10 @@
 pub mod contract;
-pub mod msg;
 pub mod state;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm {
     use super::contract;
-    use cosmwasm_std::{
+    use shadeswap_shared::fadroma::scrt::cosmwasm_std::{
         do_handle, do_init, do_query, ExternalApi, ExternalQuerier, ExternalStorage,
     };
 

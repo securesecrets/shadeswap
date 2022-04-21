@@ -43,8 +43,7 @@ pub mod amm_pair {
         pub symbol: String, 
         pub amm_pair: AMMPair<HumanAddr>,
         pub lp_token_contract: ContractInstantiationInfo,      
-        pub factory_info: ContractLink<HumanAddr>,
-        pub callback: Callback<HumanAddr>,
+        pub factory_info: ContractLink<HumanAddr>,       
         pub prng_seed: Binary,
         pub entropy: Binary,
     }

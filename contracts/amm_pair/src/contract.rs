@@ -1,11 +1,11 @@
-use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg, InvokeMsg,AMMSettings, QueryMsgResponse}};
-use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse};
+use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg, InvokeMsg,QueryMsgResponse}};
+use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
+use shadeswap_shared::amm_pair::AMMSettings;
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use crate::state::{Config, store_config, load_config};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
-use factory::msg::{QueryMsg as FactoryQueryMsg};
 use shadeswap_shared::{ 
     fadroma::{
         scrt::{
@@ -218,8 +218,9 @@ fn swap_tokens(
     recipient: Option<HumanAddr>,
     offer: TokenAmount<HumanAddr>,
     expected_return: Option<Uint128>)-> StdResult<HandleResponse>{ 
-    let swap = initial_swap(querier, &config, &offer)?;
-
+  
+    let amm_settings = query_factory_amm_settings(&querier,config.factory_info.clone());
+    let swap = initial_swap(&querier,&amm_settings, &config, &offer)?;
     if let Some(expected_return) = expected_return {
         if swap.result.return_amount.lt(&expected_return) {
             return Err(StdError::generic_err(
@@ -281,7 +282,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
 
 fn initial_swap(
     querier: &impl Querier,
-    config: &Config<HumanAddr>,
+    settings: &AMMSettings<HumanAddr>,
+    config: &Config<HumanAddr>,  
     offer: &TokenAmount<HumanAddr>
 ) -> StdResult<SwapInfo> {
     if !config.amm_pair.pair.contains(&offer.token) {
@@ -290,6 +292,9 @@ fn initial_swap(
             offer.token
         )));
     }
+  
+    let swap_fee = settings.swap_fee;
+    let commision_fee = settings.shadeswap_fee;
 
     let offer_amount = Uint256::from(offer.amount); 
     let tokens_balances = config.amm_pair.pair.query_balances(
@@ -491,7 +496,7 @@ fn query_liquidity_pair_contract(
 
 
 fn query_factory_amm_settings(
-    &querier: &impl Querier,
+    querier: &impl Querier,
     factory: ContractLink<HumanAddr>
 ) -> StdResult<AMMSettings<HumanAddr>> {
 
@@ -501,10 +506,12 @@ fn query_factory_amm_settings(
         msg: to_binary(&FactoryQueryMsg::GetAMMSettings)?,
     }))?;
 
+    if result == 
+
     match result {
         FactoryQueryResponse::GetAMMSettings { settings } => Ok(settings),
         _ => Err(StdError::generic_err(
-            "An error occurred while trying to retrieve exchange settings.",
+            "An error occurred while trying to retrieve factory settings.",
         )),
     }
 }

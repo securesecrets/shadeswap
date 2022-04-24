@@ -1,9 +1,11 @@
-use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg, InvokeMsg, QueryMsgResponse}};
+use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg, InvokeMsg,AMMSettings, QueryMsgResponse}};
+use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use crate::state::{Config, store_config, load_config};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
+use factory::msg::{QueryMsg as FactoryQueryMsg};
 use shadeswap_shared::{ 
     fadroma::{
         scrt::{
@@ -19,6 +21,8 @@ use shadeswap_shared::{
     },
  
 };
+
+
 use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip20ComposableConfig}};
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
@@ -485,6 +489,25 @@ fn query_liquidity_pair_contract(
     Ok(result.total_supply.unwrap())
 }
 
+
+fn query_factory_amm_settings(
+    &querier: &impl Querier,
+    factory: ContractLink<HumanAddr>
+) -> StdResult<AMMSettings<HumanAddr>> {
+
+    let result: FactoryQueryResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        callback_code_hash: factory.code_hash,
+        contract_addr: factory.address,
+        msg: to_binary(&FactoryQueryMsg::GetAMMSettings)?,
+    }))?;
+
+    match result {
+        FactoryQueryResponse::GetAMMSettings { settings } => Ok(settings),
+        _ => Err(StdError::generic_err(
+            "An error occurred while trying to retrieve exchange settings.",
+        )),
+    }
+}
 
 fn receiver_callback<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,

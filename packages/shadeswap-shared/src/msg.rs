@@ -43,9 +43,9 @@ pub mod amm_pair {
         pub symbol: String, 
         pub amm_pair: AMMPair<HumanAddr>,
         pub lp_token_contract: ContractInstantiationInfo,      
-        pub factory_info: ContractLink<HumanAddr>,
-        pub callback: Callback<HumanAddr>,
+        pub factory_info: ContractLink<HumanAddr>,       
         pub prng_seed: Binary,
+        pub callback: Callback<HumanAddr>,
         pub entropy: Binary,
     }
     
@@ -54,6 +54,7 @@ pub mod amm_pair {
     pub enum HandleMsg {
         AddLiquidityToAMMContract {
             deposit: TokenPairAmount<HumanAddr>,
+            slippage: Option<Decimal>,
         },
         SwapTokens {
             /// The token type to swap from.
@@ -128,5 +129,12 @@ pub mod factory {
         GetAMMSettings {
             settings: AMMSettings<HumanAddr>,
         }
+    }
+
+    #[derive(Serialize, Deserialize, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum QueryMsg {      
+        GetAMMSettings,
+        GetConfig
     }
 }

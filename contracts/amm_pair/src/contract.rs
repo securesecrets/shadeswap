@@ -1,10 +1,11 @@
-use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg, InvokeMsg,QueryMsgResponse}};
+use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg,  HandleMsg, InvokeMsg,QueryMsgResponse}};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-use shadeswap_shared::amm_pair::AMMSettings;
+use shadeswap_shared::amm_pair::{{AMMSettings, Fee}};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use crate::state::{Config, store_config, load_config};
+use crate::help_math::{{substraction, multiply}};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
 use shadeswap_shared::{ 
     fadroma::{
@@ -182,7 +183,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         } => receiver_callback(deps, env, from, amount, msg),
         HandleMsg::AddLiquidityToAMMContract {
             deposit,
-        } => add_liquidity(deps, env, deposit),
+            slippage,
+        } => add_liquidity(deps, env, deposit, slippage),
         HandleMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
         HandleMsg::SwapTokens {
             offer,
@@ -219,8 +221,8 @@ fn swap_tokens(
     offer: TokenAmount<HumanAddr>,
     expected_return: Option<Uint128>)-> StdResult<HandleResponse>{ 
   
-    let amm_settings = query_factory_amm_settings(&querier,config.factory_info.clone());
-    let swap = initial_swap(&querier,&amm_settings, &config, &offer)?;
+    let amm_settings = query_factory_amm_settings(querier,config.factory_info.clone())?;
+    let swap = initial_swap(querier, &amm_settings, &config, &offer)?;
     if let Some(expected_return) = expected_return {
         if swap.result.return_amount.lt(&expected_return) {
             return Err(StdError::generic_err(
@@ -231,6 +233,36 @@ fn swap_tokens(
 
     let mut messages = Vec::with_capacity(2);
     // Send the resulting amount of the output token
+    if let Some(shade_burner) = amm_settings.shadeswap_burner {
+        if swap.provider_fee_amount > Uint128::zero() {
+            match &offer.token{
+                TokenType::CustomToken {
+                    contract_addr,
+                    token_code_hash,
+                } =>{
+                    messages.push(snip20::transfer_msg(
+                        shade_burner,
+                        swap.provider_fee_amount,
+                        None,
+                        BLOCK_SIZE,
+                        token_code_hash.clone(),
+                        contract_addr.clone(),
+                    )?);
+                }
+                TokenType::NativeToken { denom } => {
+                    messages.push(CosmosMsg::Bank(BankMsg::Send {
+                        from_address: env.contract.address.clone(),
+                        to_address: shade_burner,
+                        amount: vec![Coin {
+                            denom: denom.clone(),
+                            amount: swap.provider_fee_amount,
+                        }],
+                    }));
+                }
+            }
+        }
+    }
+
     let index = config.amm_pair.pair.get_token_index(&offer.token).unwrap(); // Safe, checked in do_swap
     let token = config.amm_pair.pair.get_token(index ^ 1).unwrap();
 
@@ -248,7 +280,10 @@ fn swap_tokens(
             log("offer_token", offer.token),
             log("offer_amount", offer.amount),
             log("return_amount", swap.result.return_amount),
-            log("spread_amount", swap.result.spread_amount),       
+            log("spread_amount", swap.result.spread_amount),   
+            log("shade_swap_fee", swap.swap_fee_amount),
+            log("shade_total_fee", swap.total_fee_amount),
+            log("shade_provider_fee", swap.provider_fee_amount),
         ],
         data: None,
     })
@@ -279,6 +314,14 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
     }
 }
 
+fn calculate_fee(amount: Uint256, fee: Fee) 
+-> StdResult<Uint128>
+{
+  let nom = Uint256::from(fee.nom);
+  let denom = Uint256::from(fee.denom);
+  let amount = ((amount * nom)? /denom)?;
+  Ok(amount.clamp_u128()?.into())
+}
 
 fn initial_swap(
     querier: &impl Querier,
@@ -293,10 +336,13 @@ fn initial_swap(
         )));
     }
   
+    let amount = Uint256::from(offer.amount);
     let swap_fee = settings.swap_fee;
-    let commision_fee = settings.shadeswap_fee;
-
-    let offer_amount = Uint256::from(offer.amount); 
+    let provider_fee = settings.shadeswap_fee;
+    let provider_fee_amount = calculate_fee(amount, provider_fee)?;     
+    let swap_fee_amount = calculate_fee(amount,swap_fee)?;
+    let total_fee_amount = provider_fee_amount + swap_fee_amount;
+    let deducted_offer_amount = Uint256::from((offer.amount - total_fee_amount)?);
     let tokens_balances = config.amm_pair.pair.query_balances(
         querier,
         config.contract_addr.clone(),
@@ -309,11 +355,10 @@ fn initial_swap(
     // conver tand get avialble balance
     let token0_pool = Uint256::from(token0_pool);
     let token1_ppol = Uint256::from(token1_pool);
-    let offer_amount =  Uint256::from(offer_amount);
     let total_pool = (token0_pool * token1_ppol)?;
 
-    let return_amount = (token1_ppol - (total_pool / (token0_pool + offer_amount)?)?)?;    
-    let spread_amount = ((offer_amount * token1_ppol)? / token0_pool)?;
+    let return_amount = (token1_ppol - (total_pool / (token0_pool + deducted_offer_amount)?)?)?;    
+    let spread_amount = ((deducted_offer_amount * token1_ppol)? / token0_pool)?;
     let spread_amount = (spread_amount - return_amount).unwrap_or(Uint256::zero());
 
     let result_swap = SwapResult {
@@ -322,6 +367,9 @@ fn initial_swap(
     };
 
     Ok(SwapInfo {
+        swap_fee_amount: swap_fee_amount,
+        provider_fee_amount: provider_fee_amount,
+        total_fee_amount: (provider_fee_amount + swap_fee_amount),
         result: result_swap,
     })
 }
@@ -391,6 +439,7 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     deposit: TokenPairAmount<HumanAddr>,
+    slippage: Option<Decimal>,
 ) -> StdResult<HandleResponse> {
     let config = load_config(&deps)?;
 
@@ -434,6 +483,12 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         }
     }
 
+    assert_slippage_acceptance(
+        slippage,
+        &[deposit.amount_0, deposit.amount_1],
+        &pool_balances,
+    )?;
+
     let pair_contract_pool_liquidity = query_liquidity_pair_contract(&deps.querier, &lp_token_info)?;
     // if miniting pool first time
     let lp_tokens = if pair_contract_pool_liquidity == Uint128::zero() {      
@@ -474,6 +529,32 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+fn assert_slippage_acceptance(
+    slippage:Option<Decimal>,
+    deposits: &[Uint128; 2],
+    pools: &[Uint128;2]
+) -> StdResult<()> {
+
+    if slippage.is_none() {
+        return Ok(());
+    }
+
+    let slippage_amount = substraction(Decimal::one(), slippage.unwrap())?;
+
+    if multiply(Decimal::from_ratio(deposits[0], deposits[1]), 
+        slippage_amount) > Decimal::from_ratio(pools[0], pools[1])
+        || multiply(Decimal::from_ratio(deposits[1], deposits[0]),
+            slippage_amount,
+        ) > Decimal::from_ratio(pools[1], pools[0])
+    {
+        return Err(StdError::generic_err(
+            "Operation exceeds max slippage acceptance",
+        ));
+    }
+
+    Ok(())
+}
+
 
 fn query_liquidity_pair_contract(
     querier: &impl Querier,
@@ -505,8 +586,6 @@ fn query_factory_amm_settings(
         contract_addr: factory.address,
         msg: to_binary(&FactoryQueryMsg::GetAMMSettings)?,
     }))?;
-
-    if result == 
 
     match result {
         FactoryQueryResponse::GetAMMSettings { settings } => Ok(settings),

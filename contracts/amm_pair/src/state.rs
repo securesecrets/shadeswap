@@ -76,6 +76,9 @@ pub mod swapdetails {
 
     #[derive(Serialize, Deserialize,  PartialEq, Debug)]
     pub struct SwapInfo {
+        pub total_fee_amount: Uint128,
+        pub swap_fee_amount: Uint128,
+        pub provider_fee_amount: Uint128,
         pub result: SwapResult,
     }
     

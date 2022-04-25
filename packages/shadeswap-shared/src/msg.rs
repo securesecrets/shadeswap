@@ -54,6 +54,7 @@ pub mod amm_pair {
     pub enum HandleMsg {
         AddLiquidityToAMMContract {
             deposit: TokenPairAmount<HumanAddr>,
+            slippage: Option<Decimal>,
         },
         SwapTokens {
             /// The token type to swap from.

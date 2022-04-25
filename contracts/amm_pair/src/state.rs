@@ -9,7 +9,7 @@ use shadeswap_shared::{
         scrt_storage::{load, save},
         scrt_vk::ViewingKey,
     },
-    amm_pair::AMMPair
+    amm_pair::AMMPair, TokenPair
 };
 
 use serde::{Serialize,Deserialize};
@@ -22,7 +22,7 @@ pub(crate) struct Config<A: Clone> {
     pub symbol:        String,
     pub factory_info:  ContractLink<A>,
     pub lp_token_info: ContractLink<A>,
-    pub amm_pair:      AMMPair<A>,
+    pub pair:      TokenPair<A>,
     pub contract_addr: A,
     pub viewing_key: ViewingKey,
 }
@@ -34,7 +34,7 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
             symbol:        self.symbol.to_string(),
             factory_info:  self.factory_info.canonize(api)?,
             lp_token_info: self.lp_token_info.canonize(api)?,
-            amm_pair:      self.amm_pair.canonize(api)?,
+            pair:      self.pair.canonize(api)?,
             contract_addr: self.contract_addr.canonize(api)?,
             viewing_key:   self.viewing_key.clone()
         })
@@ -46,7 +46,7 @@ impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
             symbol:        self.symbol.to_string(),
             factory_info:  self.factory_info.humanize(api)?,
             lp_token_info: self.lp_token_info.humanize(api)?,
-            amm_pair:      self.amm_pair.humanize(api)?,
+            pair:      self.pair.humanize(api)?,
             contract_addr: self.contract_addr.humanize(api)?,
             viewing_key:   self.viewing_key.clone()
         })

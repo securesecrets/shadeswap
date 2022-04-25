@@ -1,9 +1,11 @@
 use crate::state::get_address_for_pair;
 use crate::state::load_amm_pairs;
+use crate::state::load_prng_seed;
 use crate::state::save_amm_pairs;
 use secret_toolkit::utils::HandleCallback;
 use secret_toolkit::utils::InitCallback;
 use shadeswap_shared::amm_pair::AMMPair;
+use shadeswap_shared::msg::factory::QueryMsg;
 use shadeswap_shared::msg::factory::QueryResponse;
 use shadeswap_shared::Pagination;
 use shadeswap_shared::TokenPair;
@@ -28,7 +30,7 @@ use shadeswap_shared::{
     msg::amm_pair::InitMsg as AMMPairInitMsg,
 };
 
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
+use crate::msg::{HandleMsg, InitMsg};
 use crate::state::{config_read, config_write, Config};
 
 pub const EPHEMERAL_STORAGE_KEY: &[u8] = b"ephemeral_storage";
@@ -49,7 +51,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     return match msg {
-        HandleMsg::CreateAMMPair {} => create_pair(deps, env),
+        HandleMsg::CreateAMMPair { pair, entropy } => create_pair(deps, env, pair, entropy),
         HandleMsg::SetConfig { .. } => set_config(deps, env, msg),
         HandleMsg::AddAMMPairs { amm_pair } => add_amm_pairs(deps, env, amm_pair),
         HandleMsg::RegisterAMMPair { pair, signature } => {
@@ -65,8 +67,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     match msg {
         QueryMsg::GetConfig {} => get_config(deps),
         QueryMsg::ListAMMPairs { pagination } => list_pairs(deps, pagination),
-        QueryMsg::GetAMMPairAddress {pair} => query_amm_pair_address(deps, pair),
-        QueryMsg::GetAMMSettings => todo!() //query_amm_settings(),
+        QueryMsg::GetAMMPairAddress { pair } => query_amm_pair_address(deps, pair),
+        QueryMsg::GetAMMSettings => todo!(), //query_amm_settings(),
     }
 }
 
@@ -131,9 +133,8 @@ pub fn query_amm_settings<S: Storage, A: Api, Q: Querier>(
 
 pub fn query_amm_pair_address<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    pair: TokenPair<HumanAddr>
-) -> StdResult<Binary>
-{       
+    pair: TokenPair<HumanAddr>,
+) -> StdResult<Binary> {
     let address = get_address_for_pair(deps, &pair)?;
     to_binary(&QueryResponse::GetAMMPairAddress { address })
 }
@@ -166,6 +167,7 @@ pub fn get_config<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> Std
     let Config {
         pair_contract,
         amm_settings,
+        lp_token_contract
     } = config_read(deps)?;
 
     to_binary(&QueryResponse::Config {
@@ -177,20 +179,42 @@ pub fn get_config<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> Std
 pub fn create_pair<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
+    pair: TokenPair<HumanAddr>,
+    entropy: Binary
 ) -> StdResult<HandleResponse> {
     let mut config = config_read(&deps)?;
 
     //Used for verifying callback
     let signature = create_signature(&env)?;
+    let symbolStr = "";
     save(&mut deps.storage, EPHEMERAL_STORAGE_KEY, &signature)?;
-
     Ok(HandleResponse {
         messages: vec![CosmosMsg::Wasm(WasmMsg::Instantiate {
             code_id: config.pair_contract.id,
             callback_code_hash: config.pair_contract.code_hash,
             send: vec![],
             label: "test".to_string(),
-            msg: to_binary(&AMMPairInitMsg {})?,
+            msg: to_binary(&AMMPairInitMsg {
+                pair: pair.clone(),
+                lp_token_contract: config.lp_token_contract.clone(),
+                factory_info: ContractLink {
+                    code_hash: env.contract_code_hash.clone(),
+                    address: env.contract.address.clone(),
+                },
+                callback: Callback {
+                    contract: ContractLink {
+                        address: env.contract.address,
+                        code_hash: env.contract_code_hash,
+                    },
+                    msg: to_binary(&HandleMsg::RegisterAMMPair { 
+                        pair: pair.clone(),
+                        signature,
+                    })?,
+                },
+                entropy,
+                prng_seed: load_prng_seed(&deps.storage)?,
+                symbol: symbolStr.to_string()
+            })?,
         })],
         log: vec![],
         data: None,

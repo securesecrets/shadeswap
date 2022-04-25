@@ -13,7 +13,7 @@ mod display;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct Pagination {
     pub start: u64,
     pub limit: u8,

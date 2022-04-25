@@ -13,7 +13,8 @@ use shadeswap_shared::{fadroma::{
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
     pub pair_contract: ContractInstantiationInfo,
-    pub amm_settings: AMMSettings<HumanAddr>
+    pub amm_settings: AMMSettings<HumanAddr>,
+    pub lp_token_contract: ContractInstantiationInfo
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -22,7 +23,10 @@ pub enum HandleMsg {
     SetConfig {
         pair_contract: Option<ContractInstantiationInfo>,
     },
-    CreateAMMPair { },
+    CreateAMMPair {
+        pair: TokenPair<HumanAddr>,
+        entropy: Binary
+    },
     AddAMMPairs {
         amm_pair: Vec<AMMPair<HumanAddr>>
     },
@@ -30,20 +34,6 @@ pub enum HandleMsg {
         pair: TokenPair<HumanAddr>,
         signature: Binary,
     }
-}
-
-#[derive(Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum QueryMsg {
-    // GetCount returns the current count as a json-encoded number
-    ListAMMPairs {
-        pagination: Pagination
-    },
-    GetAMMPairAddress {
-        pair: TokenPair<HumanAddr>
-    },
-    GetAMMSettings,
-    GetConfig
 }
 
 // We define a custom struct for each query response

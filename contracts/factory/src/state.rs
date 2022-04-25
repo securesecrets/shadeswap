@@ -22,6 +22,7 @@ use crate::msg::InitMsg;
 
 const NS_AMM_PAIRS: &[u8] = b"amm_pairs";
 const AMM_PAIR_COUNT_KEY : &[u8] = b"amm_pairs_count";
+const PRNG_KEY: &[u8] = b"prng_seed";
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub const PAGINATION_LIMIT: u8 = 30;
@@ -29,7 +30,8 @@ pub const PAGINATION_LIMIT: u8 = 30;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config<A> {
     pub pair_contract: ContractInstantiationInfo,
-    pub amm_settings: AMMSettings<A>
+    pub amm_settings: AMMSettings<A>,
+    pub lp_token_contract: ContractInstantiationInfo
 }
 
 impl Config<HumanAddr> {
@@ -37,6 +39,7 @@ impl Config<HumanAddr> {
         Self {
             pair_contract: msg.pair_contract,
             amm_settings: msg.amm_settings,
+            lp_token_contract: msg.lp_token_contract
         }
     }
 }
@@ -45,6 +48,7 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
         Ok(Config {
             pair_contract: self.pair_contract.clone(),
             amm_settings: self.amm_settings.canonize(api)?,
+            lp_token_contract: self.lp_token_contract.clone(),
         })
     }
 }
@@ -53,6 +57,7 @@ impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
         Ok(Config {
             pair_contract: self.pair_contract.clone(),
             amm_settings: self.amm_settings.clone().humanize(api)?,
+            lp_token_contract: self.lp_token_contract.clone()
         })
     }
 }
@@ -168,4 +173,9 @@ pub fn load_amm_pairs_count(storage: &impl Storage) -> StdResult<u64> {
 #[inline]
 pub fn save_amm_pairs_count(storage: &mut impl Storage, count: u64) -> StdResult<()> {
     save(storage, AMM_PAIR_COUNT_KEY, &count)
+}
+
+pub(crate) fn load_prng_seed(storage: &impl Storage) -> StdResult<Binary> {
+    let prng_seed: Option<Binary> = load(storage, PRNG_KEY)?;
+    prng_seed.ok_or(StdError::generic_err("Prng seed doesn't exist in storage."))
 }

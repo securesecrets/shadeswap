@@ -1,6 +1,7 @@
 use fadroma::{
     scrt::{HumanAddr, StdResult, Api, CanonicalAddr},
-    scrt_addr::{Canonize, Humanize}
+    scrt_addr::{Canonize, Humanize},
+    scrt_link::ContractLink,
 };
 use crate::token_pair::TokenPair;
 use schemars::JsonSchema;
@@ -35,21 +36,17 @@ impl Humanize<AMMPair<HumanAddr>> for AMMPair<CanonicalAddr> {
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
 pub struct AMMSettings<A> {
-    pub swap_fee: Fee,
-    pub shadeswap_fee: Fee,
-    pub shadeswap_burner: Option<A>,
+    pub lp_fee: Fee,
+    pub shade_dao_fee: Fee,
+    pub shade_dao_address: ContractLink<A>
 }
 
 impl AMMSettings<HumanAddr> {
     pub fn canonize(&self, api: &impl Api) -> StdResult<AMMSettings<CanonicalAddr>> {
         Ok(AMMSettings {
-            swap_fee: self.swap_fee,
-            shadeswap_fee: self.shadeswap_fee,
-            shadeswap_burner: if let Some(info) = &self.shadeswap_burner {
-                Some(info.canonize(api)?)
-            } else {
-                None
-            },
+            lp_fee: self.lp_fee,
+            shade_dao_fee: self.shade_dao_fee,
+            shade_dao_address: self.shade_dao_address.canonize(api)?
         })
     }
 }
@@ -57,13 +54,9 @@ impl AMMSettings<HumanAddr> {
 impl AMMSettings<CanonicalAddr> {
     pub fn humanize(self, api: &impl Api) -> StdResult<AMMSettings<HumanAddr>> {
         Ok(AMMSettings {
-            swap_fee: self.swap_fee,
-            shadeswap_fee: self.shadeswap_fee,
-            shadeswap_burner: if let Some(info) = self.shadeswap_burner {
-                Some(info.humanize(api)?)
-            } else {
-                None
-            },
+            lp_fee: self.lp_fee,
+            shade_dao_fee: self.shade_dao_fee,
+            shade_dao_address: self.shade_dao_address.humanize(api)?
         })
     }
 }

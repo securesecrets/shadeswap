@@ -40,13 +40,13 @@ pub mod amm_pair {
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {      
-        pub symbol: String, 
         pub pair: TokenPair<HumanAddr>,
         pub lp_token_contract: ContractInstantiationInfo,      
         pub factory_info: ContractLink<HumanAddr>,       
         pub prng_seed: Binary,
         pub callback: Callback<HumanAddr>,
         pub entropy: Binary,
+        pub symbol: String,
     }
     
     #[derive(Serialize, Deserialize, JsonSchema)]

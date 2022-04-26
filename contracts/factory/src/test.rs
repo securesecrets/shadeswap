@@ -28,7 +28,6 @@ use crate::contract::EPHEMERAL_STORAGE_KEY;
 use crate::contract::handle;
     use crate::contract::query;
     use crate::msg::HandleMsg;
-    use crate::msg::QueryMsg;
     use crate::state::PAGINATION_LIMIT;
 use super::*;
     use crate::contract::create_pair;
@@ -36,6 +35,7 @@ use super::*;
     use crate::state::config_read;
     use crate::state::config_write;
     use shadeswap_shared::amm_pair::AMMPair;
+    use shadeswap_shared::msg::factory::QueryMsg;
     pub use shadeswap_shared::{
         fadroma::{
             scrt_addr::Canonize,
@@ -84,7 +84,7 @@ use super::*;
     }
 
     #[test]
-    fn create_amm_pair_ok() -> StdResult<()> {
+    fn register_amm_pair_ok() -> StdResult<()> {
         let ref mut deps = mkdeps();
         let env = mkenv("admin");
         let config = mkconfig(0);
@@ -123,14 +123,27 @@ use super::*;
     }
 
     #[test]
-    fn register_amm_pair_ok() -> StdResult<()> {
+    fn create_pair_ok() -> StdResult<()> {
         let ref mut deps = mkdeps();
+        let env = mkenv("admin");
         let config = mkconfig(0);
+        assert!(init(deps, env, (&config).into()).is_ok());
 
-        config_write(deps, &config)?;
+        let pair = TokenPair(
+            TokenType::CustomToken {
+                contract_addr: HumanAddr("token_addr".into()),
+                token_code_hash: "diff".into(),
+            },
+            TokenType::CustomToken {
+                contract_addr: HumanAddr("token_addr".into()),
+                token_code_hash: "13123adasd".into(),
+            },
+        );
 
-        let result = create_pair(deps, mkenv("sender"));
-
+        let result = create_pair(deps, mkenv("sender"), pair, to_binary(&"entropy").unwrap());
+        //let error: StdError = result.unwrap_err();
+        print!("BOPOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
+        //print!("{}",error);
         assert!(result.is_ok());
         Ok(())
     }
@@ -362,6 +375,11 @@ fn mkconfig(id: u64) -> Config<HumanAddr> {
             shadeswap_fee: Fee::new(2, 10000),
             shadeswap_burner: None,
         },
+        lp_token_contract: ContractInstantiationInfo { 
+            id,
+            code_hash: "2341586789".into()
+        },
+        prng_seed: to_binary(&"prng").unwrap()
     })
 }
 
@@ -386,6 +404,8 @@ impl Into<InitMsg> for &Config<HumanAddr> {
                 shadeswap_fee: Fee::new(2, 10000),
                 shadeswap_burner: None,
             },
+            lp_token_contract: self.lp_token_contract.clone(),
+            prng_seed: to_binary(&"prng").unwrap()
         }
     }
 }

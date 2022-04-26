@@ -48,7 +48,7 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
         Ok(Config {
             pair_contract: self.pair_contract.clone(),
             amm_settings: self.amm_settings.canonize(api)?,
-            lp_token_contract: self.lp_token_contract.clone(),
+            lp_token_contract: self.lp_token_contract.clone()
         })
     }
 }
@@ -178,4 +178,8 @@ pub fn save_amm_pairs_count(storage: &mut impl Storage, count: u64) -> StdResult
 pub(crate) fn load_prng_seed(storage: &impl Storage) -> StdResult<Binary> {
     let prng_seed: Option<Binary> = load(storage, PRNG_KEY)?;
     prng_seed.ok_or(StdError::generic_err("Prng seed doesn't exist in storage."))
+}
+
+pub(crate) fn save_prng_seed(storage: &mut impl Storage, prng_seed: &Binary) -> StdResult<()> {
+    save(storage, PRNG_KEY, prng_seed)
 }

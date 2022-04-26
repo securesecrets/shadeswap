@@ -14,7 +14,8 @@ use shadeswap_shared::{fadroma::{
 pub struct InitMsg {
     pub pair_contract: ContractInstantiationInfo,
     pub amm_settings: AMMSettings<HumanAddr>,
-    pub lp_token_contract: ContractInstantiationInfo
+    pub lp_token_contract: ContractInstantiationInfo,
+    pub prng_seed: Binary
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

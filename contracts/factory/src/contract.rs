@@ -2,6 +2,7 @@ use crate::state::get_address_for_pair;
 use crate::state::load_amm_pairs;
 use crate::state::load_prng_seed;
 use crate::state::save_amm_pairs;
+use crate::state::save_prng_seed;
 use secret_toolkit::utils::HandleCallback;
 use secret_toolkit::utils::InitCallback;
 use shadeswap_shared::amm_pair::AMMPair;
@@ -40,6 +41,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
+    save_prng_seed(&mut deps.storage, &msg.prng_seed)?;
     config_write(deps, &Config::from_init_msg(msg));
 
     Ok(InitResponse::default())

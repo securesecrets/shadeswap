@@ -73,7 +73,11 @@ use super::*;
         handle(
             deps,
             env,
-            HandleMsg::SetConfig { pair_contract: Some(new_config.pair_contract.clone())}
+            HandleMsg::SetConfig { 
+                pair_contract: Some(new_config.pair_contract.clone()),
+                amm_settings: Some(new_config.amm_settings.clone()),
+                lp_token_contract: Some(new_config.lp_token_contract.clone())
+            }
         )
         .unwrap();
 

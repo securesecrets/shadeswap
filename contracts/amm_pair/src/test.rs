@@ -11,7 +11,7 @@ use shadeswap_shared::{
             from_binary, log, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg, Decimal, Env,
             Extern, HandleResponse, HumanAddr, InitResponse, Querier, QueryRequest, QueryResult,
             StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery, 
-            secret_toolkit::snip20,        
+            secret_toolkit::snip20,  BlockInfo   
         },
         scrt_uint256::Uint256,
         scrt_callback::Callback,
@@ -40,7 +40,7 @@ mod amm_pair_test_contract {
     fn assert_init_config() -> StdResult<()> {       
         // let info = mock_info("amm_pair_contract", &amount);
         let ref mut deps = mock_dependencies(8, &[]);
-        let mut env = mock_env(HumanAddr(String::from("TESTADDRESS")), &[]);
+        let mut env = mkenv("test");
         env.block.height = 200_000;
         let amm_pair =  TokenPair(
             TokenType::CustomToken {
@@ -95,16 +95,10 @@ mod amm_pair_test_contract {
     // }
 }
 
-pub fn mock_env() -> Env {
-    Env {
-      block: BlockInfo {
-        height: 12_345,
-        time: 1_571_797_419,
-        time_nanos: 879305533,
-        chain_id: "cosmos-testnet-14002".to_string(),
-      },
-      contract: ContractInfo {
-        address: HumanAddr::from(MOCK_CONTRACT_ADDR),
-      },
-    }
-  }
+fn mkenv(sender: impl Into<HumanAddr>) -> Env {
+    mock_env(sender, &[])
+}
+
+fn mkdeps() -> Extern<impl Storage, impl Api, impl Querier> {
+    mock_dependencies(30, &[])
+}

@@ -371,9 +371,12 @@ fn mkconfig(id: u64) -> Config<HumanAddr> {
             code_hash: "2341586789".into(),
         },
         amm_settings: AMMSettings {
-            swap_fee: Fee::new(28, 10000),
-            shadeswap_fee: Fee::new(2, 10000),
-            shadeswap_burner: None,
+            lp_fee: Fee::new(28, 10000),
+            shade_dao_fee: Fee::new(2, 10000),
+            shade_dao_address: ContractLink {
+                address: HumanAddr(String::from("CALLBACKADDR")),
+                code_hash: "Test".to_string()
+            },
         },
         lp_token_contract: ContractInstantiationInfo { 
             id,
@@ -400,9 +403,12 @@ impl Into<InitMsg> for &Config<HumanAddr> {
         InitMsg {
             pair_contract: self.pair_contract.clone(),
             amm_settings: AMMSettings {
-                swap_fee: Fee::new(28, 10000),
-                shadeswap_fee: Fee::new(2, 10000),
-                shadeswap_burner: None,
+                lp_fee: Fee::new(28, 10000),
+                shade_dao_fee: Fee::new(2, 10000),
+                shade_dao_address: ContractLink {
+                    address: HumanAddr(String::from("CALLBACKADDR")),
+                    code_hash: "Test".to_string()
+                }
             },
             lp_token_contract: self.lp_token_contract.clone(),
             prng_seed: to_binary(&"prng").unwrap()

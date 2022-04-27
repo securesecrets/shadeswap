@@ -1,4 +1,4 @@
-use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg, InvokeMsg, QueryMsgResponse}};
+use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, AMMPair, HandleMsg, InvokeMsg, QueryMsgResponse}};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair::{{TokenPair}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};

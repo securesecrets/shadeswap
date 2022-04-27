@@ -22,7 +22,7 @@ pub(crate) struct Config<A: Clone> {
     pub symbol:        String,
     pub factory_info:  ContractLink<A>,
     pub lp_token_info: ContractLink<A>,
-    pub pair:      TokenPair<A>,
+    pub pair:      AMMPair<A>,
     pub contract_addr: A,
     pub viewing_key: ViewingKey,
 }

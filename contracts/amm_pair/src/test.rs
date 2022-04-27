@@ -5,6 +5,7 @@ use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use crate::state::{Config, store_config, load_config};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
+use crate::contract::create_viewing_key;
 use shadeswap_shared::{ 
     fadroma::{
         scrt::{
@@ -39,10 +40,14 @@ mod amm_pair_test_contract {
     #[test]
     fn assert_init_config() -> StdResult<()> {       
         // let info = mock_info("amm_pair_contract", &amount);
-        let ref mut deps = mock_dependencies(8, &[]);
+        let seed = to_binary(&"FSDFSDFSDFSDF".to_string())?;
+        let entropy = to_binary(&"REWRQWERWERWER".to_string())?;
+
+        let ref mut deps = mock_dependencies(30, &[]);
         let mut env = mkenv("test");
         env.block.height = 200_000;
-        let amm_pair =  TokenPair(
+        env.contract.address = HumanAddr("ContractAddress".to_string());
+        let pair =  TokenPair(
             TokenType::CustomToken {
                 contract_addr: HumanAddr("TOKEN0".to_string()),
                 token_code_hash: "TOKEN0_HASH".to_string()
@@ -52,7 +57,10 @@ mod amm_pair_test_contract {
                     token_code_hash: "TOKEN1_HASH".to_string()
                 }
         );
-
+        let amm_pair = AMMPair{
+            pair: pair,
+            address: HumanAddr("TEST".to_string()),
+        };
         let msg = InitMsg {
             pair: amm_pair,
             lp_token_contract: ContractInstantiationInfo{
@@ -63,8 +71,8 @@ mod amm_pair_test_contract {
                 address: HumanAddr(String::from("FACTORYADDR")),
                 code_hash: "FACTORYADDR_HASH".to_string()
             },
-            prng_seed: to_binary(&"FSDFSDFSDFSDF".to_string())?,
-            entropy: to_binary(&"REWRQWERWERWER".to_string())?,
+            prng_seed: seed.clone(),
+            entropy: entropy.clone(),
             callback: Callback {
                 contract: ContractLink {
                     address: HumanAddr(String::from("CALLBACKADDR")),
@@ -73,9 +81,15 @@ mod amm_pair_test_contract {
                 msg: to_binary(&String::from("Welcome bytes"))?
             },
             symbol: "WETH".to_string(),
-        };
-        let result = init(deps, env.clone(), msg);
-        assert!(result.is_ok());
+        };     
+        assert!(init(deps, env.clone(), msg).is_ok());
+      
+ 
+        let test_view_key = create_viewing_key(&env,seed.clone(),entropy.clone());
+        // load config
+        let config = load_config(deps).unwrap();
+        assert_eq!("WETH".to_string(), config.symbol);
+        assert_eq!(test_view_key, config.viewing_key);
         Ok(())
     }
 

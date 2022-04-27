@@ -1,9 +1,10 @@
 use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg,  HandleMsg, InvokeMsg,QueryMsgResponse}};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-use shadeswap_shared::amm_pair::{{AMMSettings, Fee}};
+use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair, Fee}};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
+use shadeswap_shared::token_pair::{{TokenPair}};
 use crate::state::{Config, store_config, load_config};
 use crate::help_math::{{substraction, multiply}};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
@@ -34,18 +35,18 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
-    if msg.pair.0 == msg.pair.1 {
+    if msg.pair.pair.0 == msg.pair.pair.1 {
         return Err(StdError::generic_err(
-            "Creating Pair Contract with the same token.",
+            "Creating pair.pair Contract with the same token.",
         ));
     }
 
     let mut messages = vec![];
 
-    let viewing_key = ViewingKey::new(&env, msg.prng_seed.as_slice(), msg.entropy.as_slice());
-
-    register_pair_token(&env, &mut messages, &msg.pair.0, &viewing_key)?;
-    register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;
+   
+    let viewing_key =  create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone());
+    register_pair_token(&env, &mut messages, &msg.pair.pair.0, &viewing_key)?;
+    register_pair_token(&env, &mut messages, &msg.pair.pair.1, &viewing_key)?;
 
     // Create LP token and store it
     messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -53,7 +54,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         msg: to_binary(&Snip20ComposableMsg {
             name: format!(
                 "ShadeSwap AMM Pair Contract Provider (LP) token for {}-{}",
-                &msg.pair.0, &msg.pair.1
+                &msg.pair.pair.0, &msg.pair.pair.1
             ),
             admin: Some(env.contract.address.clone()),
             symbol: msg.symbol.to_string(),
@@ -79,7 +80,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         send: vec![],
         label: format!(
             "{}-{}-ShadeSwap-Pair-Token-{}",
-            &msg.pair.0, &msg.pair.1, &env.contract.address
+            &msg.pair.pair.0, &msg.pair.pair.1, &env.contract.address
         ),
         callback_code_hash: msg.lp_token_contract.code_hash.clone(),
     }));
@@ -101,7 +102,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         },
         pair: msg.pair,
         contract_addr: env.contract.address.clone(),
-        viewing_key,
+        viewing_key: viewing_key,
     };
 
     store_config(deps, &config)?;
@@ -110,6 +111,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         messages,
         log: vec![log("created_exchange_address", env.contract.address)],
     })
+}
+
+pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
+   ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
 }
 
 fn register_lp_token<S: Storage, A: Api, Q: Querier>(
@@ -260,8 +265,8 @@ fn swap_tokens(
         }
     }
 
-    let index = config.pair.get_token_index(&offer.token).unwrap(); // Safe, checked in do_swap
-    let token = config.pair.get_token(index ^ 1).unwrap();
+    let index = config.pair.pair.get_token_index(&offer.token).unwrap(); // Safe, checked in do_swap
+    let token = config.pair.pair.get_token(index ^ 1).unwrap();
 
     let recipient = recipient.unwrap_or(sender);
     messages.push(token.create_send_msg(
@@ -290,8 +295,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
     match msg {
         QueryMsg::PairInfo => {
             let config = load_config(deps)?;
-
-            let balances = config.pair.query_balances(
+            let balances = config.pair.pair.query_balances(
                 &deps.querier,
                 config.contract_addr,
                 config.viewing_key.0,
@@ -326,7 +330,7 @@ fn initial_swap(
     config: &Config<HumanAddr>,  
     offer: &TokenAmount<HumanAddr>
 ) -> StdResult<SwapInfo> {
-    if !config.pair.contains(&offer.token) {
+    if !config.pair.pair.contains(&offer.token) {
         return Err(StdError::generic_err(format!(
             "The required token {}, is not presented in this contract.",
             offer.token
@@ -343,12 +347,12 @@ fn initial_swap(
     let total_fee_amount = provider_fee_amount + swap_fee_amount;
 
     let deducted_offer_amount = Uint256::from((offer.amount - total_fee_amount)?);
-    let tokens_balances = config.pair.query_balances(
+    let tokens_balances = config.pair.pair.query_balances(
         querier,
         config.contract_addr.clone(),
         config.viewing_key.0.clone(),
     )?;
-    let index = config.pair.get_token_index(&offer.token).unwrap();
+    let index = config.pair.pair.get_token_index(&offer.token).unwrap();
     let token0_pool = tokens_balances[index];
     let token1_pool = tokens_balances[index ^ 1];
 
@@ -391,7 +395,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
 
   
     let liquidity_pair_contract = query_liquidity_pair_contract(&deps.querier, &lp_token_info)?;
-    let pool_balances = pair.query_balances(&deps.querier, contract_addr, viewing_key.0)?;
+    let pool_balances = pair.pair.query_balances(&deps.querier, contract_addr, viewing_key.0)?;
     
     let withdraw_amount = Uint256::from(amount);
     let total_liquidity = Uint256::from(liquidity_pair_contract);
@@ -407,7 +411,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
 
     let mut pair_messages: Vec<CosmosMsg> = Vec::with_capacity(3);
 
-    for (i, token) in pair.into_iter().enumerate() {
+    for (i, token) in pair.pair.into_iter().enumerate() {
         pair_messages.push(token.create_send_msg(
             env.contract.address.clone(),
             recipient.clone(),
@@ -428,12 +432,28 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
         log: vec![
             log("action", "remove_liquidity"),
             log("withdrawn_share", amount),
-            log("refund_assets", format!("{}, {}", &pair.0, &pair.1)),
+            log("refund_assets", format!("{}, {}", &pair.pair.0, &pair.pair.1)),
         ],
         data: None,
     })
 
 }
+
+pub fn calculate_price(amountIn: TokenAmount<HumanAddr>, tokenPool: AMMPair<HumanAddr>) -> StdResult<Uint256>{
+     
+    let token0_pool_balance = Uint256::from(20000);
+    let token1_pool_balance =  Uint256::from(2000);
+    let converted_amount = Uint256::from(amountIn.amount);
+    Ok(((token1_pool_balance * converted_amount)? / (token0_pool_balance + converted_amount)?)?)
+} 
+
+pub fn calculate_spread(amountIn: TokenAmount<HumanAddr>, tokenPool: AMMPair<HumanAddr>) -> StdResult<Uint256>{
+     
+    let token0_pool_balance = Uint256::from(20000);
+    let token1_pool_balance =  Uint256::from(2000);
+    let converted_amount = Uint256::from(amountIn.amount);
+    Ok(((token1_pool_balance * converted_amount)? / (token0_pool_balance + converted_amount)?)?)
+} 
 
 fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -451,7 +471,7 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         ..
     } = config;
 
-    if pair != deposit.pair {
+    if pair.pair != deposit.pair {
         return Err(StdError::generic_err(
             "The provided tokens dont match those managed by the contract.",
         ));
@@ -613,7 +633,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
             to,
             expected_return,
         } => {
-            for token in config.pair.into_iter() {
+            for token in config.pair.pair.into_iter() {
                 match token {
                     TokenType::CustomToken { contract_addr, .. } => {
                         if *contract_addr == env.message.sender {

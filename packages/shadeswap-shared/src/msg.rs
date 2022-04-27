@@ -39,7 +39,7 @@ pub mod amm_pair {
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
-        pub pair: TokenPair<HumanAddr>,
+        pub pair: AMMPair<HumanAddr>,
         pub lp_token_contract: ContractInstantiationInfo,
         pub factory_info: ContractLink<HumanAddr>,
         pub prng_seed: Binary,
@@ -91,7 +91,7 @@ pub mod amm_pair {
         PairInfo {
             liquidity_token: ContractLink<HumanAddr>,
             factory: ContractLink<HumanAddr>,
-            pair: TokenPair<HumanAddr>,
+            pair: AMMPair<HumanAddr>,
             amount_0: Uint128,
             amount_1: Uint128,
             total_liquidity: Uint128,

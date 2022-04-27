@@ -1,13 +1,13 @@
+use fadroma::{
+    scrt::{Binary, Decimal, HumanAddr, Uint128},
+    scrt_callback::Callback,
+    scrt_link::{ContractInstantiationInfo, ContractLink},
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use fadroma::{    
-    scrt_callback::Callback,
-    scrt_link::{ContractLink, ContractInstantiationInfo},
-    scrt::{Binary, Decimal, HumanAddr, Uint128},
-};
 
-use crate::token_pair_amount::{TokenPairAmount};
-use crate::token_amount::{TokenAmount};
+use crate::token_amount::TokenAmount;
+use crate::token_pair_amount::TokenPairAmount;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -16,8 +16,7 @@ pub struct InitMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
-}
+pub enum HandleMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -35,20 +34,19 @@ pub struct CountResponse {
 pub mod amm_pair {
     use super::*;
     use crate::{amm_pair::AMMPair, TokenPair};
-    use serde::{Deserialize, Serialize};
     use schemars::JsonSchema;
+    use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-    pub struct InitMsg {      
-        pub symbol: String, 
+    pub struct InitMsg {
         pub pair: TokenPair<HumanAddr>,
-        pub lp_token_contract: ContractInstantiationInfo,      
-        pub factory_info: ContractLink<HumanAddr>,       
+        pub lp_token_contract: ContractInstantiationInfo,
+        pub factory_info: ContractLink<HumanAddr>,
         pub prng_seed: Binary,
         pub callback: Callback<HumanAddr>,
         pub entropy: Binary,
+        pub symbol: String,
     }
-    
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum HandleMsg {
@@ -69,9 +67,8 @@ pub mod amm_pair {
             amount: Uint128,
         },
         // Sent by the LP token contract so that we can record its address.
-        OnLpTokenInitAddr
+        OnLpTokenInitAddr,
     }
-    
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
@@ -83,13 +80,11 @@ pub mod amm_pair {
             recipient: HumanAddr,
         },
     }
-    
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        PairInfo,    
+        PairInfo,
     }
-    
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsgResponse {
@@ -106,42 +101,35 @@ pub mod amm_pair {
 }
 
 pub mod factory {
-    use crate::{fadroma::HumanAddr, amm_pair::AMMSettings, Pagination, TokenPair};
+    use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair};
     use fadroma::ContractInstantiationInfo;
     use schemars::JsonSchema;
-    use serde::{Serialize, Deserialize};
+    use serde::{Deserialize, Serialize};
 
     use crate::amm_pair::AMMPair;
-    
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
-    pub enum QueryResponse{
+    pub enum QueryResponse {
         ListAMMPairs {
             amm_pairs: Vec<AMMPair<HumanAddr>>,
         },
         Config {
             pair_contract: ContractInstantiationInfo,
-            amm_settings: AMMSettings<HumanAddr>
+            amm_settings: AMMSettings<HumanAddr>,
         },
         GetAMMPairAddress {
-            address: HumanAddr
+            address: HumanAddr,
         },
-        GetAMMSettings {
-            settings: AMMSettings<HumanAddr>,
-        }
+        GetAMMSettings { settings: AMMSettings<HumanAddr> },
     }
 
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
-    pub enum QueryMsg {      
+    pub enum QueryMsg {
         // GetCount returns the current count as a json-encoded number
-        ListAMMPairs {
-            pagination: Pagination
-        },
-        GetAMMPairAddress {
-            pair: TokenPair<HumanAddr>
-        },
+        ListAMMPairs { pagination: Pagination },
+        GetAMMPairAddress { pair: TokenPair<HumanAddr> },
         GetAMMSettings,
-        GetConfig
+        GetConfig,
     }
 }

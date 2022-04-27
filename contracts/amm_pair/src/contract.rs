@@ -232,33 +232,30 @@ fn swap_tokens(
     }
 
     let mut messages = Vec::with_capacity(2);
-    // Send the resulting amount of the output token
-    if let Some(shade_burner) = amm_settings.shadeswap_burner {
-        if swap.provider_fee_amount > Uint128::zero() {
-            match &offer.token{
-                TokenType::CustomToken {
-                    contract_addr,
-                    token_code_hash,
-                } =>{
-                    messages.push(snip20::transfer_msg(
-                        shade_burner,
-                        swap.provider_fee_amount,
-                        None,
-                        BLOCK_SIZE,
-                        token_code_hash.clone(),
-                        contract_addr.clone(),
-                    )?);
-                }
-                TokenType::NativeToken { denom } => {
-                    messages.push(CosmosMsg::Bank(BankMsg::Send {
-                        from_address: env.contract.address.clone(),
-                        to_address: shade_burner,
-                        amount: vec![Coin {
-                            denom: denom.clone(),
-                            amount: swap.provider_fee_amount,
-                        }],
-                    }));
-                }
+    if swap.provider_fee_amount > Uint128::zero() {
+        match &offer.token {
+            TokenType::CustomToken {
+                contract_addr,
+                token_code_hash,
+            } =>{
+                messages.push(snip20::transfer_msg(
+                    amm_settings.shade_dao_address.address,
+                    swap.provider_fee_amount,
+                    None,
+                    BLOCK_SIZE,
+                    token_code_hash.clone(),
+                    contract_addr.clone(),
+                )?);
+            }
+            TokenType::NativeToken { denom } => {
+                messages.push(CosmosMsg::Bank(BankMsg::Send {
+                    from_address: env.contract.address.clone(),
+                    to_address: amm_settings.shade_dao_address.address.clone(),
+                    amount: vec![Coin {
+                        denom: denom.clone(),
+                        amount: swap.provider_fee_amount,
+                    }],
+                }));
             }
         }
     }
@@ -337,11 +334,14 @@ fn initial_swap(
     }
   
     let amount = Uint256::from(offer.amount);
-    let swap_fee = settings.swap_fee;
-    let provider_fee = settings.shadeswap_fee;
+    
+    let swap_fee = settings.lp_fee;
+    let provider_fee = settings.shade_dao_fee;
+
     let provider_fee_amount = calculate_fee(amount, provider_fee)?;     
     let swap_fee_amount = calculate_fee(amount,swap_fee)?;
     let total_fee_amount = provider_fee_amount + swap_fee_amount;
+
     let deducted_offer_amount = Uint256::from((offer.amount - total_fee_amount)?);
     let tokens_balances = config.pair.query_balances(
         querier,

@@ -5,7 +5,8 @@ use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use crate::state::{Config, store_config, load_config};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
-use crate::contract::create_viewing_key;
+use crate::contract::{{create_viewing_key, calculate_price}};
+use std::hash::Hash;
 use shadeswap_shared::{ 
     fadroma::{
         scrt::{
@@ -47,20 +48,7 @@ mod amm_pair_test_contract {
         let mut env = mkenv("test");
         env.block.height = 200_000;
         env.contract.address = HumanAddr("ContractAddress".to_string());
-        let pair =  TokenPair(
-            TokenType::CustomToken {
-                contract_addr: HumanAddr("TOKEN0".to_string()),
-                token_code_hash: "TOKEN0_HASH".to_string()
-            },            
-            TokenType::CustomToken {
-                    contract_addr: HumanAddr("TOKEN1".to_string()),
-                    token_code_hash: "TOKEN1_HASH".to_string()
-                }
-        );
-        let amm_pair = AMMPair{
-            pair: pair,
-            address: HumanAddr("TEST".to_string()),
-        };
+        let amm_pair = mk_amm_token_pair("token0", "token1");
         let msg = InitMsg {
             pair: amm_pair,
             lp_token_contract: ContractInstantiationInfo{
@@ -93,6 +81,14 @@ mod amm_pair_test_contract {
         Ok(())
     }
 
+    #[test]
+    fn assert_calculate_price() -> StdResult<()>{
+        let tokenAmount = TokenAmount<HumandAddress>{
+            token
+        }
+           let price = calculate_price()
+    }
+
 
     // fn mkinitconfig(id: u64) -> Config<HumanAddr> {
     //     Config::init(InitMsg {
@@ -115,4 +111,31 @@ fn mkenv(sender: impl Into<HumanAddr>) -> Env {
 
 fn mkdeps() -> Extern<impl Storage, impl Api, impl Querier> {
     mock_dependencies(30, &[])
+}
+
+fn mk_amm_token_pair(token0: String, token1: String) -> AMMPair{
+    let pair =  TokenPair(
+        TokenType::CustomToken {
+            contract_addr: HumanAddr(token0),
+            token_code_hash: Sha token1
+        },            
+        TokenType::CustomToken {
+                contract_addr: HumanAddr("TOKEN1".to_string()),
+                token_code_hash: "TOKEN1_HASH".to_string()
+            }
+    );
+
+    AMMPair{
+        pair: pair,
+        address: HumanAddr("TEST".to_string()),
+    }
+}
+
+fn mk_custom_token(name: String, address: String) -> TokenType<HumandAddress>{
+    let copy_address = HumandAddr(address.clone());
+    let token = TokenType::CustomToken{
+        contract_addr = copy_address,
+        token_code_hash : name,
+    }
+    token
 }

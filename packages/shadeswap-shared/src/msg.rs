@@ -33,7 +33,7 @@ pub struct CountResponse {
 
 pub mod amm_pair {
     use super::*;
-    use crate::{amm_pair::AMMPair, TokenPair};
+    use crate::token_pair::TokenPair;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 

@@ -6,7 +6,7 @@ CODE_ID=0
 ADDRESS=""
 INIT='{"symbol": "ETHU"}'
 LABEL="shade_pair_contract"
-#docker exec -i secretdev bash -c "secretd tx compute store /root/code/contract.wasm.gz --from a --gas=auto --gas-adjustment=1.15 -y --keyring-backend test" > createresult
+docker exec -i secretdev bash -c "secretd tx compute store /root/code/contract.wasm.gz --from a --gas=auto --gas-adjustment=1.15 -y --keyring-backend test" > createresult
 # #  # /root/code/contract.wasm.gz
 #docker exec -i secretdev cat  < createresult
 docker exec -i secretdev secretd query compute list-code > result.json

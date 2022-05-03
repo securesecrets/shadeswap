@@ -9,7 +9,7 @@ use shadeswap_shared::{
         scrt_storage::{load, save},
         scrt_vk::ViewingKey,
     },
-    amm_pair::AMMPair, TokenPair
+    token_pair::TokenPair
 };
 
 use serde::{Serialize,Deserialize};
@@ -18,7 +18,7 @@ pub static CONFIG_KEY: &[u8] = b"config";
 pub const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
-pub(crate) struct Config<A: Clone> {
+pub struct Config<A: Clone> {
     pub symbol:        String,
     pub factory_info:  ContractLink<A>,
     pub lp_token_info: ContractLink<A>,
@@ -77,8 +77,8 @@ pub mod swapdetails {
     #[derive(Serialize, Deserialize,  PartialEq, Debug)]
     pub struct SwapInfo {
         pub total_fee_amount: Uint128,
-        pub swap_fee_amount: Uint128,
-        pub provider_fee_amount: Uint128,
+        pub lp_fee_amount: Uint128,
+        pub shade_dao_fee_amount: Uint128,
         pub result: SwapResult,
     }
     

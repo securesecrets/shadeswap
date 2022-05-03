@@ -3,7 +3,9 @@ members = [
     "packages/shadeswap-shared",
     "contracts/amm_pair",
     "contracts/factory",
-    "contracts/router"
+    "contracts/router",
+    "contracts/snip20",
+    "packages/network_integration"
 ]
 
 [profile.release]

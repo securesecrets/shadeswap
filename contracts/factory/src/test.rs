@@ -384,7 +384,7 @@ fn mkconfig(id: u64) -> Config<HumanAddr> {
         },
         lp_token_contract: ContractInstantiationInfo { 
             id,
-            code_hash: "2341586789".into()
+            code_hash: "123".into()
         },
         prng_seed: to_binary(&"prng").unwrap()
     })
@@ -422,9 +422,10 @@ impl Into<InitMsg> for &Config<HumanAddr> {
 
 impl Into<QueryResponse> for &Config<HumanAddr> {
     fn into(self) -> QueryResponse {
-        QueryResponse::Config {
+        QueryResponse::GetConfig { 
             pair_contract: self.pair_contract.clone(),
             amm_settings: self.amm_settings.clone(),
+            lp_token_contract: self.lp_token_contract.clone()
         }
     }
 }

@@ -152,6 +152,10 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
             config.pair_contract = new_value;
         }
 
+        if let Some(new_value) = lp_token_contract {
+            config.lp_token_contract = new_value;
+        }
+        
         config_write(deps, &config)?;
 
 
@@ -172,9 +176,10 @@ pub fn get_config<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> Std
         lp_token_contract
     } = config_read(deps)?;
 
-    to_binary(&QueryResponse::Config {
+    to_binary(&QueryResponse::GetConfig {
         pair_contract,
         amm_settings,
+        lp_token_contract
     })
 }
 

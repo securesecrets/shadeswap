@@ -33,13 +33,13 @@ pub struct CountResponse {
 
 pub mod amm_pair {
     use super::*;
-    use crate::{amm_pair::AMMPair, TokenPair};
+    use crate::token_pair::TokenPair;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
-        pub pair: AMMPair<HumanAddr>,
+        pub pair: TokenPair<HumanAddr>,
         pub lp_token_contract: ContractInstantiationInfo,
         pub factory_info: ContractLink<HumanAddr>,
         pub prng_seed: Binary,
@@ -91,7 +91,7 @@ pub mod amm_pair {
         PairInfo {
             liquidity_token: ContractLink<HumanAddr>,
             factory: ContractLink<HumanAddr>,
-            pair: AMMPair<HumanAddr>,
+            pair: TokenPair<HumanAddr>,
             amount_0: Uint128,
             amount_1: Uint128,
             total_liquidity: Uint128,

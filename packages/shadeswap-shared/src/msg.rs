@@ -119,9 +119,10 @@ pub mod factory {
         ListAMMPairs {
             amm_pairs: Vec<AMMPair<HumanAddr>>,
         },
-        Config {
+        GetConfig {
             pair_contract: ContractInstantiationInfo,
-            amm_settings: AMMSettings<HumanAddr>
+            amm_settings: AMMSettings<HumanAddr>,
+            lp_token_contract: ContractInstantiationInfo
         },
         GetAMMPairAddress {
             address: HumanAddr

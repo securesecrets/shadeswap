@@ -23,6 +23,7 @@ pub struct InitMsg {
 pub enum HandleMsg {
     SetConfig {
         pair_contract: Option<ContractInstantiationInfo>,
+        lp_token_contract: Option<ContractInstantiationInfo>,
     },
     CreateAMMPair {
         pair: TokenPair<HumanAddr>,

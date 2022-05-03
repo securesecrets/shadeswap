@@ -5,9 +5,11 @@ use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::token_pair::{{TokenPair}};
-use crate::state::{Config, store_config, load_config};
+use crate::state::{Config, store_config, load_config, store_trade_counter, store_trade_history,
+load_trade_counter, load_trade_history};
 use crate::help_math::{{substraction, multiply}};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
+use crate::state::tradehistory::{TradeHistory, DirectionType};
 use shadeswap_shared::{ 
     fadroma::{
         scrt::{
@@ -204,7 +206,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             let config_settings = load_config(deps)?;
             let sender = env.message.sender.clone();
             swap_tokens(
-                &deps.querier,
+                deps,
                 env,
                 config_settings,
                 sender,
@@ -216,8 +218,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn swap_tokens(
-    querier: &impl Querier,
+pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
     env: Env,
     config: Config<HumanAddr>,
     sender: HumanAddr,
@@ -225,8 +227,8 @@ pub fn swap_tokens(
     offer: TokenAmount<HumanAddr>,
     expected_return: Option<Uint128>)-> StdResult<HandleResponse>{ 
   
-    let amm_settings = query_factory_amm_settings(querier,config.factory_info.clone())?;
-    let swap_result = initial_swap(querier, &amm_settings, &config, &offer)?;
+    let amm_settings = query_factory_amm_settings(&deps.querier,config.factory_info.clone())?;
+    let swap_result = initial_swap(&deps.querier, &amm_settings, &config, &offer)?;
 
     // check for the slippage expected value compare to actual value
     if let Some(expected_return) = expected_return {
@@ -278,6 +280,35 @@ pub fn swap_tokens(
         swap_result.result.return_amount,
     )?);
 
+    if index == 0
+    {
+        let mut current_count = load_trade_counter(&deps.storage)?;
+        let new_count = current_count + 1;
+        store_trade_counter(&mut deps.storage, new_count);
+        let mut trade_history = TradeHistory{
+            price: swap_result.result.return_amount,
+            amount: swap_result.result.return_amount,
+            timestamp: env.block.time,
+            direction: DirectionType::Buy
+        };
+
+        store_trade_history(deps.storage, trade_history, new_count);
+    }
+    else if index == 1
+    {
+    // store the trade history
+        config.trade_history.push(TradeHistory{
+            price: swap_result.result.return_amount,
+            amount: swap_result.result.return_amount,
+            timestamp: env.block.time,
+            direction: DirectionType::Sell
+        });
+    }
+    
+
+    config.trade_counter = config.trade_counter.clone() + 1;
+    store_config(deps, &config);
+
     Ok(HandleResponse {
         messages,
         log: vec![
@@ -314,7 +345,47 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 total_liquidity,
                 contract_version: AMM_PAIR_CONTRACT_VERSION,
             })
-        }       
+            
+        },
+        QueryMsg::TradeHistoryLatest => {          
+            let config = load_config(deps)?;            
+            let trade_history = &config.trade_history[config.trade_counter - 1];
+            let mut direction = "";
+            if trade_history.direction == DirectionType::Sell {
+                direction = "Sell";
+            } else if  trade_history.direction == DirectionType::Buy{
+                direction = "Buy";
+            }
+            else{
+                direction = "";
+            }
+            to_binary(&QueryMsgResponse::TradeHistory {
+                price: trade_history.price,
+                direction:  direction.to_string(),
+                amount: trade_history.amount,
+                timestamp: trade_history.timestamp
+            })
+        },
+        QueryMsg::TradeHistoryByIndex {index} => {
+            let config = load_config(deps)?;            
+            let current_trade_count = load_trade_counter(deps.storage)?;
+            let mut direction = "";
+            if trade_history.direction == DirectionType::Sell {
+                direction = "Sell";
+            }else if trade_history.direction == DirectionType::Buy {
+                direction = "Buy";
+            }
+            else{
+                direction = "";
+            }
+            
+            to_binary(&QueryMsgResponse::TradeHistory {
+                price: trade_history.price,
+                direction:  direction.to_string(),
+                amount: trade_history.amount,
+                timestamp: trade_history.timestamp
+            })
+        }     
     }
 }
 
@@ -593,6 +664,8 @@ fn assert_slippage_acceptance(
 }
 
 
+
+
 fn query_liquidity_pair_contract(
     querier: &impl Querier,
     lp_token_linke: &ContractLink<HumanAddr>,
@@ -660,7 +733,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                             };
 
                             return swap_tokens(
-                                &deps.querier,
+                                deps,
                                 env,
                                 config,
                                 from,

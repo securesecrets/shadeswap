@@ -4,3 +4,7 @@
 	branch = 21.09
 
 
+[submodule "packages/fadroma-next"]
+	path = packages/fadroma-next
+	url = https://github.com/hackbg/fadroma.git
+	branch = 21.09

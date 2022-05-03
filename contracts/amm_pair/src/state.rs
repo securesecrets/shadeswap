@@ -13,8 +13,10 @@ use shadeswap_shared::{
 };
 
 use serde::{Serialize,Deserialize};
-
+use tradehistory::TradeHistory;
 pub static CONFIG_KEY: &[u8] = b"config";
+const TRADE_COUNT : &[u8] = b"trade_count";
+const TRADE_HISTORY: &[u8] = b"trade_history_";
 pub const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
@@ -36,19 +38,20 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
             lp_token_info: self.lp_token_info.canonize(api)?,
             pair:          self.pair.canonize(api)?,
             contract_addr: self.contract_addr.canonize(api)?,
-            viewing_key:   self.viewing_key.clone()
+            viewing_key:   self.viewing_key.clone(),
         })
     }
 }
 impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
     fn humanize (&self, api: &impl Api) -> StdResult<Config<HumanAddr>> {
+        let trades: Vec<TradeHistory> = Vec::new();
         Ok(Config {
             symbol:        self.symbol.to_string(),
             factory_info:  self.factory_info.humanize(api)?,
             lp_token_info: self.lp_token_info.humanize(api)?,
             pair:      self.pair.humanize(api)?,
             contract_addr: self.contract_addr.humanize(api)?,
-            viewing_key:   self.viewing_key.clone()
+            viewing_key:   self.viewing_key.clone(),
         })
     }
 }
@@ -70,6 +73,25 @@ pub(crate) fn load_config<S: Storage, A: Api, Q: Querier>(
     result.humanize(&deps.api)
 }
 
+pub mod tradehistory{
+    use super::*;
+    
+    #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone)]
+    pub enum DirectionType{
+        Buy,
+        Sell,
+        Unknown,
+    }
+
+    #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone)]
+    pub struct TradeHistory {
+        pub price: Uint128,
+        pub amount: Uint128,
+        pub timestamp: u64,
+        pub direction: DirectionType,
+    }
+}
+
 
 pub mod swapdetails {
     use super::*;
@@ -88,4 +110,21 @@ pub mod swapdetails {
         pub spread_amount: Uint128,
     }
     
+}
+
+pub fn load_trade_counter(storage: &impl Storage) -> StdResult<u64> {
+    Ok(load(storage, TRADE_COUNT)?.unwrap_or(0))
+}
+
+pub fn store_trade_counter(storage: &mut impl Storage, count: u64) -> StdResult<()> {
+    save(storage, TRADE_COUNT, &count)
+}
+
+pub fn load_trade_history(storage: &impl Storage) -> StdResult<TradeHistory> {
+    Ok(load(storage, TRADE_HISTORY)?.unwrap_or(TradeHistory{amount :Uint128::zero(), price: Uint128::zero(), direction: DirectionType::Unknown, timestamp: 0 }))
+}
+
+pub fn store_trade_history(storage: &mut impl Storage, trade_history: TradeHistory, count: u64) -> StdResult<()> {
+    let new_store_at: &[u8] = "trade_history_" + count.to_string();    
+    save(storage, new_store_at, &trade_history);
 }

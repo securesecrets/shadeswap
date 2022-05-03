@@ -84,6 +84,10 @@ pub mod amm_pair {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         PairInfo,
+        TradeHistoryByIndex {
+            index: usize
+        },
+        TradeHistoryLatest
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -97,6 +101,12 @@ pub mod amm_pair {
             total_liquidity: Uint128,
             contract_version: u32,
         },
+        TradeHistory {
+            price: Uint128,
+            amount: Uint128,
+            timestamp: u64,
+            direction: String,
+        }
     }
 }
 

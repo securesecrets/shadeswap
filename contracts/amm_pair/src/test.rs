@@ -6,6 +6,7 @@ use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::amm_pair::{{AMMPair, AMMSettings, Fee}};
 use crate::state::{Config, store_config, load_config};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
+use crate::contract::init;
 use crate::contract::{{create_viewing_key, calculate_price, swap_tokens, initial_swap}};
 use std::hash::Hash;
 use shadeswap_shared::{ 
@@ -37,8 +38,7 @@ use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip
 #[cfg(test)]
 mod amm_pair_test_contract {
     use super::*;
-    use crate::contract::init;
-
+  
     #[test]
     fn assert_init_config() -> StdResult<()> {       
         // let info = mock_info("amm_pair_contract", &amount);
@@ -108,6 +108,65 @@ mod amm_pair_test_contract {
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
+
+    #[test]
+    fn assert_initial_swap_with_token_success() -> StdResult<()>{     
+        let ref mut deps = mock_dependencies(30, &[]);
+        let amm_settings = mk_amm_settings();
+        let config = make_init_config(deps)?;   
+        let token0Address = config.pair.get_token(0).unwrap();
+        let token0Type = TokenType::CustomToken{
+            contract_addr: HumanAddr::from("token0".to_string()),
+            token_code_hash: "Test".to_string(),
+        };
+        assert_eq!(token0Type, token0Address);
+        let offer_amount: u128 = 34028236692093846346337460;
+        let expected_amount: u128 = 34028236692093846346337460;
+        let deps = mkdeps();
+        let env = mkenv("sender");
+        let swap_result = initial_swap(
+            &deps.querier, 
+            &amm_settings, 
+            &config,
+            &mk_custom_token_amount("token0", Uint128::from(offer_amount)), 
+        );
+
+        assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
+        Ok(())
+    }
+}
+
+fn make_init_config<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>) -> StdResult<Config<HumanAddr>> {    
+    let seed = to_binary(&"SEED".to_string())?;
+    let entropy = to_binary(&"ENTROPY".to_string())?;
+    let mut env = mkenv("test");
+    env.block.height = 200_000;
+    env.contract.address = HumanAddr("ContractAddress".to_string());
+    let token_pair = mk_token_pair("token0".to_string(), "token1".to_string());
+    let msg = InitMsg {
+        pair: token_pair,
+        lp_token_contract: ContractInstantiationInfo{
+              code_hash: "CODE_HASH".to_string(),
+              id :0
+        },
+        factory_info: ContractLink {
+            address: HumanAddr(String::from("FACTORYADDR")),
+            code_hash: "FACTORYADDR_HASH".to_string()
+        },
+        prng_seed: seed.clone(),
+        entropy: entropy.clone(),
+        callback: Callback {
+            contract: ContractLink {
+                address: HumanAddr(String::from("CALLBACKADDR")),
+                code_hash: "Test".to_string()
+            },
+            msg: to_binary(&String::from("Welcome bytes"))?
+        },
+        symbol: "WETH".to_string(),
+    };         
+    assert!(init(deps, env.clone(), msg).is_ok());
+    let config = load_config(deps)?;
+    Ok(config)
 }
 
 fn mkenv(sender: impl Into<HumanAddr>) -> Env {
@@ -132,6 +191,7 @@ fn mk_token_pair(token0: String, token1: String) -> TokenPair<HumanAddr>{
     pair
 }
 
+
 fn mk_custom_token_amount(address: &str, amount: Uint128) -> TokenAmount<HumanAddr>{  
     let token = TokenAmount{
         token: mk_custom_token(address.to_string()),
@@ -141,12 +201,10 @@ fn mk_custom_token_amount(address: &str, amount: Uint128) -> TokenAmount<HumanAd
 }
 
 fn mk_custom_token(address: String) -> TokenType<HumanAddr>{
-    let copy_address = HumanAddr(address.clone());
-    let token = TokenType::CustomToken{
-        contract_addr : copy_address,
-        token_code_hash : address.clone(),
-    };
-    token
+    TokenType::CustomToken {
+        contract_addr: HumanAddr(address.clone()),
+        token_code_hash: "TOKEN0_HASH".to_string()
+    }
 }
 
 fn mk_amm_settings() -> AMMSettings<HumanAddr>{

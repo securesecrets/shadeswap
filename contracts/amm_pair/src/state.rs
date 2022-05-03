@@ -34,7 +34,7 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
             symbol:        self.symbol.to_string(),
             factory_info:  self.factory_info.canonize(api)?,
             lp_token_info: self.lp_token_info.canonize(api)?,
-            pair:      self.pair.canonize(api)?,
+            pair:          self.pair.canonize(api)?,
             contract_addr: self.contract_addr.canonize(api)?,
             viewing_key:   self.viewing_key.clone()
         })

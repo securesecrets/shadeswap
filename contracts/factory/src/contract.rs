@@ -70,7 +70,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         QueryMsg::GetConfig {} => get_config(deps),
         QueryMsg::ListAMMPairs { pagination } => list_pairs(deps, pagination),
         QueryMsg::GetAMMPairAddress { pair } => query_amm_pair_address(deps, pair),
-        QueryMsg::GetAMMSettings { .. } => query_amm_settings(deps),
+        QueryMsg::GetAMMSettings { } => query_amm_settings(deps)
     }
 }
 
@@ -123,7 +123,7 @@ pub fn list_pairs<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn query_amm_settings<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>
+    deps: &Extern<S, A, Q>,
 ) -> StdResult<Binary> {
     let config = config_read(deps)?;
 
@@ -145,7 +145,7 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
-    if let HandleMsg::SetConfig { pair_contract, lp_token_contract } = msg {
+    if let HandleMsg::SetConfig { pair_contract, lp_token_contract, amm_settings } = msg {
         let mut config = config_read(&deps)?;
 
         if let Some(new_value) = pair_contract {
@@ -157,6 +157,7 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
         }
         
         config_write(deps, &config)?;
+
 
         Ok(HandleResponse {
             messages: vec![],

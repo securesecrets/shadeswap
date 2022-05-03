@@ -369,6 +369,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
         QueryMsg::TradeHistoryByIndex {index} => {
             let config = load_config(deps)?;            
             let current_trade_count = load_trade_counter(deps.storage)?;
+            
             let mut direction = "";
             if trade_history.direction == DirectionType::Sell {
                 direction = "Sell";

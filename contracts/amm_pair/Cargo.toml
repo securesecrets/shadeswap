@@ -43,6 +43,7 @@ cosmwasm-storage = { version = "0.10", package = "secret-cosmwasm-storage" }
 secret-toolkit = { version = "0.2" }
 shadeswap-shared = {path = "../../packages/shadeswap-shared"}
 composable-snip20 = { path = "../../packages/fadroma-next/lib/composable-snip20" }
+bincode2 = "2.0.1"
 
 [dev-dependencies]
 cosmwasm-schema = "0.10.1"

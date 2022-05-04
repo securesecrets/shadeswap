@@ -5,7 +5,9 @@ use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::token_pair::{{TokenPair}};
-use crate::state::{Config, store_config, load_config, store_trade_counter, store_trade_history,
+use crate::state::{{Config}};
+use crate::state::amm_pair_storage::{store_config, load_whitelist_address,add_whitelist_address,
+    load_config, store_trade_history,remove_whitelist_address,
 load_trade_counter, load_trade_history};
 use crate::help_math::{{substraction, multiply}};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
@@ -192,6 +194,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             slippage,
         } => add_liquidity(deps, env, deposit, slippage),
         HandleMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
+        HandleMsg::AddWhitelistAddress{address} => add_address_to_whitelist(&deps.storage, address),
+        HandleMsg::RemoveWhitelistAddresses{addresses} => remove_address_from_whitelist(&deps.storage, addresses),
         HandleMsg::SwapTokens {
             offer,
             expected_return,
@@ -282,32 +286,15 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
 
     if index == 0
     {
-        let mut current_count = load_trade_counter(&deps.storage)?;
-        let new_count = current_count + 1;
-        store_trade_counter(&mut deps.storage, new_count);
-        let mut trade_history = TradeHistory{
-            price: swap_result.result.return_amount,
-            amount: swap_result.result.return_amount,
-            timestamp: env.block.time,
-            direction: DirectionType::Buy
-        };
-
-        store_trade_history(deps.storage, trade_history, new_count);
+      
     }
     else if index == 1
     {
     // store the trade history
-        config.trade_history.push(TradeHistory{
-            price: swap_result.result.return_amount,
-            amount: swap_result.result.return_amount,
-            timestamp: env.block.time,
-            direction: DirectionType::Sell
-        });
+     
     }
     
-
-    config.trade_counter = config.trade_counter.clone() + 1;
-    store_config(deps, &config);
+    store_config(deps, &config)?;
 
     Ok(HandleResponse {
         messages,
@@ -347,44 +334,30 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             })
             
         },
-        QueryMsg::TradeHistoryLatest => {          
-            let config = load_config(deps)?;            
-            let trade_history = &config.trade_history[config.trade_counter - 1];
-            let mut direction = "";
-            if trade_history.direction == DirectionType::Sell {
-                direction = "Sell";
-            } else if  trade_history.direction == DirectionType::Buy{
-                direction = "Buy";
-            }
-            else{
-                direction = "";
-            }
+        QueryMsg::TradeHistoryLatest => {         
+              
+            let latest_index: u64 = load_trade_counter(&deps.storage)?;       
+            let latest_trade_history = load_trade_history(&deps.storage, latest_index)?;         
             to_binary(&QueryMsgResponse::TradeHistory {
-                price: trade_history.price,
-                direction:  direction.to_string(),
-                amount: trade_history.amount,
-                timestamp: trade_history.timestamp
+                price: latest_trade_history.price,
+                direction:  "".to_string(),
+                amount: latest_trade_history.amount,
+                timestamp: latest_trade_history.timestamp
             })
         },
-        QueryMsg::TradeHistoryByIndex {index} => {
-            let config = load_config(deps)?;            
-            let current_trade_count = load_trade_counter(deps.storage)?;
-            
-            let mut direction = "";
-            if trade_history.direction == DirectionType::Sell {
-                direction = "Sell";
-            }else if trade_history.direction == DirectionType::Buy {
-                direction = "Buy";
-            }
-            else{
-                direction = "";
-            }
-            
+        QueryMsg::TradeHistoryByIndex {index} => {                   
+            let trade_history_at = load_trade_history(&deps.storage, index)?;   
             to_binary(&QueryMsgResponse::TradeHistory {
-                price: trade_history.price,
-                direction:  direction.to_string(),
-                amount: trade_history.amount,
-                timestamp: trade_history.timestamp
+                price: trade_history_at.price,
+                direction:  "".to_string(),
+                amount: trade_history_at.amount,
+                timestamp: trade_history_at.timestamp
+            })
+        },   
+        QueryMsg::WhiteListAddress =>{
+            let stored_addr = load_whitelist_address(&deps.storage)?;
+            to_binary(&QueryMsgResponse::WhitelistAddress{
+                addresses: stored_addr
             })
         }     
     }
@@ -440,6 +413,30 @@ pub fn initial_swap(
         shade_dao_fee_amount: shade_dao_fee_amount,
         total_fee_amount: total_fee_amount,
         result: result_swap,
+    })
+}
+
+fn add_address_to_whitelist(storage: &mut impl Storage, address: HumanAddr) -> StdResult<HandleResponse>{
+    add_whitelist_address(storage, address)?;  
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+                log("action", "save_address_to_whitelist"),
+                log("whitelist_address",address.as_str())
+        ],
+        data: None,
+    })
+}
+
+fn remove_address_from_whitelist(storage: &mut impl Storage, list: Vec<HumanAddr>) -> StdResult<HandleResponse>{
+    remove_whitelist_address(storage, list.clone())?;
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+                log("action", "remove_address_from_whitelist"),
+                // log("whitelist_address",  )
+        ],
+        data: None,
     })
 }
 

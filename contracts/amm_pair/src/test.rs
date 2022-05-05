@@ -5,7 +5,8 @@ use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::amm_pair::{{AMMPair, AMMSettings, Fee}};
 use crate::state::{Config};
-use crate::state::amm_pair_storage::{{ store_config, load_config}};
+use crate::state::amm_pair_storage::{{ store_config, load_config,
+    remove_whitelist_address,is_address_in_whitelist, add_whitelist_address,load_whitelist_address, }};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
 use crate::contract::init;
 use crate::contract::{{create_viewing_key, calculate_price, swap_tokens, initial_swap}};
@@ -98,13 +99,15 @@ mod amm_pair_test_contract {
         let offer_amount: u128 = 34028236692093846346337460;
         let expected_return_amount: u128 = 34028236692093846346337460;
         let expected_amount: u128 = 34028236692093846346337460;
-        let deps = mkdeps();
+        let mut deps = mkdeps();
         let env = mkenv("sender");
         let swap_result = initial_swap(
             &deps.querier, 
             &amm_settings, 
             &mock_config(env)?,
             &mk_custom_token_amount("", Uint128::from(offer_amount)), 
+            & mut deps.storage,
+            Some(HumanAddr("Test".to_string().clone()))
         );
 
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
@@ -112,26 +115,20 @@ mod amm_pair_test_contract {
     }
 
     //#[test]
-    fn assert_initial_swap_with_token_success() -> StdResult<()>{     
-        let ref mut deps = mock_dependencies(30, &[]);
+    fn assert_initial_swap_with_token_success() -> StdResult<()>
+    {     
+        let mut deps = mkdeps();
         let amm_settings = mk_amm_settings();
-        let config = make_init_config(deps)?;   
+        let config = make_init_config(&mut deps)?;   
         let token0Address = config.pair.get_token(0).unwrap();
         let token0Type = TokenType::CustomToken{
             contract_addr: HumanAddr::from("token0".to_string()),
             token_code_hash: "Test".to_string(),
         };
         let offer_amount: u128 = 34028236692093846346337460;
-        let expected_amount: u128 = 34028236692093846346337460;
-        let deps = mkdeps();
+        let expected_amount: u128 = 34028236692093846346337460;      
         let env = mkenv("sender");
-        let swap_result = initial_swap(
-            &deps.querier, 
-            &amm_settings, 
-            &config,
-            &mk_custom_token_amount("token0", Uint128::from(offer_amount)), 
-        );
-
+        let swap_result = initial_swap(&deps.querier, &amm_settings, &config, &mk_custom_token_amount("token0", Uint128::from(offer_amount)), &mut deps.storage, Some(HumanAddr("Test".to_string().clone())));
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -169,14 +166,56 @@ mod amm_pair_test_contract {
     fn assert_add_address_to_whitelist_success()-> StdResult<()>{
         let mut deps = mkdeps();
         let env = mkenv("sender");       
-        let address = HumanAddr::from("TEST".to_string());
-        store_trade_history(&mut deps.storage, trade_history.clone())?;
-        let current_index = load_trade_counter(&deps.storage)?;
-        assert_eq!(1, current_index);
+        let addressA = HumanAddr::from("TESTA".to_string());
+        let addressB = HumanAddr::from("TESTB".to_string());
+        let addressC = HumanAddr::from("TESTC").to_string();
+        add_whitelist_address(&mut deps.storage, addressA.clone())?;
+        let current_index = load_whitelist_address(&deps.storage)?;
+        assert_eq!(1, current_index.len());        
+        add_whitelist_address(&mut deps.storage, addressB.clone())?;
+        let current_index = load_whitelist_address(&deps.storage)?;
+        assert_eq!(2, current_index.len());
+        Ok(())
+    }
 
-        // load trade history
-        let stored_trade_history = load_trade_history(&mut deps.storage, current_index)?;
-        assert_eq!(trade_history.price, stored_trade_history.price);
+    #[test]
+    fn assert_remove_address_from_whitelist_success()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let env = mkenv("sender");       
+        let addressA = HumanAddr::from("TESTA".to_string());
+        let addressB = HumanAddr::from("TESTB".to_string());
+        let addressC = HumanAddr::from("TESTC".to_string());
+        add_whitelist_address(&mut deps.storage, addressA.clone())?;
+        let current_index = load_whitelist_address(&deps.storage)?;
+        assert_eq!(1, current_index.len());        
+        add_whitelist_address(&mut deps.storage, addressB.clone())?;
+        let current_index = load_whitelist_address(&deps.storage)?;
+        assert_eq!(2, current_index.len());   
+        let mut list_addresses_remove  = Vec::new();
+        list_addresses_remove.push(addressB.clone());
+        let current_index = remove_whitelist_address(&mut deps.storage, list_addresses_remove)?;
+        add_whitelist_address(&mut deps.storage, addressC.clone())?;
+        let current_index = load_whitelist_address(&deps.storage)?;
+        assert_eq!(2, current_index.len());        
+        Ok(())
+    }
+
+
+    
+    #[test]
+    fn assert_load_address_from_whitelist_success()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let env = mkenv("sender");       
+        let addressA = HumanAddr::from("TESTA".to_string());
+        let addressB = HumanAddr::from("TESTB".to_string());
+        let addressC = HumanAddr::from("TESTC".to_string());
+        add_whitelist_address(&mut deps.storage, addressA.clone())?;
+        add_whitelist_address(&mut deps.storage, addressB.clone())?;
+        add_whitelist_address(&mut deps.storage, addressC.clone())?;
+        let stubList = load_whitelist_address(&deps.storage)?;
+        assert_eq!(3, stubList.len());
+        let is_addr = is_address_in_whitelist(&mut deps.storage, addressB.clone())?;  
+        assert_eq!(true, is_addr);      
         Ok(())
     }
 }

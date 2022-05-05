@@ -52,7 +52,7 @@ impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
             symbol:        self.symbol.to_string(),
             factory_info:  self.factory_info.humanize(api)?,
             lp_token_info: self.lp_token_info.humanize(api)?,
-            pair:      self.pair.humanize(api)?,
+            pair:          self.pair.humanize(api)?,
             contract_addr: self.contract_addr.humanize(api)?,
             viewing_key:   self.viewing_key.clone(),
         })
@@ -132,15 +132,16 @@ pub mod amm_pair_storage{
     
     // WHITELIST
     pub fn add_whitelist_address(storage: &mut impl Storage, address: HumanAddr) -> StdResult<()> {
-        let mut addresses = load_whitelist_address(storage)?;
-        addresses.push(address.clone());
-        let bin_data = ser_bin_data(&addresses)?;
-        save(storage, WHITELIST, &bin_data)
+        let mut unwrap_data = load_whitelist_address(storage)?;
+        unwrap_data.push(address);
+      //  let array = ser_bin_data(&unwrap_data)?;
+        save(storage, WHITELIST, &unwrap_data)
     }
 
     pub fn load_whitelist_address(storage: &impl Storage) -> StdResult<Vec<HumanAddr>> {
-        let raw_data = load(storage, WHITELIST)?.unwrap_or(Vec::new());
-        Ok(deser_bin_data(&raw_data)?)
+        let raw_data = load(storage, WHITELIST)?.unwrap_or(Vec::new());        
+       // let unwrap_date = deser_bin_data(&raw_data)?;
+        Ok(raw_data)
     }
 
     
@@ -153,17 +154,24 @@ pub mod amm_pair_storage{
         save(storage, WHITELIST, &bin_data)
     }
 
+    pub fn is_address_in_whitelist(storage: &impl Storage, address: HumanAddr) -> StdResult<bool>{
+        let mut result = false;
+        let addrs = load_whitelist_address(storage)?;
+        for addr in addrs {
+            if addr == address
+            {
+                result = true;
+            }
+        }
+        Ok(result)
+    }
+
     // TRADE HISTORY
     fn store_trade_counter(storage: &mut impl Storage) -> StdResult<()> {
         let current_index = load_trade_counter(storage)?;
         let count : u64 = u64::from(current_index.clone());
         let str_count = count + 1;
         save(storage, TRADE_COUNT, &str_count)
-    }
-
-    pub fn load_whitelist_addresses(storage: &impl Storage) -> StdResult<Vec<HumanAddr>>{
-        let addresses: Vec<HumanAddr> = Vec::new();
-        Ok(addresses)
     }
     
     pub fn load_trade_history(storage: &impl Storage, count: u64) -> StdResult<TradeHistory> {

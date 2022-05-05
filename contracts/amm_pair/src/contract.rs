@@ -6,7 +6,7 @@ use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::token_pair::{{TokenPair}};
 use crate::state::{{Config}};
-use crate::state::amm_pair_storage::{store_config, load_whitelist_address,add_whitelist_address,
+use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist, load_whitelist_address,add_whitelist_address,
     load_config, store_trade_history,remove_whitelist_address,
 load_trade_counter, load_trade_history};
 use crate::help_math::{{substraction, multiply}};
@@ -194,8 +194,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             slippage,
         } => add_liquidity(deps, env, deposit, slippage),
         HandleMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
-        HandleMsg::AddWhitelistAddress{address} => add_address_to_whitelist(&deps.storage, address),
-        HandleMsg::RemoveWhitelistAddresses{addresses} => remove_address_from_whitelist(&deps.storage, addresses),
+        HandleMsg::AddWhitelistAddress{address} => add_address_to_whitelist(&mut deps.storage, address),
+        HandleMsg::RemoveWhitelistAddresses{addresses} => remove_address_from_whitelist(&mut deps.storage, addresses),
         HandleMsg::SwapTokens {
             offer,
             expected_return,
@@ -232,7 +232,8 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
     expected_return: Option<Uint128>)-> StdResult<HandleResponse>{ 
   
     let amm_settings = query_factory_amm_settings(&deps.querier,config.factory_info.clone())?;
-    let swap_result = initial_swap(&deps.querier, &amm_settings, &config, &offer)?;
+    let swap_result = initial_swap(&deps.querier, &amm_settings, &config, &offer,&mut deps.storage,
+        recipient.clone())?;
 
     // check for the slippage expected value compare to actual value
     if let Some(expected_return) = expected_return {
@@ -376,7 +377,9 @@ pub fn initial_swap(
     querier: &impl Querier,
     settings: &AMMSettings<HumanAddr>,
     config: &Config<HumanAddr>,  
-    offer: &TokenAmount<HumanAddr>
+    offer: &TokenAmount<HumanAddr>,
+    storage: &mut impl Storage,
+    recipient: Option<HumanAddr>,
 ) -> StdResult<SwapInfo> {
     if !config.pair.contains(&offer.token) {
         return Err(StdError::generic_err(format!(
@@ -398,10 +401,16 @@ pub fn initial_swap(
     let lp_fee = settings.lp_fee;
     let shade_dao_fee = settings.shade_dao_fee;
     
-    let lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;     
-    let shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;
+    // calculation fee
+    let charged_fee = is_address_in_whitelist(storage, recipient.unwrap().clone())?;
+    let mut lp_fee_amount = Uint128(0u128);     
+    let mut shade_dao_fee_amount =Uint128(0u128);  
+    
+    if charged_fee == false {
+        lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;     
+        shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;       
+    }
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
-
     let deducted_offer_amount = (swap_amount - Uint256::from(total_fee_amount))?;   
     let result_swap = SwapResult {
         return_amount: deducted_offer_amount.clamp_u128()?.into(),
@@ -416,19 +425,19 @@ pub fn initial_swap(
     })
 }
 
-fn add_address_to_whitelist(storage: &mut impl Storage, address: HumanAddr) -> StdResult<HandleResponse>{
-    add_whitelist_address(storage, address)?;  
+pub fn add_address_to_whitelist(storage: &mut impl Storage, address: HumanAddr) -> StdResult<HandleResponse>{
+    add_whitelist_address(storage, address.clone())?;  
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
                 log("action", "save_address_to_whitelist"),
-                log("whitelist_address",address.as_str())
+                log("whitelist_address",address.as_str().clone()),
         ],
         data: None,
     })
 }
 
-fn remove_address_from_whitelist(storage: &mut impl Storage, list: Vec<HumanAddr>) -> StdResult<HandleResponse>{
+pub fn remove_address_from_whitelist(storage: &mut impl Storage, list: Vec<HumanAddr>) -> StdResult<HandleResponse>{
     remove_whitelist_address(storage, list.clone())?;
     Ok(HandleResponse {
         messages: vec![],

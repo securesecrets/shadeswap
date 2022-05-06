@@ -236,7 +236,7 @@ mod amm_pair_test_contract {
         let address_a = HumanAddr::from("TESTA".to_string());
         add_whitelist_address(&mut deps.storage, address_a.clone())?;          
         let swap_result = initial_swap(&deps.querier, &amm_settings, &config, &mk_custom_token_amount("token0", Uint128::from(offer_amount)), &mut deps.storage, Some(HumanAddr("Test".to_string().clone())))?;
-        assert_eq!(Uint128::from(expected_amount), swap_result.clone()result.return_amount.clone());
+        assert_eq!(Uint128::from(expected_amount), swap_result.clone().result.return_amount.clone());
         assert_eq!(Uint128::zero(), swap_result?.lp_fee_amount);
         Ok(())
     }

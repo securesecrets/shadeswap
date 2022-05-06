@@ -122,20 +122,51 @@ pub mod amm_pair {
 
 pub mod factory {
     use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair};
-    use fadroma::ContractInstantiationInfo;
+    use fadroma::{ContractInstantiationInfo, Binary};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
     use crate::amm_pair::AMMPair;
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    pub struct InitMsg {
+        pub pair_contract: ContractInstantiationInfo,
+        pub amm_settings: AMMSettings<HumanAddr>,
+        pub lp_token_contract: ContractInstantiationInfo,
+        pub prng_seed: Binary
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HandleMsg {
+        SetConfig {
+            pair_contract: Option<ContractInstantiationInfo>,
+            lp_token_contract: Option<ContractInstantiationInfo>,
+            amm_settings: Option<AMMSettings<HumanAddr>>
+        },
+        CreateAMMPair {
+            pair: TokenPair<HumanAddr>,
+            entropy: Binary
+        },
+        AddAMMPairs {
+            amm_pair: Vec<AMMPair<HumanAddr>>
+        },
+        RegisterAMMPair {
+            pair: TokenPair<HumanAddr>,
+            signature: Binary,
+        }
+    }
+
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryResponse {
         ListAMMPairs {
             amm_pairs: Vec<AMMPair<HumanAddr>>,
         },
-        Config {
+        GetConfig {
             pair_contract: ContractInstantiationInfo,
             amm_settings: AMMSettings<HumanAddr>,
+            lp_token_contract: ContractInstantiationInfo
         },
         GetAMMPairAddress {
             address: HumanAddr,

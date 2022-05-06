@@ -1,6 +1,7 @@
 
 use shadeswap_shared::amm_pair::Fee;
 use shadeswap_shared::amm_pair::AMMSettings;
+use shadeswap_shared::msg::factory::InitMsg;
 pub use shadeswap_shared::{
     fadroma::{
         scrt_addr::Canonize,
@@ -18,7 +19,6 @@ pub use shadeswap_shared::{
 };
 
 
-use crate::msg::InitMsg;
 use crate::state::Config;
 
 #[cfg(test)]
@@ -27,7 +27,6 @@ pub mod test_contract {
 use crate::contract::EPHEMERAL_STORAGE_KEY;
 use crate::contract::handle;
     use crate::contract::query;
-    use crate::msg::HandleMsg;
     use crate::state::PAGINATION_LIMIT;
 use super::*;
     use crate::contract::create_pair;
@@ -35,6 +34,7 @@ use super::*;
     use crate::state::config_read;
     use crate::state::config_write;
     use shadeswap_shared::amm_pair::AMMPair;
+    use shadeswap_shared::msg::factory::HandleMsg;
     use shadeswap_shared::msg::factory::QueryMsg;
     pub use shadeswap_shared::{
         fadroma::{
@@ -384,7 +384,7 @@ fn mkconfig(id: u64) -> Config<HumanAddr> {
         },
         lp_token_contract: ContractInstantiationInfo { 
             id,
-            code_hash: "2341586789".into()
+            code_hash: "123".into()
         },
         prng_seed: to_binary(&"prng").unwrap()
     })
@@ -422,9 +422,10 @@ impl Into<InitMsg> for &Config<HumanAddr> {
 
 impl Into<QueryResponse> for &Config<HumanAddr> {
     fn into(self) -> QueryResponse {
-        QueryResponse::Config {
+        QueryResponse::GetConfig { 
             pair_contract: self.pair_contract.clone(),
             amm_settings: self.amm_settings.clone(),
+            lp_token_contract: self.lp_token_contract.clone()
         }
     }
 }

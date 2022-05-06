@@ -25,11 +25,24 @@ use shadeswap_shared::{
         scrt_link::ContractLink,
         scrt_vk::ViewingKey,
     },
- 
+    scrt_callback::Callback,
+    scrt_link::ContractLink,
+    scrt_uint256::Uint256,
+    scrt_vk::ViewingKey,
 };
+use shadeswap_shared::msg::amm_pair::{HandleMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse};
+use shadeswap_shared::msg::factory::{
+    QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
+};
+use shadeswap_shared::token_amount::TokenAmount;
+use shadeswap_shared::token_pair::TokenPair;
+use shadeswap_shared::token_pair_amount::TokenPairAmount;
+use shadeswap_shared::token_type::TokenType;
 
-
-use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip20ComposableConfig}};
+use composable_snip20::msg::{
+    InitConfig as Snip20ComposableConfig, 
+    InitMsg as Snip20ComposableMsg,
+};
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
 pub const BLOCK_SIZE: usize = 256;
@@ -46,8 +59,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     }
 
     let mut messages = vec![];
-   
-    let viewing_key =  create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone());
+
+    let viewing_key = create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone());
     register_pair_token(&env, &mut messages, &msg.pair.0, &viewing_key)?;
     register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;
 
@@ -55,10 +68,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
         msg: to_binary(&Snip20ComposableMsg {
-            name: format!(
-                "ShadeSwap AMM Pair Contract Provider (LP) token for {}-{}",
-                &msg.pair.0, &msg.pair.1
-            ),
+            name: "TEST".to_string(),
             admin: Some(env.contract.address.clone()),
             symbol: msg.symbol.to_string(),
             decimals: 18,
@@ -117,7 +127,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
-   ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
+    ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
 }
 
 fn register_lp_token<S: Storage, A: Api, Q: Querier>(
@@ -189,10 +199,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ReceiveCallback {
             from, amount, msg, ..
         } => receiver_callback(deps, env, from, amount, msg),
-        HandleMsg::AddLiquidityToAMMContract {
-            deposit,
-            slippage,
-        } => add_liquidity(deps, env, deposit, slippage),
+        HandleMsg::AddLiquidityToAMMContract { deposit, slippage } => {
+            add_liquidity(deps, env, deposit, slippage)
+        }
         HandleMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
         HandleMsg::AddWhitelistAddress{address} => add_address_to_whitelist(&mut deps.storage, address),
         HandleMsg::RemoveWhitelistAddresses{addresses} => remove_address_from_whitelist(&mut deps.storage, addresses),
@@ -251,7 +260,7 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
             TokenType::CustomToken {
                 contract_addr,
                 token_code_hash,
-            } =>{
+            } => {
                 messages.push(snip20::transfer_msg(
                     amm_settings.shade_dao_address.address,
                     swap_result.shade_dao_fee_amount,
@@ -274,7 +283,7 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
         }
     }
 
-    // Send Token to Buyer or Swapper 
+    // Send Token to Buyer or Swapper
     let index = config.pair.get_token_index(&offer.token).unwrap(); // Safe, checked in do_swap
     let token = config.pair.get_token(index ^ 1).unwrap();
 
@@ -304,7 +313,7 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
             log("offer_token", offer.token),
             log("offer_amount", offer.amount),
             log("return_amount", swap_result.result.return_amount),
-            log("spread_amount", swap_result.result.spread_amount),   
+            log("spread_amount", swap_result.result.spread_amount),
             log("lp_fee", swap_result.lp_fee_amount),
             log("shade_dao_fee", swap_result.shade_dao_fee_amount),
             log("shade_total_fee", swap_result.total_fee_amount),
@@ -364,13 +373,11 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
     }
 }
 
-fn calculate_fee(amount: Uint256, fee: Fee) 
--> StdResult<Uint128>
-{
-  let nom = Uint256::from(fee.nom);
-  let denom = Uint256::from(fee.denom);
-  let amount = ((amount * nom)? /denom)?;
-  Ok(amount.clamp_u128()?.into())
+fn calculate_fee(amount: Uint256, fee: Fee) -> StdResult<Uint128> {
+    let nom = Uint256::from(fee.nom);
+    let denom = Uint256::from(fee.denom);
+    let amount = ((amount * nom)? / denom)?;
+    Ok(amount.clamp_u128()?.into())
 }
 
 pub fn initial_swap(
@@ -386,18 +393,18 @@ pub fn initial_swap(
             "The required token {}, is not presented in this contract.",
             offer.token
         )));
-    } 
+    }
 
-    let amount = Uint256::from(offer.amount);    
-      // conver tand get avialble balance  
+    let amount = Uint256::from(offer.amount);
+    // conver tand get avialble balance
     let tokens_pool = get_token_pool_balance(querier, settings, config, offer)?;
     let token0_pool = tokens_pool[0];
     let token1_pool = tokens_pool[1];
     // calculate price
     let swap_amount = calculate_price(amount, token0_pool, token1_pool)?;
-    let spread_amount = calculate_spread(amount, token0_pool, token1_pool)?;    
+    let spread_amount = calculate_spread(amount, token0_pool, token1_pool)?;
 
-    // calculate fee 
+    // calculate fee
     let lp_fee = settings.lp_fee;
     let shade_dao_fee = settings.shade_dao_fee;
     
@@ -450,17 +457,16 @@ pub fn remove_address_from_whitelist(storage: &mut impl Storage, list: Vec<Human
 }
 
 fn get_token_pool_balance(
-     querier: &impl Querier,
-     settings: &AMMSettings<HumanAddr>,
-     config: &Config<HumanAddr>,
-     swap_offer: &TokenAmount<HumanAddr>
-) -> StdResult<[Uint256;2]>{
+    querier: &impl Querier,
+    settings: &AMMSettings<HumanAddr>,
+    config: &Config<HumanAddr>,
+    swap_offer: &TokenAmount<HumanAddr>,
+) -> StdResult<[Uint256; 2]> {
     let tokens_balances = config.pair.query_balances(
         querier,
         config.contract_addr.clone(),
         config.viewing_key.0.clone(),
     )?;
-    
     let index = config.pair.get_token_index(&swap_offer.token).unwrap();
     let token0_pool = tokens_balances[index];
     let token1_pool = tokens_balances[index ^ 1];
@@ -476,7 +482,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
     env: Env,
     amount: Uint128,
     recipient: HumanAddr,
-) -> StdResult<HandleResponse>{
+) -> StdResult<HandleResponse> {
     let config = load_config(&deps)?;
     let Config {
         pair,
@@ -486,10 +492,8 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
         ..
     } = config;
 
-
     let liquidity_pair_contract = query_liquidity_pair_contract(&deps.querier, &lp_token_info)?;
     let pool_balances = pair.query_balances(&deps.querier, contract_addr, viewing_key.0)?;
-    
     let withdraw_amount = Uint256::from(amount);
     let total_liquidity = Uint256::from(liquidity_pair_contract);
 
@@ -529,16 +533,21 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
         ],
         data: None,
     })
-
 }
 
-pub fn calculate_price(amount: Uint256, token0_pool_balance: Uint256, token1_pool_balance: Uint256) 
--> StdResult<Uint256>{
+pub fn calculate_price(
+    amount: Uint256,
+    token0_pool_balance: Uint256,
+    token1_pool_balance: Uint256,
+) -> StdResult<Uint256> {
     Ok(((token0_pool_balance * amount)? / (token1_pool_balance + amount)?)?)
-} 
+}
 
-pub fn calculate_spread(amount: Uint256, token0_pool_balance: Uint256, token1_pool_balance: Uint256) -> StdResult<Uint256>
-{
+pub fn calculate_spread(
+    amount: Uint256,
+    token0_pool_balance: Uint256,
+    token1_pool_balance: Uint256,
+) -> StdResult<Uint256> {
     let update_amount = ((token0_pool_balance * amount)? / (token1_pool_balance + amount)?)?;
     let original_amount = ((token0_pool_balance * amount)? / (token1_pool_balance))?;
     let spread_amount = (update_amount - original_amount).unwrap_or(Uint256::zero());
@@ -567,7 +576,10 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         ));
     }
     let mut pair_messages: Vec<CosmosMsg> = vec![];
-    let mut pool_balances = deposit.pair.query_balances(&deps.querier, contract_addr, viewing_key.0)?;
+    let mut pool_balances =
+        deposit
+            .pair
+            .query_balances(&deps.querier, contract_addr, viewing_key.0)?;
     for (i, (amount, token)) in deposit.into_iter().enumerate() {
         match &token {
             TokenType::CustomToken {
@@ -599,25 +611,27 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         &pool_balances,
     )?;
 
-    let pair_contract_pool_liquidity = query_liquidity_pair_contract(&deps.querier, &lp_token_info)?;
-  
+    let pair_contract_pool_liquidity =
+        query_liquidity_pair_contract(&deps.querier, &lp_token_info)?;
     let mut lp_tokens: u128 = u128::MIN;
-    if pair_contract_pool_liquidity == Uint128::zero() {      
+    if pair_contract_pool_liquidity == Uint128::zero() {
         // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
-        // x and y is amount of token0 and token1 provided        
+        // x and y is amount of token0 and token1 provided
         let deposit_token0_amount = Uint256::from(deposit.amount_0);
         let deposit_token1_amount = Uint256::from(deposit.amount_1);
-        lp_tokens = (deposit_token0_amount * deposit_token1_amount)?.sqrt()?.clamp_u128()?
+        lp_tokens = (deposit_token0_amount * deposit_token1_amount)?
+            .sqrt()?
+            .clamp_u128()?
     } else {
         // Total % of Pool
         let total_share = Uint256::from(pair_contract_pool_liquidity);
         // Deposit amounts of the tokens
-        let deposit_token0_amount = Uint256::from(deposit.amount_0);        
+        let deposit_token0_amount = Uint256::from(deposit.amount_0);
         let deposit_token1_amount = Uint256::from(deposit.amount_1);
 
-        // get token pair balance 
+        // get token pair balance
         let token0_pool = Uint256::from(pool_balances[0]);
-        let token1_pool = Uint256::from(pool_balances[1]);  
+        let token1_pool = Uint256::from(pool_balances[1]);
         // Calcualte new % of Pool
         let percent_token0_pool = ((deposit_token0_amount * total_share)? / token0_pool)?;
         let percent_token1_pool = ((deposit_token1_amount * total_share)? / token1_pool)?;
@@ -634,7 +648,7 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     )?);
 
     Ok(HandleResponse {
-        messages : pair_messages,
+        messages: pair_messages,
         log: vec![
             log("action", "add_liquidity_to_pair_contract"),
             log("assets", format!("{}, {}", deposit.pair.0, deposit.pair.1)),
@@ -645,20 +659,22 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
 }
 
 fn assert_slippage_acceptance(
-    slippage:Option<Decimal>,
+    slippage: Option<Decimal>,
     deposits: &[Uint128; 2],
-    pools: &[Uint128;2]
+    pools: &[Uint128; 2],
 ) -> StdResult<()> {
-
     if slippage.is_none() {
         return Ok(());
     }
 
     let slippage_amount = substraction(Decimal::one(), slippage.unwrap())?;
 
-    if multiply(Decimal::from_ratio(deposits[0], deposits[1]), 
-        slippage_amount) > Decimal::from_ratio(pools[0], pools[1])
-        || multiply(Decimal::from_ratio(deposits[1], deposits[0]),
+    if multiply(
+        Decimal::from_ratio(deposits[0], deposits[1]),
+        slippage_amount,
+    ) > Decimal::from_ratio(pools[0], pools[1])
+        || multiply(
+            Decimal::from_ratio(deposits[1], deposits[0]),
             slippage_amount,
         ) > Decimal::from_ratio(pools[1], pools[0])
     {
@@ -692,12 +708,10 @@ fn query_liquidity_pair_contract(
     Ok(result.total_supply.unwrap())
 }
 
-
 fn query_factory_amm_settings(
     querier: &impl Querier,
-    factory: ContractLink<HumanAddr>
+    factory: ContractLink<HumanAddr>,
 ) -> StdResult<AMMSettings<HumanAddr>> {
-
     let result: FactoryQueryResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         callback_code_hash: factory.code_hash,
         contract_addr: factory.address,

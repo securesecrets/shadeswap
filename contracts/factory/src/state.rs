@@ -13,12 +13,10 @@ use shadeswap_shared::{
         scrt_link::{ContractInstantiationInfo, ContractLink},
         scrt_storage::{load, ns_load, ns_remove, ns_save, save},
     },
-    Pagination, TokenType, TokenPair,
+    Pagination, TokenType, TokenPair, msg::factory::InitMsg,
 };
 
 use secret_toolkit::utils::{HandleCallback, InitCallback, Query};
-
-use crate::msg::InitMsg;
 
 const NS_AMM_PAIRS: &[u8] = b"amm_pairs";
 const AMM_PAIR_COUNT_KEY : &[u8] = b"amm_pairs_count";

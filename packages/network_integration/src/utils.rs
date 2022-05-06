@@ -7,6 +7,8 @@ use std::fs;
 
 // Smart contracts
 pub const SNIP20_FILE: &str = "../../compiled/snip20_reference_impl.wasm.gz";
+pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
+pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
 
 pub const STORE_GAS: &str = "10000000";
 pub const GAS: &str = "800000";

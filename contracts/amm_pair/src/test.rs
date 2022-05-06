@@ -89,7 +89,7 @@ mod amm_pair_test_contract {
         Ok(())
     }
 
-    #[test]
+   /* #[test]
     fn assert_initial_swap_with_wrong_token_exception() -> StdResult<()>{     
         let token_pair = mk_token_pair("TOKEN0".to_string(), "TOKEN1".to_string());
         let amm_settings = mk_amm_settings();
@@ -107,7 +107,7 @@ mod amm_pair_test_contract {
 
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
-    }
+    }*/
 }
 
 fn mkenv(sender: impl Into<HumanAddr>) -> Env {

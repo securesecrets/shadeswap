@@ -206,18 +206,42 @@ mod amm_pair_test_contract {
     fn assert_load_address_from_whitelist_success()-> StdResult<()>{
         let mut deps = mkdeps();
         let env = mkenv("sender");       
-        let addressA = HumanAddr::from("TESTA".to_string());
-        let addressB = HumanAddr::from("TESTB".to_string());
-        let addressC = HumanAddr::from("TESTC".to_string());
-        add_whitelist_address(&mut deps.storage, addressA.clone())?;
-        add_whitelist_address(&mut deps.storage, addressB.clone())?;
-        add_whitelist_address(&mut deps.storage, addressC.clone())?;
-        let stubList = load_whitelist_address(&deps.storage)?;
-        assert_eq!(3, stubList.len());
-        let is_addr = is_address_in_whitelist(&mut deps.storage, addressB.clone())?;  
+        let address_a = HumanAddr::from("TESTA".to_string());
+        let address_b = HumanAddr::from("TESTB".to_string());
+        let address_c = HumanAddr::from("TESTC".to_string());
+        add_whitelist_address(&mut deps.storage, address_a.clone())?;
+        add_whitelist_address(&mut deps.storage, address_b.clone())?;
+        add_whitelist_address(&mut deps.storage, address_c.clone())?;
+        let stub_list = load_whitelist_address(&deps.storage)?;
+        assert_eq!(3, stub_list.len());
+        let is_addr = is_address_in_whitelist(&mut deps.storage, address_b.clone())?;  
         assert_eq!(true, is_addr);      
         Ok(())
     }
+
+      
+    #[test]
+    fn assert_initiaal_swap_with_zero_fee_for_whitelist_address()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let amm_settings = mk_amm_settings();
+        let config = make_init_config(&mut deps)?;   
+        let token0Address = config.pair.get_token(0).unwrap();
+        let token0Type = TokenType::CustomToken{
+            contract_addr: HumanAddr::from("token0".to_string()),
+            token_code_hash: "Test".to_string(),
+        };
+        let offer_amount: u128 = 34028236692093846346337460;
+        let expected_amount: u128 = 34028236692093846346337460;      
+        let env = mkenv("sender");
+        let address_a = HumanAddr::from("TESTA".to_string());
+        add_whitelist_address(&mut deps.storage, address_a.clone())?;          
+        let swap_result = initial_swap(&deps.querier, &amm_settings, &config, &mk_custom_token_amount("token0", Uint128::from(offer_amount)), &mut deps.storage, Some(HumanAddr("Test".to_string().clone())))?;
+        assert_eq!(Uint128::from(expected_amount), swap_result.clone()result.return_amount.clone());
+        assert_eq!(Uint128::zero(), swap_result?.lp_fee_amount);
+        Ok(())
+    }
+
+
 }
 
 fn make_init_config<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>) -> StdResult<Config<HumanAddr>> {    

@@ -6,6 +6,8 @@ use crate::state::save_prng_seed;
 use secret_toolkit::utils::HandleCallback;
 use secret_toolkit::utils::InitCallback;
 use shadeswap_shared::amm_pair::AMMPair;
+use shadeswap_shared::msg::factory::HandleMsg;
+use shadeswap_shared::msg::factory::InitMsg;
 use shadeswap_shared::msg::factory::QueryMsg;
 use shadeswap_shared::msg::factory::QueryResponse;
 use shadeswap_shared::Pagination;
@@ -31,7 +33,6 @@ use shadeswap_shared::{
     msg::amm_pair::InitMsg as AMMPairInitMsg,
 };
 
-use crate::msg::{HandleMsg, InitMsg};
 use crate::state::{config_read, config_write, Config};
 
 pub const EPHEMERAL_STORAGE_KEY: &[u8] = b"ephemeral_storage";

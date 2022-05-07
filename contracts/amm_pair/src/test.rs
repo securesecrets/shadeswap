@@ -9,7 +9,7 @@ use crate::state::amm_pair_storage::{{ store_config, load_config,
     remove_whitelist_address,is_address_in_whitelist, add_whitelist_address,load_whitelist_address, }};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
 use crate::contract::init;
-use crate::contract::{{create_viewing_key, calculate_price, swap_tokens, initial_swap}};
+use crate::contract::{{create_viewing_key, calculate_price, swap_tokens, query, handle, initial_swap}};
 use std::hash::Hash;
 use shadeswap_shared::{ 
     fadroma::{
@@ -105,7 +105,7 @@ mod amm_pair_test_contract {
             &deps.querier, 
             &amm_settings, 
             &mock_config(env)?,
-            &mk_custom_token_amount("", Uint128::from(offer_amount)), 
+            &mk_custom_token_amount(Uint128::from(offer_amount),token_pair), 
             & mut deps.storage,
             Some(HumanAddr("Test".to_string().clone()))
         );
@@ -119,16 +119,12 @@ mod amm_pair_test_contract {
     {     
         let mut deps = mkdeps();
         let amm_settings = mk_amm_settings();
-        let config = make_init_config(&mut deps)?;   
-        let token0Address = config.pair.get_token(0).unwrap();
-        let token0Type = TokenType::CustomToken{
-            contract_addr: HumanAddr::from("token0".to_string()),
-            token_code_hash: "Test".to_string(),
-        };
+        let config = make_init_config(&mut deps)?;           
         let offer_amount: u128 = 34028236692093846346337460;
-        let expected_amount: u128 = 34028236692093846346337460;      
-        let env = mkenv("sender");
-        let swap_result = initial_swap(&deps.querier, &amm_settings, &config, &mk_custom_token_amount("token0", Uint128::from(offer_amount)), &mut deps.storage, Some(HumanAddr("Test".to_string().clone())));
+        let expected_amount: u128 = 34028236692093846346337460;
+        let swap_result = initial_swap(&deps.querier, &amm_settings, &config, 
+            &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
+            &mut deps.storage, Some(HumanAddr("Test".to_string().clone())));
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -136,11 +132,21 @@ mod amm_pair_test_contract {
     #[test]
     fn assert_load_trade_history_first_time() -> StdResult<()>{
         let deps = mkdeps();
-        let env = mkenv("sender");
         let initial_value = load_trade_counter(&deps.storage)?;
         assert_eq!(0, initial_value);
         Ok(())
     }
+
+    #[test]
+    fn assert_store_and_load_config_success() -> StdResult<()>{
+        let mut deps = mkdeps();
+        let config = make_init_config(&mut deps)?;   
+        store_config(&mut deps, &config)?;
+        let stored_config = load_config(&mut deps)?;
+        assert_eq!(config.pair.0, stored_config.pair.0);
+        Ok(())
+    }
+
 
     #[test]
     fn assert_store_trade_history_increase_counter_and_store_success()-> StdResult<()>{
@@ -193,13 +199,12 @@ mod amm_pair_test_contract {
         assert_eq!(2, current_index.len());   
         let mut list_addresses_remove  = Vec::new();
         list_addresses_remove.push(addressB.clone());
-        let current_index = remove_whitelist_address(&mut deps.storage, list_addresses_remove)?;
+        remove_whitelist_address(&mut deps.storage, list_addresses_remove)?;
         add_whitelist_address(&mut deps.storage, addressC.clone())?;
         let current_index = load_whitelist_address(&deps.storage)?;
         assert_eq!(2, current_index.len());        
         Ok(())
     }
-
 
     
     #[test]
@@ -216,6 +221,8 @@ mod amm_pair_test_contract {
         assert_eq!(3, stub_list.len());
         let is_addr = is_address_in_whitelist(&mut deps.storage, address_b.clone())?;  
         assert_eq!(true, is_addr);      
+        let is_addr = is_address_in_whitelist(&mut deps.storage, HumanAddr("TESTD".to_string()).clone())?;  
+        assert_eq!(false, is_addr);   
         Ok(())
     }
 
@@ -224,42 +231,70 @@ mod amm_pair_test_contract {
     fn assert_initial_swap_with_zero_fee_for_whitelist_address()-> StdResult<()>{
         let mut deps = mkdeps();
         let amm_settings = mk_amm_settings();
-        let config = make_init_config(&mut deps)?;   
-        let token0Address = config.pair.get_token(0).unwrap();
-        let token0Type = TokenType::CustomToken{
-            contract_addr: HumanAddr::from("token0".to_string()),
-            token_code_hash: "Test".to_string(),
-        };
+        let config = make_init_config(&mut deps)?;         
         let offer_amount: u128 = 34028236692093846346337460;
-        let expected_amount: u128 = 34028236692093846346337460;      
-        let env = mkenv("sender");
+        let expected_amount: u128 = 34028236692093846346337460;           
         let address_a = HumanAddr::from("TESTA".to_string());
-        add_whitelist_address(&mut deps.storage, address_a.clone())?;          
-        let swap_result = initial_swap(&deps.querier, &amm_settings, &config, &mk_custom_token_amount("token0", Uint128::from(offer_amount)), &mut deps.storage, Some(HumanAddr("Test".to_string().clone())))?;
+        add_whitelist_address(&mut deps.storage, address_a.clone())?;    
+        let swap_result = initial_swap(&deps.querier, &amm_settings, &config, 
+            &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
+            &mut deps.storage, Some(HumanAddr("TESTA".to_string().clone())))?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
         assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
         Ok(())
     }
 
+    #[test]
+    fn assert_query_get_amm_pairs_success()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let env = mkenv("sender");
+        let amm_settings = mk_amm_settings();
+        let config = make_init_config(&mut deps)?;         
+        let offer_amount: u128 = 34028236692093846346337460;
+        let expected_amount: u128 = 34028236692093846346337460;           
+        let address_a = HumanAddr::from("TESTA".to_string());
+        handle(
+            &mut deps,
+            env,
+            HandleMsg::AddWhitelistAddress {
+                address: address_a.clone()
+            },
+        )
+        .unwrap();
 
+        let result = query(
+            &deps,
+            QueryMsg::GetWhiteListAddress {
+            },
+        )
+        .unwrap();
+
+        let response: QueryMsgResponse = from_binary(&result).unwrap();
+
+        match response {
+            QueryMsgResponse::WhiteListAddress { addresses: stored } => {
+                assert_eq!(1, stored.len())
+            }
+            _ => panic!("QueryResponse::ListExchanges"),
+        }
+        Ok(())
+    }
 }
 
 fn make_init_config<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>) -> StdResult<Config<HumanAddr>> {    
     let seed = to_binary(&"SEED".to_string())?;
     let entropy = to_binary(&"ENTROPY".to_string())?;
-    let mut env = mkenv("test");
-    env.block.height = 200_000;
-    env.contract.address = HumanAddr("ContractAddress".to_string());
+    let env = mkenv("test");
     let token_pair = mk_token_pair("token0".to_string(), "token1".to_string());
     let msg = InitMsg {
-        pair: token_pair,
+        pair: token_pair.clone(),
         lp_token_contract: ContractInstantiationInfo{
               code_hash: "CODE_HASH".to_string(),
               id :0
         },
         factory_info: ContractLink {
-            address: HumanAddr(String::from("FACTORYADDR")),
-            code_hash: "FACTORYADDR_HASH".to_string()
+            address: HumanAddr(String::from("token0")),
+            code_hash: "token0".to_string()
         },
         prng_seed: seed.clone(),
         entropy: entropy.clone(),
@@ -300,9 +335,9 @@ fn mk_token_pair(token0: String, token1: String) -> TokenPair<HumanAddr>{
 }
 
 
-fn mk_custom_token_amount(address: &str, amount: Uint128) -> TokenAmount<HumanAddr>{  
+fn mk_custom_token_amount(amount: Uint128, token_pair: TokenPair<HumanAddr>) -> TokenAmount<HumanAddr>{    
     let token = TokenAmount{
-        token: mk_custom_token(address.to_string()),
+        token: token_pair.0.clone(),
         amount: amount.clone(),
     };
     token

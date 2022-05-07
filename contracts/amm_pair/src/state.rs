@@ -150,8 +150,8 @@ pub mod amm_pair_storage{
         for address in address_to_remove {
             addresses.retain(|x| x != &address);
         }
-        let bin_data = ser_bin_data(&addresses)?;
-        save(storage, WHITELIST, &bin_data)
+        // let bin_data = ser_bin_data(&addresses)?;
+        save(storage, WHITELIST,&addresses)
     }
 
     pub fn is_address_in_whitelist(storage: &impl Storage, address: HumanAddr) -> StdResult<bool>{

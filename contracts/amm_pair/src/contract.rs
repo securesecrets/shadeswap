@@ -24,20 +24,8 @@ use shadeswap_shared::{
         scrt_callback::Callback,
         scrt_link::ContractLink,
         scrt_vk::ViewingKey,
-    },
-    scrt_callback::Callback,
-    scrt_link::ContractLink,
-    scrt_uint256::Uint256,
-    scrt_vk::ViewingKey,
+    }
 };
-use shadeswap_shared::msg::amm_pair::{HandleMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse};
-use shadeswap_shared::msg::factory::{
-    QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
-};
-use shadeswap_shared::token_amount::TokenAmount;
-use shadeswap_shared::token_pair::TokenPair;
-use shadeswap_shared::token_pair_amount::TokenPairAmount;
-use shadeswap_shared::token_type::TokenType;
 
 use composable_snip20::msg::{
     InitConfig as Snip20ComposableConfig, 
@@ -344,7 +332,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             })
             
         },
-        QueryMsg::TradeHistoryLatest => {         
+        QueryMsg::GetTradeHistoryLatest => {         
               
             let latest_index: u64 = load_trade_counter(&deps.storage)?;       
             let latest_trade_history = load_trade_history(&deps.storage, latest_index)?;         
@@ -364,9 +352,9 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 timestamp: trade_history_at.timestamp
             })
         },   
-        QueryMsg::WhiteListAddress =>{
+        QueryMsg::GetWhiteListAddress =>{
             let stored_addr = load_whitelist_address(&deps.storage)?;
-            to_binary(&QueryMsgResponse::WhitelistAddress{
+            to_binary(&QueryMsgResponse::WhiteListAddress{
                 addresses: stored_addr
             })
         }     

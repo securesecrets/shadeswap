@@ -93,8 +93,8 @@ pub mod amm_pair {
         TradeHistoryByIndex {
             index: u64
         },
-        TradeHistoryLatest,
-        WhiteListAddress
+        GetTradeHistoryLatest,
+        GetWhiteListAddress
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -114,7 +114,7 @@ pub mod amm_pair {
             timestamp: u64,
             direction: String,
         },
-        WhitelistAddress {
+        WhiteListAddress {
             addresses: Vec<HumanAddr>
         }
     }

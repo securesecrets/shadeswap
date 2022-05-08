@@ -4,7 +4,7 @@ members = [
     "contracts/amm_pair",
     "contracts/factory",
     "contracts/router",
-    #"contracts/snip20",
+    "contracts/snip20",
     "packages/network_integration"
 ]
 

@@ -85,6 +85,7 @@ pub mod swapdetails {
         pub lp_fee_amount: Uint128,
         pub shade_dao_fee_amount: Uint128,
         pub result: SwapResult,
+        pub price: Uint128,
     }
     
     #[derive(Serialize, Deserialize,  PartialEq, Debug)]
@@ -131,14 +132,14 @@ pub mod amm_pair_storage{
     pub fn add_whitelist_address(storage: &mut impl Storage, address: HumanAddr) -> StdResult<()> {
         let mut unwrap_data = load_whitelist_address(storage)?;
         unwrap_data.push(address);
-      //  let array = ser_bin_data(&unwrap_data)?;
+        let array = ser_bin_data(&unwrap_data)?;
         save(storage, WHITELIST, &unwrap_data)
     }
 
     pub fn load_whitelist_address(storage: &impl Storage) -> StdResult<Vec<HumanAddr>> {
         let raw_data = load(storage, WHITELIST)?.unwrap_or(Vec::new());        
-       // let unwrap_date = deser_bin_data(&raw_data)?;
-        Ok(raw_data)
+        let unwrap_date = deser_bin_data(&raw_data)?;
+        Ok(unwrap_date)
     }
 
     
@@ -146,8 +147,7 @@ pub mod amm_pair_storage{
         let mut addresses = load_whitelist_address(storage)?;
         for address in address_to_remove {
             addresses.retain(|x| x != &address);
-        }
-        // let bin_data = ser_bin_data(&addresses)?;
+        }      
         save(storage, WHITELIST,&addresses)
     }
 

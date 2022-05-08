@@ -6,7 +6,7 @@ use network_integration::utils::{
 use secretcli::{
     cli_types::NetContract,
     secretcli::{account_address, handle, init, query, Report},
-// };
+};
 use serde_json::Result;
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings, Fee},
@@ -458,7 +458,7 @@ fn run_testnet() -> Result<()> {
                 &snip20::HandleMsg::Send {
                     recipient: HumanAddr(String::from(ammPair.address.0.to_string())),
                     amount: Uint128(10),
-                    msg: Some(to_binary(&InvokeMsg::SwapTokens{ expected_return: None, to: None }).unwrap()),
+                    msg: Some(to_binary(&InvokeMsg::SwapTokens{ expected_return: None, to: Some(HumanAddr(account.to_string())) }).unwrap()),
                     padding: None,
                 },
                 &NetContract {
@@ -474,9 +474,7 @@ fn run_testnet() -> Result<()> {
                 &mut reports,
                 None,
             )
-            .unwrap();
-
-            
+            .unwrap();            
             
             assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(999999890));
             assert_eq!(get_balance(&s_sHD, account.to_string()), Uint128(999999800));

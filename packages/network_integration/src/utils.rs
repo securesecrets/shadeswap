@@ -15,6 +15,7 @@ pub const STORE_GAS: &str = "10000000";
 pub const GAS: &str = "800000";
 pub const VIEW_KEY: &str = "password";
 pub const ACCOUNT_KEY: &str = "a";
+pub const STAKER_KEY: &str = "b";
 
 pub fn generate_label(size: usize) -> String {
     rand::thread_rng()

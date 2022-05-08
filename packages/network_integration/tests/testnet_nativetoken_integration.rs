@@ -1,7 +1,8 @@
 use colored::Colorize;
 use network_integration::utils::{
-    generate_label, print_contract, print_header, print_vec, print_warning, ACCOUNT_KEY,
-    AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, SNIP20_FILE, STORE_GAS, VIEW_KEY,
+    generate_label, print_contract, print_header, print_vec, print_warning,STAKER_KEY,
+    ACCOUNT_KEY,  AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, SNIP20_FILE,
+    STORE_GAS, VIEW_KEY,
 };
 use secretcli::{
     cli_types::NetContract,
@@ -384,7 +385,7 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
             handle(
                 &snip20::HandleMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-                    amount: Uint128(100),
+                    amount: Uint128(1000000),
                     expiration: None,
                     padding: None,
                 },
@@ -419,10 +420,10 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
                     address: ammPair.address.0.clone(),
                     code_hash: s_ammPair.code_hash.to_string(),
                 },
-                ACCOUNT_KEY,
+                STAKER_KEY,
                 Some(GAS),
                 Some("test"),
-                None,
+                Some("100"),
                 &mut reports,
                 None,
             )
@@ -525,3 +526,6 @@ pub fn get_balance(contract: &NetContract, from: String) -> Uint128 {
 
     balance.balance.amount
 }
+
+
+

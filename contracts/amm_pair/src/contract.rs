@@ -290,14 +290,29 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
 
     if index == 0
     {
-      
+        store_trade_history(&mut deps.storage, 
+            TradeHistory
+        {
+            price: swap_result.price,
+            amount: swap_result.result.return_amount,
+            timestamp: env.block.time,
+            direction: DirectionType::Buy,
+        })?;
+        
     }
     else if index == 1
     {
-    // store the trade history
-     
-    }
-    
+        // store the trade history
+        store_trade_history(&mut deps.storage, 
+            TradeHistory
+        {
+            price: swap_result.price,
+            amount: swap_result.result.return_amount,
+            timestamp: env.block.time,
+            direction: DirectionType::Sell,
+        })?;
+    }    
+  
     store_config(deps, &config)?;
 
     Ok(HandleResponse {
@@ -404,13 +419,16 @@ pub fn initial_swap(
     
     // calculation fee
     let charged_fee = is_address_in_whitelist(storage, recipient.unwrap().clone())?;
-    let mut lp_fee_amount = Uint128(0u128);     
-    let mut shade_dao_fee_amount =Uint128(0u128);  
+    // let mut lp_fee_amount = Uint128(0u128);     
+    // let mut shade_dao_fee_amount =Uint128(0u128);  
     
-    if charged_fee == false {
-        lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;     
-        shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;       
-    }
+    // if charged_fee == false {
+    //     lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;     
+    //     shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;       
+    // }
+
+    let lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;     
+    let shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;     
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
     let deducted_offer_amount = (swap_amount - Uint256::from(total_fee_amount))?;   
     let result_swap = SwapResult {
@@ -423,6 +441,7 @@ pub fn initial_swap(
         shade_dao_fee_amount: shade_dao_fee_amount,
         total_fee_amount: total_fee_amount,
         result: result_swap,
+        price: ((token0_pool + amount )? / (token1_pool - swap_amount)?)?.clamp_u128()?.into()
     })
 }
 

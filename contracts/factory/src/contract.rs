@@ -194,14 +194,16 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
 
     //Used for verifying callback
     let signature = create_signature(&env)?;
-    let symbolStr = "";
     save(&mut deps.storage, EPHEMERAL_STORAGE_KEY, &signature)?;
     Ok(HandleResponse {
         messages: vec![CosmosMsg::Wasm(WasmMsg::Instantiate {
             code_id: config.pair_contract.id,
             callback_code_hash: config.pair_contract.code_hash,
             send: vec![],
-            label: "test".to_string(),
+            label: format!(
+                "{}-{}-pair-{}-{}",
+                pair.0, pair.1, env.contract.address, config.pair_contract.id
+            ),
             msg: to_binary(&AMMPairInitMsg {
                 pair: pair.clone(),
                 lp_token_contract: config.lp_token_contract.clone(),
@@ -209,7 +211,7 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
                     code_hash: env.contract_code_hash.clone(),
                     address: env.contract.address.clone(),
                 },
-                callback: Callback {
+                callback: Some(Callback {
                     contract: ContractLink {
                         address: env.contract.address,
                         code_hash: env.contract_code_hash,
@@ -218,13 +220,12 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
                         pair: pair.clone(),
                         signature,
                     })?,
-                },
+                }),
                 entropy,
-                prng_seed: load_prng_seed(&deps.storage)?,
-                symbol: symbolStr.to_string()
+                prng_seed: load_prng_seed(&deps.storage)?
             })?,
         })],
-        log: vec![],
+        log: vec![log("action", "create_exchange"), log("pair", pair)],
         data: None,
     })
 }

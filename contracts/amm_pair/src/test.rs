@@ -65,14 +65,13 @@ mod amm_pair_test_contract {
             },
             prng_seed: seed.clone(),
             entropy: entropy.clone(),
-            callback: Callback {
+            callback: Some(Callback {
                 contract: ContractLink {
                     address: HumanAddr(String::from("CALLBACKADDR")),
                     code_hash: "Test".to_string()
                 },
                 msg: to_binary(&String::from("Welcome bytes"))?
-            },
-            symbol: "WETH".to_string(),
+            })
         };     
         assert!(init(deps, env.clone(), msg).is_ok());
       
@@ -80,7 +79,7 @@ mod amm_pair_test_contract {
         let test_view_key = create_viewing_key(&env,seed.clone(),entropy.clone());
         // load config
         let config = load_config(deps).unwrap();
-        assert_eq!("WETH".to_string(), config.symbol);
+        //assert_eq!("WETH".to_string(), config.symbol);
         assert_eq!(test_view_key, config.viewing_key);
         Ok(())
     }
@@ -394,7 +393,7 @@ fn mock_config(env: Env) -> StdResult<Config<HumanAddr>>
     let entropy = to_binary(&"ENTROPY".to_string())?;
 
     Ok(Config {
-        symbol:  "WETH".to_string(),
+        //symbol:  "WETH".to_string(),
         factory_info: mock_contract_link("FACTORY".to_string()),
         lp_token_info: mock_contract_link("LPTOKEN".to_string()),
         pair:      mk_token_pair("TOKEN0".to_string(), "TOKEN1".to_string()),

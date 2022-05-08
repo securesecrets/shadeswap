@@ -1,0 +1,11 @@
+[package]
+name = "lp-token"
+version = "0.1.0"
+authors = ["Asparuh Kamenov <asparuh@hack.bg>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+shadeswap-shared = {path = "../../packages/shadeswap-shared"}

@@ -25,7 +25,6 @@ pub const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct Config<A: Clone> {
-    pub symbol:        String,
     pub factory_info:  ContractLink<A>,
     pub lp_token_info: ContractLink<A>,
     pub pair:      TokenPair<A>,
@@ -36,7 +35,6 @@ pub struct Config<A: Clone> {
 impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
     fn canonize (&self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
         Ok(Config {
-            symbol:        self.symbol.to_string(),
             factory_info:  self.factory_info.canonize(api)?,
             lp_token_info: self.lp_token_info.canonize(api)?,
             pair:          self.pair.canonize(api)?,
@@ -49,7 +47,6 @@ impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
     fn humanize (&self, api: &impl Api) -> StdResult<Config<HumanAddr>> {
         let trades: Vec<TradeHistory> = Vec::new();
         Ok(Config {
-            symbol:        self.symbol.to_string(),
             factory_info:  self.factory_info.humanize(api)?,
             lp_token_info: self.lp_token_info.humanize(api)?,
             pair:          self.pair.humanize(api)?,

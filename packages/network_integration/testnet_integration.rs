@@ -1,28 +1,31 @@
 use colored::Colorize;
 use network_integration::utils::{
     generate_label, print_contract, print_header, print_vec, print_warning, ACCOUNT_KEY,
-    AMM_PAIR_FILE, FACTORY_FILE, GAS, SNIP20_FILE, STORE_GAS, VIEW_KEY,
+    AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, SNIP20_FILE, STORE_GAS, VIEW_KEY,
 };
-use secretcli::secretcli::{account_address, handle, init, query, Report};
+use secretcli::{
+    cli_types::NetContract,
+    secretcli::{account_address, handle, init, query, Report},
+};
 use serde_json::Result;
 use shadeswap_shared::{
-    amm_pair::{AMMSettings, Fee},
+    amm_pair::{AMMPair, AMMSettings, Fee},
     fadroma::{
         scrt::{
             from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin,
             CosmosMsg, Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
             QueryRequest, QueryResult, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
         },
-        Callback, ContractInstantiationInfo, ContractLink,
+        Callback, ContractInstantiationInfo, ContractLink, secret_toolkit::snip20::{Balance, BalanceResponse},
     },
     msg::{
-        amm_pair::InitMsg as AMMPairInitMsg,
+        amm_pair::{HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg},
         factory::{
             HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse,
         },
     },
-    Pagination, TokenPair, TokenType,
+    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType,
 };
 use std::env;
 
@@ -39,6 +42,38 @@ fn run_testnet() -> Result<()> {
 
     let mut reports = vec![];
     let mut repo: Vec<Report> = vec![];
+
+    print_header("Initializing LP TOKEN as template");
+
+    let lp_init_msg = Snip20ComposableMsg {
+        name: "SHADESWAP Liquidity Provider (LP) token for secret1jqjdazedmt29rmrtw0k3a4m0gxkemywu3py695-secret1jqjdazedmt29rmrtw0k3a4m0gxkemywu3py695".to_string(),
+        admin: None,
+        symbol: "SHADE-LP".to_string(),
+        decimals: 18,
+        initial_balances: None,
+        prng_seed: Default::default(),
+        config: Some(Snip20ComposableConfig {
+            public_total_supply: Some(true),
+            enable_deposit: Some(true),
+            enable_redeem: Some(true),
+            enable_mint: Some(true),
+            enable_burn: Some(false),
+        }),
+        initial_allowances: None,
+        callback: None,
+    };
+
+    let s_lp = init(
+        &lp_init_msg,
+        LPTOKEN20_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+    print_contract(&s_lp);
 
     /// Initialize sSCRT
     print_header("Initializing sSCRT");
@@ -142,6 +177,8 @@ fn run_testnet() -> Result<()> {
         )?;
     }
 
+    assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(0));
+
     println!("\n\tDepositing 1000000000uscrt sSCRT");
 
     {
@@ -158,6 +195,7 @@ fn run_testnet() -> Result<()> {
             None,
         )?;
     }
+    assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000));
 
     println!("\n\tDepositing 1000000000uscrt sSHD");
 
@@ -197,40 +235,36 @@ fn run_testnet() -> Result<()> {
         &mut reports,
     )?;*/
 
-    println!("\n\tInitializing Pair Contract");
+    println!("\n\tInitializing Pair Contract for dynamic code_hash");
 
-    let symbol = "SCRTSH";
+    let test_pair = TokenPair::<HumanAddr>(
+        TokenType::CustomToken {
+            contract_addr: s_sCRT.address.clone().into(),
+            token_code_hash: s_sHD.code_hash.to_string(),
+        },
+        TokenType::CustomToken {
+            contract_addr: s_sHD.address.clone().into(),
+            token_code_hash: s_sHD.code_hash.to_string(),
+        },
+    );
+
     let seed = to_binary(&"SEED".to_string()).unwrap();
     let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
     let amm_pair_init_msg = AMMPairInitMsg {
-        pair: TokenPair::<HumanAddr>(
-            TokenType::CustomToken {
-                contract_addr: s_sCRT.address.clone().into(),
-                token_code_hash: s_sCRT.code_hash,
-            },
-            TokenType::CustomToken {
-                contract_addr: s_sHD.address.clone().into(),
-                token_code_hash: s_sHD.code_hash.clone(),
-            },
-        ),
+        pair: test_pair.clone(),
         lp_token_contract: ContractInstantiationInfo {
-            code_hash: s_sHD.code_hash.clone(),
-            id: 1,
+            code_hash: s_lp.code_hash.clone(),
+            id: s_lp.id.clone().parse::<u64>().unwrap(),
         },
         factory_info: ContractLink {
-            address: HumanAddr(String::from("secret1y45vkh0n6kplaeqw6ratuertapxupz532vxnn3")),
+            address: HumanAddr(String::from(
+                "secret1y45vkh0n6kplaeqw6ratuertapxupz532vxnn3",
+            )),
             code_hash: "Test".to_string(),
         },
         prng_seed: seed,
-        callback: Callback {
-            contract: ContractLink {
-                address: HumanAddr(String::from("secret1y45vkh0n6kplaeqw6ratuertapxupz532vxnn3")),
-                code_hash: "Test".to_string(),
-            },
-            msg: to_binary(&String::from("Welcome bytes")).unwrap(),
-        },
+        callback: None,
         entropy: entropy.clone(),
-        symbol: symbol.into(),
     };
 
     let s_ammPair = init(
@@ -255,21 +289,19 @@ fn run_testnet() -> Result<()> {
     let factory_msg = FactoryInitMsg {
         pair_contract: ContractInstantiationInfo {
             code_hash: s_ammPair.code_hash.to_string(),
-            id: 1,
+            id: s_ammPair.id.clone().parse::<u64>().unwrap(),
         },
         amm_settings: AMMSettings {
             lp_fee: Fee::new(28, 10000),
             shade_dao_fee: Fee::new(2, 10000),
             shade_dao_address: ContractLink {
-                address: HumanAddr(String::from(
-                    s_sHD.address.to_string(),
-                )),
+                address: HumanAddr(String::from(s_sHD.address.to_string())),
                 code_hash: s_sHD.code_hash.clone(),
             },
         },
         lp_token_contract: ContractInstantiationInfo {
-            code_hash: s_sHD.code_hash.to_string(),
-            id: 1,
+            code_hash: s_lp.code_hash.clone(),
+            id: s_lp.id.clone().parse::<u64>().unwrap(),
         },
         prng_seed: seed,
     };
@@ -290,16 +322,7 @@ fn run_testnet() -> Result<()> {
     print_header("\n\tInitializing New Pair Contract via Factory");
     {
         let msg = FactoryHandleMsg::CreateAMMPair {
-            pair: TokenPair::<HumanAddr>(
-                TokenType::CustomToken {
-                    contract_addr: s_sCRT.address.into(),
-                    token_code_hash: s_sHD.code_hash.to_string(),
-                },
-                TokenType::CustomToken {
-                    contract_addr: s_sHD.address.into(),
-                    token_code_hash: s_sHD.code_hash,
-                },
-            ),
+            pair: test_pair.clone(),
             entropy: entropy,
         };
 
@@ -332,9 +355,150 @@ fn run_testnet() -> Result<()> {
         let query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
         if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = query {
             assert_eq!(amm_pairs.len(), 1);
+            let ammPair = amm_pairs[0].clone();
+
+            print_header("\n\tIncreasing Allowances");
+            handle(
+                &snip20::HandleMsg::IncreaseAllowance {
+                    spender: HumanAddr(String::from(ammPair.address.0.to_string())),
+                    amount: Uint128(100),
+                    expiration: None,
+                    padding: None,
+                },
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_sHD.id.clone(),
+                    address: s_sHD.address.clone(),
+                    code_hash: s_sHD.code_hash.to_string(),
+                },
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
+
+            handle(
+                &snip20::HandleMsg::IncreaseAllowance {
+                    spender: HumanAddr(String::from(ammPair.address.0.to_string())),
+                    amount: Uint128(100),
+                    expiration: None,
+                    padding: None,
+                },
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_sCRT.id.clone(),
+                    address: s_sCRT.address.clone(),
+                    code_hash: s_sCRT.code_hash.to_string(),
+                },
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
+
+            print_header("\n\tAdding Liquidity");
+            handle(
+                &AMMPairHandlMsg::AddLiquidityToAMMContract {
+                    deposit: TokenPairAmount {
+                        pair: test_pair.clone(),
+                        amount_0: Uint128(100),
+                        amount_1: Uint128(100),
+                    },
+                    slippage: None,
+                },
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                },
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
+
+            
+            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000 - 100));
+            assert_eq!(get_balance(&s_sHD, account.to_string()), Uint128(1000000000 - 100));
+
+            print_header("\n\tInitiating Swap");
+            handle(
+                &snip20::HandleMsg::IncreaseAllowance {
+                    spender: HumanAddr(String::from(ammPair.address.0.to_string())),
+                    amount: Uint128(10),
+                    expiration: None,
+                    padding: None,
+                },
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_sCRT.id.clone(),
+                    address: s_sCRT.address.clone(),
+                    code_hash: s_sCRT.code_hash.to_string(),
+                },
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
+
+            handle(
+                &AMMPairHandlMsg::SwapTokens {
+                    offer: TokenAmount {
+                        token: TokenType::CustomToken {
+                            contract_addr: s_sCRT.address.clone().into(),
+                            token_code_hash: s_sCRT.code_hash.to_string(),
+                        },
+                        amount: Uint128(10),
+                    },
+                    expected_return: None,
+                    to: None,
+                },
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                },
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
+
+            
+            
+            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000));
         } else {
             assert!(false, "Query returned unexpected response")
         }
+
+        /*print_header("\n\tInitiating Swap");
+        handle(
+            &AMMPairHandlMsg::SwapTokens { offer: todo!(), expected_return: todo!(), to: todo!() },
+            &NetContract{ label: "".to_string(), id: s_ammPair.id.clone(), address: ammPair.address.0, code_hash: s_ammPair.code_hash.to_string() },
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            None,
+            &mut reports,
+            None,
+        );*/
     }
 
     /*handle(
@@ -349,4 +513,15 @@ fn run_testnet() -> Result<()> {
     )?;*/
 
     Ok(())
+}
+
+pub fn get_balance(contract: &NetContract, from: String) -> Uint128 {
+    let msg = snip20::QueryMsg::Balance {
+        address: HumanAddr::from(from),
+        key: String::from(VIEW_KEY),
+    };
+
+    let balance: BalanceResponse = query(contract, &msg, None).unwrap();
+
+    balance.balance.amount
 }

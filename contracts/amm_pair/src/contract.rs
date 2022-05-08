@@ -51,9 +51,12 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
         msg: to_binary(&Snip20ComposableMsg {
-            name: "TEST".to_string(),
+            name: format!(
+                "SHADESWAP Liquidity Provider (LP) token for {}-{}",
+                &msg.pair.0, &msg.pair.1
+            ),
             admin: Some(env.contract.address.clone()),
-            symbol: msg.symbol.to_string(),
+            symbol: "SWAP-LP".to_string(),
             decimals: 18,
             callback: Some(Callback {
                 msg: to_binary(&HandleMsg::OnLpTokenInitAddr)?,
@@ -81,15 +84,18 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         callback_code_hash: msg.lp_token_contract.code_hash.clone(),
     }));
 
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: msg.callback.contract.address,
-        callback_code_hash: msg.callback.contract.code_hash,
-        msg: msg.callback.msg,
-        send: vec![],
-    }));
+    match msg.callback {
+        Some(c) => 
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: c.contract.address,
+            callback_code_hash: c.contract.code_hash,
+            msg: c.msg,
+            send: vec![],
+        })),
+        None => println!("No callback given")
+    }
 
     let config = Config {
-        symbol: msg.symbol,
         factory_info: msg.factory_info,
         lp_token_info: ContractLink {
             code_hash: msg.lp_token_contract.code_hash,

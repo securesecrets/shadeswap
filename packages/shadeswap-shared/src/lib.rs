@@ -12,6 +12,7 @@ pub mod amm_pair;
 mod display;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+pub use composable_snip20 as snip20_impl;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct Pagination {

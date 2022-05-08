@@ -1,7 +1,7 @@
 use colored::Colorize;
 use network_integration::utils::{
     generate_label, print_contract, print_header, print_vec, print_warning, ACCOUNT_KEY,
-    AMM_PAIR_FILE, FACTORY_FILE, GAS, SNIP20_FILE, STORE_GAS, VIEW_KEY,
+    AMM_PAIR_FILE, FACTORY_FILE, GAS, SNIP20_FILE, STORE_GAS, VIEW_KEY, LPTOKEN20_FILE,
 };
 use secretcli::secretcli::{account_address, handle, init, query, Report};
 use serde_json::Result;
@@ -39,6 +39,38 @@ fn run_testnet() -> Result<()> {
 
     let mut reports = vec![];
     let mut repo: Vec<Report> = vec![];
+
+    print_header("Initializing LP TOKEN as template");
+
+    let lp_init_msg = Snip20ComposableMsg {
+        name: "SHADESWAP Liquidity Provider (LP) token for secret1jqjdazedmt29rmrtw0k3a4m0gxkemywu3py695-secret1jqjdazedmt29rmrtw0k3a4m0gxkemywu3py695".to_string(),
+        admin: None,
+        symbol: "SHADE-LP".to_string(),
+        decimals: 18,
+        initial_balances: None,
+        prng_seed: Default::default(),
+        config: Some(Snip20ComposableConfig {
+            public_total_supply: Some(true),
+            enable_deposit: Some(true),
+            enable_redeem: Some(true),
+            enable_mint: Some(true),
+            enable_burn: Some(false),
+        }),
+        initial_allowances: None,
+        callback: None,
+    };
+
+    let s_lp = init(
+        &lp_init_msg,
+        LPTOKEN20_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+    print_contract(&s_lp);
 
     /// Initialize sSCRT
     print_header("Initializing sSCRT");
@@ -197,7 +229,7 @@ fn run_testnet() -> Result<()> {
         &mut reports,
     )?;*/
 
-    println!("\n\tInitializing Pair Contract");
+    println!("\n\tInitializing Pair Contract for dynamic code_hash");
 
     let symbol = "SCRTSH";
     let seed = to_binary(&"SEED".to_string()).unwrap();
@@ -214,23 +246,16 @@ fn run_testnet() -> Result<()> {
             },
         ),
         lp_token_contract: ContractInstantiationInfo {
-            code_hash: s_sHD.code_hash.clone(),
-            id: 1,
+            code_hash: s_lp.code_hash.clone(),
+            id: s_lp.id.clone().parse::<u64>().unwrap(),
         },
         factory_info: ContractLink {
             address: HumanAddr(String::from("secret1y45vkh0n6kplaeqw6ratuertapxupz532vxnn3")),
             code_hash: "Test".to_string(),
         },
         prng_seed: seed,
-        callback: Callback {
-            contract: ContractLink {
-                address: HumanAddr(String::from("secret1y45vkh0n6kplaeqw6ratuertapxupz532vxnn3")),
-                code_hash: "Test".to_string(),
-            },
-            msg: to_binary(&String::from("Welcome bytes")).unwrap(),
-        },
-        entropy: entropy.clone(),
-        symbol: symbol.into(),
+        callback: None,
+        entropy: entropy.clone()
     };
 
     let s_ammPair = init(
@@ -255,7 +280,7 @@ fn run_testnet() -> Result<()> {
     let factory_msg = FactoryInitMsg {
         pair_contract: ContractInstantiationInfo {
             code_hash: s_ammPair.code_hash.to_string(),
-            id: 1,
+            id: s_ammPair.id.clone().parse::<u64>().unwrap(),
         },
         amm_settings: AMMSettings {
             lp_fee: Fee::new(28, 10000),
@@ -268,8 +293,8 @@ fn run_testnet() -> Result<()> {
             },
         },
         lp_token_contract: ContractInstantiationInfo {
-            code_hash: s_sHD.code_hash.to_string(),
-            id: 1,
+            code_hash: s_lp.code_hash.clone(),
+            id: s_lp.id.clone().parse::<u64>().unwrap(),
         },
         prng_seed: seed,
     };

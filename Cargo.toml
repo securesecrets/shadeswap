@@ -5,6 +5,7 @@ members = [
     "contracts/factory",
     "contracts/router",
     "contracts/snip20",
+    "contracts/lp_token",
     "packages/network_integration"
 ]
 

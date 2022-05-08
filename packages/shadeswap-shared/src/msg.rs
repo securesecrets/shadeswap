@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::token_amount::TokenAmount;
 use crate::token_pair_amount::TokenPairAmount;
+pub use crate::snip20_impl::msg as snip20;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -43,9 +44,8 @@ pub mod amm_pair {
         pub lp_token_contract: ContractInstantiationInfo,
         pub factory_info: ContractLink<HumanAddr>,
         pub prng_seed: Binary,
-        pub callback: Callback<HumanAddr>,
-        pub entropy: Binary,
-        pub symbol: String,
+        pub callback: Option<Callback<HumanAddr>>,
+        pub entropy: Binary
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]

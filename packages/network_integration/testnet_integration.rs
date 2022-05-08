@@ -6,7 +6,7 @@ use network_integration::utils::{
 use secretcli::{
     cli_types::NetContract,
     secretcli::{account_address, handle, init, query, Report},
-};
+// };
 use serde_json::Result;
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings, Fee},
@@ -521,3 +521,4 @@ pub fn get_balance(contract: &NetContract, from: String) -> Uint128 {
 
     balance.balance.amount
 }
+

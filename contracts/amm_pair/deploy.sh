@@ -23,9 +23,3 @@ echo $TX
 docker exec -i secretdev secretd query compute list-contract-by-code $LASTID
 #docker exec -i secretdev bash -c "cd ./code && secretd tx compute store contract.wasm.gz --from a --gas=auto --gas-adjustment=1.15 -y --keyring-backend test /root/code/contract.wasm.gz"
 #docker exec secretdev secretd tx compute store ./code/contract.wasm.gz --from a --gas 1000000 -y --keyring-backend test /root/code/contract.wasm.gz
-
-
-./secretcli tx compute instantiate 861244 '{"name":"Token0","symbol":"XUSDT","admin":"secret1vhm32pcaz2vsjdyxdl7mtyyw7cug25rfqcc2yn","decimals":18,"initial_balances":[{"address":"secret1vhm32pcaz2vsjdyxdl7mtyyw7cug25rfqcc2yn","amount":"10000000"}],"prng_seed":"VE9LRU4w","config":{"public_total_supply":false,"enable_deposit": true,"enable_redeem": true,"enable_mint": true,"enable_burn":true}}' --label shade_test_token_0 --from token0 --keyring-backend file
-
-./secretcli tx compute instantiate 861244 '{"name":"Token0","symbol":"XUSDT","decimals":18,"initial_balances":[],"prng_seed":"VE9LRU4w"}' --label shade_test_token_0 --from token0 --keyring-backend file
-

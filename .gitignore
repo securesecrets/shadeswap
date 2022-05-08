@@ -9,7 +9,7 @@ target/
 # this is moved to vm/testdata, others are present locally
 contracts/hackatom/contract.wasm
 contracts/hackatom/hash.txt
-# packages/fadroma-next
+
 **/contract.wasm
 
 # IDEs

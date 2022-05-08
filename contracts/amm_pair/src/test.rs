@@ -297,14 +297,13 @@ fn make_init_config<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>) 
         },
         prng_seed: seed.clone(),
         entropy: entropy.clone(),
-        callback: Callback {
+        callback: Some(Callback {
             contract: ContractLink {
                 address: HumanAddr(String::from("CALLBACKADDR")),
                 code_hash: "Test".to_string()
             },
-            msg: to_binary(&String::from("Welcome bytes"))?
-        },
-        symbol: "WETH".to_string(),
+            msg: to_binary(&String::from("Welcome bytes"))?,
+        }),
     };         
     assert!(init(deps, env.clone(), msg).is_ok());
     let config = load_config(deps)?;

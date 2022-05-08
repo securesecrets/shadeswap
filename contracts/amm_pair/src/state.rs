@@ -11,16 +11,10 @@ use shadeswap_shared::{
     },
     token_pair::TokenPair
 };
-use std::any::type_name;
-use serde::{Deserialize, Serialize};
-use serde::de::DeserializeOwned;
-use tradehistory::TradeHistory;
+
+use serde::{Serialize,Deserialize};
 
 pub static CONFIG_KEY: &[u8] = b"config";
-const TRADE_COUNT : &[u8] = b"trade_count";
-const TRADE_HISTORY: &[u8] = b"trade_history_";
-const WHITELIST: &[u8] = b"whitelist";
-
 pub const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
@@ -32,6 +26,7 @@ pub struct Config<A: Clone> {
     pub viewing_key: ViewingKey,
 }
 
+
 impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
     fn canonize (&self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
         Ok(Config {
@@ -39,40 +34,37 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
             lp_token_info: self.lp_token_info.canonize(api)?,
             pair:          self.pair.canonize(api)?,
             contract_addr: self.contract_addr.canonize(api)?,
-            viewing_key:   self.viewing_key.clone(),
+            viewing_key:   self.viewing_key.clone()
         })
     }
 }
 impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
     fn humanize (&self, api: &impl Api) -> StdResult<Config<HumanAddr>> {
-        let trades: Vec<TradeHistory> = Vec::new();
         Ok(Config {
             factory_info:  self.factory_info.humanize(api)?,
             lp_token_info: self.lp_token_info.humanize(api)?,
-            pair:          self.pair.humanize(api)?,
+            pair:      self.pair.humanize(api)?,
             contract_addr: self.contract_addr.humanize(api)?,
-            viewing_key:   self.viewing_key.clone(),
+            viewing_key:   self.viewing_key.clone()
         })
     }
 }
 
-pub mod tradehistory{
-    use super::*;
-    
-    #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone)]
-    pub enum DirectionType{
-        Buy,
-        Sell,
-        Unknown,
-    }
 
-    #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone)]
-    pub struct TradeHistory {
-        pub price: Uint128,
-        pub amount: Uint128,
-        pub timestamp: u64,
-        pub direction: DirectionType,
-    }
+pub(crate) fn store_config <S: Storage, A: Api, Q: Querier>(
+    deps:   &mut Extern<S, A, Q>,
+    config: &Config<HumanAddr>
+) -> StdResult<()> {
+    save(&mut deps.storage, CONFIG_KEY, &config.canonize(&deps.api)?)
+}
+
+pub(crate) fn load_config<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>
+) -> StdResult<Config<HumanAddr>> {
+    let result: Config<CanonicalAddr> = load(&deps.storage, CONFIG_KEY)?.ok_or(
+        StdError::generic_err("Config doesn't exist in storage.")
+    )?;
+    result.humanize(&deps.api)
 }
 
 

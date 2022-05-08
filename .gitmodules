@@ -2,7 +2,6 @@
 	path = packages/fadroma-next
 	url = https://github.com/hackbg/fadroma.git
 	branch = 21.09
-[submodule "snip20"]
-	path = contracts/snip20
+[submodule ".\\contracts\\snip20"]
+	path = .\\contracts\\snip20
 	url = https://github.com/scrtlabs/snip20-reference-impl.git
-

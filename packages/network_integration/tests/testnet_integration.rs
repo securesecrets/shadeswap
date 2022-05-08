@@ -519,4 +519,3 @@ pub fn get_balance(contract: &NetContract, from: String) -> Uint128 {
 
     balance.balance.amount
 }
-

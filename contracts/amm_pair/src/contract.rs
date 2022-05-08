@@ -190,7 +190,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::ReceiveCallback {
+        HandleMsg::Receive {
             from, amount, msg, ..
         } => receiver_callback(deps, env, from, amount, msg),
         HandleMsg::AddLiquidityToAMMContract { deposit, slippage } => {

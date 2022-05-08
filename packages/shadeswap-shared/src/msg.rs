@@ -61,7 +61,7 @@ pub mod amm_pair {
             to: Option<HumanAddr>,
         },
         // SNIP20 receiver interface
-        ReceiveCallback {
+        Receive {
             from: HumanAddr,
             msg: Option<Binary>,
             amount: Uint128,

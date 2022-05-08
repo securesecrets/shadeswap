@@ -432,11 +432,33 @@ fn run_testnet() -> Result<()> {
             assert_eq!(get_balance(&s_sHD, account.to_string()), Uint128(1000000000 - 100));
 
             print_header("\n\tInitiating Swap");
+            // handle(
+            //     &snip20::HandleMsg::IncreaseAllowance {
+            //         spender: HumanAddr(String::from(ammPair.address.0.to_string())),
+            //         amount: Uint128(10),
+            //         expiration: None,
+            //         padding: None,
+            //     },
+            //     &NetContract {
+            //         label: "".to_string(),
+            //         id: s_sCRT.id.clone(),
+            //         address: s_sCRT.address.clone(),
+            //         code_hash: s_sCRT.code_hash.to_string(),
+            //     },
+            //     ACCOUNT_KEY,
+            //     Some(GAS),
+            //     Some("test"),
+            //     None,
+            //     &mut reports,
+            //     None,
+            // )
+            // .unwrap();
+
             handle(
-                &snip20::HandleMsg::IncreaseAllowance {
-                    spender: HumanAddr(String::from(ammPair.address.0.to_string())),
+                &snip20::HandleMsg::Send {
+                    recipient: HumanAddr(String::from(ammPair.address.0.to_string())),
                     amount: Uint128(10),
-                    expiration: None,
+                    msg: Some(to_binary(&InvokeMsg::SwapTokens{ expected_return: None, to: None }).unwrap()),
                     padding: None,
                 },
                 &NetContract {
@@ -454,63 +476,10 @@ fn run_testnet() -> Result<()> {
             )
             .unwrap();
 
-            handle(
-                &AMMPairHandlMsg::SwapTokens {
-                    offer: TokenAmount {
-                        token: TokenType::CustomToken {
-                            contract_addr: s_sCRT.address.clone().into(),
-                            token_code_hash: s_sCRT.code_hash.to_string(),
-                        },
-                        amount: Uint128(10),
-                    },
-                    expected_return: None,
-                    to: None,
-                },
-                &NetContract {
-                    label: "".to_string(),
-                    id: s_ammPair.id.clone(),
-                    address: ammPair.address.0.clone(),
-                    code_hash: s_ammPair.code_hash.to_string(),
-                },
-                ACCOUNT_KEY,
-                Some(GAS),
-                Some("test"),
-                None,
-                &mut reports,
-                None,
-            )
-            .unwrap();
-            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000));
-
-            handle(
-                &AMMPairHandlMsg::SwapTokens {
-                    offer: TokenAmount {
-                        token: TokenType::NativeToken {
-                            denom: "SCRT"
-                        },
-                        amount: Uint128(10),
-                    },
-                    expected_return: None,
-                    to: None,
-                },
-                &NetContract {
-                    label: "".to_string(),
-                    id: s_ammPair.id.clone(),
-                    address: ammPair.address.0.clone(),
-                    code_hash: s_ammPair.code_hash.to_string(),
-                },
-                ACCOUNT_KEY,
-                Some(GAS),
-                Some("test"),
-                None,
-                &mut reports,
-                None,
-            )
-            .unwrap();
-                       
-            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000));
-
-
+            
+            
+            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(999999890));
+            assert_eq!(get_balance(&s_sHD, account.to_string()), Uint128(999999800));
         } else {
             assert!(false, "Query returned unexpected response")
         }

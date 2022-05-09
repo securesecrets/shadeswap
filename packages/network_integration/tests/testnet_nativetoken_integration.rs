@@ -389,7 +389,7 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
 
     print_header("\n\tChecking Trade History and Price...");
     {
-        let index = 0;
+        let index = 1;
         let msg = PairQueryMsg::GetTradeHistoryByIndex {index};        
         let trade_history_query: PairQueryMsgResponse = query(&s_ammPair, msg, None)?;
         if let PairQueryMsgResponse::GetTradeHistoryByIndex { price, amount, timestamp, direction } = trade_history_query {

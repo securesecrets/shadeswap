@@ -157,7 +157,7 @@ mod amm_pair_test_contract {
             timestamp: 6000,
             direction: "Sell".to_string(),
         };
-        store_trade_history(&deps, trade_history.clone())?;
+        store_trade_history(deps, trade_history.clone())?;
         let current_index = load_trade_counter(&deps.storage)?;
         assert_eq!(1, current_index);
 

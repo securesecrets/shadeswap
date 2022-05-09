@@ -6,15 +6,22 @@ use shadeswap_shared::{
             Api, CanonicalAddr, Extern, HumanAddr, Uint128,
             Querier, StdResult, Storage, StdError
         },
-        scrt_storage::{load, save},
+        scrt_storage::{load, save, ns_save, ns_load},
         scrt_vk::ViewingKey,
     },
     token_pair::TokenPair
 };
-
-use serde::{Serialize,Deserialize};
+use std::any::type_name;
+use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use tradehistory::TradeHistory;
+use std::fmt::{{Formatter, Display}};
 
 pub static CONFIG_KEY: &[u8] = b"config";
+pub static TRADE_COUNT: &[u8] = b"tradecount";
+pub static TRADE_HISTORY: &[u8] = b"trade_history";
+pub static WHITELIST: &[u8] = b"whitelist";
+
 pub const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
@@ -26,7 +33,6 @@ pub struct Config<A: Clone> {
     pub viewing_key: ViewingKey,
 }
 
-
 impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
     fn canonize (&self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
         Ok(Config {
@@ -34,37 +40,49 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
             lp_token_info: self.lp_token_info.canonize(api)?,
             pair:          self.pair.canonize(api)?,
             contract_addr: self.contract_addr.canonize(api)?,
-            viewing_key:   self.viewing_key.clone()
+            viewing_key:   self.viewing_key.clone(),
         })
     }
 }
 impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
-    fn humanize (&self, api: &impl Api) -> StdResult<Config<HumanAddr>> {
+    fn humanize (&self, api: &impl Api) -> StdResult<Config<HumanAddr>> {        
         Ok(Config {
             factory_info:  self.factory_info.humanize(api)?,
             lp_token_info: self.lp_token_info.humanize(api)?,
-            pair:      self.pair.humanize(api)?,
+            pair:          self.pair.humanize(api)?,
             contract_addr: self.contract_addr.humanize(api)?,
-            viewing_key:   self.viewing_key.clone()
+            viewing_key:   self.viewing_key.clone(),
         })
     }
 }
 
+pub mod tradehistory{
+    use super::*;
+    use shadeswap_shared::fadroma::Humanize;
+    #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone)]
+    pub enum DirectionType{
+        Buy,
+        Sell,
+        Unknown,
+    }
 
-pub(crate) fn store_config <S: Storage, A: Api, Q: Querier>(
-    deps:   &mut Extern<S, A, Q>,
-    config: &Config<HumanAddr>
-) -> StdResult<()> {
-    save(&mut deps.storage, CONFIG_KEY, &config.canonize(&deps.api)?)
-}
+    impl Humanize<String> for DirectionType {
+        fn humanize(&self, api: &impl Api) -> StdResult<String> {
+            match *self {
+                DirectionType::Sell => Ok("Sell".to_string()),
+                DirectionType::Buy => Ok("Buy".to_string()),
+                DirectionType::Unknown => Ok("Unknown".to_string())
+            }
+        }
+    }
 
-pub(crate) fn load_config<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>
-) -> StdResult<Config<HumanAddr>> {
-    let result: Config<CanonicalAddr> = load(&deps.storage, CONFIG_KEY)?.ok_or(
-        StdError::generic_err("Config doesn't exist in storage.")
-    )?;
-    result.humanize(&deps.api)
+    #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone)]
+    pub struct TradeHistory {
+        pub price: Uint128,
+        pub amount: Uint128,
+        pub timestamp: u64,
+        pub direction: String,
+    }
 }
 
 
@@ -77,15 +95,14 @@ pub mod swapdetails {
         pub lp_fee_amount: Uint128,
         pub shade_dao_fee_amount: Uint128,
         pub result: SwapResult,
-        pub price: Uint128,
+        pub price: Uint128
     }
     
     #[derive(Serialize, Deserialize,  PartialEq, Debug)]
     pub struct SwapResult {
         pub return_amount: Uint128,
         pub spread_amount: Uint128,
-    }
-    
+    }    
 }
 
 pub mod amm_pair_storage{
@@ -108,30 +125,26 @@ pub mod amm_pair_storage{
         result.humanize(&deps.api)
     }
 
+    #[inline]
     pub fn load_trade_counter(storage: &impl Storage) -> StdResult<u64> {
         Ok(load(storage, TRADE_COUNT)?.unwrap_or(0))
     }
 
-    fn ser_bin_data<T: Serialize>(obj: &T) -> StdResult<Vec<u8>> {
-        bincode2::serialize(&obj).map_err(|e| StdError::serialize_err(type_name::<T>(), e))
-    }
-    
-    fn deser_bin_data<T: DeserializeOwned>(data: &[u8]) -> StdResult<T> {
-        bincode2::deserialize::<T>(&data).map_err(|e| StdError::serialize_err(type_name::<T>(), e))
-    }
-    
+    #[inline]
+    pub fn store_trade_counter(storage: &mut impl Storage, count :u64) -> StdResult<()> {      
+        save(storage, TRADE_COUNT, &count)
+    }     
+
     // WHITELIST
     pub fn add_whitelist_address(storage: &mut impl Storage, address: HumanAddr) -> StdResult<()> {
         let mut unwrap_data = load_whitelist_address(storage)?;
-        unwrap_data.push(address);
-        let array = ser_bin_data(&unwrap_data)?;
+        unwrap_data.push(address);      
         save(storage, WHITELIST, &unwrap_data)
     }
 
     pub fn load_whitelist_address(storage: &impl Storage) -> StdResult<Vec<HumanAddr>> {
-        let raw_data = load(storage, WHITELIST)?.unwrap_or(Vec::new());        
-        let unwrap_date = deser_bin_data(&raw_data)?;
-        Ok(unwrap_date)
+        let raw_data = load(storage, WHITELIST)?.unwrap_or(Vec::new());  
+        Ok(raw_data)
     }
 
     
@@ -139,7 +152,7 @@ pub mod amm_pair_storage{
         let mut addresses = load_whitelist_address(storage)?;
         for address in address_to_remove {
             addresses.retain(|x| x != &address);
-        }      
+        }
         save(storage, WHITELIST,&addresses)
     }
 
@@ -155,29 +168,22 @@ pub mod amm_pair_storage{
         Ok(result)
     }
 
-    // TRADE HISTORY
-    fn store_trade_counter(storage: &mut impl Storage) -> StdResult<()> {
-        let current_index = load_trade_counter(storage)?;
-        let count : u64 = u64::from(current_index.clone());
-        let str_count = count + 1;
-        save(storage, TRADE_COUNT, &str_count)
+    pub(crate) fn load_trade_history<S: Storage, A: Api, Q: Querier>(
+        deps: &Extern<S, A, Q>,
+        count: u64) -> StdResult<TradeHistory> {
+        let trade_history: TradeHistory =
+        ns_load(&deps.storage, TRADE_HISTORY, count.to_string().as_bytes())?
+            .ok_or_else(|| StdError::generic_err("Trade History doesn't exist in storage."))?;
+       Ok(trade_history)
     }
     
-    pub fn load_trade_history(storage: &impl Storage, count: u64) -> StdResult<TradeHistory> {
-        let temp_count = count;
-        let count_to_string = temp_count.to_string();
-        let count_bytes: &[u8] = count_to_string.as_bytes();
-        let new_store_at = [TRADE_HISTORY.to_owned(), count_bytes.to_vec()].concat();  
-        Ok(load(storage, &new_store_at)?.unwrap_or(TradeHistory{amount :Uint128::zero(), price: Uint128::zero(), direction: DirectionType::Unknown, timestamp: 0 }))
-    }
-    
-    pub fn store_trade_history(storage: &mut impl Storage, trade_history: TradeHistory) -> StdResult<()> {
-        let current_index: u64 = load_trade_counter(storage)?;
-        let count = current_index.clone() + 1;
-        let count_to_string  = count.to_string();
-        let count_bytes: &[u8] = count_to_string .as_bytes();         
-        let new_store_at = [TRADE_HISTORY.to_owned(), count_bytes.to_vec()].concat();   
-        store_trade_counter(storage)?;
-        save(storage, &new_store_at, &trade_history)
+    pub(crate) fn store_trade_history<S: Storage, A: Api, Q: Querier>(
+        deps: &mut Extern<S, A, Q>, 
+        trade_history: TradeHistory
+    ) -> StdResult<()> {
+        let mut count = load_trade_counter(&deps.storage)?;                    
+        ns_save(&mut deps.storage, TRADE_HISTORY,count.to_string().as_bytes(), &trade_history)?;
+        count = count + 1; 
+        store_trade_counter(&mut deps.storage,count)
     }   
 }

@@ -68,6 +68,12 @@ pub mod amm_pair {
         },
         // Sent by the LP token contract so that we can record its address.
         OnLpTokenInitAddr,
+        AddWhitelistAddress {
+            address: HumanAddr
+        },
+        RemoveWhitelistAddresses {
+            addresses: Vec<HumanAddr>
+        }
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -83,12 +89,18 @@ pub mod amm_pair {
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        PairInfo,
+        GetPairInfo,
+        GetTradeHistoryByIndex {
+            index: u64
+        },
+        // GetTradeHistoryLatest,
+        GetWhiteListAddress,
+        GetTradeCount,
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsgResponse {
-        PairInfo {
+        GetPairInfo {
             liquidity_token: ContractLink<HumanAddr>,
             factory: ContractLink<HumanAddr>,
             pair: TokenPair<HumanAddr>,
@@ -97,6 +109,18 @@ pub mod amm_pair {
             total_liquidity: Uint128,
             contract_version: u32,
         },
+        GetTradeHistoryByIndex {
+            price: Uint128,
+            amount: Uint128,
+            timestamp: u64,
+            direction: String,
+        },
+        GetWhiteListAddress {
+            addresses: Vec<HumanAddr>
+        },
+        GetTradeCount {
+            count: u64,
+        }
     }
 }
 

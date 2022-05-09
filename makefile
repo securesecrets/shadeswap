@@ -14,7 +14,6 @@ rm ./$(1).wasm
 endef
 
 CONTRACTS = factory amm_pair router snip20 lp_token
-
 debug: setup
 	(cd ${contracts_dir}; ${build-debug})
 	@$(MAKE) compress_all

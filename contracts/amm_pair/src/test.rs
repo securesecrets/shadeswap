@@ -4,9 +4,12 @@ use shadeswap_shared::token_pair::{{TokenPair}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::amm_pair::{{AMMPair, AMMSettings, Fee}};
-use crate::state::{Config, store_config, load_config};
+use crate::state::{Config};
+use crate::state::amm_pair_storage::{{ store_config, load_config,
+    remove_whitelist_address,is_address_in_whitelist, add_whitelist_address,load_whitelist_address, }};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
-use crate::contract::{{create_viewing_key, calculate_price, swap_tokens, initial_swap}};
+use crate::contract::init;
+use crate::contract::{{create_viewing_key, calculate_price, swap_tokens, query, handle, initial_swap}};
 use std::hash::Hash;
 use shadeswap_shared::{ 
     fadroma::{
@@ -37,8 +40,8 @@ use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip
 #[cfg(test)]
 mod amm_pair_test_contract {
     use super::*;
-    use crate::contract::init;
-
+    use crate::state::amm_pair_storage::{{store_trade_history, load_trade_history, load_trade_counter}};
+    use crate::state::tradehistory::{{TradeHistory, DirectionType}};
     #[test]
     fn assert_init_config() -> StdResult<()> {       
         // let info = mock_info("amm_pair_contract", &amount);
@@ -88,25 +91,223 @@ mod amm_pair_test_contract {
         Ok(())
     }
 
-   /* #[test]
+    // #[test]
     fn assert_initial_swap_with_wrong_token_exception() -> StdResult<()>{     
         let token_pair = mk_token_pair("TOKEN0".to_string(), "TOKEN1".to_string());
         let amm_settings = mk_amm_settings();
         let offer_amount: u128 = 34028236692093846346337460;
         let expected_return_amount: u128 = 34028236692093846346337460;
         let expected_amount: u128 = 34028236692093846346337460;
-        let deps = mkdeps();
+        let mut deps = mkdeps();
         let env = mkenv("sender");
         let swap_result = initial_swap(
             &deps.querier, 
             &amm_settings, 
             &mock_config(env)?,
-            &mk_custom_token_amount("", Uint128::from(offer_amount)), 
+            &mk_custom_token_amount(Uint128::from(offer_amount),token_pair), 
+            & mut deps.storage,
+            Some(HumanAddr("Test".to_string().clone()))
         );
 
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
-    }*/
+    }
+
+    //#[test]
+    fn assert_initial_swap_with_token_success() -> StdResult<()>
+    {     
+        let mut deps = mkdeps();
+        let amm_settings = mk_amm_settings();
+        let config = make_init_config(&mut deps)?;           
+        let offer_amount: u128 = 34028236692093846346337460;
+        let expected_amount: u128 = 34028236692093846346337460;
+        let swap_result = initial_swap(&deps.querier, &amm_settings, &config, 
+            &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
+            &mut deps.storage, Some(HumanAddr("Test".to_string().clone())));
+        assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
+        Ok(())
+    }
+
+    #[test]
+    fn assert_load_trade_history_first_time() -> StdResult<()>{
+        let deps = mkdeps();
+        let initial_value = load_trade_counter(&deps.storage)?;
+        assert_eq!(0, initial_value);
+        Ok(())
+    }
+
+    #[test]
+    fn assert_store_and_load_config_success() -> StdResult<()>{
+        let mut deps = mkdeps();
+        let config = make_init_config(&mut deps)?;   
+        store_config(&mut deps, &config)?;
+        let stored_config = load_config(&mut deps)?;
+        assert_eq!(config.pair.0, stored_config.pair.0);
+        Ok(())
+    }
+
+
+    #[test]
+    fn assert_store_trade_history_increase_counter_and_store_success()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let env = mkenv("sender");       
+        let trade_history = TradeHistory{
+            price: Uint128::from(50u128),
+            amount: Uint128::from(50u128),
+            timestamp: 6000,
+            direction: "Sell".to_string(),
+        };
+        store_trade_history(&deps, trade_history.clone())?;
+        let current_index = load_trade_counter(&deps.storage)?;
+        assert_eq!(1, current_index);
+
+        // load trade history
+        let stored_trade_history = load_trade_history(&deps, current_index)?;
+        assert_eq!(trade_history.price, stored_trade_history.price);
+        Ok(())
+    }
+
+    #[test]
+    fn assert_add_address_to_whitelist_success()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let env = mkenv("sender");       
+        let addressA = HumanAddr::from("TESTA".to_string());
+        let addressB = HumanAddr::from("TESTB".to_string());
+        let addressC = HumanAddr::from("TESTC").to_string();
+        add_whitelist_address(&mut deps.storage, addressA.clone())?;
+        let current_index = load_whitelist_address(&deps.storage)?;
+        assert_eq!(1, current_index.len());        
+        add_whitelist_address(&mut deps.storage, addressB.clone())?;
+        let current_index = load_whitelist_address(&deps.storage)?;
+        assert_eq!(2, current_index.len());
+        Ok(())
+    }
+
+    #[test]
+    fn assert_remove_address_from_whitelist_success()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let env = mkenv("sender");       
+        let addressA = HumanAddr::from("TESTA".to_string());
+        let addressB = HumanAddr::from("TESTB".to_string());
+        let addressC = HumanAddr::from("TESTC".to_string());
+        add_whitelist_address(&mut deps.storage, addressA.clone())?;
+        let current_index = load_whitelist_address(&deps.storage)?;
+        assert_eq!(1, current_index.len());        
+        add_whitelist_address(&mut deps.storage, addressB.clone())?;
+        let current_index = load_whitelist_address(&deps.storage)?;
+        assert_eq!(2, current_index.len());   
+        let mut list_addresses_remove  = Vec::new();
+        list_addresses_remove.push(addressB.clone());
+        remove_whitelist_address(&mut deps.storage, list_addresses_remove)?;
+        add_whitelist_address(&mut deps.storage, addressC.clone())?;
+        let current_index = load_whitelist_address(&deps.storage)?;
+        assert_eq!(2, current_index.len());        
+        Ok(())
+    }
+
+    
+    #[test]
+    fn assert_load_address_from_whitelist_success()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let env = mkenv("sender");       
+        let address_a = HumanAddr::from("TESTA".to_string());
+        let address_b = HumanAddr::from("TESTB".to_string());
+        let address_c = HumanAddr::from("TESTC".to_string());
+        add_whitelist_address(&mut deps.storage, address_a.clone())?;
+        add_whitelist_address(&mut deps.storage, address_b.clone())?;
+        add_whitelist_address(&mut deps.storage, address_c.clone())?;
+        let stub_list = load_whitelist_address(&deps.storage)?;
+        assert_eq!(3, stub_list.len());
+        let is_addr = is_address_in_whitelist(&mut deps.storage, address_b.clone())?;  
+        assert_eq!(true, is_addr);      
+        let is_addr = is_address_in_whitelist(&mut deps.storage, HumanAddr("TESTD".to_string()).clone())?;  
+        assert_eq!(false, is_addr);   
+        Ok(())
+    }
+
+      
+    #[test]
+    fn assert_initial_swap_with_zero_fee_for_whitelist_address()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let amm_settings = mk_amm_settings();
+        let config = make_init_config(&mut deps)?;         
+        let offer_amount: u128 = 34028236692093846346337460;
+        let expected_amount: u128 = 34028236692093846346337460;           
+        let address_a = HumanAddr::from("TESTA".to_string());
+        add_whitelist_address(&mut deps.storage, address_a.clone())?;    
+        let swap_result = initial_swap(&deps.querier, &amm_settings, &config, 
+            &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
+            &mut deps.storage, Some(HumanAddr("TESTA".to_string().clone())))?;
+        assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
+        assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
+        Ok(())
+    }
+
+    #[test]
+    fn assert_query_get_amm_pairs_success()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let env = mkenv("sender");
+        let amm_settings = mk_amm_settings();
+        let config = make_init_config(&mut deps)?;         
+        let offer_amount: u128 = 34028236692093846346337460;
+        let expected_amount: u128 = 34028236692093846346337460;           
+        let address_a = HumanAddr::from("TESTA".to_string());
+        handle(
+            &mut deps,
+            env,
+            HandleMsg::AddWhitelistAddress {
+                address: address_a.clone()
+            },
+        )
+        .unwrap();
+
+        let result = query(
+            &deps,
+            QueryMsg::GetWhiteListAddress {
+            },
+        )
+        .unwrap();
+
+        let response: QueryMsgResponse = from_binary(&result).unwrap();
+
+        match response {
+            QueryMsgResponse::WhiteListAddress { addresses: stored } => {
+                assert_eq!(1, stored.len())
+            }
+            _ => panic!("QueryResponse::ListExchanges"),
+        }
+        Ok(())
+    }
+}
+
+fn make_init_config<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>) -> StdResult<Config<HumanAddr>> {    
+    let seed = to_binary(&"SEED".to_string())?;
+    let entropy = to_binary(&"ENTROPY".to_string())?;
+    let env = mkenv("test");
+    let token_pair = mk_token_pair("token0".to_string(), "token1".to_string());
+    let msg = InitMsg {
+        pair: token_pair.clone(),
+        lp_token_contract: ContractInstantiationInfo{
+              code_hash: "CODE_HASH".to_string(),
+              id :0
+        },
+        factory_info: ContractLink {
+            address: HumanAddr(String::from("token0")),
+            code_hash: "token0".to_string()
+        },
+        prng_seed: seed.clone(),
+        entropy: entropy.clone(),
+        callback: Some(Callback {
+            contract: ContractLink {
+                address: HumanAddr(String::from("CALLBACKADDR")),
+                code_hash: "Test".to_string()
+            },
+            msg: to_binary(&String::from("Welcome bytes"))?,
+        }),
+    };         
+    assert!(init(deps, env.clone(), msg).is_ok());
+    let config = load_config(deps)?;
+    Ok(config)
 }
 
 fn mkenv(sender: impl Into<HumanAddr>) -> Env {
@@ -131,21 +332,20 @@ fn mk_token_pair(token0: String, token1: String) -> TokenPair<HumanAddr>{
     pair
 }
 
-fn mk_custom_token_amount(address: &str, amount: Uint128) -> TokenAmount<HumanAddr>{  
+
+fn mk_custom_token_amount(amount: Uint128, token_pair: TokenPair<HumanAddr>) -> TokenAmount<HumanAddr>{    
     let token = TokenAmount{
-        token: mk_custom_token(address.to_string()),
+        token: token_pair.0.clone(),
         amount: amount.clone(),
     };
     token
 }
 
 fn mk_custom_token(address: String) -> TokenType<HumanAddr>{
-    let copy_address = HumanAddr(address.clone());
-    let token = TokenType::CustomToken{
-        contract_addr : copy_address,
-        token_code_hash : address.clone(),
-    };
-    token
+    TokenType::CustomToken {
+        contract_addr: HumanAddr(address.clone()),
+        token_code_hash: "TOKEN0_HASH".to_string()
+    }
 }
 
 fn mk_amm_settings() -> AMMSettings<HumanAddr>{

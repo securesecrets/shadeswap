@@ -80,7 +80,8 @@ pub fn swap_exact_tokens_for_tokens<S: Storage, A: Api, Q: Querier>(
     {
         let amm_address = query_token_addr(querier,&path[0], &path[1], config.factory_address.clone())?;
 
-        let msg = to_binary(&InvokeMsg::SwapTokens { expected_return: None, to: None })?;
+        let msg = to_binary(&InvokeMsg::SwapTokens { expected_return: None, to: None, msg:None,
+            router_link: ContractLink{code_hash: "Test".to_string(), address: HumanAddr("Test".to_string())} })?;
 
         messages.push(WasmMsg::Execute {
             contract_addr:      amm_address.clone(),

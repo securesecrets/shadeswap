@@ -349,7 +349,7 @@ fn execute_contract<Handle: serde::Serialize>(
     max_tries: Option<i32>,
 ) -> Result<TxResponse> {
     let message = serde_json::to_string(&msg)?;
-
+    println!("{}", message);
     let mut command = vec![
         "tx",
         "compute",

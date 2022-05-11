@@ -82,6 +82,9 @@ pub mod tradehistory{
         pub amount: Uint128,
         pub timestamp: u64,
         pub direction: String,
+        pub total_fee_amount: Uint128,
+        pub lp_fee_amount: Uint128,
+        pub shade_dao_fee_amount: Uint128,
     }
 }
 
@@ -124,21 +127,23 @@ pub mod amm_pair_storage{
         )?;
         result.humanize(&deps.api)
     }
-
-    #[inline]
-    pub fn load_trade_counter(storage: &impl Storage) -> StdResult<u64> {
-        Ok(load(storage, TRADE_COUNT)?.unwrap_or(0))
+    
+    pub fn load_trade_counter(storage: &impl Storage) -> StdResult<i32> {
+        let count = load(storage, TRADE_COUNT)?.unwrap_or(0);
+        Ok(count)
     }
-
-    #[inline]
-    pub fn store_trade_counter(storage: &mut impl Storage, count :u64) -> StdResult<()> {      
-        save(storage, TRADE_COUNT, &count)
+ 
+    pub fn store_trade_counter<S: Storage, A: Api, Q: Querier>(
+        deps: &mut Extern<S, A, Q>, 
+        count: i32
+    ) -> StdResult<()> {      
+        save(&mut deps.storage, TRADE_COUNT, &count)
     }     
 
     // WHITELIST
     pub fn add_whitelist_address(storage: &mut impl Storage, address: HumanAddr) -> StdResult<()> {
         let mut unwrap_data = load_whitelist_address(storage)?;
-        unwrap_data.push(address);      
+        unwrap_data.push(address);    
         save(storage, WHITELIST, &unwrap_data)
     }
 
@@ -159,31 +164,29 @@ pub mod amm_pair_storage{
     pub fn is_address_in_whitelist(storage: &impl Storage, address: HumanAddr) -> StdResult<bool>{
         let mut result = false;
         let addrs = load_whitelist_address(storage)?;
-        for addr in addrs {
-            if addr == address
-            {
-                result = true;
-            }
-        }
-        Ok(result)
+        if addrs.contains(&address) {
+           return Ok(true)
+        } else {
+            return Ok(false)
+        }      
     }
 
-    pub(crate) fn load_trade_history<S: Storage, A: Api, Q: Querier>(
+    pub fn load_trade_history<S: Storage, A: Api, Q: Querier>(
         deps: &Extern<S, A, Q>,
-        count: u64) -> StdResult<TradeHistory> {
+        count: i32) -> StdResult<TradeHistory> {
         let trade_history: TradeHistory =
         ns_load(&deps.storage, TRADE_HISTORY, count.to_string().as_bytes())?
             .ok_or_else(|| StdError::generic_err("Trade History doesn't exist in storage."))?;
        Ok(trade_history)
     }
     
-    pub(crate) fn store_trade_history<S: Storage, A: Api, Q: Querier>(
+    pub fn store_trade_history<S: Storage, A: Api, Q: Querier>(
         deps: &mut Extern<S, A, Q>, 
-        trade_history: TradeHistory
-    ) -> StdResult<()> {
-        let mut count = load_trade_counter(&deps.storage)?;                    
-        ns_save(&mut deps.storage, TRADE_HISTORY,count.to_string().as_bytes(), &trade_history)?;
-        count = count + 1; 
-        store_trade_counter(&mut deps.storage,count)
+        trade_history: &TradeHistory
+    ) -> StdResult<()> {       
+        let count = load_trade_counter(&deps.storage)?;                            
+        let update_count = count + 1; 
+        store_trade_counter(deps, update_count)?;
+        ns_save(&mut deps.storage, TRADE_HISTORY, update_count.to_string().as_bytes(), &trade_history)
     }   
 }

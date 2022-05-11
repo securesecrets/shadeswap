@@ -34,7 +34,7 @@ use composable_snip20::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
 
-#[test]
+ #[test]
 fn run_testnet_with_native_token_swap() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "full");
     let account = account_address(ACCOUNT_KEY)?;
@@ -275,8 +275,8 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
             },
         };
 
-        let query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
-        if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = query {
+        let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
+        if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
             assert_eq!(amm_pairs.len(), 1);
             let ammPair = amm_pairs[0].clone();
 
@@ -307,8 +307,8 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
                 &AMMPairHandlMsg::AddLiquidityToAMMContract {
                     deposit: TokenPairAmount {
                         pair: test_pair.clone(),
-                        amount_0: Uint128(100),
-                        amount_1: Uint128(100),
+                        amount_0: Uint128(1000000),
+                        amount_1: Uint128(1000000),
                     },
                     slippage: None,
                 },
@@ -321,20 +321,18 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
                 ACCOUNT_KEY,
                 Some(GAS),
                 Some("test"),
-                Some("100uscrt"),
+                Some("1000000uscrt"),
                 &mut reports,
                 None,
             )
-            .unwrap();
-
-            
-            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000 - 100));    
+            .unwrap();            
+            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000 - 1000000));    
 
             print_header("\n\tInitiating Swap");
             handle(
                 &snip20::HandleMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-                    amount: Uint128(100),
+                    amount: Uint128(1000000),
                     expiration: None,
                     padding: None,
                 },
@@ -351,18 +349,23 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
                 &mut reports,
                 None,
             )
-            .unwrap();
-            assert_eq!(get_balance(&s_sCRT, buyer.to_string()), Uint128(0));     
+            .unwrap();          
+                
             handle(
                 &AMMPairHandlMsg::SwapTokens {
                     offer: TokenAmount {
                         token: TokenType::NativeToken {
                             denom: denom.clone(),
                         },
-                        amount: Uint128(10),
+                        amount: Uint128(1000),
                     },
                     expected_return: None,
-                    to: Some(HumanAddr(buyer.to_string())),
+                    to: None,
+                    router_link: ContractLink {
+                        address: HumanAddr("test".to_string()),
+                        code_hash: "ROUTER".to_string(),                            
+                    }, 
+                    msg: None
                 },
                 &NetContract {
                     label: "".to_string(),
@@ -370,35 +373,143 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
                     address: ammPair.address.0.clone(),
                     code_hash: s_ammPair.code_hash.to_string(),
                 },
-                STAKER_KEY,
+                ACCOUNT_KEY,
                 Some(GAS),
                 Some("test"),
-                Some("10uscrt"),
+                Some("1000uscrt"),
                 &mut reports,
                 None,
             )
             .unwrap();        
-            
-            assert_eq!(get_balance(&s_sCRT, buyer.to_string()), Uint128(10));          
+                        
+            println!("Pair Contract {}", ammPair.address.0.clone());
+            let msg = PairQueryMsg::GetTradeHistoryLatest {};        
+            let address_query: PairQueryMsgResponse = query(
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                }, msg, None)?;
+            if let PairQueryMsgResponse::GetTradeHistoryLatest { price, amount, timestamp, direction,
+            total_fee_amount, lp_fee_amount, shade_dao_fee_amount } = address_query {
+                assert_eq!(price, Uint128(1));
+                assert_eq!(amount, Uint128(998));
+                assert_eq!(direction, "Buy".to_string());
+                assert_eq!(lp_fee_amount, Uint128(2))
+            }else{
+                assert!(false, "Query returned unexpected response");
+            }
+            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000 - 1000000 + 998));          
+
+            print_header("\n\tChecking Trade History and Price...");
+            {      
+                let msg = PairQueryMsg::GetTradeCount {};        
+                let query: PairQueryMsgResponse = query(  &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                },msg, None)?;
+                if let PairQueryMsgResponse::GetTradeCount { count } = query {
+                    assert_eq!(count, 1);
+                }else{
+                    assert!(false, "Query returned unexpected response")
+                }
+            }
+
+            print_header("\n\tAMMPairHandlMsg::AddWhiteListAddress...");
+            handle(
+                &AMMPairHandlMsg::AddWhiteListAddress{ address: HumanAddr(account.to_string()) },
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                },
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();         
+            print_header("\n\tPairQueryMsg::GetWhiteListAddress...");            
+            let msg = PairQueryMsg::GetWhiteListAddress {};        
+            let address_query: PairQueryMsgResponse = query(
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+            }, msg, None)?;
+            if let PairQueryMsgResponse::GetWhiteListAddress { addresses } = address_query {
+                assert_eq!(addresses.len(), 1);
+                assert_eq!(addresses[0], HumanAddr(account.to_string()));
+            }else{
+                assert!(false, "Query returned unexpected response");
+            }
+
+            handle(
+                &AMMPairHandlMsg::SwapTokens {
+                    offer: TokenAmount {
+                        token: TokenType::NativeToken {
+                            denom: denom.clone(),
+                        },
+                        amount: Uint128(1000),
+                    },
+                    expected_return: None,
+                    to: None,
+                    router_link: ContractLink {
+                        address: HumanAddr("test".to_string()),
+                        code_hash: "ROUTER".to_string(),                            
+                    }, 
+                    msg: None
+                },
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                },
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                Some("1000uscrt"),
+                &mut reports,
+                None,
+            )
+            .unwrap();        
+            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000 - 1000000 + 1000 + 999));     
+            print_header("\n\tPairQueryMsg::GetTradeHistoryLatest...");            
+            let msg = PairQueryMsg::GetTradeHistoryLatest {};        
+            let address_query: PairQueryMsgResponse = query(&NetContract {
+                label: "".to_string(),
+                id: s_ammPair.id.clone(),
+                address: ammPair.address.0.clone(),
+                code_hash: s_ammPair.code_hash.to_string(),
+            }, msg, None)?;
+            if let PairQueryMsgResponse::GetTradeHistoryLatest { 
+                price,
+                amount,
+                timestamp,
+                direction,
+                total_fee_amount,
+                lp_fee_amount,
+                shade_dao_fee_amount
+             } = address_query {
+                assert_eq!(total_fee_amount, Uint128(0));
+            }else{
+                assert!(false, "Query returned unexpected response");
+            }
+        
         
         } else {
             assert!(false, "Query returned unexpected response")
         }
 
-    }
-
-    print_header("\n\tChecking Trade History and Price...");
-    {
-        let index = 1;
-        let msg = PairQueryMsg::GetTradeHistoryByIndex {index};        
-        let trade_history_query: PairQueryMsgResponse = query(&s_ammPair, msg, None)?;
-        if let PairQueryMsgResponse::GetTradeHistoryByIndex { price, amount, timestamp, direction } = trade_history_query {
-            assert_eq!(direction, "Buy".to_string());
-        }else{
-            assert!(false, "Query returned unexpected response")
-        }
-    }
-
+    } 
     Ok(())
 }
 

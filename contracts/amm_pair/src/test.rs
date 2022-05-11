@@ -106,7 +106,7 @@ mod amm_pair_test_contract {
             &mock_config(env)?,
             &mk_custom_token_amount(Uint128::from(offer_amount),token_pair), 
             & mut deps.storage,
-            Some(HumanAddr("Test".to_string().clone()))
+            HumanAddr("Test".to_string().clone()),
         );
 
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
@@ -123,7 +123,7 @@ mod amm_pair_test_contract {
         let expected_amount: u128 = 34028236692093846346337460;
         let swap_result = initial_swap(&deps.querier, &amm_settings, &config, 
             &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
-            &mut deps.storage, Some(HumanAddr("Test".to_string().clone())));
+            &mut deps.storage, HumanAddr("Test".to_string().clone()));
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -156,8 +156,11 @@ mod amm_pair_test_contract {
             amount: Uint128::from(50u128),
             timestamp: 6000,
             direction: "Sell".to_string(),
+            total_fee_amount: Uint128::from(50u128),
+            lp_fee_amount: Uint128::from(50u128),
+            shade_dao_fee_amount: Uint128::from(50u128),
         };
-        store_trade_history(deps, trade_history.clone())?;
+        store_trade_history(&mut deps, &trade_history)?;
         let current_index = load_trade_counter(&deps.storage)?;
         assert_eq!(1, current_index);
 
@@ -237,7 +240,7 @@ mod amm_pair_test_contract {
         add_whitelist_address(&mut deps.storage, address_a.clone())?;    
         let swap_result = initial_swap(&deps.querier, &amm_settings, &config, 
             &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
-            &mut deps.storage, Some(HumanAddr("TESTA".to_string().clone())))?;
+            &mut deps.storage, HumanAddr("TESTA".to_string().clone()))?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
         assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
         Ok(())
@@ -255,7 +258,7 @@ mod amm_pair_test_contract {
         handle(
             &mut deps,
             env,
-            HandleMsg::AddWhitelistAddress {
+            HandleMsg::AddWhiteListAddress {
                 address: address_a.clone()
             },
         )
@@ -271,7 +274,7 @@ mod amm_pair_test_contract {
         let response: QueryMsgResponse = from_binary(&result).unwrap();
 
         match response {
-            QueryMsgResponse::WhiteListAddress { addresses: stored } => {
+            QueryMsgResponse::GetWhiteListAddress { addresses: stored } => {
                 assert_eq!(1, stored.len())
             }
             _ => panic!("QueryResponse::ListExchanges"),

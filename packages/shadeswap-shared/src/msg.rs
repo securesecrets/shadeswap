@@ -59,6 +59,8 @@ pub mod amm_pair {
             offer: TokenAmount<HumanAddr>,
             expected_return: Option<Uint128>,
             to: Option<HumanAddr>,
+            router_link: ContractLink<HumanAddr>,
+            msg: Option<Binary>
         },
         // SNIP20 receiver interface
         Receive {
@@ -68,7 +70,7 @@ pub mod amm_pair {
         },
         // Sent by the LP token contract so that we can record its address.
         OnLpTokenInitAddr,
-        AddWhitelistAddress {
+        AddWhiteListAddress {
             address: HumanAddr
         },
         RemoveWhitelistAddresses {
@@ -81,6 +83,8 @@ pub mod amm_pair {
         SwapTokens {
             expected_return: Option<Uint128>,
             to: Option<HumanAddr>,
+            router_link: ContractLink<HumanAddr>,
+            msg: Option<Binary>
         },
         RemoveLiquidity {
             recipient: HumanAddr,
@@ -91,9 +95,9 @@ pub mod amm_pair {
     pub enum QueryMsg {
         GetPairInfo,
         GetTradeHistoryByIndex {
-            index: u64
+            index: i32
         },
-        // GetTradeHistoryLatest,
+        GetTradeHistoryLatest,
         GetWhiteListAddress,
         GetTradeCount,
     }
@@ -114,12 +118,24 @@ pub mod amm_pair {
             amount: Uint128,
             timestamp: u64,
             direction: String,
+            total_fee_amount: Uint128,
+            lp_fee_amount: Uint128,
+            shade_dao_fee_amount: Uint128,
+        },
+        GetTradeHistoryLatest{
+            price: Uint128,
+            amount: Uint128,
+            timestamp: u64,
+            direction: String,
+            total_fee_amount: Uint128,
+            lp_fee_amount: Uint128,
+            shade_dao_fee_amount: Uint128,
         },
         GetWhiteListAddress {
             addresses: Vec<HumanAddr>
         },
         GetTradeCount {
-            count: u64,
+            count: i32,
         }
     }
 }

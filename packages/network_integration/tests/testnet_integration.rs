@@ -33,7 +33,7 @@ use composable_snip20::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
 
-// #[test]
+#[test]
 fn run_testnet() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "full");
     let account = account_address(ACCOUNT_KEY)?;
@@ -458,7 +458,15 @@ fn run_testnet() -> Result<()> {
                 &snip20::HandleMsg::Send {
                     recipient: HumanAddr(String::from(ammPair.address.0.to_string())),
                     amount: Uint128(10),
-                    msg: Some(to_binary(&InvokeMsg::SwapTokens{ expected_return: None, to: Some(HumanAddr(account.to_string())) }).unwrap()),
+                    msg: Some(to_binary(&InvokeMsg::SwapTokens{ 
+                        expected_return: None, 
+                        to: Some(HumanAddr(account.to_string())),
+                        router_link: ContractLink {
+                            address: HumanAddr("test".to_string()),
+                            code_hash: "ROUTER".to_string(),                            
+                        }, 
+                        msg: None
+                    }).unwrap()),
                     padding: None,
                 },
                 &NetContract {

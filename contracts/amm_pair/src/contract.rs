@@ -114,6 +114,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     };
 
     store_config(deps, &config)?;   
+    
     Ok(InitResponse {
         messages,
         log: vec![log("created_exchange_address", env.contract.address)],
@@ -197,12 +198,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             add_liquidity(deps, env, deposit, slippage)
         }
         HandleMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
-        HandleMsg::AddWhitelistAddress{address} => add_address_to_whitelist(&mut deps.storage, address),
+        HandleMsg::AddWhiteListAddress{address} => add_address_to_whitelist(&mut deps.storage, address),
         HandleMsg::RemoveWhitelistAddresses{addresses} => remove_address_from_whitelist(&mut deps.storage, addresses),
         HandleMsg::SwapTokens {
             offer,
             expected_return,
             to,
+            router_link,
+            msg
         } => {
             // this is assert if token is SCRT if not then swapp will be called via SNIP20 Interface
             if !offer.token.is_native_token() {
@@ -220,6 +223,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 to,
                 offer,
                 expected_return,
+                router_link,
+                msg
             )
         }
     }
@@ -232,12 +237,15 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
     sender: HumanAddr,
     recipient: Option<HumanAddr>,
     offer: TokenAmount<HumanAddr>,
-    expected_return: Option<Uint128>
+    expected_return: Option<Uint128>,
+    router_link: ContractLink<HumanAddr>,
+    msg: Option<Binary>
 )-> StdResult<HandleResponse>{ 
-  
+      
+    let swaper_receiver = recipient.unwrap_or(sender);
     let amm_settings = query_factory_amm_settings(&deps.querier,config.factory_info.clone())?;
     let swap_result = initial_swap(&deps.querier, &amm_settings, &config, &offer,&mut deps.storage,
-        recipient.clone())?;
+        swaper_receiver.clone())?;
 
     // check for the slippage expected value compare to actual value
     if let Some(expected_return) = expected_return {
@@ -248,8 +256,8 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
         }
     }
 
-    // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
-    let mut messages = Vec::with_capacity(2);
+    // // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
+    let mut messages = Vec::with_capacity(3);
     if swap_result.shade_dao_fee_amount > Uint128::zero() {
         match &offer.token {
             TokenType::CustomToken {
@@ -281,46 +289,41 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
     // Send Token to Buyer or Swapper
     let index = config.pair.get_token_index(&offer.token).unwrap(); // Safe, checked in do_swap
     let token = config.pair.get_token(index ^ 1).unwrap();
-
-    let swaper_receiver = recipient.unwrap_or(sender);
+   
     messages.push(token.create_send_msg(
         env.contract.address,
         swaper_receiver,
         swap_result.result.return_amount,
-    )?);
-
-    let trade_history =   TradeHistory
+    )?);     
+   
+    let mut dir = "".to_string();
+    if index == 0
+    {
+        dir = "Buy".to_string();
+    }else{
+        dir = "Sell".to_string();
+    }      
+    
+    let trade_history =  TradeHistory
     {
         price: swap_result.price,
         amount: swap_result.result.return_amount,
         timestamp: env.block.time,
-        direction: "Buy".to_string(),
-    };
+        direction: dir.to_string(),
+        lp_fee_amount: swap_result.lp_fee_amount,
+        total_fee_amount : swap_result.total_fee_amount,
+        shade_dao_fee_amount: swap_result.shade_dao_fee_amount        
 
-    if index == 0
-    {
-        store_trade_history(deps, 
-            TradeHistory
-        {
-            price: swap_result.price,
-            amount: swap_result.result.return_amount,
-            timestamp: env.block.time,
-            direction: "Buy".to_string(),
-        })?;
-        
-    }
-    else if index == 1
-    {
-        // store the trade history
-        store_trade_history(deps, 
-            TradeHistory
-        {
-            price: swap_result.price,
-            amount: swap_result.result.return_amount,
-            timestamp: env.block.time,
-            direction: "Sell".to_string(),
-        })?;
-    }      
+    };
+    store_trade_history(deps, &trade_history)?;
+
+    // push message back to router
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: router_link.address,
+        callback_code_hash: router_link.code_hash,
+        send: vec![],        
+        msg: msg.unwrap()
+    }));
 
     Ok(HandleResponse {
         messages,
@@ -348,7 +351,6 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 config.viewing_key.0,
             )?;
             let total_liquidity = query_liquidity(&deps.querier, &config.lp_token_info)?;
-
             to_binary(&QueryMsgResponse::GetPairInfo {
                 liquidity_token: config.lp_token_info,
                 factory: config.factory_info,
@@ -360,23 +362,29 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             })
             
         },
-        // QueryMsg::GetTradeHistoryLatest => {                       
-        //     let count = load_trade_counter(&deps.storage)?;       
-        //     let latest_trade_history = load_trade_history(deps, count - 1)?;         
-        //     to_binary(&QueryMsgResponse::GetTradeHistoryLatest {
-        //         price: latest_trade_history.price,
-        //         direction:  latest_trade_history.direction.to_string(),
-        //         amount: latest_trade_history.amount,
-        //         timestamp: latest_trade_history.timestamp
-        //     })
-        // },
+        QueryMsg::GetTradeHistoryLatest => {                       
+            let count = load_trade_counter(&deps.storage)?;       
+            let latest_trade_history = load_trade_history(deps, count)?;         
+            to_binary(&QueryMsgResponse::GetTradeHistoryLatest {
+                price: latest_trade_history.price,
+                direction:  latest_trade_history.direction.to_string(),
+                amount: latest_trade_history.amount,
+                timestamp: latest_trade_history.timestamp,
+                total_fee_amount: latest_trade_history.total_fee_amount,
+                lp_fee_amount: latest_trade_history.lp_fee_amount,
+                shade_dao_fee_amount: latest_trade_history.shade_dao_fee_amount,
+            })
+        },
         QueryMsg::GetTradeHistoryByIndex {index} => {                   
             let trade_history_at = load_trade_history(&deps, index)?;   
             to_binary(&QueryMsgResponse::GetTradeHistoryByIndex {
                 price: trade_history_at.price,
                 direction:  trade_history_at.direction.to_string(),
                 amount: trade_history_at.amount,
-                timestamp: trade_history_at.timestamp
+                timestamp: trade_history_at.timestamp,
+                total_fee_amount: trade_history_at.total_fee_amount,
+                lp_fee_amount: trade_history_at.lp_fee_amount,
+                shade_dao_fee_amount: trade_history_at.shade_dao_fee_amount,
             })
         },   
         QueryMsg::GetWhiteListAddress =>{
@@ -386,7 +394,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             })
         },
         QueryMsg::GetTradeCount =>{   
-            let count = 10;         
+            let count = load_trade_counter(&deps.storage)?; 
             to_binary(&QueryMsgResponse::GetTradeCount{
                 count 
             })
@@ -407,7 +415,7 @@ pub fn initial_swap(
     config: &Config<HumanAddr>,  
     offer: &TokenAmount<HumanAddr>,
     storage: &mut impl Storage,
-    recipient: Option<HumanAddr>,
+    recipient: HumanAddr,
 ) -> StdResult<SwapInfo> {
     if !config.pair.contains(&offer.token) {
         return Err(StdError::generic_err(format!(
@@ -428,19 +436,15 @@ pub fn initial_swap(
     // calculate fee
     let lp_fee = settings.lp_fee;
     let shade_dao_fee = settings.shade_dao_fee;
-    
+    let mut lp_fee_amount = Uint128(0u128);     
+    let mut shade_dao_fee_amount =Uint128(0u128); 
     // calculation fee
-    // let charged_fee = is_address_in_whitelist(storage, recipient.unwrap().clone())?;
-    // let mut lp_fee_amount = Uint128(0u128);     
-    // let mut shade_dao_fee_amount =Uint128(0u128);  
+    let discount_fee = is_address_in_whitelist(storage, recipient)?;   
+    if discount_fee == false {
+        lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;     
+        shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;      
+    }    
     
-    // if charged_fee == false {
-    //     lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;     
-    //     shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;       
-    // }
-
-    let lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;     
-    let shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;  
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
     let deducted_offer_amount = (swap_amount - Uint256::from(total_fee_amount))?;   
     let result_swap = SwapResult {
@@ -711,8 +715,6 @@ fn assert_slippage_acceptance(
 }
 
 
-
-
 fn query_liquidity_pair_contract(
     querier: &impl Querier,
     lp_token_linke: &ContractLink<HumanAddr>,
@@ -739,7 +741,7 @@ fn query_factory_amm_settings(
     let result: FactoryQueryResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         callback_code_hash: factory.code_hash,
         contract_addr: factory.address,
-        msg: to_binary(&FactoryQueryMsg::GetAMMSettings)?,
+        msg: to_binary(&FactoryQueryMsg::GetAMMSettings{})?,
     }))?;
 
     match result {
@@ -764,9 +766,11 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
     let config = load_config(deps)?;
 
     match from_binary(&msg)? {
-        InvokeMsg::SwapTokens {
+        InvokeMsg::SwapTokens {         
             to,
             expected_return,
+            router_link,
+            msg
         } => {
             for token in config.pair.into_iter() {
                 match token {
@@ -785,6 +789,8 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                                 to,
                                 offer,
                                 expected_return,
+                                router_link,
+                                msg
                             );
                         }
                     }

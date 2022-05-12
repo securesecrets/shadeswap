@@ -41,7 +41,7 @@ fn run_testnet() -> Result<()> {
     let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
 
     let mut reports = vec![];
-    let mut repo: Vec<Report> = vec![];
+
 
     print_header("Initializing LP TOKEN as template");
 
@@ -154,7 +154,7 @@ fn run_testnet() -> Result<()> {
         Some(STORE_GAS),
         Some(GAS),
         Some("test"),
-        &mut repo,
+        &mut reports,
     )?;
 
     print_contract(&s_sHD);
@@ -314,7 +314,7 @@ fn run_testnet() -> Result<()> {
         Some(STORE_GAS),
         Some(GAS),
         Some("test"),
-        &mut repo,
+        &mut reports,
     )?;
 
     print_contract(&factory_contract);
@@ -326,7 +326,6 @@ fn run_testnet() -> Result<()> {
             entropy: entropy,
         };
 
-        let mut newAMMPairReport = vec![];
         let result = handle(
             &msg,
             &factory_contract,
@@ -334,14 +333,25 @@ fn run_testnet() -> Result<()> {
             Some(GAS),
             Some("test"),
             None,
-            &mut newAMMPairReport,
+            &mut reports,
             None,
         )
         .unwrap();
 
         println!("{}", result.0.input);
-        println!("Events: {}", newAMMPairReport.len());
     }
+
+    /*{
+        print_header("\n\tTESTING CONF...");
+        let msg = FactoryQueryMsg::GetConfig {
+        };
+        
+        let query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
+
+        if let FactoryQueryResponse::GetConfig { pair_contract, amm_settings, lp_token_contract  } = query {
+            println!("{}",pair_contract.code_hash);
+        }
+    }*/
 
     print_header("\n\tChecking something was done...");
     {

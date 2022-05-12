@@ -1,10 +1,11 @@
-use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg,  HandleMsg, InvokeMsg,QueryMsgResponse}};
+use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg,  HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
 use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair, Fee}};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::token_pair::{{TokenPair}};
+use shadeswap_shared::Pagination;
 use crate::state::{{Config}};
 use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist,store_trade_counter,
      load_whitelist_address,add_whitelist_address,
@@ -12,7 +13,8 @@ use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist,store
 load_trade_counter, load_trade_history};
 use crate::help_math::{{substraction, multiply}};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
-use crate::state::tradehistory::{TradeHistory, DirectionType};
+use crate::state::PAGINATION_LIMIT;
+use crate::state::tradehistory::{DirectionType};
 use shadeswap_shared::{ 
     fadroma::{
         scrt::{
@@ -363,30 +365,11 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 contract_version: AMM_PAIR_CONTRACT_VERSION,
             })
             
-        },
-        QueryMsg::GetTradeHistoryLatest => {                       
-            let count = load_trade_counter(&deps.storage)?;       
-            let latest_trade_history = load_trade_history(deps, count)?;         
-            to_binary(&QueryMsgResponse::GetTradeHistoryLatest {
-                price: latest_trade_history.price,
-                direction:  latest_trade_history.direction.to_string(),
-                amount: latest_trade_history.amount,
-                timestamp: latest_trade_history.timestamp,
-                total_fee_amount: latest_trade_history.total_fee_amount,
-                lp_fee_amount: latest_trade_history.lp_fee_amount,
-                shade_dao_fee_amount: latest_trade_history.shade_dao_fee_amount,
-            })
-        },
-        QueryMsg::GetTradeHistoryByIndex {index} => {                   
-            let trade_history_at = load_trade_history(&deps, index)?;   
-            to_binary(&QueryMsgResponse::GetTradeHistoryByIndex {
-                price: trade_history_at.price,
-                direction:  trade_history_at.direction.to_string(),
-                amount: trade_history_at.amount,
-                timestamp: trade_history_at.timestamp,
-                total_fee_amount: trade_history_at.total_fee_amount,
-                lp_fee_amount: trade_history_at.lp_fee_amount,
-                shade_dao_fee_amount: trade_history_at.shade_dao_fee_amount,
+        }
+        QueryMsg::GetTradeHistory {pagination} => {                   
+            let data = load_trade_history_query(&deps, pagination)?;             
+            to_binary(&QueryMsgResponse::GetTradeHistory {
+                data
             })
         },   
         QueryMsg::GetWhiteListAddress =>{
@@ -402,6 +385,30 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             })
         },
     }
+}
+
+fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(  
+    deps: &Extern<S, A, Q>,
+    pagination: Pagination,
+) -> StdResult<Vec<TradeHistory>>{
+    let count = load_trade_counter(&deps.storage)?;
+
+    if pagination.start >= count {
+        return Ok(vec![]);
+    }
+
+    let limit = pagination.limit.min(PAGINATION_LIMIT);
+    let end = (pagination.start + limit as u64).min(count);
+
+    let mut result = Vec::with_capacity((end - pagination.start) as usize);
+
+    for i in pagination.start..end {
+        let tempIndex = i+1;
+        let trade_history: TradeHistory = load_trade_history(deps, tempIndex)?;
+        result.push(trade_history);
+    }
+
+    Ok(result)
 }
 
 fn calculate_fee(amount: Uint256, fee: Fee) -> StdResult<Uint128> {

@@ -33,7 +33,7 @@ use std::env;
 use composable_snip20::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
-
+use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
  #[test]
 fn run_testnet_with_native_token_swap() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "full");
@@ -382,24 +382,7 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
             )
             .unwrap();        
                         
-            println!("Pair Contract {}", ammPair.address.0.clone());
-            let msg = PairQueryMsg::GetTradeHistoryLatest {};        
-            let address_query: PairQueryMsgResponse = query(
-                &NetContract {
-                    label: "".to_string(),
-                    id: s_ammPair.id.clone(),
-                    address: ammPair.address.0.clone(),
-                    code_hash: s_ammPair.code_hash.to_string(),
-                }, msg, None)?;
-            if let PairQueryMsgResponse::GetTradeHistoryLatest { price, amount, timestamp, direction,
-            total_fee_amount, lp_fee_amount, shade_dao_fee_amount } = address_query {
-                assert_eq!(price, Uint128(1));
-                assert_eq!(amount, Uint128(998));
-                assert_eq!(direction, "Buy".to_string());
-                assert_eq!(lp_fee_amount, Uint128(2))
-            }else{
-                assert!(false, "Query returned unexpected response");
-            }
+            println!("Pair Contract {}", ammPair.address.0.clone());           
             assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000 - 1000000 + 998));          
 
             print_header("\n\tChecking Trade History and Price...");
@@ -481,29 +464,24 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
                 None,
             )
             .unwrap();        
-            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000 - 1000000 + 1000 + 999));     
+            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000 - 1000000 + 998 + 2 + 999));     
             print_header("\n\tPairQueryMsg::GetTradeHistoryLatest...");            
-            let msg = PairQueryMsg::GetTradeHistoryLatest {};        
+            let msg = PairQueryMsg::GetTradeHistory {pagination: Pagination {
+                start: 0, limit: 4 
+            }};        
             let address_query: PairQueryMsgResponse = query(&NetContract {
                 label: "".to_string(),
                 id: s_ammPair.id.clone(),
                 address: ammPair.address.0.clone(),
                 code_hash: s_ammPair.code_hash.to_string(),
             }, msg, None)?;
-            if let PairQueryMsgResponse::GetTradeHistoryLatest { 
-                price,
-                amount,
-                timestamp,
-                direction,
-                total_fee_amount,
-                lp_fee_amount,
-                shade_dao_fee_amount
+            if let PairQueryMsgResponse::GetTradeHistory { 
+                data
              } = address_query {
-                assert_eq!(total_fee_amount, Uint128(0));
+                assert_eq!(data.len(), (2));
             }else{
                 assert!(false, "Query returned unexpected response");
-            }
-        
+            }        
         
         } else {
             assert!(false, "Query returned unexpected response")

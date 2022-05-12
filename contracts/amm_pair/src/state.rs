@@ -14,9 +14,10 @@ use shadeswap_shared::{
 use std::any::type_name;
 use serde::{Deserialize, Serialize};
 use serde::de::DeserializeOwned;
-use tradehistory::TradeHistory;
+use shadeswap_shared::msg::amm_pair::{{ HandleMsg,TradeHistory}};
 use std::fmt::{{Formatter, Display}};
 
+pub const PAGINATION_LIMIT: u8 = 30;
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static TRADE_COUNT: &[u8] = b"tradecount";
 pub static TRADE_HISTORY: &[u8] = b"trade_history";
@@ -76,16 +77,6 @@ pub mod tradehistory{
         }
     }
 
-    #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone)]
-    pub struct TradeHistory {
-        pub price: Uint128,
-        pub amount: Uint128,
-        pub timestamp: u64,
-        pub direction: String,
-        pub total_fee_amount: Uint128,
-        pub lp_fee_amount: Uint128,
-        pub shade_dao_fee_amount: Uint128,
-    }
 }
 
 
@@ -128,14 +119,14 @@ pub mod amm_pair_storage{
         result.humanize(&deps.api)
     }
     
-    pub fn load_trade_counter(storage: &impl Storage) -> StdResult<i32> {
+    pub fn load_trade_counter(storage: &impl Storage) -> StdResult<u64> {
         let count = load(storage, TRADE_COUNT)?.unwrap_or(0);
         Ok(count)
     }
  
     pub fn store_trade_counter<S: Storage, A: Api, Q: Querier>(
         deps: &mut Extern<S, A, Q>, 
-        count: i32
+        count: u64
     ) -> StdResult<()> {      
         save(&mut deps.storage, TRADE_COUNT, &count)
     }     
@@ -173,7 +164,7 @@ pub mod amm_pair_storage{
 
     pub fn load_trade_history<S: Storage, A: Api, Q: Querier>(
         deps: &Extern<S, A, Q>,
-        count: i32) -> StdResult<TradeHistory> {
+        count: u64) -> StdResult<TradeHistory> {
         let trade_history: TradeHistory =
         ns_load(&deps.storage, TRADE_HISTORY, count.to_string().as_bytes())?
             .ok_or_else(|| StdError::generic_err("Trade History doesn't exist in storage."))?;

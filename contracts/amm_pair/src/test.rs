@@ -5,6 +5,7 @@ use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::amm_pair::{{AMMPair, AMMSettings, Fee}};
 use crate::state::{Config};
+use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
 use crate::state::amm_pair_storage::{{ store_config, load_config,
     remove_whitelist_address,is_address_in_whitelist, add_whitelist_address,load_whitelist_address, }};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
@@ -41,7 +42,7 @@ use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip
 mod amm_pair_test_contract {
     use super::*;
     use crate::state::amm_pair_storage::{{store_trade_history, load_trade_history, load_trade_counter}};
-    use crate::state::tradehistory::{{TradeHistory, DirectionType}};
+    use crate::state::tradehistory::{{ DirectionType}};
     #[test]
     fn assert_init_config() -> StdResult<()> {       
         // let info = mock_info("amm_pair_contract", &amount);

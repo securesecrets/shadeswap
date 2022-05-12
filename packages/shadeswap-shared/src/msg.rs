@@ -34,10 +34,22 @@ pub struct CountResponse {
 
 pub mod amm_pair {
     use super::*;
-    use crate::token_pair::TokenPair;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
+    use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair};
 
+    
+    #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone, JsonSchema)]
+    pub struct TradeHistory {
+        pub price: Uint128,
+        pub amount: Uint128,
+        pub timestamp: u64,
+        pub direction: String,
+        pub total_fee_amount: Uint128,
+        pub lp_fee_amount: Uint128,
+        pub shade_dao_fee_amount: Uint128,
+    }
+    
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub pair: TokenPair<HumanAddr>,
@@ -94,10 +106,9 @@ pub mod amm_pair {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         GetPairInfo,
-        GetTradeHistoryByIndex {
-            index: i32
+        GetTradeHistory {
+            pagination: Pagination
         },
-        GetTradeHistoryLatest,
         GetWhiteListAddress,
         GetTradeCount,
     }
@@ -112,30 +123,15 @@ pub mod amm_pair {
             amount_1: Uint128,
             total_liquidity: Uint128,
             contract_version: u32,
-        },
-        GetTradeHistoryByIndex {
-            price: Uint128,
-            amount: Uint128,
-            timestamp: u64,
-            direction: String,
-            total_fee_amount: Uint128,
-            lp_fee_amount: Uint128,
-            shade_dao_fee_amount: Uint128,
-        },
-        GetTradeHistoryLatest{
-            price: Uint128,
-            amount: Uint128,
-            timestamp: u64,
-            direction: String,
-            total_fee_amount: Uint128,
-            lp_fee_amount: Uint128,
-            shade_dao_fee_amount: Uint128,
+        },        
+        GetTradeHistory {
+            data: Vec<TradeHistory>
         },
         GetWhiteListAddress {
             addresses: Vec<HumanAddr>
         },
         GetTradeCount {
-            count: i32,
+            count: u64,
         }
     }
 }

@@ -240,7 +240,7 @@ fn run_testnet() -> Result<()> {
     let test_pair = TokenPair::<HumanAddr>(
         TokenType::CustomToken {
             contract_addr: s_sCRT.address.clone().into(),
-            token_code_hash: s_sHD.code_hash.to_string(),
+            token_code_hash: s_sCRT.code_hash.to_string(),
         },
         TokenType::CustomToken {
             contract_addr: s_sHD.address.clone().into(),
@@ -485,7 +485,7 @@ fn run_testnet() -> Result<()> {
             .unwrap();            
             
             assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(999999890));
-            assert_eq!(get_balance(&s_sHD, account.to_string()), Uint128(999999800));
+            assert_eq!(get_balance(&s_sHD, account.to_string()), Uint128(999999910));
         } else {
             assert!(false, "Query returned unexpected response")
         }

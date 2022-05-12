@@ -296,12 +296,12 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
         swap_result.result.return_amount,
     )?);     
    
-    let mut dir = "".to_string();
+    let mut sell_or_swap = "".to_string();
     if index == 0
     {
-        dir = "Buy".to_string();
+        sell_or_swap = "Buy".to_string();
     }else{
-        dir = "Sell".to_string();
+        sell_or_swap = "Sell".to_string();
     }      
     
     let trade_history =  TradeHistory
@@ -309,7 +309,7 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
         price: swap_result.price,
         amount: swap_result.result.return_amount,
         timestamp: env.block.time,
-        direction: dir.to_string(),
+        direction: sell_or_swap.to_string(),
         lp_fee_amount: swap_result.lp_fee_amount,
         total_fee_amount : swap_result.total_fee_amount,
         shade_dao_fee_amount: swap_result.shade_dao_fee_amount        
@@ -317,13 +317,15 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
     };
     store_trade_history(deps, &trade_history)?;
 
-    // push message back to router
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: router_link.address,
-        callback_code_hash: router_link.code_hash,
-        send: vec![],        
-        msg: msg.unwrap()
-    }));
+    if !msg.is_none(){
+        // push message back to router
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: router_link.address,
+            callback_code_hash: router_link.code_hash,
+            send: vec![],        
+            msg: msg.unwrap()
+        }));
+    }    
 
     Ok(HandleResponse {
         messages,

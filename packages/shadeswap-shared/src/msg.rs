@@ -34,10 +34,22 @@ pub struct CountResponse {
 
 pub mod amm_pair {
     use super::*;
-    use crate::token_pair::TokenPair;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
+    use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair};
 
+    
+    #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone, JsonSchema)]
+    pub struct TradeHistory {
+        pub price: Uint128,
+        pub amount: Uint128,
+        pub timestamp: u64,
+        pub direction: String,
+        pub total_fee_amount: Uint128,
+        pub lp_fee_amount: Uint128,
+        pub shade_dao_fee_amount: Uint128,
+    }
+    
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub pair: TokenPair<HumanAddr>,
@@ -59,6 +71,8 @@ pub mod amm_pair {
             offer: TokenAmount<HumanAddr>,
             expected_return: Option<Uint128>,
             to: Option<HumanAddr>,
+            router_link: ContractLink<HumanAddr>,
+            msg: Option<Binary>
         },
         // SNIP20 receiver interface
         Receive {
@@ -68,6 +82,12 @@ pub mod amm_pair {
         },
         // Sent by the LP token contract so that we can record its address.
         OnLpTokenInitAddr,
+        AddWhiteListAddress {
+            address: HumanAddr
+        },
+        RemoveWhitelistAddresses {
+            addresses: Vec<HumanAddr>
+        }
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -75,6 +95,8 @@ pub mod amm_pair {
         SwapTokens {
             expected_return: Option<Uint128>,
             to: Option<HumanAddr>,
+            router_link: ContractLink<HumanAddr>,
+            msg: Option<Binary>
         },
         RemoveLiquidity {
             recipient: HumanAddr,
@@ -83,12 +105,17 @@ pub mod amm_pair {
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        PairInfo,
+        GetPairInfo,
+        GetTradeHistory {
+            pagination: Pagination
+        },
+        GetWhiteListAddress,
+        GetTradeCount,
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsgResponse {
-        PairInfo {
+        GetPairInfo {
             liquidity_token: ContractLink<HumanAddr>,
             factory: ContractLink<HumanAddr>,
             pair: TokenPair<HumanAddr>,
@@ -96,7 +123,16 @@ pub mod amm_pair {
             amount_1: Uint128,
             total_liquidity: Uint128,
             contract_version: u32,
+        },        
+        GetTradeHistory {
+            data: Vec<TradeHistory>
         },
+        GetWhiteListAddress {
+            addresses: Vec<HumanAddr>
+        },
+        GetTradeCount {
+            count: u64,
+        }
     }
 }
 

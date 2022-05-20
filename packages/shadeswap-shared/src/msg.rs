@@ -5,10 +5,11 @@ use fadroma::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use crate::TokenType;
 
+pub use crate::snip20_impl::msg as snip20;
 use crate::token_amount::TokenAmount;
 use crate::token_pair_amount::TokenPairAmount;
-pub use crate::snip20_impl::msg as snip20;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -32,14 +33,64 @@ pub struct CountResponse {
     pub count: i32,
 }
 
+pub mod router {
+
+    use super::*;
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    pub enum InvokeMsg {
+        SwapTokensForExact {
+            offer: TokenAmount<HumanAddr>,
+            expected_return: Option<Uint128>,
+            paths: Vec<HumanAddr>,
+            recipient: Option<HumanAddr>
+        },
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    pub struct InitMsg {
+        pub factory_address: ContractLink<HumanAddr>,
+        pub prng_seed: Binary,
+        pub entropy: Binary,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HandleMsg {
+        Receive {
+            from: HumanAddr,
+            msg: Option<Binary>,
+            amount: Uint128,
+        },
+        SwapTokensForExact {
+            /// The token type to swap from.
+            offer: TokenAmount<HumanAddr>,
+            expected_return: Option<Uint128>,
+            path: Vec<HumanAddr>,
+            recipient: Option<HumanAddr>
+        },
+        SwapCallBack {
+            current_index: usize,
+            last_token_in: TokenType<HumanAddr>,
+            signature: Binary,
+        },
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum QueryMsg {
+        // GetCount returns the current count as a json-encoded number
+        GetCount {},
+    }
+}
+
 pub mod amm_pair {
     use super::*;
+    use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
-    use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair};
 
-    
-    #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone, JsonSchema)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
     pub struct TradeHistory {
         pub price: Uint128,
         pub amount: Uint128,
@@ -49,7 +100,6 @@ pub mod amm_pair {
         pub lp_fee_amount: Uint128,
         pub shade_dao_fee_amount: Uint128,
     }
-    
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub pair: TokenPair<HumanAddr>,
@@ -57,7 +107,7 @@ pub mod amm_pair {
         pub factory_info: ContractLink<HumanAddr>,
         pub prng_seed: Binary,
         pub callback: Option<Callback<HumanAddr>>,
-        pub entropy: Binary
+        pub entropy: Binary,
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -72,7 +122,7 @@ pub mod amm_pair {
             expected_return: Option<Uint128>,
             to: Option<HumanAddr>,
             router_link: ContractLink<HumanAddr>,
-            msg: Option<Binary>
+            msg: Option<Binary>,
         },
         // SNIP20 receiver interface
         Receive {
@@ -83,11 +133,11 @@ pub mod amm_pair {
         // Sent by the LP token contract so that we can record its address.
         OnLpTokenInitAddr,
         AddWhiteListAddress {
-            address: HumanAddr
+            address: HumanAddr,
         },
         RemoveWhitelistAddresses {
-            addresses: Vec<HumanAddr>
-        }
+            addresses: Vec<HumanAddr>,
+        },
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -96,7 +146,7 @@ pub mod amm_pair {
             expected_return: Option<Uint128>,
             to: Option<HumanAddr>,
             router_link: ContractLink<HumanAddr>,
-            msg: Option<Binary>
+            msg: Option<Binary>,
         },
         RemoveLiquidity {
             recipient: HumanAddr,
@@ -106,9 +156,7 @@ pub mod amm_pair {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         GetPairInfo,
-        GetTradeHistory {
-            pagination: Pagination
-        },
+        GetTradeHistory { pagination: Pagination },
         GetWhiteListAddress,
         GetTradeCount,
     }
@@ -123,22 +171,22 @@ pub mod amm_pair {
             amount_1: Uint128,
             total_liquidity: Uint128,
             contract_version: u32,
-        },        
+        },
         GetTradeHistory {
-            data: Vec<TradeHistory>
+            data: Vec<TradeHistory>,
         },
         GetWhiteListAddress {
-            addresses: Vec<HumanAddr>
+            addresses: Vec<HumanAddr>,
         },
         GetTradeCount {
             count: u64,
-        }
+        },
     }
 }
 
 pub mod factory {
     use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair};
-    use fadroma::{ContractInstantiationInfo, Binary};
+    use fadroma::{Binary, ContractInstantiationInfo};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
@@ -149,7 +197,7 @@ pub mod factory {
         pub pair_contract: ContractInstantiationInfo,
         pub amm_settings: AMMSettings<HumanAddr>,
         pub lp_token_contract: ContractInstantiationInfo,
-        pub prng_seed: Binary
+        pub prng_seed: Binary,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -158,19 +206,19 @@ pub mod factory {
         SetConfig {
             pair_contract: Option<ContractInstantiationInfo>,
             lp_token_contract: Option<ContractInstantiationInfo>,
-            amm_settings: Option<AMMSettings<HumanAddr>>
+            amm_settings: Option<AMMSettings<HumanAddr>>,
         },
         CreateAMMPair {
             pair: TokenPair<HumanAddr>,
-            entropy: Binary
+            entropy: Binary,
         },
         AddAMMPairs {
-            amm_pair: Vec<AMMPair<HumanAddr>>
+            amm_pair: Vec<AMMPair<HumanAddr>>,
         },
         RegisterAMMPair {
             pair: TokenPair<HumanAddr>,
             signature: Binary,
-        }
+        },
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -182,12 +230,14 @@ pub mod factory {
         GetConfig {
             pair_contract: ContractInstantiationInfo,
             amm_settings: AMMSettings<HumanAddr>,
-            lp_token_contract: ContractInstantiationInfo
+            lp_token_contract: ContractInstantiationInfo,
         },
         GetAMMPairAddress {
             address: HumanAddr,
         },
-        GetAMMSettings { settings: AMMSettings<HumanAddr> },
+        GetAMMSettings {
+            settings: AMMSettings<HumanAddr>,
+        },
     }
 
     #[derive(Serialize, Deserialize, JsonSchema)]

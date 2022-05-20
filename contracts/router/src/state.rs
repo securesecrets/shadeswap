@@ -1,4 +1,3 @@
-use crate::msg::InitMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -11,9 +10,10 @@ use shadeswap_shared::{
             Querier, StdResult, Storage, StdError
         },
         scrt_storage::{load, save},
-        scrt_vk::ViewingKey, Env, PrefixedStorage, ReadonlyPrefixedStorage, ReadonlyStorage,
+        scrt_vk::ViewingKey, Env, PrefixedStorage, ReadonlyPrefixedStorage, ReadonlyStorage, Binary,
     },
-    amm_pair::AMMPair, TokenPair, TokenAmount
+    amm_pair::AMMPair, TokenPair, TokenAmount, TokenType,
+    msg::router::InitMsg
 };
 
 pub static CONFIG_KEY: &[u8] = b"config";
@@ -81,5 +81,8 @@ impl Config<HumanAddr> {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct CurrentSwapInfo {
-    pub(crate) amount: TokenAmount<HumanAddr>
+    pub(crate) amount: TokenAmount<HumanAddr>,
+    pub paths: Vec<HumanAddr>,
+    pub signature: Binary,
+    pub recipient: HumanAddr
 }

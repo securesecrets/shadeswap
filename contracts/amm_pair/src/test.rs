@@ -10,8 +10,9 @@ use crate::state::amm_pair_storage::{{ store_config, load_config,
     remove_whitelist_address,is_address_in_whitelist, add_whitelist_address,load_whitelist_address, }};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
 use crate::contract::init;
-use crate::contract::{{create_viewing_key, calculate_price, swap_tokens, query, handle, initial_swap}};
+use crate::contract::{{create_viewing_key, calculate_price, calculate_swap_result,swap, query, handle}};
 use std::hash::Hash;
+use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
 use shadeswap_shared::{ 
     fadroma::{
         scrt::{
@@ -31,24 +32,23 @@ use shadeswap_shared::{
 use shadeswap_shared::{
     fadroma::{
         scrt::{
-            testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR},
+            testing::{mock_dependencies, mock_env,MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR},
+            
         },
     }
 };
-
 use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip20ComposableConfig}};
 
 #[cfg(test)]
 mod amm_pair_test_contract {
     use super::*;
     use crate::state::amm_pair_storage::{{store_trade_history, load_trade_history, load_trade_counter}};
-    use crate::state::tradehistory::{{ DirectionType}};
+    use crate::state::tradehistory::{{ DirectionType}};  
     #[test]
     fn assert_init_config() -> StdResult<()> {       
         // let info = mock_info("amm_pair_contract", &amount);
         let seed = to_binary(&"SEED".to_string())?;
         let entropy = to_binary(&"ENTROPY".to_string())?;
-
         let ref mut deps = mock_dependencies(30, &[]);
         let mut env = mkenv("test");
         env.block.height = 200_000;
@@ -101,7 +101,7 @@ mod amm_pair_test_contract {
         let expected_amount: u128 = 34028236692093846346337460;
         let mut deps = mkdeps();
         let env = mkenv("sender");
-        let swap_result = initial_swap(
+        let swap_result = calculate_swap_result(
             &deps.querier, 
             &amm_settings, 
             &mock_config(env)?,
@@ -119,10 +119,11 @@ mod amm_pair_test_contract {
     {     
         let mut deps = mkdeps();
         let amm_settings = mk_amm_settings();
-        let config = make_init_config(&mut deps)?;           
+        let token_pair = mk_token_pair("token0".to_string(), "tokne1".to_string());
+        let config = make_init_config(&mut deps, token_pair)?;           
         let offer_amount: u128 = 34028236692093846346337460;
         let expected_amount: u128 = 34028236692093846346337460;
-        let swap_result = initial_swap(&deps.querier, &amm_settings, &config, 
+        let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, 
             &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
             &mut deps.storage, HumanAddr("Test".to_string().clone()));
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
@@ -140,7 +141,8 @@ mod amm_pair_test_contract {
     #[test]
     fn assert_store_and_load_config_success() -> StdResult<()>{
         let mut deps = mkdeps();
-        let config = make_init_config(&mut deps)?;   
+        let token_pair = mk_token_pair("token0".to_string(), "tokne1".to_string());
+        let config = make_init_config(&mut deps,token_pair)?;   
         store_config(&mut deps, &config)?;
         let stored_config = load_config(&mut deps)?;
         assert_eq!(config.pair.0, stored_config.pair.0);
@@ -234,12 +236,13 @@ mod amm_pair_test_contract {
     fn assert_initial_swap_with_zero_fee_for_whitelist_address()-> StdResult<()>{
         let mut deps = mkdeps();
         let amm_settings = mk_amm_settings();
-        let config = make_init_config(&mut deps)?;         
+        let token_pair = mk_token_pair("token0".to_string(), "tokne1".to_string());
+        let config = make_init_config(&mut deps, token_pair)?;         
         let offer_amount: u128 = 34028236692093846346337460;
         let expected_amount: u128 = 34028236692093846346337460;           
         let address_a = HumanAddr::from("TESTA".to_string());
         add_whitelist_address(&mut deps.storage, address_a.clone())?;    
-        let swap_result = initial_swap(&deps.querier, &amm_settings, &config, 
+        let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, 
             &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
             &mut deps.storage, HumanAddr("TESTA".to_string().clone()))?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
@@ -248,11 +251,37 @@ mod amm_pair_test_contract {
     }
 
     #[test]
+    fn assert_swap_native_snip20()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let amm_settings = mk_amm_settings();
+        let env = mock_env("sender", &[]);
+        let token_pair = mk_native_token_pair("token0".to_string(), "token1".to_string());
+        let config = make_init_config(&mut deps, token_pair.clone())?;         
+        let offer_amount: u128 = 34028236692093846346337460;
+        let expected_amount: u128 = 34028236692093846346337460;  
+        let address_a = HumanAddr("TESTA".to_string());
+        let router_link = ContractLink{address: address_a.clone(), code_hash: "".to_string()};
+        let request = QueryRequest::Custom(WasmQuery::Smart {
+            callback_code_hash: "hash".to_string(),
+            contract_addr: HumanAddr("test".to_string()),
+            msg: to_binary(&FactoryQueryMsg::GetAMMSettings{})?,
+        });
+        
+        let result: FactoryQueryResponse  = deps.querier.query(&request)?;
+        let native_swap = swap(&mut deps, mkenv("test".to_string()),
+         config, address_a.clone(), None,  mk_custom_token_amount(Uint128::from(offer_amount.clone()), token_pair.clone()),None, 
+         router_link, None)?;
+        assert_eq!(native_swap.messages.len(), 3);
+        Ok(())
+    }
+
+    #[test]
     fn assert_query_get_amm_pairs_success()-> StdResult<()>{
         let mut deps = mkdeps();
         let env = mkenv("sender");
         let amm_settings = mk_amm_settings();
-        let config = make_init_config(&mut deps)?;         
+        let token_pair = mk_token_pair("token0".to_string(), "tokne1".to_string());
+        let config = make_init_config(&mut deps, token_pair)?;         
         let offer_amount: u128 = 34028236692093846346337460;
         let expected_amount: u128 = 34028236692093846346337460;           
         let address_a = HumanAddr::from("TESTA".to_string());
@@ -284,11 +313,12 @@ mod amm_pair_test_contract {
     }
 }
 
-fn make_init_config<S: Storage, A: Api, Q: Querier>(deps: &mut Extern<S, A, Q>) -> StdResult<Config<HumanAddr>> {    
+fn make_init_config<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>, 
+    token_pair: TokenPair<HumanAddr>) -> StdResult<Config<HumanAddr>> {    
     let seed = to_binary(&"SEED".to_string())?;
     let entropy = to_binary(&"ENTROPY".to_string())?;
-    let env = mkenv("test");
-    let token_pair = mk_token_pair("token0".to_string(), "token1".to_string());
+    let env = mkenv("test");  
     let msg = InitMsg {
         pair: token_pair.clone(),
         lp_token_contract: ContractInstantiationInfo{
@@ -336,6 +366,19 @@ fn mk_token_pair(token0: String, token1: String) -> TokenPair<HumanAddr>{
     pair
 }
 
+fn mk_native_token_pair(token0: String, token1: String) -> TokenPair<HumanAddr>{
+    let pair =  TokenPair(
+        TokenType::CustomToken {
+            contract_addr: HumanAddr(token0.clone()),
+            token_code_hash: "TOKEN0_HASH".to_string()
+        },            
+        TokenType::NativeToken {
+            denom: "uscrt".to_string()
+        }
+    );
+    pair
+}
+
 
 fn mk_custom_token_amount(amount: Uint128, token_pair: TokenPair<HumanAddr>) -> TokenAmount<HumanAddr>{    
     let token = TokenAmount{
@@ -349,6 +392,12 @@ fn mk_custom_token(address: String) -> TokenType<HumanAddr>{
     TokenType::CustomToken {
         contract_addr: HumanAddr(address.clone()),
         token_code_hash: "TOKEN0_HASH".to_string()
+    }
+}
+
+fn mk_native_token() -> TokenType<HumanAddr>{
+    TokenType::NativeToken{
+        denom: "uscrt".to_string()
     }
 }
 

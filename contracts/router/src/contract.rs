@@ -114,6 +114,11 @@ pub fn swap_exact_tokens_for_tokens<S: Storage, A: Api, Q: Querier>(
                 let msg = to_binary(&InvokeMsg::SwapTokens {
                     expected_return: None,
                     to: None,
+                    msg: None,
+                    router_link: ContractLink{
+                        address : HumanAddr("".to_string()),
+                        code_hash: "".to_string()
+                    }
                 })?;
 
                 messages.push(
@@ -164,6 +169,11 @@ pub fn swap_exact_tokens_for_tokens<S: Storage, A: Api, Q: Querier>(
                         to_binary(&InvokeMsg::SwapTokens {
                             expected_return: None,
                             to: None,
+                            msg: None,
+                            router_link: ContractLink{
+                                address : HumanAddr("".to_string()),
+                                code_hash: "".to_string()
+                            }
                         })
                         .unwrap(),
                     ),

@@ -87,6 +87,9 @@ pub mod amm_pair {
         },
         RemoveWhitelistAddresses {
             addresses: Vec<HumanAddr>
+        },
+        SetAMMPairAdmin {
+            admin: HumanAddr
         }
     }
     #[derive(Serialize, Deserialize, JsonSchema)]

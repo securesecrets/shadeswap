@@ -313,6 +313,35 @@ mod amm_pair_test_contract {
     }
 }
 
+fn mock_deps() -> Extern<MockStorage, MockApi, MockQuerier> {
+    Extern {
+        storage: MockStorage::default(),
+        api: MockApi::new(123),
+        querier: MockQuerier::new(
+            &[],
+            vec![
+                MockContractInstance {
+                    instance: ContractLink {
+                        address: HumanAddr::from("snip20-token-1"),
+                        code_hash: "".to_string(),
+                    },
+                    token_decimals: 18,
+                    token_supply: Uint128::from(2500_u128),
+                },
+                MockContractInstance {
+                    instance: ContractLink {
+                        address: HumanAddr::from("snip20-token-2"),
+                        code_hash: "".to_string(),
+                    },
+                    token_decimals: 18,
+                    token_supply: Uint128::from(2500_u128),
+                },
+            ],
+        ),
+    }
+}
+
+
 fn make_init_config<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>, 
     token_pair: TokenPair<HumanAddr>) -> StdResult<Config<HumanAddr>> {    

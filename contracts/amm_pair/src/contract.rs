@@ -394,7 +394,6 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 total_liquidity,
                 contract_version: AMM_PAIR_CONTRACT_VERSION,
             })
-            
         }
         QueryMsg::GetTradeHistory {pagination} => {                   
             let data = load_trade_history_query(&deps, pagination)?;             

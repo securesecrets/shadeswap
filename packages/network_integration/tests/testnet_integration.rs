@@ -471,11 +471,8 @@ fn run_testnet() -> Result<()> {
                     msg: Some(to_binary(&InvokeMsg::SwapTokens{ 
                         expected_return: None, 
                         to: Some(HumanAddr(account.to_string())),
-                        router_link: ContractLink {
-                            address: HumanAddr("test".to_string()),
-                            code_hash: "ROUTER".to_string(),                            
-                        }, 
-                        msg: None
+                        router_link: None,
+                        callback_signature: None,
                     }).unwrap()),
                     padding: None,
                 },

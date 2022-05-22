@@ -1,38 +1,40 @@
-use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg,  HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}};
-use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair, Fee}};
-use shadeswap_shared::token_amount::{{TokenAmount}};
-use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
-use shadeswap_shared::token_type::{{TokenType}};
-use shadeswap_shared::token_pair::{{TokenPair}};
-use shadeswap_shared::Pagination;
-use crate::state::{{Config}};
-use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist,store_trade_counter,
-     load_whitelist_address,add_whitelist_address,
-    load_config, store_trade_history,remove_whitelist_address,
-load_trade_counter, load_trade_history};
-use crate::help_math::{{substraction, multiply}};
-use crate::state::swapdetails::{SwapInfo, SwapResult};
-use crate::state::PAGINATION_LIMIT;
-use crate::state::tradehistory::{DirectionType};
-use shadeswap_shared::{ 
-    fadroma::{
-        scrt::{
-            from_binary, log, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg, Decimal, Env,
-            Extern, HandleResponse, HumanAddr, InitResponse, Querier, QueryRequest, QueryResult,
-            StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery, 
-            secret_toolkit::snip20,        
-        },
-        scrt_uint256::Uint256,
-        scrt_callback::Callback,
-        scrt_link::ContractLink,
-        scrt_vk::ViewingKey,
-    }
+use crate::help_math::{multiply, substraction};
+use crate::state::amm_pair_storage::{
+    add_whitelist_address, is_address_in_whitelist, load_config, load_trade_counter,
+    load_trade_history, load_whitelist_address, remove_whitelist_address, store_config,
+    store_trade_counter, store_trade_history,
 };
+use crate::state::swapdetails::{SwapInfo, SwapResult};
+use crate::state::tradehistory::DirectionType;
+use crate::state::Config;
+use crate::state::PAGINATION_LIMIT;
+use shadeswap_shared::amm_pair::{AMMPair, AMMSettings, Fee};
+use shadeswap_shared::fadroma::{
+    scrt::{
+        from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg,
+        Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier, QueryRequest,
+        QueryResult, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
+    },
+    scrt_callback::Callback,
+    scrt_link::ContractLink,
+    scrt_uint256::Uint256,
+    scrt_vk::ViewingKey,
+};
+use shadeswap_shared::msg::amm_pair::{
+    HandleMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse, TradeHistory,
+};
+use shadeswap_shared::msg::factory::{
+    QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
+};
+use shadeswap_shared::msg::router::HandleMsg as RouterHandleMsg;
+use shadeswap_shared::token_amount::TokenAmount;
+use shadeswap_shared::token_pair::TokenPair;
+use shadeswap_shared::token_pair_amount::TokenPairAmount;
+use shadeswap_shared::token_type::TokenType;
+use shadeswap_shared::Pagination;
 
 use composable_snip20::msg::{
-    InitConfig as Snip20ComposableConfig, 
-    InitMsg as Snip20ComposableMsg,
+    InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
@@ -93,14 +95,13 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     }));
 
     match msg.callback {
-        Some(c) => 
-        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        Some(c) => messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: c.contract.address,
             callback_code_hash: c.contract.code_hash,
             msg: c.msg,
             send: vec![],
         })),
-        None => println!("No callback given")
+        None => println!("No callback given"),
     }
 
     let config = Config {
@@ -115,8 +116,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         viewing_key: viewing_key,
     };
 
-    store_config(deps, &config)?;   
-    
+    store_config(deps, &config)?;
     Ok(InitResponse {
         messages,
         log: vec![log("created_exchange_address", env.contract.address)],
@@ -200,14 +200,18 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             add_liquidity(deps, env, deposit, slippage)
         }
         HandleMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
-        HandleMsg::AddWhiteListAddress{address} => add_address_to_whitelist(&mut deps.storage, address),
-        HandleMsg::RemoveWhitelistAddresses{addresses} => remove_address_from_whitelist(&mut deps.storage, addresses),
+        HandleMsg::AddWhiteListAddress { address } => {
+            add_address_to_whitelist(&mut deps.storage, address)
+        }
+        HandleMsg::RemoveWhitelistAddresses { addresses } => {
+            remove_address_from_whitelist(&mut deps.storage, addresses)
+        }
         HandleMsg::SwapTokens {
             offer,
             expected_return,
             to,
             router_link,
-            msg
+            callback_signature,
         } => {
             // this is assert if token is SCRT if not then swapp will be called via SNIP20 Interface
             if !offer.token.is_native_token() {
@@ -226,7 +230,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 offer,
                 expected_return,
                 router_link,
-                msg
+                callback_signature,
             )
         }
     }
@@ -240,14 +244,19 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
     recipient: Option<HumanAddr>,
     offer: TokenAmount<HumanAddr>,
     expected_return: Option<Uint128>,
-    router_link: ContractLink<HumanAddr>,
-    msg: Option<Binary>
-)-> StdResult<HandleResponse>{ 
-      
+    router_link: Option<ContractLink<HumanAddr>>,
+    callback_signature: Option<Binary>,
+) -> StdResult<HandleResponse> {
     let swaper_receiver = recipient.unwrap_or(sender);
-    let amm_settings = query_factory_amm_settings(&deps.querier,config.factory_info.clone())?;
-    let swap_result = initial_swap(&deps.querier, &amm_settings, &config, &offer,&mut deps.storage,
-        swaper_receiver.clone())?;
+    let amm_settings = query_factory_amm_settings(&deps.querier, config.factory_info.clone())?;
+    let swap_result = initial_swap(
+        &deps.querier,
+        &amm_settings,
+        &config,
+        &offer,
+        &mut deps.storage,
+        swaper_receiver.clone(),
+    )?;
 
     // check for the slippage expected value compare to actual value
     if let Some(expected_return) = expected_return {
@@ -291,43 +300,41 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
     // Send Token to Buyer or Swapper
     let index = config.pair.get_token_index(&offer.token).unwrap(); // Safe, checked in do_swap
     let token = config.pair.get_token(index ^ 1).unwrap();
-   
     messages.push(token.create_send_msg(
         env.contract.address,
         swaper_receiver,
         swap_result.result.return_amount,
-    )?);     
-   
+    )?);
     let mut sell_or_swap = "".to_string();
-    if index == 0
-    {
+    if index == 0 {
         sell_or_swap = "Buy".to_string();
-    }else{
+    } else {
         sell_or_swap = "Sell".to_string();
-    }      
-    
-    let trade_history =  TradeHistory
-    {
+    }
+
+    let trade_history = TradeHistory {
         price: swap_result.price,
         amount: swap_result.result.return_amount,
         timestamp: env.block.time,
         direction: sell_or_swap.to_string(),
         lp_fee_amount: swap_result.lp_fee_amount,
-        total_fee_amount : swap_result.total_fee_amount,
-        shade_dao_fee_amount: swap_result.shade_dao_fee_amount        
-
+        total_fee_amount: swap_result.total_fee_amount,
+        shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
     };
     store_trade_history(deps, &trade_history)?;
 
-    if !msg.is_none(){
+    if !router_link.is_none() {
         // push message back to router
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: router_link.address,
-            callback_code_hash: router_link.code_hash,
-            send: vec![],        
-            msg: msg.unwrap()
+            contract_addr: router_link.clone().unwrap().address,
+            callback_code_hash: router_link.clone().unwrap().code_hash,
+            send: vec![],
+            msg: to_binary(&RouterHandleMsg::SwapCallBack {
+                last_token_in: TokenAmount{ token: token.clone(), amount: swap_result.result.return_amount },
+                signature: callback_signature.unwrap(),
+            })?,
         }));
-    }    
+    }
 
     Ok(HandleResponse {
         messages,
@@ -365,31 +372,27 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 contract_version: AMM_PAIR_CONTRACT_VERSION,
             })
         }
-        QueryMsg::GetTradeHistory {pagination} => {                   
-            let data = load_trade_history_query(&deps, pagination)?;             
-            to_binary(&QueryMsgResponse::GetTradeHistory {
-                data
-            })
-        },   
-        QueryMsg::GetWhiteListAddress =>{
+        QueryMsg::GetTradeHistory { pagination } => {
+            let data = load_trade_history_query(&deps, pagination)?;
+            to_binary(&QueryMsgResponse::GetTradeHistory { data })
+        }
+        QueryMsg::GetWhiteListAddress => {
             let stored_addr = load_whitelist_address(&deps.storage)?;
-            to_binary(&QueryMsgResponse::GetWhiteListAddress{
-                addresses: stored_addr
+            to_binary(&QueryMsgResponse::GetWhiteListAddress {
+                addresses: stored_addr,
             })
-        },
-        QueryMsg::GetTradeCount =>{   
-            let count = load_trade_counter(&deps.storage)?; 
-            to_binary(&QueryMsgResponse::GetTradeCount{
-                count 
-            })
-        },
+        }
+        QueryMsg::GetTradeCount => {
+            let count = load_trade_counter(&deps.storage)?;
+            to_binary(&QueryMsgResponse::GetTradeCount { count })
+        }
     }
 }
 
-fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(  
+fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     pagination: Pagination,
-) -> StdResult<Vec<TradeHistory>>{
+) -> StdResult<Vec<TradeHistory>> {
     let count = load_trade_counter(&deps.storage)?;
 
     if pagination.start >= count {
@@ -402,7 +405,7 @@ fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(
     let mut result = Vec::with_capacity((end - pagination.start) as usize);
 
     for i in pagination.start..end {
-        let tempIndex = i+1;
+        let tempIndex = i + 1;
         let trade_history: TradeHistory = load_trade_history(deps, tempIndex)?;
         result.push(trade_history);
     }
@@ -420,7 +423,7 @@ fn calculate_fee(amount: Uint256, fee: Fee) -> StdResult<Uint128> {
 pub fn initial_swap(
     querier: &impl Querier,
     settings: &AMMSettings<HumanAddr>,
-    config: &Config<HumanAddr>,  
+    config: &Config<HumanAddr>,
     offer: &TokenAmount<HumanAddr>,
     storage: &mut impl Storage,
     recipient: HumanAddr,
@@ -444,17 +447,16 @@ pub fn initial_swap(
     // calculate fee
     let lp_fee = settings.lp_fee;
     let shade_dao_fee = settings.shade_dao_fee;
-    let mut lp_fee_amount = Uint128(0u128);     
-    let mut shade_dao_fee_amount =Uint128(0u128); 
+    let mut lp_fee_amount = Uint128(0u128);
+    let mut shade_dao_fee_amount = Uint128(0u128);
     // calculation fee
-    let discount_fee = is_address_in_whitelist(storage, recipient)?;   
+    let discount_fee = is_address_in_whitelist(storage, recipient)?;
     if discount_fee == false {
-        lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;     
-        shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;      
-    }    
-    
+        lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;
+        shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;
+    }
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
-    let deducted_offer_amount = (swap_amount - Uint256::from(total_fee_amount))?;   
+    let deducted_offer_amount = (swap_amount - Uint256::from(total_fee_amount))?;
     let result_swap = SwapResult {
         return_amount: deducted_offer_amount.clamp_u128()?.into(),
         spread_amount: spread_amount.clamp_u128()?.into(),
@@ -465,29 +467,35 @@ pub fn initial_swap(
         shade_dao_fee_amount: shade_dao_fee_amount,
         total_fee_amount: total_fee_amount,
         result: result_swap,
-        price: ((token0_pool + amount )? / (token1_pool - swap_amount)?)?.clamp_u128()?.into()
+        price: ((token0_pool + amount)? / (token1_pool - swap_amount)?)?
+            .clamp_u128()?
+            .into(),
     })
 }
 
-pub fn add_address_to_whitelist(storage: &mut impl Storage, address: HumanAddr) -> StdResult<HandleResponse>{
-    add_whitelist_address(storage, address.clone())?;  
+pub fn add_address_to_whitelist(
+    storage: &mut impl Storage,
+    address: HumanAddr,
+) -> StdResult<HandleResponse> {
+    add_whitelist_address(storage, address.clone())?;
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
-                log("action", "save_address_to_whitelist"),
-                log("whitelist_address",address.as_str().clone()),
+            log("action", "save_address_to_whitelist"),
+            log("whitelist_address", address.as_str().clone()),
         ],
         data: None,
     })
 }
 
-pub fn remove_address_from_whitelist(storage: &mut impl Storage, list: Vec<HumanAddr>) -> StdResult<HandleResponse>{
+pub fn remove_address_from_whitelist(
+    storage: &mut impl Storage,
+    list: Vec<HumanAddr>,
+) -> StdResult<HandleResponse> {
     remove_whitelist_address(storage, list.clone())?;
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![
-                log("action", "remove_address_from_whitelist"),               
-        ],
+        log: vec![log("action", "remove_address_from_whitelist")],
         data: None,
     })
 }
@@ -722,7 +730,6 @@ fn assert_slippage_acceptance(
     Ok(())
 }
 
-
 fn query_liquidity_pair_contract(
     querier: &impl Querier,
     lp_token_linke: &ContractLink<HumanAddr>,
@@ -749,7 +756,7 @@ fn query_factory_amm_settings(
     let result: FactoryQueryResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         callback_code_hash: factory.code_hash,
         contract_addr: factory.address,
-        msg: to_binary(&FactoryQueryMsg::GetAMMSettings{})?,
+        msg: to_binary(&FactoryQueryMsg::GetAMMSettings {})?,
     }))?;
 
     match result {
@@ -774,11 +781,11 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
     let config = load_config(deps)?;
 
     match from_binary(&msg)? {
-        InvokeMsg::SwapTokens {         
+        InvokeMsg::SwapTokens {
             to,
             expected_return,
             router_link,
-            msg
+            callback_signature
         } => {
             for token in config.pair.into_iter() {
                 match token {
@@ -798,7 +805,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                                 offer,
                                 expected_return,
                                 router_link,
-                                msg
+                                callback_signature
                             );
                         }
                     }
@@ -836,4 +843,3 @@ fn query_liquidity(
 
     Ok(result.total_supply.unwrap())
 }
-

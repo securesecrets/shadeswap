@@ -84,5 +84,6 @@ pub struct CurrentSwapInfo {
     pub(crate) amount: TokenAmount<HumanAddr>,
     pub paths: Vec<HumanAddr>,
     pub signature: Binary,
-    pub recipient: HumanAddr
+    pub recipient: HumanAddr,
+    pub current_index: usize
 }

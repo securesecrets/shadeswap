@@ -13,19 +13,22 @@ pub mod tests {
     use crate::state::CurrentSwapInfo;
 
     use crate::contract::handle;
+    use serde::de::DeserializeOwned;
     use serde::Deserialize;
     use serde::Serialize;
-    use serde::de::DeserializeOwned;
     use shadeswap_shared::amm_pair::AMMPair;
     use shadeswap_shared::amm_pair::Fee;
     use shadeswap_shared::fadroma::from_slice;
+    use shadeswap_shared::fadroma::secret_toolkit::snip20;
     use shadeswap_shared::fadroma::secret_toolkit::snip20::Balance;
-    use shadeswap_shared::fadroma::secret_toolkit::snip20::BalanceResponse;
+    use shadeswap_shared::fadroma::BankMsg;
     use shadeswap_shared::fadroma::Coin;
+    use shadeswap_shared::fadroma::CosmosMsg;
     use shadeswap_shared::fadroma::Empty;
     use shadeswap_shared::fadroma::InitResponse;
     use shadeswap_shared::fadroma::QuerierResult;
     use shadeswap_shared::fadroma::QueryRequest;
+    use shadeswap_shared::fadroma::WasmMsg;
     use shadeswap_shared::fadroma::WasmQuery;
     use shadeswap_shared::msg::router::HandleMsg;
     use shadeswap_shared::msg::router::InitMsg;
@@ -205,6 +208,7 @@ pub mod tests {
                 ],
                 signature: to_binary("this is signature").unwrap(),
                 recipient: HumanAddr("recipient".into()),
+                current_index: 0,
             },
         )?;
 
@@ -212,10 +216,9 @@ pub mod tests {
             &mut deps,
             env,
             HandleMsg::SwapCallBack {
-                current_index: 0,
-                last_token_in: TokenType::NativeToken {
+                last_token_in: TokenAmount{ token: TokenType::NativeToken {
                     denom: "uscrt".into(),
-                },
+                }, amount: Uint128(100) } ,
                 signature: to_binary("wrong signature").unwrap(),
             },
         );
@@ -255,6 +258,7 @@ pub mod tests {
                 ],
                 signature: to_binary("this is signature").unwrap(),
                 recipient: HumanAddr("recipient".into()),
+                current_index: 0,
             },
         )?;
 
@@ -262,9 +266,11 @@ pub mod tests {
             &mut deps,
             env,
             HandleMsg::SwapCallBack {
-                current_index: 0,
-                last_token_in: TokenType::NativeToken {
-                    denom: "uscrt".into(),
+                last_token_in: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".into(),
+                    },
+                    amount: Uint128(10),
                 },
                 signature: to_binary("this is signature").unwrap(),
             },
@@ -295,27 +301,77 @@ pub mod tests {
                     },
                     amount: Uint128(10),
                 },
-                paths: vec![
-                    HumanAddr(PAIR_CONTRACT_1.into())
-                ],
+                paths: vec![HumanAddr(PAIR_CONTRACT_1.into())],
                 signature: to_binary("this is signature").unwrap(),
                 recipient: HumanAddr("recipient".into()),
+                current_index: 0,
             },
         )?;
 
         let result = handle(
             &mut deps,
-            env,
+            env.clone(),
             HandleMsg::SwapCallBack {
-                current_index: 0,
-                last_token_in: TokenType::NativeToken {
-                    denom: "uscrt".into(),
+                last_token_in: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".into(),
+                    },
+                    amount: Uint128(10),
                 },
                 signature: to_binary("this is signature").unwrap(),
             },
         )
         .unwrap();
 
+        assert_eq!(result.messages.len(), 1);
+
+       /* match &result.messages[0] {
+            CosmosMsg::Wasm(msg) => match msg {
+                WasmMsg::Execute {
+                    contract_addr,
+                    callback_code_hash,
+                    msg,
+                    send,
+                } => {
+                    let test: snip20::HandleMsg = from_binary(&msg)?;
+                    println!("{:?}", test);
+                }
+                _ => unimplemented!(),
+            },
+            _ => unimplemented!(),
+        }
+
+        println!("{:?}", &snip20::HandleMsg::Send {
+            recipient: HumanAddr("recipient".into()),
+            amount: Uint128(100),
+            padding: None,
+            msg: None
+        });*/
+        
+        println!("{:?}", result.messages[0]);
+        let test:CosmosMsg<WasmMsg> = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: HumanAddr::from(CUSTOM_TOKEN_1),
+            callback_code_hash: "hash".into(),
+            msg: to_binary(&snip20::HandleMsg::Send {
+                recipient: HumanAddr("recipient".into()),
+                amount: Uint128(10),
+                padding: None,
+                msg: None
+            })?,
+            send: vec![]
+        });
+        println!("{:?}", test);
+        assert!(result.messages.contains(&CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: HumanAddr::from(CUSTOM_TOKEN_1),
+            callback_code_hash: "hash".into(),
+            msg: to_binary(&snip20::HandleMsg::Send {
+                recipient: HumanAddr("recipient".into()),
+                amount: Uint128(10), //This is how much balance the address has
+                padding: None,
+                msg: None
+            })?,
+            send: vec![]
+        })));
         Ok(())
     }
 

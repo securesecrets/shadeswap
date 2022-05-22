@@ -70,8 +70,7 @@ pub mod router {
             recipient: Option<HumanAddr>
         },
         SwapCallBack {
-            current_index: usize,
-            last_token_in: TokenType<HumanAddr>,
+            last_token_in: TokenAmount<HumanAddr>,
             signature: Binary,
         },
     }
@@ -121,8 +120,8 @@ pub mod amm_pair {
             offer: TokenAmount<HumanAddr>,
             expected_return: Option<Uint128>,
             to: Option<HumanAddr>,
-            router_link: ContractLink<HumanAddr>,
-            msg: Option<Binary>,
+            router_link: Option<ContractLink<HumanAddr>>,
+            callback_signature: Option<Binary>
         },
         // SNIP20 receiver interface
         Receive {
@@ -145,8 +144,8 @@ pub mod amm_pair {
         SwapTokens {
             expected_return: Option<Uint128>,
             to: Option<HumanAddr>,
-            router_link: ContractLink<HumanAddr>,
-            msg: Option<Binary>,
+            router_link: Option<ContractLink<HumanAddr>>,
+            callback_signature: Option<Binary>
         },
         RemoveLiquidity {
             recipient: HumanAddr,

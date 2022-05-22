@@ -21,7 +21,7 @@ use shadeswap_shared::{
         scrt_migrate::get_status,
         scrt_storage::{load, remove, save},
         with_status, Canonize, ContractInfo, ContractInstantiationInfo, Empty, HandleResult,
-        QueryRequest, Uint128, ViewingKey, WasmQuery, secret_toolkit::snip20::BalanceResponse,
+        QueryRequest, Uint128, ViewingKey, WasmQuery, secret_toolkit::snip20::BalanceResponse, BankMsg, Coin,
     },
     msg::{
         amm_pair::{
@@ -90,10 +90,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             )
         }
         HandleMsg::SwapCallBack {
-            current_index,
             last_token_in,
             signature,
-        } => next_swap(deps, env, current_index, last_token_in, signature),
+        } => next_swap(deps, env, last_token_in, signature),
     }
 }
 
@@ -150,14 +149,13 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 pub fn next_swap<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    current_index: usize,
-    last_token_out: TokenType<HumanAddr>,
+    last_token_out: TokenAmount<HumanAddr>,
     signature: Binary,
 ) -> HandleResult {
     let currentTradeInfo: Option<CurrentSwapInfo> = load(&deps.storage, EPHEMERAL_STORAGE_KEY)?;
     let config = config_read(deps)?;
     let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
-
+    
     match currentTradeInfo {
         Some(info) => {
             if (signature != info.signature) {
@@ -166,63 +164,62 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
             let pair_contract = query_pair_contract_config(
                 &deps.querier,
                 ContractLink {
-                    address: info.paths[current_index].clone(),
+                    address: info.paths[info.current_index].clone(),
                     code_hash: factory_config.pair_contract.code_hash.clone(),
                 },
             )?;
 
             let mut next_token_in = pair_contract.pair.0.clone();
 
-            if (pair_contract.pair.0.clone() == last_token_out) {
+            if (pair_contract.pair.0.clone() == last_token_out.token) {
                 next_token_in = pair_contract.pair.1;
             }
 
             let mut tokenIn: TokenAmount<HumanAddr> = TokenAmount {
                 token: next_token_in.clone(),
-                amount: Uint128(0),
+                amount: last_token_out.amount,
             };
 
-            match next_token_in {
-                TokenType::CustomToken {
-                    contract_addr,
-                    token_code_hash,
-                } => {
-                    let view_key = get_or_create_view_key(deps, &contract_addr)?;
-                    let balanceResponse: BalanceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-                        callback_code_hash: token_code_hash.to_string(),
-                        contract_addr: contract_addr,
-                        msg: to_binary(&snip20::QueryMsg::Balance {
-                            address: HumanAddr::from(env.contract.address.clone()),
-                            key: String::from(view_key.clone()),
-                        })?,
-                    }))?;
-                    tokenIn.amount = balanceResponse.balance.amount;
-                }
-                TokenType::NativeToken { denom } => {
-                    tokenIn.amount = deps
-                        .querier
-                        .query_balance(env.contract.address.clone(), &denom)?
-                        .amount;
-                }
+            if(info.paths.len() > info.current_index + 1)
+            {
+                save(
+                    &mut deps.storage,
+                    EPHEMERAL_STORAGE_KEY,
+                    &CurrentSwapInfo {
+                        amount: info.amount.clone(),
+                        paths: info.paths.clone(),
+                        signature: info.signature.clone(),
+                        recipient: info.recipient,
+                        current_index: info.current_index + 1,
+                    }
+                )?;
+                Ok(HandleResponse {
+                    messages: get_trade_with_callback(
+                        deps,
+                        env,
+                        tokenIn,
+                        info.paths[info.current_index + 1].clone(),
+                        factory_config.pair_contract.code_hash.clone(),
+                        info.current_index + 1,
+                        info.signature,
+                    )?,
+                    log: vec![],
+                    data: None,
+                })
             }
-
-            Ok(HandleResponse {
-                messages: get_trade_with_callback(
-                    deps,
-                    env,
-                    tokenIn,
-                    info.paths[current_index + 1].clone(),
-                    factory_config.pair_contract.code_hash.clone(),
-                    current_index + 1,
-                    info.signature,
-                )?,
-                log: vec![],
-                data: None,
-            })
+            else
+            {
+                Ok(HandleResponse {
+                    messages: vec![tokenIn.token.create_send_msg(env.contract.address, info.recipient, tokenIn.amount)?],
+                    log: vec![],
+                    data: None,
+                })
+            }
         }
         None => Err(StdError::generic_err("")),
     }
 }
+
 
 pub fn swap_exact_tokens_for_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -247,6 +244,7 @@ pub fn swap_exact_tokens_for_tokens<S: Storage, A: Api, Q: Querier>(
             paths: paths.clone(),
             signature: signature.clone(),
             recipient: recipient.unwrap_or(sender),
+            current_index: 0,
         },
     )?;
 
@@ -304,21 +302,12 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
             let msg = to_binary(&AMMPairHandleMsg::SwapTokens {
                 expected_return: None,
                 to: None,
-                router_link: ContractLink {
+                router_link: Some(ContractLink {
                     address: env.contract.address.clone(),
                     code_hash: env.contract_code_hash.clone(),
-                },
-                msg: Some(to_binary(&HandleMsg::SwapCallBack {
-                    current_index: current_index,
-                    last_token_in: tokenIn.token,
-                    signature: signature,
-                })?),
-                offer: TokenAmount {
-                    token: TokenType::NativeToken {
-                        denom: "uscrt".into(),
-                    },
-                    amount: Uint128(10),
-                },
+                }),
+                offer: tokenIn,
+                callback_signature: Some(signature)
             })?;
 
             messages.push(
@@ -342,15 +331,11 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
                     to_binary(&AMMPairInvokeMsg::SwapTokens {
                         expected_return: None,
                         to: None,
-                        router_link: ContractLink {
+                        router_link: Some(ContractLink {
                             address: env.contract.address.clone(),
                             code_hash: env.contract_code_hash.clone(),
-                        },
-                        msg: Some(to_binary(&HandleMsg::SwapCallBack {
-                            current_index: current_index,
-                            last_token_in: tokenIn.token,
-                            signature: signature,
-                        })?),
+                        }),
+                        callback_signature: Some(signature),
                     })
                     .unwrap(),
                 ),

@@ -165,7 +165,6 @@ pub mod amm_pair_storage{
     }
 
     pub fn is_address_in_whitelist(storage: &impl Storage, address: HumanAddr) -> StdResult<bool>{
-        let mut result = false;
         let addrs = load_whitelist_address(storage)?;
         if addrs.contains(&address) {
            return Ok(true)

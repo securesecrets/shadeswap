@@ -54,7 +54,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     let viewing_key = create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone());
     register_pair_token(&env, &mut messages, &msg.pair.0, &viewing_key)?;
     register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;
-    store_admin(deps, &env.message.sender.clone());
+    store_admin(deps, &env.message.sender.clone())?;
     // Create LP token and store it
     messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
@@ -464,7 +464,7 @@ pub fn calculate_swap_result(
 
     let amount = Uint256::from(offer.amount);
     // conver tand get avialble balance
-    let tokens_pool = get_token_pool_balance(querier, settings, config, offer)?;
+    let tokens_pool = get_token_pool_balance(querier, config, offer)?;
     let token0_pool = tokens_pool[0];
     let token1_pool = tokens_pool[1];
     // calculate price
@@ -500,7 +500,7 @@ pub fn calculate_swap_result(
 }
 
 pub fn add_address_to_whitelist(storage: &mut impl Storage, address: HumanAddr, env :Env) -> StdResult<HandleResponse>{
-    apply_admin_guard(env.message.sender.clone(), storage);
+    apply_admin_guard(env.message.sender.clone(), storage)?;
     add_whitelist_address(storage, address.clone())?;  
     Ok(HandleResponse {
         messages: vec![],
@@ -514,7 +514,7 @@ pub fn add_address_to_whitelist(storage: &mut impl Storage, address: HumanAddr, 
 
 pub fn remove_address_from_whitelist(storage: &mut impl Storage, list: Vec<HumanAddr>,
     env :Env) -> StdResult<HandleResponse>{
-    apply_admin_guard(env.message.sender.clone(), storage);
+    apply_admin_guard(env.message.sender.clone(), storage)?;
     remove_whitelist_address(storage, list.clone())?;
     Ok(HandleResponse {
         messages: vec![],
@@ -526,8 +526,7 @@ pub fn remove_address_from_whitelist(storage: &mut impl Storage, list: Vec<Human
 }
 
 fn get_token_pool_balance(
-    querier: &impl Querier,
-    settings: &AMMSettings<HumanAddr>,
+    querier: &impl Querier,  
     config: &Config<HumanAddr>,
     swap_offer: &TokenAmount<HumanAddr>,
 ) -> StdResult<[Uint256; 2]> {
@@ -552,7 +551,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
     recipient: HumanAddr,
 ) -> StdResult<HandleResponse> {
-    apply_admin_guard(env.message.sender.clone(), &deps.storage);
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let config = load_config(&deps)?;
     let Config {
         pair,

@@ -1,5 +1,5 @@
 use crate::cli_types::{
-    ListCodeResponse, ListContractCode, NetContract, SignedTx, TxCompute, TxQuery, TxResponse,
+    ListCodeResponse, ListContractCode, NetContract, SignedTx, TxCompute, TxQuery, TxResponse, StoredContract,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Result, Value};
@@ -255,6 +255,38 @@ fn instantiate_contract<Init: serde::Serialize>(
     Ok(response)
 }
 
+pub fn store_and_return_contract(
+    contract_file: &str,
+    sender: &str,
+    store_gas: Option<&str>,
+    backend: Option<&str>
+) -> Result<StoredContract> {    
+    let store_response = store_contract(contract_file, Option::from(&*sender), store_gas, backend)?;
+    let store_query = query_hash(store_response.txhash)?;
+    let mut contract = StoredContract {
+        id: "".to_string(),
+        code_hash: "".to_string(),
+    };
+
+    for attribute in &store_query.logs[0].events[0].attributes {
+        if attribute.msg_key == "code_id" {
+            contract.id = attribute.value.clone();
+            break;
+        }
+    }
+
+    let listed_contracts = list_code()?;
+
+    for item in listed_contracts {
+        if item.id.to_string() == contract.id {
+            contract.code_hash = item.data_hash;
+            break;
+        }
+    }
+
+    Ok(contract)
+}
+
 ///
 /// Allows contract init to be used in test scripts
 ///
@@ -298,8 +330,10 @@ pub fn init<Message: serde::Serialize>(
 
     // Instantiate and get the info
     let tx = instantiate_contract(&contract, msg, label, sender, init_gas, backend)?;
+
     let init_query = query_hash(tx.txhash)?;
 
+    println!("{}",init_query.raw_log);
     // Include the instantiation info in the report
     report.push(Report {
         msg_type: "Instantiate".to_string(),

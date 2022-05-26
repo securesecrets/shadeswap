@@ -148,7 +148,7 @@ pub fn load_claim_reward_info<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     staker: HumanAddr
 ) -> StdResult<ClaimRewardsInfo> {
-    let staking_info: StakingInfo =
+    let staking_info: ClaimRewardsInfo =
     ns_load(&deps.storage, CLAIM_REWARDS, staker.as_str().as_bytes())?
         .ok_or_else(|| StdError::generic_err("Claims Reward doesn't exist in storage for address"))?;
    Ok(staking_info)

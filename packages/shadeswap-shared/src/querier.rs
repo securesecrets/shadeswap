@@ -1,11 +1,13 @@
 use fadroma::{
     scrt::{
-        from_binary, from_slice, testing::MockQuerier as StdMockQuerier, to_binary, Coin, Empty,
+        from_binary, from_slice, to_binary, Coin, Empty,
         HumanAddr, Querier, QuerierResult, QueryRequest, StdResult, SystemError, Uint128, WasmQuery,
         secret_toolkit::snip20::{Balance, TokenInfo}
     },
+    scrt::cosmwasm_std::testing::MockQuerier  as StdMockQuerier,
     scrt_link::ContractLink,
 };
+
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 // Redefine here, so we can deserialize

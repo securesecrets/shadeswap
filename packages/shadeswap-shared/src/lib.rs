@@ -9,6 +9,8 @@ pub mod token_type;
 pub mod token_amount;
 pub mod token_pair_amount;
 pub mod amm_pair;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub mod querier;
 mod display;
 use schemars::JsonSchema;

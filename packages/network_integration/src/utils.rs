@@ -1,10 +1,29 @@
 use colored::*;
+use cosmwasm_std::StdResult;
 use rand::{distributions::Alphanumeric, Rng};
+use secretcli::secretcli::{init, handle, Report};
 use secretcli::{cli_types::NetContract, secretcli::query};
 use serde::Serialize;
 use std::fmt::Display;
 use std::fs;
 
+use composable_snip20::msg::{
+    InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
+};
+
+use shadeswap_shared::{
+    amm_pair::{AMMPair, AMMSettings, Fee},
+    fadroma::{
+        scrt::{
+            from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin,
+            CosmosMsg, Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
+            QueryRequest, QueryResult, StdError, Storage, Uint128, WasmMsg, WasmQuery,
+        },
+        Callback, ContractInstantiationInfo, ContractLink, secret_toolkit::snip20::{Balance, BalanceResponse},
+    },
+};
+
+use serde_json::Result;
 // Smart contracts
 pub const SNIP20_FILE: &str = "../../compiled/snip20.wasm.gz";
 pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
@@ -60,4 +79,39 @@ pub fn store_struct<T: serde::Serialize>(path: &str, data: &T) {
         serde_json::to_string_pretty(data).expect("Could not serialize data"),
     )
     .expect(&format!("Could not store {}", path));
+}
+
+
+pub fn init_snip20(
+    name: String,
+    symbol: String, 
+    decimals: u8,
+    config: Option<Snip20ComposableConfig>,
+    reports: &mut Vec<Report>,
+    account_key: &str,
+    customizedSnip20File: Option<&str>
+) -> Result<(Snip20ComposableMsg, NetContract)> {
+    let init_msg = Snip20ComposableMsg {
+        name: name.to_string(),
+        admin: None,
+        symbol: symbol.to_string(),
+        decimals: decimals,
+        initial_balances: None,
+        prng_seed: Default::default(),
+        config: config,
+        initial_allowances: None,
+        callback: None,
+    };
+
+    let s_sToken = init(
+        &init_msg,
+        customizedSnip20File.unwrap_or(SNIP20_FILE),
+        &*generate_label(8),
+        account_key,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        reports,
+    )?;
+    Ok((init_msg, s_sToken))
 }

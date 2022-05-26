@@ -14,9 +14,7 @@ load_trade_counter, load_trade_history};
 use crate::help_math::{{substraction, multiply}};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
 use crate::state::tradehistory::DirectionType;
-use crate::state::Config;
 use crate::state::PAGINATION_LIMIT;
-use shadeswap_shared::amm_pair::{AMMPair, AMMSettings, Fee};
 use shadeswap_shared::fadroma::{
     scrt::{
         from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg,
@@ -28,18 +26,7 @@ use shadeswap_shared::fadroma::{
     scrt_uint256::Uint256,
     scrt_vk::ViewingKey,
 };
-use shadeswap_shared::msg::amm_pair::{
-    HandleMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse, TradeHistory,
-};
-use shadeswap_shared::msg::factory::{
-    QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
-};
 use shadeswap_shared::msg::router::HandleMsg as RouterHandleMsg;
-use shadeswap_shared::token_amount::TokenAmount;
-use shadeswap_shared::token_pair::TokenPair;
-use shadeswap_shared::token_pair_amount::TokenPairAmount;
-use shadeswap_shared::token_type::TokenType;
-use shadeswap_shared::Pagination;
 
 use composable_snip20::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,

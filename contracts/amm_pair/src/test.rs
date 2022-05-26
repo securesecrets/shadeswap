@@ -298,13 +298,12 @@ pub mod tests {
         let env = mock_env(CONTRACT_ADDRESS, &[]);
         let token_pair = mk_native_token_pair();
         let config = make_init_config(&mut deps, token_pair.clone())?;       
-        let address_a = HumanAddr("TESTA".to_string());
-        let router_link = ContractLink{address: address_a.clone(), code_hash: "".to_string()};     
+        let address_a = HumanAddr("TESTA".to_string());      
         let msg = to_binary("Test")?;
         assert_eq!(config.factory_info.address.as_str(), FACTORY_CONTRACT_ADDRESS.clone());
         let native_swap = swap(&mut deps, env, config, address_a.clone(), 
             None,  mk_custom_token_amount(Uint128::from(1000u128), token_pair.clone()),None, 
-            router_link, None)?;      
+            None, None)?;      
         assert_eq!(native_swap.log[3].value, "997".to_string());
         assert_eq!(native_swap.messages.len(), 1);
         Ok(())

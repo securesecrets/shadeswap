@@ -2,7 +2,7 @@ use colored::Colorize;
 use network_integration::utils::{
     generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
     ACCOUNT_KEY, AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, SNIP20_FILE, STORE_GAS,
-    VIEW_KEY,
+    VIEW_KEY, ROUTER_FILE,
 };
 use secretcli::{
     cli_types::NetContract,
@@ -26,6 +26,7 @@ use shadeswap_shared::{
             HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse,
         },
+        router::{InitMsg as RouterInitMsg}
     },
     Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType,
 };
@@ -34,6 +35,29 @@ use std::env;
 use composable_snip20::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
+
+#[test]
+fn initialize_router() -> Result<()> {
+    let mut reports = vec![];
+    let router_msg = RouterInitMsg {
+        prng_seed: to_binary(&"SEED".to_string()).unwrap(),
+        factory_address: ContractLink { address:HumanAddr(String::from("".to_string())), code_hash: "".to_string()},
+        entropy: to_binary(&"Entropy".to_string()).unwrap(),
+    };
+
+    let router_contract = init(
+        &router_msg,
+        ROUTER_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+
+    return Ok(());
+}
 
 #[test]
 fn run_testnet_router() -> Result<()> {
@@ -379,6 +403,26 @@ fn run_testnet_router() -> Result<()> {
             assert!(false, "Query returned unexpected response")
         }
     }
+    print_header("\n\tInitializing Router");
+
+    let router_msg = RouterInitMsg {
+        prng_seed: to_binary(&"SEED".to_string()).unwrap(),
+        factory_address: ContractLink { address:HumanAddr(String::from(factory_contract.address)), code_hash: factory_contract.code_hash},
+        entropy: to_binary(&"Entropy".to_string()).unwrap(),
+    };
+
+    let router_contract = init(
+        &router_msg,
+        ROUTER_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+
+    print_contract(&router_contract);
 
     Ok(())
 }

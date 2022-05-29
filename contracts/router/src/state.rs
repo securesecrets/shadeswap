@@ -85,5 +85,5 @@ pub struct CurrentSwapInfo {
     pub paths: Vec<HumanAddr>,
     pub signature: Binary,
     pub recipient: HumanAddr,
-    pub current_index: usize
+    pub current_index: u32
 }

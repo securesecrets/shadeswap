@@ -287,8 +287,18 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        GetStakers {
+        GetStakers {},
+        GetClaimReward {staker: HumanAddr}
+    }
+
+    #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
+    #[serde(rename_all = "snake_case")]
+    pub enum QueryResponse {
+        Stakers {
             stakers: Vec<HumanAddr>
+        },
+        ClaimReward {
+            amount: Uint128
         }
     }
 

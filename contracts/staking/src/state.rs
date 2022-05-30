@@ -36,14 +36,14 @@ pub struct Config {
 pub struct StakingInfo{
     pub staker: HumanAddr,
     pub amount: Uint128,
-    pub last_time_updated: u64
+    pub last_time_updated: Uint128
 }
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct ClaimRewardsInfo{
     pub staker: HumanAddr,
     pub amount: Uint128,
-    pub last_time_claimed: u64
+    pub last_time_claimed: Uint128
 }
 
 pub fn store_config <S: Storage, A: Api, Q: Querier>(
@@ -71,14 +71,14 @@ pub fn load_stakers<S: Storage, A: Api, Q: Querier>(
 
 pub fn load_claim_reward_timestamp<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>
-) -> StdResult<u64> {
-   let timestamp = load(&deps.storage, LAST_REWARD_TIME_CLAIMED)?.unwrap_or(0);    
+) -> StdResult<Uint128> {
+   let timestamp = load(&deps.storage, LAST_REWARD_TIME_CLAIMED)?.unwrap_or(Uint128(0u128));    
    Ok(timestamp)
 }
 
 pub fn store_claim_reward_timestamp<S: Storage, A: Api, Q: Querier>(
     deps:   &mut Extern<S, A, Q>,
-    timestamp: u64
+    timestamp: Uint128
 ) -> StdResult<()> {
     save(&mut deps.storage, LAST_REWARD_TIME_CLAIMED, &timestamp)
 }
@@ -103,7 +103,6 @@ pub fn get_total_staking_amount<S: Storage, A: Api, Q: Querier>(
     }
     Ok(amount)
 }
-
 
     
 pub fn remove_staker<S: Storage, A: Api, Q: Querier>(

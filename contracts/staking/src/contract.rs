@@ -1,7 +1,8 @@
-use shadeswap_shared::msg::staking::{{InitMsg, QueryMsg, InvokeMsg, HandleMsg}};
+use shadeswap_shared::msg::staking::{{InitMsg, QueryMsg,QueryResponse, InvokeMsg, HandleMsg}};
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
     get_total_staking_amount, load_stakers, load_config, is_address_already_staker, store_claim_reward_info,
     store_staker, load_staker_info, store_staker_info, remove_staker, StakingInfo, load_claim_reward_info}};
+use std::time::{SystemTime, UNIX_EPOCH};
 use shadeswap_shared::{ 
     fadroma::{
         scrt::{
@@ -64,15 +65,15 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
     from: HumanAddr
 ) -> StdResult<HandleResponse>{
-
-    claim_rewards_for_all_stakers(deps,env.block.time)?;
+    let current_timestamp  = get_current_timestamp()?;
+    claim_rewards_for_all_stakers(deps, current_timestamp)?;
     let caller = from;
     // check if caller exist
-    let is_staker = is_address_already_staker(&deps, caller.clone())?;
+    let is_staker = is_address_already_staker(&deps, caller.clone())?;   
     if is_staker == true {
         let mut stake_info = load_staker_info(deps, caller.clone())?;
         stake_info.amount += amount;
-        stake_info.last_time_updated = env.block.time;        
+        stake_info.last_time_updated = current_timestamp;        
         store_staker_info(deps, &stake_info)?;
     }
     else{
@@ -80,7 +81,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
         store_staker_info(deps, &StakingInfo{
             staker: caller.clone(),
             amount: amount,
-            last_time_updated: env.block.time
+            last_time_updated:  current_timestamp
         })?;
     }
 
@@ -88,7 +89,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
     store_claim_reward_info(deps, &ClaimRewardsInfo{
         staker: caller.clone(),
         amount: Uint128(0u128),
-        last_time_claimed: env.block.time
+        last_time_claimed: current_timestamp
     })?;
 
     // return response
@@ -134,14 +135,14 @@ pub fn claim_rewards<S: Storage, A: Api, Q: Querier>(
     if is_user_staker != true {
         return Err(StdError::unauthorized())
     }
-
+    let current_timestamp = get_current_timestamp()?;
     let mut messages = Vec::new();
     // calculate for all also for user
-    claim_rewards_for_all_stakers(deps, env.block.time)?;
+    claim_rewards_for_all_stakers(deps, current_timestamp)?;
     let mut claim_info = load_claim_reward_info(deps, receiver.clone())?;
     let claim_amount = claim_info.amount;
     claim_info.amount = Uint128(0u128);
-    claim_info.last_time_claimed = env.block.time;
+    claim_info.last_time_claimed =  current_timestamp;
     store_claim_reward_info(deps, &claim_info)?;   
     let config = load_config(deps)?;
     // send the message
@@ -150,7 +151,6 @@ pub fn claim_rewards<S: Storage, A: Api, Q: Querier>(
         receiver.clone(),
         claim_amount,
     )?);    
-
    
     Ok(HandleResponse {
         messages: messages,
@@ -168,10 +168,10 @@ pub fn claim_rewards<S: Storage, A: Api, Q: Querier>(
 // User Total Rewards = User Owed Rewards + (User Incremental Rewards)
 pub fn claim_rewards_for_all_stakers<S:Storage, A:Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    current_timestamp: u64
+    current_timestamp: Uint128
 ) -> StdResult<()> {
     let stakers = load_stakers(deps)?;
-    let last_timestamp = load_claim_reward_timestamp(deps)?;
+    let last_timestamp = load_claim_reward_timestamp(deps)?;    
     for staker in stakers.into_iter() {
         let mut claim_info = load_claim_reward_info(deps, staker.clone())?;
         let staking_reward = calculate_staking_reward(deps, staker.clone(),last_timestamp, current_timestamp)?;
@@ -179,25 +179,27 @@ pub fn claim_rewards_for_all_stakers<S:Storage, A:Api, Q: Querier>(
         claim_info.last_time_claimed = current_timestamp;
         store_claim_reward_info(deps, &claim_info)?;
     }
-    store_claim_reward_timestamp(deps, current_timestamp)?;
+    store_claim_reward_timestamp(deps, current_timestamp )?;
     Ok(())
 }
 
 pub fn calculate_staking_reward<S:Storage, A:Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &Extern<S, A, Q>,
     staker: HumanAddr,
-    last_timestamp: u64,
-    current_timestamp: u64
+    last_timestamp: Uint128,
+    current_timestamp: Uint128
 ) -> StdResult<Uint128>{
     let cons = Uint128(100u128);
     let percentage = Uint256::from(get_staking_percentage(deps,staker, cons)?);
     let config = load_config(deps)?;
     let milisec = Uint256::from(Uint128(24u128 * 60u128 *60u128 * 1000u128));   
-    let converted_current_time = Uint256::from(Uint128(current_timestamp as u128));
-    let converted_last_time = Uint256::from(Uint128(last_timestamp as u128));
+    let converted_current_time = Uint256::from(current_timestamp);
+    let converted_last_time = Uint256::from(last_timestamp);
     let time_dif = (converted_current_time - converted_last_time)?;   
-    let milisec_offset = ((milisec * time_dif)? * Uint256::from(Uint128(1000u128)))?;            
+    let milisec_offset = (milisec * time_dif)?;            
     if milisec_offset != Uint256::from(Uint128(0u128)) {
+        println!("config.daily_reward_amount {}",config.daily_reward_amount);
+        println!("milisec_offset {}",milisec_offset );
         let total_available_reward = (Uint256::from(config.daily_reward_amount) / milisec_offset)?;
         let result = ((total_available_reward * percentage)? / Uint256::from(cons))?;
         Ok(Uint128(result.clamp_u128()?))
@@ -208,15 +210,49 @@ pub fn calculate_staking_reward<S:Storage, A:Api, Q: Querier>(
 }
 
 pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &Extern<S, A, Q>,
     staker: HumanAddr,
     cons: Uint128
 ) -> StdResult<Uint128> {
     let total_staking = Uint256::from(get_total_staking_amount(deps)?);
     let stake_info = load_staker_info(&deps, staker)?;
     let stake_amount = Uint256::from(stake_info.amount);   
-    let percentage =((stake_amount * Uint256::from(cons))? / total_staking)?;
+    let percentage =((stake_amount * Uint256::from(cons))? / total_staking)?;    
     Ok(Uint128(percentage.clamp_u128()?))
+}
+
+pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
+    match msg {
+        QueryMsg::GetStakers{ } => {get_all_stakers(deps)},
+        QueryMsg::GetClaimReward{staker} =>{get_claim_reward_for_user(deps, staker)},
+    }
+}
+
+pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>, 
+    staker: HumanAddr,
+)-> StdResult<Binary> {
+    let unpaid_claim = load_claim_reward_info(deps, staker.clone())?;
+    let last_claim_timestamp = load_claim_reward_timestamp(deps)?;   
+    let current_timestamp = get_current_timestamp()?; 
+    let current_claim = calculate_staking_reward(deps,
+        staker.clone(), last_claim_timestamp, current_timestamp)?;
+    let total_claim = unpaid_claim.amount + current_claim;
+    to_binary(&QueryResponse::ClaimReward{amount: total_claim})
+}
+
+pub fn get_all_stakers<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<Binary>{
+    let stakers = load_stakers(deps)?;   
+    println!("get_all_stakers {}",stakers.len()); 
+    to_binary(&QueryResponse::Stakers{stakers: stakers}) 
+}
+
+pub fn get_current_timestamp()-> StdResult<Uint128> {
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+    Ok(Uint128(since_the_epoch.as_millis()))
 }
 
 
@@ -225,13 +261,14 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     env: Env
 ) -> StdResult<HandleResponse>{
     let caller = env.message.sender.clone();
+    let current_timestamp = get_current_timestamp()?;
     let is_user_staker = is_address_already_staker(deps, caller.clone())?;
     let config = load_config(deps)?;
     if is_user_staker != true {
         return Err(StdError::unauthorized())
     }
     // claim rewards
-    claim_rewards_for_all_stakers(deps, env.block.time)?;
+    claim_rewards_for_all_stakers(deps, current_timestamp)?;
     // remove staker
     remove_staker(deps, caller.clone())?;
     let mut messages = Vec::new();
@@ -245,7 +282,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     )?);   
         
     staker_info.amount = Uint128(0);
-    staker_info.last_time_updated = env.block.time;
+    staker_info.last_time_updated = current_timestamp;
     store_staker_info(deps, &staker_info)?;
 
     // send reward if any and 
@@ -259,11 +296,11 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
 
     // update claim  reward for staker
     claim_reward.amount = Uint128(0);
-    claim_reward.last_time_claimed = 0;
+    claim_reward.last_time_claimed = current_timestamp;
     store_claim_reward_info(deps, &ClaimRewardsInfo{
         staker: caller.clone(),
         amount: Uint128(0),
-        last_time_claimed: 0
+        last_time_claimed: get_current_timestamp()?
     })?;
   
     Ok(HandleResponse {

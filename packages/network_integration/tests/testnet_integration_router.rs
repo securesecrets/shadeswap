@@ -1,12 +1,12 @@
 use colored::Colorize;
 use network_integration::utils::{
     generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
-    ACCOUNT_KEY, AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, SNIP20_FILE, STORE_GAS,
-    VIEW_KEY,
+    ACCOUNT_KEY, AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SNIP20_FILE,
+    STORE_GAS, VIEW_KEY,
 };
 use secretcli::{
     cli_types::NetContract,
-    secretcli::{account_address, handle, init, query, Report, store_and_return_contract},
+    secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
 };
 use serde_json::Result;
 use shadeswap_shared::{
@@ -26,6 +26,7 @@ use shadeswap_shared::{
             HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse,
         },
+        router::{InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg},
     },
     Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType,
 };
@@ -36,6 +37,122 @@ use composable_snip20::msg::{
 };
 
 #[test]
+fn initialize_router() -> Result<()> {
+    let mut reports = vec![];
+    let router_msg = RouterInitMsg {
+        prng_seed: to_binary(&"SEED".to_string()).unwrap(),
+        factory_address: ContractLink {
+            address: HumanAddr(String::from("".to_string())),
+            code_hash: "".to_string(),
+        },
+        entropy: to_binary(&"Entropy".to_string()).unwrap(),
+    };
+
+    let router_contract = init(
+        &router_msg,
+        ROUTER_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+
+    return Ok(());
+}
+
+#[test]
+fn shortcut_test() -> Result<()> {
+    env::set_var("RUST_BACKTRACE", "full");
+    let account = account_address(ACCOUNT_KEY)?;
+    println!("Using Account: {}", account.blue());
+    let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
+
+    let s_sCRT = &NetContract {
+        label: "".to_string(),
+        id: "2".to_string(),
+        address: "secret1qxxlalvsdjd07p07y3rc5fu6ll8k4tme6e2scc".to_string(),
+        code_hash: "2EE2F0438CD4D626B28753B462BD4F353216F61904FB8DCA382CA0029DA0D1A4".to_string(),
+    };
+
+    let s_sSHD = &NetContract {
+        label: "".to_string(),
+        id: "3".to_string(),
+        address: "secret174kgn5rtw4kf6f938wm7kwh70h2v4vcfft5mqy".to_string(),
+        code_hash: "2EE2F0438CD4D626B28753B462BD4F353216F61904FB8DCA382CA0029DA0D1A4".to_string(),
+    };
+
+    let factory_address = &NetContract {
+        label: "".to_string(),
+        id: "5".to_string(),
+        address: "secret1ulgw0td86nvs4wtpsc80thv6xelk76ut6us57w".to_string(),
+        code_hash: "A453832E5C7035536C89AF5081420AF3E07553D03DD7FFBBFEDE2DE8E4E37803".to_string(),
+    };
+    let routerAddress = HumanAddr::from("secret1xzlgeyuuyqje79ma6vllregprkmgwgavk8y798");
+
+    let mut reports = vec![];
+
+    let msg = FactoryQueryMsg::ListAMMPairs {
+        pagination: Pagination {
+            start: 0,
+            limit: 10,
+        },
+    };
+
+    let query: FactoryQueryResponse = query(&factory_address, msg, None)?;
+    if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = query {
+        assert_eq!(amm_pairs.len(), 1);
+        let ammPair = amm_pairs[0].clone();
+
+        print_header("\n\tInitiating Swap");
+
+        let oldSCRTBalance =  get_balance(&s_sCRT, account.to_string());
+        let oldSHDBalance =  get_balance(&s_sSHD, account.to_string());
+
+
+        let test = handle(
+            &snip20::HandleMsg::Send {
+                recipient: routerAddress,
+                amount: Uint128(10),
+                msg: Some(
+                    to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                        expected_return: Some(Uint128(1000)),
+                        paths: vec![ammPair.address],
+                        to: None,
+                    })
+                    .unwrap(),
+                ),
+                padding: None,
+            },
+            s_sCRT,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            None,
+            &mut reports,
+            None,
+        )
+        .unwrap();
+
+        //println!("{}",test.0.input);
+
+        assert_eq!(
+            get_balance(&s_sCRT, account.to_string()),
+            (oldSCRTBalance - Uint128(10)).unwrap()
+        );
+
+        let newBalance = get_balance(&s_sSHD, account.to_string());
+        println!("{}",oldSHDBalance);
+        println!("{}",newBalance);
+
+        assert!(get_balance(&s_sSHD, account.to_string()) > oldSHDBalance);
+    }
+
+    Ok(())
+}
+
+#[test]
 fn run_testnet_router() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "full");
     let account = account_address(ACCOUNT_KEY)?;
@@ -44,8 +161,8 @@ fn run_testnet_router() -> Result<()> {
 
     let mut reports = vec![];
 
-
-    let s_lp = store_and_return_contract(LPTOKEN20_FILE, ACCOUNT_KEY,Some(STORE_GAS), Some("test"))?;
+    let s_lp =
+        store_and_return_contract(LPTOKEN20_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
 
     /// Initialize sSCRT
     print_header("Initializing sSCRT");
@@ -63,7 +180,7 @@ fn run_testnet_router() -> Result<()> {
         }),
         &mut reports,
         ACCOUNT_KEY,
-        None
+        None,
     )?;
 
     print_contract(&s_sCRT);
@@ -101,7 +218,7 @@ fn run_testnet_router() -> Result<()> {
         }),
         &mut reports,
         ACCOUNT_KEY,
-        None
+        None,
     )?;
 
     print_contract(&s_sSHD);
@@ -176,9 +293,9 @@ fn run_testnet_router() -> Result<()> {
             token_code_hash: s_sSHD.code_hash.to_string(),
         },
     );
-    
 
-    let s_ammPair = store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY,Some(STORE_GAS), Some("test"))?;
+    let s_ammPair =
+        store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
 
     print_header("\n\tInitializing Factory Contract");
 
@@ -335,18 +452,40 @@ fn run_testnet_router() -> Result<()> {
                 Uint128(1000000000 - 100)
             );
 
+            print_header("\n\tInitializing Router");
+
+            let router_msg = RouterInitMsg {
+                prng_seed: to_binary(&"SEED".to_string()).unwrap(),
+                factory_address: ContractLink {
+                    address: HumanAddr(String::from(factory_contract.address)),
+                    code_hash: factory_contract.code_hash,
+                },
+                entropy: to_binary(&"Entropy".to_string()).unwrap(),
+            };
+
+            let router_contract = init(
+                &router_msg,
+                ROUTER_FILE,
+                &*generate_label(8),
+                ACCOUNT_KEY,
+                Some(STORE_GAS),
+                Some(GAS),
+                Some("test"),
+                &mut reports,
+            )?;
+            print_contract(&router_contract);
+
             print_header("\n\tInitiating Swap");
 
             handle(
                 &snip20::HandleMsg::Send {
-                    recipient: HumanAddr(String::from(ammPair.address.0.to_string())),
+                    recipient: HumanAddr(String::from(router_contract.address.to_string())),
                     amount: Uint128(10),
                     msg: Some(
-                        to_binary(&InvokeMsg::SwapTokens {
-                            expected_return: None,
-                            to: Some(HumanAddr(account.to_string())),
-                            router_link: None,
-                            callback_signature: None,
+                        to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                            expected_return: Some(Uint128(1000)),
+                            paths: vec![ammPair.address],
+                            to: None,
                         })
                         .unwrap(),
                     ),

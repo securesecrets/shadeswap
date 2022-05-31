@@ -1,4 +1,5 @@
-use std::{borrow::BorrowMut, str::from_utf8};
+use std::{borrow::BorrowMut, str::from_utf8, iter::FromIterator};
+use serde::{Deserialize, Serialize};
 
 use shadeswap_shared::{
     amm_pair::AMMSettings,
@@ -34,8 +35,11 @@ use shadeswap_shared::{
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
         router::InitMsg,
     },
-    TokenAmount, TokenPair, TokenType,
 };
+use shadeswap_shared::token_pair::TokenPair;
+use shadeswap_shared::token_amount::TokenAmount;
+use shadeswap_shared::token_pair_amount::TokenPairAmount;
+use shadeswap_shared::token_type::TokenType;
 
 use crate::state::{config_read, config_write, Config};
 use crate::state::{read_token, write_new_token, CurrentSwapInfo};
@@ -77,7 +81,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 return Err(StdError::unauthorized());
             }
             offer.assert_sent_native_token_balance(&env)?;
-            let config = config_read(deps)?;
             let sender = env.message.sender.clone();
             swap_exact_tokens_for_tokens(
                 deps,
@@ -109,30 +112,40 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
 
     match from_binary(&msg)? {
         InvokeMsg::SwapTokensForExact {
-            offer,
             expected_return,
             paths,
-            recipient,
+            to,
         } => {
-            if let TokenType::CustomToken { contract_addr, .. } = offer.token.clone() {
-                if contract_addr == env.message.sender {
-                    let offer = TokenAmount {
-                        token: offer.token.clone(),
-                        amount,
-                    };
+            let config = config_read(deps)?;
+            let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
+            let pairConfig = query_pair_contract_config(&deps.querier, ContractLink{ address: paths[0].clone(), code_hash: factory_config.pair_contract.code_hash })?;
+            for token in pairConfig.pair.into_iter() {
+                match token {
+                    TokenType::CustomToken { contract_addr, .. } => {
+                        if *contract_addr == env.message.sender {
+                            let offer = TokenAmount {
+                                token: token.clone(),
+                                amount,
+                            };
 
-                    return swap_exact_tokens_for_tokens(
-                        deps,
-                        env,
-                        offer,
-                        expected_return,
-                        &paths,
-                        from,
-                        recipient,
-                    );
+                            return swap_exact_tokens_for_tokens(
+                                deps,
+                                env,
+                                offer,
+                                expected_return,
+                                &paths,
+                                from,
+                                to,
+                            );
+                        }
+                    }
+                    _ => continue,
                 }
             }
             Err(StdError::unauthorized())
+        }
+        _ => {
+            Err(StdError::generic_err("No valid matching msg."))
         }
     }
 }
@@ -142,7 +155,6 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetCount {} => todo!(),
     }
 }
 
@@ -164,7 +176,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
             let pair_contract = query_pair_contract_config(
                 &deps.querier,
                 ContractLink {
-                    address: info.paths[info.current_index].clone(),
+                    address: info.paths[info.current_index as usize].clone(),
                     code_hash: factory_config.pair_contract.code_hash.clone(),
                 },
             )?;
@@ -180,7 +192,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                 amount: last_token_out.amount,
             };
 
-            if(info.paths.len() > info.current_index + 1)
+            if(info.paths.len() > (info.current_index + 1) as usize)
             {
                 save(
                     &mut deps.storage,
@@ -198,9 +210,8 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                         deps,
                         env,
                         tokenIn,
-                        info.paths[info.current_index + 1].clone(),
+                        info.paths[(info.current_index + 1) as usize].clone(),
                         factory_config.pair_contract.code_hash.clone(),
-                        info.current_index + 1,
                         info.signature,
                     )?,
                     log: vec![],
@@ -255,33 +266,11 @@ pub fn swap_exact_tokens_for_tokens<S: Storage, A: Api, Q: Querier>(
             amountIn,
             paths[0].clone(),
             factory_config.pair_contract.code_hash,
-            0,
             signature.clone(),
         )?,
         log: vec![],
         data: None,
     })
-}
-
-fn get_or_create_view_key<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    contract_addr: &HumanAddr,
-) -> StdResult<String> {
-    let config = config_read(deps)?;
-    let search_view_key = read_token(&deps.storage, &contract_addr.canonize(&deps.api)?);
-    let mut view_key = "".to_string();
-    match search_view_key {
-        Some(key) => view_key = from_utf8(key.as_slice()).unwrap().to_string(),
-        None => {
-            view_key = config.viewing_key.0.to_string();
-            write_new_token(
-                &mut deps.storage,
-                &contract_addr.canonize(&deps.api)?,
-                &config.viewing_key.clone(),
-            )
-        }
-    }
-    return Ok(view_key.clone());
 }
 
 fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
@@ -290,12 +279,9 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
     tokenIn: TokenAmount<HumanAddr>,
     path: HumanAddr,
     code_hash: String,
-    current_index: usize,
     signature: Binary,
 ) -> StdResult<Vec<CosmosMsg>> {
     let mut messages: Vec<CosmosMsg> = vec![];
-    let config = config_read(deps)?;
-    let querier = &deps.querier;
 
     match &tokenIn.token {
         TokenType::NativeToken { .. } => {
@@ -467,37 +453,6 @@ struct PairConfig {
     amount_1: Uint128,
     total_liquidity: Uint128,
     contract_version: u32,
-}
-
-fn register_custom_token(
-    env: &Env,
-    messages: &mut Vec<CosmosMsg>,
-    token: &TokenType<HumanAddr>,
-    viewing_key: &ViewingKey,
-) -> StdResult<()> {
-    if let TokenType::CustomToken {
-        contract_addr,
-        token_code_hash,
-        ..
-    } = token
-    {
-        messages.push(snip20::set_viewing_key_msg(
-            viewing_key.0.clone(),
-            None,
-            BLOCK_SIZE,
-            token_code_hash.clone(),
-            contract_addr.clone(),
-        )?);
-        messages.push(snip20::register_receive_msg(
-            env.contract_code_hash.clone(),
-            None,
-            BLOCK_SIZE,
-            token_code_hash.clone(),
-            contract_addr.clone(),
-        )?);
-    }
-
-    Ok(())
 }
 
 pub(crate) fn create_signature(env: &Env) -> StdResult<Binary> {

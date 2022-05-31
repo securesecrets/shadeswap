@@ -32,6 +32,7 @@ pub mod tests {
     use shadeswap_shared::fadroma::WasmQuery;
     use shadeswap_shared::msg::router::HandleMsg;
     use shadeswap_shared::msg::router::InitMsg;
+    use shadeswap_shared::msg::router::InvokeMsg;
     use shadeswap_shared::TokenAmount;
     pub use shadeswap_shared::{
         fadroma::{
@@ -182,6 +183,67 @@ pub mod tests {
     }*/
 
     #[test]
+    fn snip20_swap() -> StdResult<()> {
+        let (init_result, mut deps) = init_helper(100);
+        let mut env = mkenv("admin");
+
+        assert!(
+            init_result.is_ok(),
+            "Init failed: {}",
+            init_result.err().unwrap()
+        );
+
+        save(
+            &mut deps.storage,
+            EPHEMERAL_STORAGE_KEY,
+            &CurrentSwapInfo {
+                amount: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".into(),
+                    },
+                    amount: Uint128(10),
+                },
+                paths: vec![
+                    HumanAddr(PAIR_CONTRACT_1.into()),
+                    HumanAddr(PAIR_CONTRACT_2.into()),
+                ],
+                signature: to_binary("this is signature").unwrap(),
+                recipient: HumanAddr("recipient".into()),
+                current_index: 0,
+            },
+        )?;
+
+        let result = handle(
+            &mut deps,
+            mkenv("CUSTOM_TOKEN_1"),
+            HandleMsg::Receive {
+                from: HumanAddr("recipient".into()),
+                msg: Some(
+                    to_binary(&InvokeMsg::SwapTokensForExact {
+                        expected_return: Some(Uint128(1000)),
+                        paths: vec![PAIR_CONTRACT_1.into()],
+                        to: None,
+                    })
+                    .unwrap(),
+                ),
+                amount: Uint128(100),
+            },
+        );
+
+        match result {
+            Ok(info) => {
+                println!("{:?}", info.messages);
+            }
+            Err(err) => {
+                let test = err.to_string();
+                panic!("Must not return error ".to_string() + &test)
+            }
+        }
+
+        Ok(())
+    }
+
+    #[test]
     fn first_swap_callback_with_one_more_unauthorized() -> StdResult<()> {
         let (init_result, mut deps) = init_helper(100);
         let mut env = mkenv("admin");
@@ -216,9 +278,12 @@ pub mod tests {
             &mut deps,
             env,
             HandleMsg::SwapCallBack {
-                last_token_in: TokenAmount{ token: TokenType::NativeToken {
-                    denom: "uscrt".into(),
-                }, amount: Uint128(100) } ,
+                last_token_in: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".into(),
+                    },
+                    amount: Uint128(100),
+                },
                 signature: to_binary("wrong signature").unwrap(),
             },
         );
@@ -277,6 +342,8 @@ pub mod tests {
         )
         .unwrap();
 
+        println!("{:?}", result.messages);
+
         Ok(())
     }
 
@@ -325,7 +392,7 @@ pub mod tests {
 
         assert_eq!(result.messages.len(), 1);
 
-       /* match &result.messages[0] {
+        /* match &result.messages[0] {
             CosmosMsg::Wasm(msg) => match msg {
                 WasmMsg::Execute {
                     contract_addr,
@@ -347,18 +414,17 @@ pub mod tests {
             padding: None,
             msg: None
         });*/
-        
         println!("{:?}", result.messages[0]);
-        let test:CosmosMsg<WasmMsg> = CosmosMsg::Wasm(WasmMsg::Execute {
+        let test: CosmosMsg<WasmMsg> = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: HumanAddr::from(CUSTOM_TOKEN_1),
             callback_code_hash: "hash".into(),
             msg: to_binary(&snip20::HandleMsg::Send {
                 recipient: HumanAddr("recipient".into()),
                 amount: Uint128(10),
                 padding: None,
-                msg: None
+                msg: None,
             })?,
-            send: vec![]
+            send: vec![],
         });
         println!("{:?}", test);
         assert!(result.messages.contains(&CosmosMsg::Wasm(WasmMsg::Execute {

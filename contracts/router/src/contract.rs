@@ -70,14 +70,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     match msg {
         HandleMsg::Receive {
             from, amount, msg, ..
-        } => //receiver_callback(deps, env, from, amount, msg),
-        {
-            Ok(HandleResponse {
-                messages: vec![],
-                log: vec![],
-                data: None,
-            })
-        },
+        } => receiver_callback(deps, env, from, amount, msg),
         HandleMsg::SwapTokensForExact {
             offer,
             expected_return,
@@ -149,26 +142,10 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                     _ => continue,
                 }
             }
-            /*
-            if let TokenType::CustomToken { contract_addr, .. } = offer.token.clone() {
-                if contract_addr == env.message.sender {
-                    let offer = TokenAmount {
-                        token: offer.token.clone(),
-                        amount,
-                    };
-
-                    return swap_exact_tokens_for_tokens(
-                        deps,
-                        env,
-                        offer,
-                        expected_return,
-                        &paths,
-                        from,
-                        recipient,
-                    );
-                }
-            }*/
             Err(StdError::unauthorized())
+        }
+        _ => {
+            Err(StdError::generic_err("No valid matching msg."))
         }
     }
 }

@@ -132,8 +132,11 @@ pub mod amm_pair {
             address: HumanAddr,
         },
         RemoveWhitelistAddresses {
-            addresses: Vec<HumanAddr>,
+            addresses: Vec<HumanAddr>
         },
+        SetAMMPairAdmin {
+            admin: HumanAddr
+        }
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -245,4 +248,55 @@ pub mod factory {
         GetAMMSettings,
         GetConfig,
     }
+}
+
+pub mod staking {
+    use super::*;
+    use schemars::JsonSchema;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    pub struct InitMsg {
+        pub staking_amount: Uint128,
+        pub reward_token: TokenType<HumanAddr>,
+        pub lp_token: TokenType<HumanAddr>,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum HandleMsg {
+        ClaimRewards {},
+        Receive {   
+            msg: Option<Binary>,
+        },
+        Unstake {}
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum InvokeMsg {
+        Stake {   
+            from: HumanAddr,
+            amount: Uint128,
+        },
+    }
+
+    #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
+    #[serde(rename_all = "snake_case")]
+    pub enum QueryMsg {
+        GetStakers {},
+        GetClaimReward {staker: HumanAddr}
+    }
+
+    #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
+    #[serde(rename_all = "snake_case")]
+    pub enum QueryResponse {
+        Stakers {
+            stakers: Vec<HumanAddr>
+        },
+        ClaimReward {
+            amount: Uint128
+        }
+    }
+
 }

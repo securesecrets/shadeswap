@@ -1,14 +1,20 @@
-use crate::help_math::{multiply, substraction};
-use crate::state::amm_pair_storage::{
-    add_whitelist_address, is_address_in_whitelist, load_config, load_trade_counter,
-    load_trade_history, load_whitelist_address, remove_whitelist_address, store_config,
-    store_trade_counter, store_trade_history,
-};
+use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg,  HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}};
+use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
+use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair, Fee}};
+use shadeswap_shared::token_amount::{{TokenAmount}};
+use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
+use shadeswap_shared::token_type::{{TokenType}};
+use shadeswap_shared::token_pair::{{TokenPair}};
+use shadeswap_shared::Pagination;
+use crate::state::{{Config}};
+use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist, store_trade_counter,
+     load_whitelist_address,add_whitelist_address, store_admin, load_admin,
+    load_config, store_trade_history,remove_whitelist_address,
+load_trade_counter, load_trade_history};
+use crate::help_math::{{substraction, multiply}};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
 use crate::state::tradehistory::DirectionType;
-use crate::state::Config;
 use crate::state::PAGINATION_LIMIT;
-use shadeswap_shared::amm_pair::{AMMPair, AMMSettings, Fee};
 use shadeswap_shared::fadroma::{
     scrt::{
         from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg,
@@ -19,12 +25,6 @@ use shadeswap_shared::fadroma::{
     scrt_link::ContractLink,
     scrt_uint256::Uint256,
     scrt_vk::ViewingKey,
-};
-use shadeswap_shared::msg::amm_pair::{
-    HandleMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse, TradeHistory,
-};
-use shadeswap_shared::msg::factory::{
-    QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
 };
 use shadeswap_shared::msg::router::HandleMsg as RouterHandleMsg;
 use shadeswap_shared::token_amount::TokenAmount;
@@ -55,7 +55,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     let viewing_key = create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone());
     register_pair_token(&env, &mut messages, &msg.pair.0, &viewing_key)?;
     register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;
-
+    store_admin(deps, &env.message.sender.clone())?;
     // Create LP token and store it
     messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
@@ -104,7 +104,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     }
 
     let config = Config {
-        factory_info: msg.factory_info,
+        factory_info: msg.factory_info.clone(),
         lp_token_info: ContractLink {
             code_hash: msg.lp_token_contract.code_hash,
             // We get the address when the instantiated LP token calls OnLpTokenInit
@@ -115,7 +115,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         viewing_key: viewing_key,
     };
 
-    store_config(deps, &config)?;
+    store_config(deps, &config)?;   
+    
+    // by default admin is factory 
+    store_admin(deps, &msg.factory_info.address.clone())?;
     Ok(InitResponse {
         messages,
         log: vec![log("created_exchange_address", env.contract.address)],
@@ -130,6 +133,7 @@ fn register_lp_token<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
 ) -> StdResult<HandleResponse> {
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let mut config = load_config(&deps)?;
 
     // address must be default otherwise it has been initialized.
@@ -160,7 +164,7 @@ fn register_pair_token(
     messages: &mut Vec<CosmosMsg>,
     token: &TokenType<HumanAddr>,
     viewing_key: &ViewingKey,
-) -> StdResult<()> {
+) -> StdResult<()> {    
     if let TokenType::CustomToken {
         contract_addr,
         token_code_hash,
@@ -198,13 +202,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::AddLiquidityToAMMContract { deposit, slippage } => {
             add_liquidity(deps, env, deposit, slippage)
         }
+        HandleMsg::SetAMMPairAdmin {admin} => set_admin_guard(deps,env,admin),
         HandleMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
-        HandleMsg::AddWhiteListAddress { address } => {
-            add_address_to_whitelist(&mut deps.storage, address)
-        }
-        HandleMsg::RemoveWhitelistAddresses { addresses } => {
-            remove_address_from_whitelist(&mut deps.storage, addresses)
-        }
+        HandleMsg::AddWhiteListAddress{address} => add_address_to_whitelist(&mut deps.storage, address, env),
+        HandleMsg::RemoveWhitelistAddresses{addresses} => remove_address_from_whitelist(&mut deps.storage, addresses, env),
         HandleMsg::SwapTokens {
             offer,
             expected_return,
@@ -220,7 +221,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             offer.assert_sent_native_token_balance(&env)?;
             let config_settings = load_config(deps)?;
             let sender = env.message.sender.clone();
-            swap_tokens(
+            swap(
                 deps,
                 env,
                 config_settings,
@@ -235,7 +236,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
+pub fn swap<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     config: Config<HumanAddr>,
@@ -247,15 +248,8 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
     callback_signature: Option<Binary>,
 ) -> StdResult<HandleResponse> {
     let swaper_receiver = recipient.unwrap_or(sender);
-    let amm_settings = query_factory_amm_settings(&deps.querier, config.factory_info.clone())?;
-    let swap_result = initial_swap(
-        &deps.querier,
-        &amm_settings,
-        &config,
-        &offer,
-        &mut deps.storage,
-        swaper_receiver.clone(),
-    )?;
+    let amm_settings = query_factory_amm_settings(&deps.querier,config.factory_info.clone())?;
+    let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, &offer,&mut deps.storage, swaper_receiver.clone())?;
 
     // check for the slippage expected value compare to actual value
     if let Some(expected_return) = expected_return {
@@ -309,9 +303,11 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
         sell_or_swap = "Buy".to_string();
     } else {
         sell_or_swap = "Sell".to_string();
-    }
-
-    let trade_history = TradeHistory {
+    }      
+    
+    // Push Trade History
+    let trade_history =  TradeHistory
+    {
         price: swap_result.price,
         amount: swap_result.result.return_amount,
         timestamp: env.block.time,
@@ -338,7 +334,7 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse {
         messages,
         log: vec![
-            log("action", "swap_tokens"),
+            log("action", "swap"),
             log("offer_token", offer.token),
             log("offer_amount", offer.amount),
             log("return_amount", swap_result.result.return_amount),
@@ -349,6 +345,32 @@ pub fn swap_tokens<S: Storage, A: Api, Q: Querier>(
         ],
         data: None,
     })
+}
+
+pub fn set_admin_guard<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>, 
+    env: Env,
+    admin: HumanAddr
+) -> StdResult<HandleResponse>{
+    // only owner of contract can set admin
+    let config = load_config(&deps)?;
+    let factory_address = config.factory_info.address;
+    let sender = env.message.sender.clone();
+    if sender != factory_address{
+        return Err(StdError::unauthorized())
+    }
+
+    store_admin(deps,&admin)?;
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+                log("action", "set_admin_guard"),
+                log("caller", sender),
+                log("admin", admin),
+        ],
+        data: None,
+    })
+
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
@@ -419,7 +441,7 @@ fn calculate_fee(amount: Uint256, fee: Fee) -> StdResult<Uint128> {
     Ok(amount.clamp_u128()?.into())
 }
 
-pub fn initial_swap(
+pub fn calculate_swap_result(
     querier: &impl Querier,
     settings: &AMMSettings<HumanAddr>,
     config: &Config<HumanAddr>,
@@ -436,7 +458,7 @@ pub fn initial_swap(
 
     let amount = Uint256::from(offer.amount);
     // conver tand get avialble balance
-    let tokens_pool = get_token_pool_balance(querier, settings, config, offer)?;
+    let tokens_pool = get_token_pool_balance(querier, config, offer)?;
     let token0_pool = tokens_pool[0];
     let token1_pool = tokens_pool[1];
     // calculate price
@@ -472,11 +494,9 @@ pub fn initial_swap(
     })
 }
 
-pub fn add_address_to_whitelist(
-    storage: &mut impl Storage,
-    address: HumanAddr,
-) -> StdResult<HandleResponse> {
-    add_whitelist_address(storage, address.clone())?;
+pub fn add_address_to_whitelist(storage: &mut impl Storage, address: HumanAddr, env :Env) -> StdResult<HandleResponse>{
+    apply_admin_guard(env.message.sender.clone(), storage)?;
+    add_whitelist_address(storage, address.clone())?;  
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
@@ -487,10 +507,9 @@ pub fn add_address_to_whitelist(
     })
 }
 
-pub fn remove_address_from_whitelist(
-    storage: &mut impl Storage,
-    list: Vec<HumanAddr>,
-) -> StdResult<HandleResponse> {
+pub fn remove_address_from_whitelist(storage: &mut impl Storage, list: Vec<HumanAddr>,
+    env :Env) -> StdResult<HandleResponse>{
+    apply_admin_guard(env.message.sender.clone(), storage)?;
     remove_whitelist_address(storage, list.clone())?;
     Ok(HandleResponse {
         messages: vec![],
@@ -500,8 +519,7 @@ pub fn remove_address_from_whitelist(
 }
 
 fn get_token_pool_balance(
-    querier: &impl Querier,
-    settings: &AMMSettings<HumanAddr>,
+    querier: &impl Querier,  
     config: &Config<HumanAddr>,
     swap_offer: &TokenAmount<HumanAddr>,
 ) -> StdResult<[Uint256; 2]> {
@@ -526,6 +544,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
     recipient: HumanAddr,
 ) -> StdResult<HandleResponse> {
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let config = load_config(&deps)?;
     let Config {
         pair,
@@ -795,7 +814,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                                 amount,
                             };
 
-                            return swap_tokens(
+                            return swap(
                                 deps,
                                 env,
                                 config,
@@ -841,4 +860,16 @@ fn query_liquidity(
     }
 
     Ok(result.total_supply.unwrap())
+}
+
+
+fn apply_admin_guard(
+    admin: HumanAddr,
+    storage: &impl Storage,
+) -> StdResult<bool> {    
+    let address = load_admin(storage)?;
+    if admin != address {
+        return Err(StdError::unauthorized())
+    }
+    return Ok(true)
 }

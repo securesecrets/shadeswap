@@ -28,7 +28,6 @@ use shadeswap_shared::msg::factory::{
 };
 use shadeswap_shared::msg::router::HandleMsg as RouterHandleMsg;
 use shadeswap_shared::token_amount::TokenAmount;
-use shadeswap_shared::token_pair::TokenPair;
 use shadeswap_shared::token_pair_amount::TokenPairAmount;
 use shadeswap_shared::token_type::TokenType;
 use shadeswap_shared::Pagination;

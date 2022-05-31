@@ -1,4 +1,5 @@
-use std::{borrow::BorrowMut, str::from_utf8};
+use std::{borrow::BorrowMut, str::from_utf8, iter::FromIterator};
+use serde::{Deserialize, Serialize};
 
 use shadeswap_shared::{
     amm_pair::AMMSettings,
@@ -34,8 +35,11 @@ use shadeswap_shared::{
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
         router::InitMsg,
     },
-    TokenAmount, TokenPair, TokenType,
 };
+use shadeswap_shared::token_pair::TokenPair;
+use shadeswap_shared::token_amount::TokenAmount;
+use shadeswap_shared::token_pair_amount::TokenPairAmount;
+use shadeswap_shared::token_type::TokenType;
 
 use crate::state::{config_read, config_write, Config};
 use crate::state::{read_token, write_new_token, CurrentSwapInfo};
@@ -66,7 +70,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     match msg {
         HandleMsg::Receive {
             from, amount, msg, ..
-        } => receiver_callback(deps, env, from, amount, msg),
+        } => //receiver_callback(deps, env, from, amount, msg),
+        {
+            Ok(HandleResponse {
+                messages: vec![],
+                log: vec![],
+                data: None,
+            })
+        },
         HandleMsg::SwapTokensForExact {
             offer,
             expected_return,
@@ -108,11 +119,37 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
 
     match from_binary(&msg)? {
         InvokeMsg::SwapTokensForExact {
-            offer,
             expected_return,
             paths,
-            recipient,
+            to,
         } => {
+            let config = config_read(deps)?;
+            let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
+            let pairConfig = query_pair_contract_config(&deps.querier, ContractLink{ address: paths[0].clone(), code_hash: factory_config.pair_contract.code_hash })?;
+            for token in pairConfig.pair.into_iter() {
+                match token {
+                    TokenType::CustomToken { contract_addr, .. } => {
+                        if *contract_addr == env.message.sender {
+                            let offer = TokenAmount {
+                                token: token.clone(),
+                                amount,
+                            };
+
+                            return swap_exact_tokens_for_tokens(
+                                deps,
+                                env,
+                                offer,
+                                expected_return,
+                                &paths,
+                                from,
+                                to,
+                            );
+                        }
+                    }
+                    _ => continue,
+                }
+            }
+            /*
             if let TokenType::CustomToken { contract_addr, .. } = offer.token.clone() {
                 if contract_addr == env.message.sender {
                     let offer = TokenAmount {
@@ -130,7 +167,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                         recipient,
                     );
                 }
-            }
+            }*/
             Err(StdError::unauthorized())
         }
     }
@@ -141,7 +178,6 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetCount {} => todo!(),
     }
 }
 

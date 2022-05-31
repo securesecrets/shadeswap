@@ -26,7 +26,7 @@ use shadeswap_shared::{
             HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse,
         },
-        router::{InitMsg as RouterInitMsg}
+        router::{InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg}
     },
     Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType,
 };
@@ -359,18 +359,39 @@ fn run_testnet_router() -> Result<()> {
                 Uint128(1000000000 - 100)
             );
 
+            
+            print_header("\n\tInitializing Router");
+
+            let router_msg = RouterInitMsg {
+                prng_seed: to_binary(&"SEED".to_string()).unwrap(),
+                factory_address: ContractLink { address:HumanAddr(String::from(factory_contract.address)), code_hash: factory_contract.code_hash},
+                entropy: to_binary(&"Entropy".to_string()).unwrap(),
+            };
+
+            let router_contract = init(
+                &router_msg,
+                ROUTER_FILE,
+                &*generate_label(8),
+                ACCOUNT_KEY,
+                Some(STORE_GAS),
+                Some(GAS),
+                Some("test"),
+                &mut reports,
+            )?;
+            
+            print_contract(&router_contract);
+
             print_header("\n\tInitiating Swap");
 
             handle(
                 &snip20::HandleMsg::Send {
-                    recipient: HumanAddr(String::from(ammPair.address.0.to_string())),
+                    recipient: HumanAddr(String::from(router_contract.address.to_string())),
                     amount: Uint128(10),
                     msg: Some(
-                        to_binary(&InvokeMsg::SwapTokens {
-                            expected_return: None,
-                            to: Some(HumanAddr(account.to_string())),
-                            router_link: None,
-                            callback_signature: None,
+                        to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                            expected_return: todo!(),
+                            paths: todo!(),
+                            to: todo!(),
                         })
                         .unwrap(),
                     ),
@@ -403,26 +424,9 @@ fn run_testnet_router() -> Result<()> {
             assert!(false, "Query returned unexpected response")
         }
     }
-    print_header("\n\tInitializing Router");
 
-    let router_msg = RouterInitMsg {
-        prng_seed: to_binary(&"SEED".to_string()).unwrap(),
-        factory_address: ContractLink { address:HumanAddr(String::from(factory_contract.address)), code_hash: factory_contract.code_hash},
-        entropy: to_binary(&"Entropy".to_string()).unwrap(),
-    };
 
-    let router_contract = init(
-        &router_msg,
-        ROUTER_FILE,
-        &*generate_label(8),
-        ACCOUNT_KEY,
-        Some(STORE_GAS),
-        Some(GAS),
-        Some("test"),
-        &mut reports,
-    )?;
-
-    print_contract(&router_contract);
+    
 
     Ok(())
 }

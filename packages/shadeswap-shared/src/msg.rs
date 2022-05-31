@@ -40,10 +40,9 @@ pub mod router {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub enum InvokeMsg {
         SwapTokensForExact {
-            offer: TokenAmount<HumanAddr>,
-            expected_return: Option<Uint128>,
             paths: Vec<HumanAddr>,
-            recipient: Option<HumanAddr>
+            expected_return: Option<Uint128>,
+            to: Option<HumanAddr>
         },
     }
 
@@ -78,8 +77,6 @@ pub mod router {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        // GetCount returns the current count as a json-encoded number
-        GetCount {},
     }
 }
 

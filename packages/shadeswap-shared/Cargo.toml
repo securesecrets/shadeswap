@@ -50,6 +50,7 @@ fadroma = { path = "../../packages/fadroma-next/lib", features = [
   "scrt-admin",
   "scrt-vk"
 ] }
+composable-snip20 = { path = "../fadroma-next/lib/composable-snip20" }
 
 
 

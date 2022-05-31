@@ -1,11 +1,12 @@
 use colored::Colorize;
 use network_integration::utils::{
-    generate_label, print_contract, print_header, print_vec, print_warning, ACCOUNT_KEY,
-    AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, SNIP20_FILE, STORE_GAS, VIEW_KEY,
+    generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
+    ACCOUNT_KEY, AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SNIP20_FILE,
+    STORE_GAS, VIEW_KEY,
 };
 use secretcli::{
     cli_types::NetContract,
-    secretcli::{account_address, handle, init, query, Report},
+    secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
 };
 use serde_json::Result;
 use shadeswap_shared::{
@@ -16,7 +17,8 @@ use shadeswap_shared::{
             CosmosMsg, Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
             QueryRequest, QueryResult, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
         },
-        Callback, ContractInstantiationInfo, ContractLink, secret_toolkit::snip20::{Balance, BalanceResponse},
+        secret_toolkit::snip20::{Balance, BalanceResponse},
+        Callback, ContractInstantiationInfo, ContractLink,
     },
     msg::{
         amm_pair::{HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg},
@@ -24,6 +26,7 @@ use shadeswap_shared::{
             HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse,
         },
+        router::{InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg},
     },
     Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType,
 };
@@ -34,7 +37,123 @@ use composable_snip20::msg::{
 };
 
 #[test]
-fn run_testnet() -> Result<()> {
+fn initialize_router() -> Result<()> {
+    let mut reports = vec![];
+    let router_msg = RouterInitMsg {
+        prng_seed: to_binary(&"SEED".to_string()).unwrap(),
+        factory_address: ContractLink {
+            address: HumanAddr(String::from("".to_string())),
+            code_hash: "".to_string(),
+        },
+        entropy: to_binary(&"Entropy".to_string()).unwrap(),
+    };
+
+    let router_contract = init(
+        &router_msg,
+        ROUTER_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+
+    return Ok(());
+}
+
+#[test]
+fn shortcut_test() -> Result<()> {
+    env::set_var("RUST_BACKTRACE", "full");
+    let account = account_address(ACCOUNT_KEY)?;
+    println!("Using Account: {}", account.blue());
+    let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
+
+    let s_sCRT = &NetContract {
+        label: "".to_string(),
+        id: "2".to_string(),
+        address: "secret1qxxlalvsdjd07p07y3rc5fu6ll8k4tme6e2scc".to_string(),
+        code_hash: "2EE2F0438CD4D626B28753B462BD4F353216F61904FB8DCA382CA0029DA0D1A4".to_string(),
+    };
+
+    let s_sSHD = &NetContract {
+        label: "".to_string(),
+        id: "3".to_string(),
+        address: "secret174kgn5rtw4kf6f938wm7kwh70h2v4vcfft5mqy".to_string(),
+        code_hash: "2EE2F0438CD4D626B28753B462BD4F353216F61904FB8DCA382CA0029DA0D1A4".to_string(),
+    };
+
+    let factory_address = &NetContract {
+        label: "".to_string(),
+        id: "5".to_string(),
+        address: "secret1ulgw0td86nvs4wtpsc80thv6xelk76ut6us57w".to_string(),
+        code_hash: "A453832E5C7035536C89AF5081420AF3E07553D03DD7FFBBFEDE2DE8E4E37803".to_string(),
+    };
+    let routerAddress = HumanAddr::from("secret1xzlgeyuuyqje79ma6vllregprkmgwgavk8y798");
+
+    let mut reports = vec![];
+
+    let msg = FactoryQueryMsg::ListAMMPairs {
+        pagination: Pagination {
+            start: 0,
+            limit: 10,
+        },
+    };
+
+    let query: FactoryQueryResponse = query(&factory_address, msg, None)?;
+    if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = query {
+        assert_eq!(amm_pairs.len(), 1);
+        let ammPair = amm_pairs[0].clone();
+
+        print_header("\n\tInitiating Swap");
+
+        let oldSCRTBalance =  get_balance(&s_sCRT, account.to_string());
+        let oldSHDBalance =  get_balance(&s_sSHD, account.to_string());
+
+
+        let test = handle(
+            &snip20::HandleMsg::Send {
+                recipient: routerAddress,
+                amount: Uint128(10),
+                msg: Some(
+                    to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                        expected_return: Some(Uint128(1000)),
+                        paths: vec![ammPair.address],
+                        to: None,
+                    })
+                    .unwrap(),
+                ),
+                padding: None,
+            },
+            s_sCRT,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            None,
+            &mut reports,
+            None,
+        )
+        .unwrap();
+
+        //println!("{}",test.0.input);
+
+        assert_eq!(
+            get_balance(&s_sCRT, account.to_string()),
+            (oldSCRTBalance - Uint128(10)).unwrap()
+        );
+
+        let newBalance = get_balance(&s_sSHD, account.to_string());
+        println!("{}",oldSHDBalance);
+        println!("{}",newBalance);
+
+        assert!(get_balance(&s_sSHD, account.to_string()) > oldSHDBalance);
+    }
+
+    Ok(())
+}
+
+#[test]
+fn run_testnet_router() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "full");
     let account = account_address(ACCOUNT_KEY)?;
     println!("Using Account: {}", account.blue());
@@ -42,70 +161,28 @@ fn run_testnet() -> Result<()> {
 
     let mut reports = vec![];
 
-
-    print_header("Initializing LP TOKEN as template");
-
-    let lp_init_msg = Snip20ComposableMsg {
-        name: "SHADESWAP Liquidity Provider (LP) token for secret1jqjdazedmt29rmrtw0k3a4m0gxkemywu3py695-secret1jqjdazedmt29rmrtw0k3a4m0gxkemywu3py695".to_string(),
-        admin: None,
-        symbol: "SHADE-LP".to_string(),
-        decimals: 18,
-        initial_balances: None,
-        prng_seed: Default::default(),
-        config: Some(Snip20ComposableConfig {
-            public_total_supply: Some(true),
-            enable_deposit: Some(true),
-            enable_redeem: Some(true),
-            enable_mint: Some(true),
-            enable_burn: Some(false),
-        }),
-        initial_allowances: None,
-        callback: None,
-    };
-
-    let s_lp = init(
-        &lp_init_msg,
-        LPTOKEN20_FILE,
-        &*generate_label(8),
-        ACCOUNT_KEY,
-        Some(STORE_GAS),
-        Some(GAS),
-        Some("test"),
-        &mut reports,
-    )?;
-    print_contract(&s_lp);
+    let s_lp =
+        store_and_return_contract(LPTOKEN20_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
 
     /// Initialize sSCRT
     print_header("Initializing sSCRT");
 
-    let sscrt_init_msg = Snip20ComposableMsg {
-        name: "sSCRT".to_string(),
-        admin: None,
-        symbol: "SSCRT".to_string(),
-        decimals: 6,
-        initial_balances: None,
-        prng_seed: Default::default(),
-        config: Some(Snip20ComposableConfig {
+    let (s_sSINIT, s_sCRT) = init_snip20(
+        "SSCRT".to_string(),
+        "SSCRT".to_string(),
+        6,
+        Some(Snip20ComposableConfig {
             public_total_supply: Some(true),
             enable_deposit: Some(true),
             enable_redeem: Some(true),
             enable_mint: Some(true),
             enable_burn: Some(false),
         }),
-        initial_allowances: None,
-        callback: None,
-    };
-
-    let s_sCRT = init(
-        &sscrt_init_msg,
-        SNIP20_FILE,
-        &*generate_label(8),
-        ACCOUNT_KEY,
-        Some(STORE_GAS),
-        Some(GAS),
-        Some("test"),
         &mut reports,
+        ACCOUNT_KEY,
+        None,
     )?;
+
     print_contract(&s_sCRT);
 
     {
@@ -128,36 +205,23 @@ fn run_testnet() -> Result<()> {
 
     print_header("Initializing sSHD");
 
-    let sshd_init_msg = Snip20ComposableMsg {
-        name: "sSHD".to_string(),
-        admin: None,
-        symbol: "SSHD".to_string(),
-        decimals: 6,
-        initial_balances: None,
-        prng_seed: Default::default(),
-        config: Some(Snip20ComposableConfig {
+    let (s_sSHDINIT, s_sSHD) = init_snip20(
+        "SSHD".to_string(),
+        "SSHD".to_string(),
+        6,
+        Some(Snip20ComposableConfig {
             public_total_supply: Some(true),
             enable_deposit: Some(true),
             enable_redeem: Some(true),
             enable_mint: Some(true),
             enable_burn: Some(false),
         }),
-        initial_allowances: None,
-        callback: None,
-    };
-
-    let s_sHD = init(
-        &sshd_init_msg,
-        SNIP20_FILE,
-        &*generate_label(8),
-        ACCOUNT_KEY,
-        Some(STORE_GAS),
-        Some(GAS),
-        Some("test"),
         &mut reports,
+        ACCOUNT_KEY,
+        None,
     )?;
 
-    print_contract(&s_sHD);
+    print_contract(&s_sSHD);
 
     {
         let msg = snip20::HandleMsg::SetViewingKey {
@@ -167,7 +231,7 @@ fn run_testnet() -> Result<()> {
 
         handle(
             &msg,
-            &s_sHD,
+            &s_sSHD,
             ACCOUNT_KEY,
             Some(GAS),
             Some("test"),
@@ -195,7 +259,10 @@ fn run_testnet() -> Result<()> {
             None,
         )?;
     }
-    assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000));
+    assert_eq!(
+        get_balance(&s_sCRT, account.to_string()),
+        Uint128(1000000000)
+    );
 
     println!("\n\tDepositing 1000000000uscrt sSHD");
 
@@ -204,7 +271,7 @@ fn run_testnet() -> Result<()> {
 
         handle(
             &msg,
-            &s_sHD,
+            &s_sSHD,
             ACCOUNT_KEY,
             Some(GAS),
             Some("test"),
@@ -214,27 +281,6 @@ fn run_testnet() -> Result<()> {
         )?;
     }
 
-    /*let sshd_init_msg = AMMPairInitMsg {
-        callback: None,
-        pair: todo!(),
-        lp_token_contract: todo!(),
-        factory_info: todo!(),
-        entropy: todo!(),
-        prng_seed: todo!(),
-        symbol: todo!(),
-    };*/
-
-    /*let s_sHD = init(
-        Message {},
-        SNIP20_FILE,
-        &*generate_label(8),
-        ACCOUNT_KEY,
-        Some(STORE_GAS),
-        Some(GAS),
-        Some("test"),
-        &mut reports,
-    )?;*/
-
     println!("\n\tInitializing Pair Contract for dynamic code_hash");
 
     let test_pair = TokenPair::<HumanAddr>(
@@ -243,41 +289,13 @@ fn run_testnet() -> Result<()> {
             token_code_hash: s_sCRT.code_hash.to_string(),
         },
         TokenType::CustomToken {
-            contract_addr: s_sHD.address.clone().into(),
-            token_code_hash: s_sHD.code_hash.to_string(),
+            contract_addr: s_sSHD.address.clone().into(),
+            token_code_hash: s_sSHD.code_hash.to_string(),
         },
     );
 
-    let seed = to_binary(&"SEED".to_string()).unwrap();
-    let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
-    let amm_pair_init_msg = AMMPairInitMsg {
-        pair: test_pair.clone(),
-        lp_token_contract: ContractInstantiationInfo {
-            code_hash: s_lp.code_hash.clone(),
-            id: s_lp.id.clone().parse::<u64>().unwrap(),
-        },
-        factory_info: ContractLink {
-            address: HumanAddr(String::from(
-                "secret1y45vkh0n6kplaeqw6ratuertapxupz532vxnn3",
-            )),
-            code_hash: "Test".to_string(),
-        },
-        prng_seed: seed,
-        callback: None,
-        entropy: entropy.clone(),
-    };
-
-    let s_ammPair = init(
-        &amm_pair_init_msg,
-        AMM_PAIR_FILE,
-        &*generate_label(8),
-        ACCOUNT_KEY,
-        Some(STORE_GAS),
-        Some(GAS),
-        Some("test"),
-        &mut reports,
-    )?;
-    print_contract(&s_ammPair);
+    let s_ammPair =
+        store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
 
     print_header("\n\tInitializing Factory Contract");
 
@@ -295,8 +313,8 @@ fn run_testnet() -> Result<()> {
             lp_fee: Fee::new(28, 10000),
             shade_dao_fee: Fee::new(2, 10000),
             shade_dao_address: ContractLink {
-                address: HumanAddr(String::from(s_sHD.address.to_string())),
-                code_hash: s_sHD.code_hash.clone(),
+                address: HumanAddr(String::from(s_sSHD.address.to_string())),
+                code_hash: s_sSHD.code_hash.clone(),
             },
         },
         lp_token_contract: ContractInstantiationInfo {
@@ -341,18 +359,6 @@ fn run_testnet() -> Result<()> {
         println!("{}", result.0.input);
     }
 
-    /*{
-        print_header("\n\tTESTING CONF...");
-        let msg = FactoryQueryMsg::GetConfig {
-        };
-        
-        let query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
-
-        if let FactoryQueryResponse::GetConfig { pair_contract, amm_settings, lp_token_contract  } = query {
-            println!("{}",pair_contract.code_hash);
-        }
-    }*/
-
     print_header("\n\tChecking something was done...");
     {
         let msg = FactoryQueryMsg::ListAMMPairs {
@@ -377,9 +383,9 @@ fn run_testnet() -> Result<()> {
                 },
                 &NetContract {
                     label: "".to_string(),
-                    id: s_sHD.id.clone(),
-                    address: s_sHD.address.clone(),
-                    code_hash: s_sHD.code_hash.to_string(),
+                    id: s_sSHD.id.clone(),
+                    address: s_sSHD.address.clone(),
+                    code_hash: s_sSHD.code_hash.to_string(),
                 },
                 ACCOUNT_KEY,
                 Some(GAS),
@@ -437,43 +443,52 @@ fn run_testnet() -> Result<()> {
             )
             .unwrap();
 
-            
-            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(1000000000 - 100));
-            assert_eq!(get_balance(&s_sHD, account.to_string()), Uint128(1000000000 - 100));
+            assert_eq!(
+                get_balance(&s_sCRT, account.to_string()),
+                Uint128(1000000000 - 100)
+            );
+            assert_eq!(
+                get_balance(&s_sSHD, account.to_string()),
+                Uint128(1000000000 - 100)
+            );
+
+            print_header("\n\tInitializing Router");
+
+            let router_msg = RouterInitMsg {
+                prng_seed: to_binary(&"SEED".to_string()).unwrap(),
+                factory_address: ContractLink {
+                    address: HumanAddr(String::from(factory_contract.address)),
+                    code_hash: factory_contract.code_hash,
+                },
+                entropy: to_binary(&"Entropy".to_string()).unwrap(),
+            };
+
+            let router_contract = init(
+                &router_msg,
+                ROUTER_FILE,
+                &*generate_label(8),
+                ACCOUNT_KEY,
+                Some(STORE_GAS),
+                Some(GAS),
+                Some("test"),
+                &mut reports,
+            )?;
+            print_contract(&router_contract);
 
             print_header("\n\tInitiating Swap");
-            // handle(
-            //     &snip20::HandleMsg::IncreaseAllowance {
-            //         spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-            //         amount: Uint128(10),
-            //         expiration: None,
-            //         padding: None,
-            //     },
-            //     &NetContract {
-            //         label: "".to_string(),
-            //         id: s_sCRT.id.clone(),
-            //         address: s_sCRT.address.clone(),
-            //         code_hash: s_sCRT.code_hash.to_string(),
-            //     },
-            //     ACCOUNT_KEY,
-            //     Some(GAS),
-            //     Some("test"),
-            //     None,
-            //     &mut reports,
-            //     None,
-            // )
-            // .unwrap();
 
             handle(
                 &snip20::HandleMsg::Send {
-                    recipient: HumanAddr(String::from(ammPair.address.0.to_string())),
+                    recipient: HumanAddr(String::from(router_contract.address.to_string())),
                     amount: Uint128(10),
-                    msg: Some(to_binary(&InvokeMsg::SwapTokens{ 
-                        expected_return: None, 
-                        to: Some(HumanAddr(account.to_string())),
-                        router_link: None,
-                        callback_signature: None,
-                    }).unwrap()),
+                    msg: Some(
+                        to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                            expected_return: Some(Uint128(1000)),
+                            paths: vec![ammPair.address],
+                            to: None,
+                        })
+                        .unwrap(),
+                    ),
                     padding: None,
                 },
                 &NetContract {
@@ -489,37 +504,20 @@ fn run_testnet() -> Result<()> {
                 &mut reports,
                 None,
             )
-            .unwrap();            
-            
-            assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(999999890));
-            assert_eq!(get_balance(&s_sHD, account.to_string()), Uint128(999999910));
+            .unwrap();
+
+            assert_eq!(
+                get_balance(&s_sCRT, account.to_string()),
+                Uint128(999999890)
+            );
+            assert_eq!(
+                get_balance(&s_sSHD, account.to_string()),
+                Uint128(999999910)
+            );
         } else {
             assert!(false, "Query returned unexpected response")
         }
-
-        /*print_header("\n\tInitiating Swap");
-        handle(
-            &AMMPairHandlMsg::SwapTokens { offer: todo!(), expected_return: todo!(), to: todo!() },
-            &NetContract{ label: "".to_string(), id: s_ammPair.id.clone(), address: ammPair.address.0, code_hash: s_ammPair.code_hash.to_string() },
-            ACCOUNT_KEY,
-            Some(GAS),
-            Some("test"),
-            None,
-            &mut reports,
-            None,
-        );*/
     }
-
-    /*handle(
-        &msg,
-        &s_sCRT,
-        ACCOUNT_KEY,
-        Some(GAS),
-        Some("test"),
-        Some("1000000000uscrt"),
-        &mut reports,
-        None,
-    )?;*/
 
     Ok(())
 }

@@ -1,6 +1,7 @@
 
 use shadeswap_shared::amm_pair::Fee;
 use shadeswap_shared::amm_pair::AMMSettings;
+use shadeswap_shared::msg::factory::InitMsg;
 pub use shadeswap_shared::{
     fadroma::{
         scrt_addr::Canonize,
@@ -18,7 +19,6 @@ pub use shadeswap_shared::{
 };
 
 
-use crate::msg::InitMsg;
 use crate::state::Config;
 
 #[cfg(test)]
@@ -27,7 +27,6 @@ pub mod test_contract {
 use crate::contract::EPHEMERAL_STORAGE_KEY;
 use crate::contract::handle;
     use crate::contract::query;
-    use crate::msg::HandleMsg;
     use crate::state::PAGINATION_LIMIT;
 use super::*;
     use crate::contract::create_pair;
@@ -35,6 +34,7 @@ use super::*;
     use crate::state::config_read;
     use crate::state::config_write;
     use shadeswap_shared::amm_pair::AMMPair;
+    use shadeswap_shared::msg::factory::HandleMsg;
     use shadeswap_shared::msg::factory::QueryMsg;
     pub use shadeswap_shared::{
         fadroma::{

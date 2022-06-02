@@ -27,10 +27,6 @@ use shadeswap_shared::fadroma::{
     scrt_vk::ViewingKey,
 };
 use shadeswap_shared::msg::router::HandleMsg as RouterHandleMsg;
-use shadeswap_shared::token_amount::TokenAmount;
-use shadeswap_shared::token_pair_amount::TokenPairAmount;
-use shadeswap_shared::token_type::TokenType;
-use shadeswap_shared::Pagination;
 
 use composable_snip20::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
@@ -51,11 +47,9 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     }
 
     let mut messages = vec![];
-
     let viewing_key = create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone());
     register_pair_token(&env, &mut messages, &msg.pair.0, &viewing_key)?;
-    register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;
-    store_admin(deps, &env.message.sender.clone())?;
+    register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;   
     // Create LP token and store it
     messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
@@ -117,8 +111,9 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 
     store_config(deps, &config)?;   
     
+    let factory_address = msg.factory_info.address.clone();
     // by default admin is factory 
-    store_admin(deps, &msg.factory_info.address.clone())?;
+    store_admin(deps, &factory_address)?;
     Ok(InitResponse {
         messages,
         log: vec![log("created_exchange_address", env.contract.address)],

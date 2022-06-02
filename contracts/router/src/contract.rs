@@ -55,7 +55,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
-    config_write(deps, &Config::from_init_msg(env.clone(), msg));
+    config_write(deps, &Config{ factory_address: msg.factory_address, viewing_key: create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone()) })?;
 
     debug_print!("Contract was initialized by {}", env.message.sender);
 
@@ -96,7 +96,27 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             last_token_in,
             signature,
         } => next_swap(deps, env, last_token_in, signature),
+        HandleMsg::RegisterSNIP20Token { token, token_code_hash } => {
+            refresh_tokens(deps, env, token, token_code_hash)
+        }
     }
+}
+
+fn refresh_tokens<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    token_address: HumanAddr,
+    token_code_hash: String
+) -> StdResult<HandleResponse> {
+    let mut msg = vec![];
+    let config = config_read(deps)?;
+    register_pair_token(&env, &mut msg, &TokenType::CustomToken { contract_addr: token_address, token_code_hash: token_code_hash }, &config.viewing_key)?;
+
+    Ok(HandleResponse {
+        messages: msg,
+        log: vec![],
+        data: None,
+    })
 }
 
 fn receiver_callback<S: Storage, A: Api, Q: Querier>(
@@ -106,47 +126,56 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
     msg: Option<Binary>,
 ) -> StdResult<HandleResponse> {
-    let msg = msg.ok_or_else(|| {
+    /*let msg = msg.ok_or_else(|| {
         StdError::generic_err("Receiver callback \"msg\" parameter cannot be empty.")
-    })?;
-
-    match from_binary(&msg)? {
-        InvokeMsg::SwapTokensForExact {
-            expected_return,
-            paths,
-            to,
-        } => {
-            let config = config_read(deps)?;
-            let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
-            let pairConfig = query_pair_contract_config(&deps.querier, ContractLink{ address: paths[0].clone(), code_hash: factory_config.pair_contract.code_hash })?;
-            for token in pairConfig.pair.into_iter() {
-                match token {
-                    TokenType::CustomToken { contract_addr, .. } => {
-                        if *contract_addr == env.message.sender {
-                            let offer = TokenAmount {
-                                token: token.clone(),
-                                amount,
-                            };
-
-                            return swap_exact_tokens_for_tokens(
-                                deps,
-                                env,
-                                offer,
-                                expected_return,
-                                &paths,
-                                from,
-                                to,
-                            );
+    });*/
+    
+    match(msg) {
+        Some(content) => {
+            match from_binary(&content)? {
+                InvokeMsg::SwapTokensForExact {
+                    expected_return,
+                    paths,
+                    to,
+                } => {
+                    let config = config_read(deps)?;
+                    let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
+                    let pairConfig = query_pair_contract_config(&deps.querier, ContractLink{ address: paths[0].clone(), code_hash: factory_config.pair_contract.code_hash })?;
+                    for token in pairConfig.pair.into_iter() {
+                        match token {
+                            TokenType::CustomToken { contract_addr, .. } => {
+                                if *contract_addr == env.message.sender {
+                                    let offer = TokenAmount {
+                                        token: token.clone(),
+                                        amount,
+                                    };
+        
+                                    return swap_exact_tokens_for_tokens(
+                                        deps,
+                                        env,
+                                        offer,
+                                        expected_return,
+                                        &paths,
+                                        from,
+                                        to,
+                                    );
+                                }
+                            }
+                            _ => continue,
                         }
                     }
-                    _ => continue,
+                    Err(StdError::unauthorized())
+                }
+                _ => {
+                    Err(StdError::generic_err("No valid matching msg."))
                 }
             }
-            Err(StdError::unauthorized())
-        }
-        _ => {
-            Err(StdError::generic_err("No valid matching msg."))
-        }
+        },
+        None => Ok(HandleResponse {
+            messages: vec![],
+            log: vec![],
+            data: None,
+        }),
     }
 }
 
@@ -164,6 +193,11 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
     last_token_out: TokenAmount<HumanAddr>,
     signature: Binary,
 ) -> HandleResult {
+    /*Ok(HandleResponse {
+        messages: vec![],
+        log: vec![],
+        data: None,
+    })*/
     let currentTradeInfo: Option<CurrentSwapInfo> = load(&deps.storage, EPHEMERAL_STORAGE_KEY)?;
     let config = config_read(deps)?;
     let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
@@ -183,7 +217,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
 
             let mut next_token_in = pair_contract.pair.0.clone();
 
-            if (pair_contract.pair.0.clone() == last_token_out.token) {
+            if (pair_contract.pair.1.clone() == last_token_out.token) {
                 next_token_in = pair_contract.pair.1;
             }
 
@@ -316,7 +350,7 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
                 msg: Some(
                     to_binary(&AMMPairInvokeMsg::SwapTokens {
                         expected_return: None,
-                        to: None,
+                        to: Some(env.contract.address.clone()),
                         router_link: Some(ContractLink {
                             address: env.contract.address.clone(),
                             code_hash: env.contract_code_hash.clone(),
@@ -330,8 +364,8 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
 
             messages.push(
                 WasmMsg::Execute {
-                    contract_addr: path.clone(),
-                    callback_code_hash: code_hash.clone(),
+                    contract_addr: contract_addr.clone(),
+                    callback_code_hash: token_code_hash.clone(),
                     msg,
                     send: vec![],
                 }
@@ -464,4 +498,41 @@ pub(crate) fn create_signature(env: &Env) -> StdResult<Binary> {
         ]
         .concat(),
     )
+}
+
+fn register_pair_token(
+    env: &Env,
+    messages: &mut Vec<CosmosMsg>,
+    token: &TokenType<HumanAddr>,
+    viewing_key: &ViewingKey,
+) -> StdResult<()> {
+    if let TokenType::CustomToken {
+        contract_addr,
+        token_code_hash,
+        ..
+    } = token
+    {
+        messages.push(snip20::set_viewing_key_msg(
+            viewing_key.0.clone(),
+            None,
+            BLOCK_SIZE,
+            token_code_hash.clone(),
+            contract_addr.clone(),
+        )?);
+        messages.push(snip20::register_receive_msg(
+            env.contract_code_hash.clone(),
+            None,
+            BLOCK_SIZE,
+            token_code_hash.clone(),
+            contract_addr.clone(),
+        )?);
+    }
+
+    Ok(())
+}
+
+
+pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
+    return ViewingKey("password".to_string());
+    //ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
 }

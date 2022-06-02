@@ -56,6 +56,7 @@ pub mod router {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum HandleMsg {
+        // SNIP20 receiver interface
         Receive {
             from: HumanAddr,
             msg: Option<Binary>,
@@ -72,6 +73,10 @@ pub mod router {
             last_token_in: TokenAmount<HumanAddr>,
             signature: Binary,
         },
+        RegisterSNIP20Token{
+            token: HumanAddr,
+            token_code_hash: String
+        }
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

@@ -163,6 +163,7 @@ pub mod amm_pair {
         GetTradeHistory { pagination: Pagination },
         GetWhiteListAddress,
         GetTradeCount,
+        GetAdmin
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -185,6 +186,9 @@ pub mod amm_pair {
         GetTradeCount {
             count: u64,
         },
+        GetAdminAddress{
+            address: HumanAddr
+        }
     }
 }
 

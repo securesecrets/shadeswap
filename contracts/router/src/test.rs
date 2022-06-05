@@ -1,10 +1,5 @@
-use shadeswap_shared::msg::snip20::InitialBalance;
-
-use crate::{contract::init, msg::InitMsg};
-
 #[cfg(test)]
 pub mod tests {
-    use super::*;
     use crate::contract::init;
     use crate::contract::EPHEMERAL_STORAGE_KEY;
     use crate::state::config_read;
@@ -12,47 +7,29 @@ pub mod tests {
     use crate::state::CurrentSwapInfo;
 
     use crate::contract::handle;
-    use serde::de::DeserializeOwned;
-    use serde::Deserialize;
-    use serde::Serialize;
-    use shadeswap_shared::amm_pair::AMMPair;
-    use shadeswap_shared::amm_pair::Fee;
-    use shadeswap_shared::fadroma::from_slice;
-    use shadeswap_shared::fadroma::secret_toolkit::snip20;
-    use shadeswap_shared::fadroma::secret_toolkit::snip20::Balance;
-    use shadeswap_shared::fadroma::BankMsg;
-    use shadeswap_shared::fadroma::Coin;
-    use shadeswap_shared::fadroma::CosmosMsg;
-    use shadeswap_shared::fadroma::Empty;
-    use shadeswap_shared::fadroma::InitResponse;
-    use shadeswap_shared::fadroma::QuerierResult;
-    use shadeswap_shared::fadroma::QueryRequest;
-    use shadeswap_shared::fadroma::WasmMsg;
-    use shadeswap_shared::fadroma::WasmQuery;
-    use shadeswap_shared::msg::router::HandleMsg;
-    use shadeswap_shared::msg::router::InitMsg;
-    use shadeswap_shared::msg::router::InvokeMsg;
-    use shadeswap_shared::TokenAmount;
-    pub use shadeswap_shared::{
+    use serde::{de::DeserializeOwned, Deserialize, Serialize};
+    use shadeswap_shared::{
+        amm_pair::Fee,
         fadroma::{
+            from_slice,
             scrt::{
                 from_binary,
-                testing::{
-                    mock_dependencies, mock_env, MockApi, MockQuerierCustomHandlerResult,
-                    MockStorage,
-                },
-                to_binary, Api, Binary, Env, Extern, HandleResponse, HumanAddr, Querier, StdError,
+                testing::{mock_dependencies, mock_env, MockApi, MockStorage},
+                to_binary, Api, Env, Extern, HumanAddr, Querier, StdError,
                 StdResult, Storage, Uint128,
             },
-            scrt_addr::Canonize,
             scrt_link::{ContractInstantiationInfo, ContractLink},
             scrt_storage::{load, save},
+            secret_toolkit::snip20::{self, Balance},
+            Coin, CosmosMsg, Empty, InitResponse, QuerierResult, QueryRequest, WasmMsg,
+            WasmQuery,
         },
         msg::{
             amm_pair::QueryMsgResponse as AMMPairQueryMsgResponse,
             factory::QueryResponse as FactoryQueryResponse,
+            router::{HandleMsg, InitMsg, InvokeMsg},
         },
-        Pagination, TokenPair, TokenType,
+        TokenAmount, TokenPair, TokenType,
     };
 
     pub const FACTORY_ADDRESS: &str = "FACTORY_ADDRESS";
@@ -196,7 +173,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
-                amountOutMin:  Some(Uint128(10)),
+                amount_out_min: Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -236,7 +213,7 @@ pub mod tests {
             }
             Err(err) => {
                 let test = err.to_string();
-                panic!("Must not return error ".to_string() + &test)
+                panic!("{}","Must not return error ".to_string() + &test)
             }
         }
 
@@ -258,7 +235,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
-                amountOutMin:  Some(Uint128(10)),
+                amount_out_min: Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -312,7 +289,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
-                amountOutMin:  Some(Uint128(10)),
+                amount_out_min: Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -364,7 +341,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
-                amountOutMin: Some(Uint128(10)),
+                amount_out_min: Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -437,7 +414,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
-                amountOutMin: Some(Uint128(100)),
+                amount_out_min: Some(Uint128(100)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),

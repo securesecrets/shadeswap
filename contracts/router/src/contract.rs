@@ -82,7 +82,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
             offer.assert_sent_native_token_balance(&env)?;
             let sender = env.message.sender.clone();
-            swap_exact_tokens_for_tokens(
+            swap_tokens_for_exact_tokens(
                 deps,
                 env,
                 offer,
@@ -150,7 +150,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                                         amount,
                                     };
         
-                                    return swap_exact_tokens_for_tokens(
+                                    return swap_tokens_for_exact_tokens(
                                         deps,
                                         env,
                                         offer,
@@ -237,6 +237,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                         signature: info.signature.clone(),
                         recipient: info.recipient,
                         current_index: info.current_index + 1,
+                        amountOutMin: info.amountOutMin
                     }
                 )?;
                 Ok(HandleResponse {
@@ -254,6 +255,14 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
             }
             else
             {
+                if let Some(minOut) = info.amountOutMin {
+                    if  tokenIn.amount.lt(&minOut) {
+                        return Err(StdError::generic_err(
+                            "Operation fell short of expected_return",
+                        ));
+                    }
+                }
+                
                 Ok(HandleResponse {
                     messages: vec![tokenIn.token.create_send_msg(env.contract.address, info.recipient, tokenIn.amount)?],
                     log: vec![],
@@ -266,7 +275,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
 }
 
 
-pub fn swap_exact_tokens_for_tokens<S: Storage, A: Api, Q: Querier>(
+pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     amountIn: TokenAmount<HumanAddr>,
@@ -286,6 +295,7 @@ pub fn swap_exact_tokens_for_tokens<S: Storage, A: Api, Q: Querier>(
         EPHEMERAL_STORAGE_KEY,
         &CurrentSwapInfo {
             amount: amountIn.clone(),
+            amountOutMin: amountOutMin,
             paths: paths.clone(),
             signature: signature.clone(),
             recipient: recipient.unwrap_or(sender),
@@ -457,23 +467,6 @@ fn query_token_addr(
     }
 }
 
-pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    amountOut: Uint128,
-    amountInMax: Uint128,
-    path: &[ContractInfo],
-    to: ContractInfo,
-) -> HandleResult {
-    //Validates whether the amount required to be paid is greater then the amount in max
-
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![],
-        data: None,
-    })
-}
-
 struct FactoryConfig {
     pair_contract: ContractInstantiationInfo,
     amm_settings: AMMSettings<HumanAddr>,
@@ -533,6 +526,6 @@ fn register_pair_token(
 
 
 pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
-    return ViewingKey("password".to_string());
-    //ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
+    //return ViewingKey("password".to_string());
+    ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
 }

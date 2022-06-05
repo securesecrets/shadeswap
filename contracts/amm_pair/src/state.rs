@@ -11,11 +11,10 @@ use shadeswap_shared::{
     },
     token_pair::TokenPair
 };
-use std::any::type_name;
+
 use serde::{Deserialize, Serialize};
-use serde::de::DeserializeOwned;
-use shadeswap_shared::msg::amm_pair::{{ HandleMsg,TradeHistory}};
-use std::fmt::{{Formatter, Display}};
+
+use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
 
 pub const PAGINATION_LIMIT: u8 = 30;
 pub static CONFIG_KEY: &[u8] = b"config";

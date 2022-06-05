@@ -6,7 +6,6 @@ use crate::{contract::init, msg::InitMsg};
 pub mod tests {
     use super::*;
     use crate::contract::init;
-    use crate::contract::swap_exact_tokens_for_tokens;
     use crate::contract::EPHEMERAL_STORAGE_KEY;
     use crate::state::config_read;
     use crate::state::Config;
@@ -197,6 +196,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
+                amountOutMin:  Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -258,6 +258,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
+                amountOutMin:  Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -311,6 +312,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
+                amountOutMin:  Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -362,6 +364,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
+                amountOutMin: Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -392,28 +395,6 @@ pub mod tests {
 
         assert_eq!(result.messages.len(), 1);
 
-        /* match &result.messages[0] {
-            CosmosMsg::Wasm(msg) => match msg {
-                WasmMsg::Execute {
-                    contract_addr,
-                    callback_code_hash,
-                    msg,
-                    send,
-                } => {
-                    let test: snip20::HandleMsg = from_binary(&msg)?;
-                    println!("{:?}", test);
-                }
-                _ => unimplemented!(),
-            },
-            _ => unimplemented!(),
-        }
-
-        println!("{:?}", &snip20::HandleMsg::Send {
-            recipient: HumanAddr("recipient".into()),
-            amount: Uint128(100),
-            padding: None,
-            msg: None
-        });*/
         println!("{:?}", result.messages[0]);
         let test: CosmosMsg<WasmMsg> = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: HumanAddr::from(CUSTOM_TOKEN_1),
@@ -438,6 +419,56 @@ pub mod tests {
             })?,
             send: vec![]
         })));
+        Ok(())
+    }
+
+    #[test]
+    fn first_swap_callback_with_no_more_not_enough_return() -> StdResult<()> {
+        let (init_result, mut deps) = init_helper(100);
+        let mut env = mkenv("admin");
+
+        assert!(
+            init_result.is_ok(),
+            "Init failed: {}",
+            init_result.err().unwrap()
+        );
+
+        save(
+            &mut deps.storage,
+            EPHEMERAL_STORAGE_KEY,
+            &CurrentSwapInfo {
+                amountOutMin: Some(Uint128(100)),
+                amount: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".into(),
+                    },
+                    amount: Uint128(10),
+                },
+                paths: vec![HumanAddr(PAIR_CONTRACT_1.into())],
+                signature: to_binary("this is signature").unwrap(),
+                recipient: HumanAddr("recipient".into()),
+                current_index: 0,
+            },
+        )?;
+
+        let result = handle(
+            &mut deps,
+            env.clone(),
+            HandleMsg::SwapCallBack {
+                last_token_in: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".into(),
+                    },
+                    amount: Uint128(10),
+                },
+                signature: to_binary("this is signature").unwrap(),
+            },
+        );
+
+        match result {
+            Err(StdError::GenericErr { .. }) => {}
+            _ => panic!("Must return error"),
+        }
         Ok(())
     }
 

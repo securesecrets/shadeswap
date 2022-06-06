@@ -47,11 +47,9 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     }
 
     let mut messages = vec![];
-
     let viewing_key = create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone());
     register_pair_token(&env, &mut messages, &msg.pair.0, &viewing_key)?;
-    register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;
-    store_admin(deps, &env.message.sender.clone())?;
+    register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;   
     // Create LP token and store it
     messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
@@ -111,10 +109,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         viewing_key: viewing_key,
     };
 
-    store_config(deps, &config)?;   
-    
+    store_config(deps, &config)?;       
+    let sender_adress = env.message.sender.clone();
     // by default admin is factory 
-    store_admin(deps, &msg.factory_info.address.clone())?;
+    store_admin(deps, &sender_adress)?;
     Ok(InitResponse {
         messages,
         log: vec![log("created_exchange_address", env.contract.address)],
@@ -128,17 +126,14 @@ pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey
 fn register_lp_token<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-) -> StdResult<HandleResponse> {
-    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
+) -> StdResult<HandleResponse> {    
     let mut config = load_config(&deps)?;
-
     // address must be default otherwise it has been initialized.
     if config.lp_token_info.address != HumanAddr::default() {
         return Err(StdError::unauthorized());
     }
 
     config.lp_token_info.address = env.message.sender.clone();
-
     // store config against Smart contract address
     store_config(deps, &config)?;
 
@@ -395,7 +390,13 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
         QueryMsg::GetTradeHistory { pagination } => {
             let data = load_trade_history_query(&deps, pagination)?;
             to_binary(&QueryMsgResponse::GetTradeHistory { data })
-        }
+        },
+        QueryMsg::GetAdmin{} =>{
+            let admin_address = load_admin(&deps.storage)?;
+            to_binary(&QueryMsgResponse::GetAdminAddress{
+                address: admin_address
+            })
+        },
         QueryMsg::GetWhiteListAddress => {
             let stored_addr = load_whitelist_address(&deps.storage)?;
             to_binary(&QueryMsgResponse::GetWhiteListAddress {
@@ -863,12 +864,12 @@ fn query_liquidity(
 
 
 fn apply_admin_guard(
-    admin: HumanAddr,
+    caller: HumanAddr,
     storage: &impl Storage,
 ) -> StdResult<bool> {    
-    let address = load_admin(storage)?;
-    if admin != address {
-        return Err(StdError::unauthorized())
+    let admin_address = load_admin(storage)?;
+    if caller.as_str() != admin_address.as_str() {
+         return Err(StdError::unauthorized())
     }
     return Ok(true)
 }

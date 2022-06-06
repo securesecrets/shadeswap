@@ -662,6 +662,7 @@ fn run_testnet_router() -> Result<()> {
 #[test]
 pub fn test_amm_pair_init() -> Result<()>{
     let seed = to_binary(&"SEED".to_string()).unwrap();
+    let account = account_address(ACCOUNT_KEY)?;
     let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
     let mut reports = vec![];
     let test_pair = TokenPair::<HumanAddr>(
@@ -690,6 +691,7 @@ pub fn test_amm_pair_init() -> Result<()>{
         prng_seed: seed,
         callback: None,
         entropy: entropy.clone(),
+        admin: Some(HumanAddr::from(account.to_string()))
     };
 
     let s_ammPair = init(

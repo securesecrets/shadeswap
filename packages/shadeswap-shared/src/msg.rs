@@ -109,6 +109,7 @@ pub mod amm_pair {
         pub prng_seed: Binary,
         pub callback: Option<Callback<HumanAddr>>,
         pub entropy: Binary,
+        pub admin: Option<HumanAddr>
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]

@@ -390,12 +390,27 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
                     id: s_ammPair.id.clone(),
                     address: ammPair.address.0.clone(),
                     code_hash: s_ammPair.code_hash.to_string(),
-                },msg, None)?;
+                },msg , None)?;
                 if let PairQueryMsgResponse::GetTradeCount { count } = query {
                     assert_eq!(count, 1);
                 }else{
                     assert!(false, "Query returned unexpected response")
                 }
+            }
+
+            print_header("\n\tAMMPairHandlMsg::GetAdminAddress...");   
+            let address_query: PairQueryMsgResponse = query(
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+            }, PairQueryMsg::GetAdmin{}, None)?;
+
+            if let PairQueryMsgResponse::GetAdminAddress { address } = address_query {
+                assert_eq!(address, HumanAddr::from(factory_contract.address.to_string().clone()));              
+            }else{
+                assert!(false, "Query returned unexpected response");
             }
 
             print_header("\n\tAMMPairHandlMsg::AddWhiteListAddress...");
@@ -407,14 +422,15 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
                     address: ammPair.address.0.clone(),
                     code_hash: s_ammPair.code_hash.to_string(),
                 },
-                ACCOUNT_KEY,
+                &factory_contract.address,
                 Some(GAS),
                 Some("test"),
                 None,
                 &mut reports,
                 None,
             )
-            .unwrap();         
+            .unwrap();   
+                  
             print_header("\n\tPairQueryMsg::GetWhiteListAddress...");            
             let msg = PairQueryMsg::GetWhiteListAddress {};        
             let address_query: PairQueryMsgResponse = query(

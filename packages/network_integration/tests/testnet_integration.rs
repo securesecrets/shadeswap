@@ -265,6 +265,7 @@ fn run_testnet() -> Result<()> {
         prng_seed: seed,
         callback: None,
         entropy: entropy.clone(),
+        admin: Some(HumanAddr::from(account.to_string()))
     };
 
     let s_ammPair = init(

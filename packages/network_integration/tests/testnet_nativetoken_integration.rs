@@ -34,7 +34,8 @@ use composable_snip20::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
 use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
- #[test]
+ 
+#[test]
 fn run_testnet_with_native_token_swap() -> Result<()> {
     env::set_var("RUST_BACKTRACE", "full");
     let account = account_address(ACCOUNT_KEY)?;
@@ -188,6 +189,7 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
         prng_seed: seed,
         callback: None,
         entropy: entropy.clone(),
+        admin: Some(HumanAddr::from(account.clone()))
     };
 
     let s_ammPair = init(
@@ -408,7 +410,7 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
             }, PairQueryMsg::GetAdmin{}, None)?;
 
             if let PairQueryMsgResponse::GetAdminAddress { address } = address_query {
-                assert_eq!(address, HumanAddr::from(factory_contract.address.to_string().clone()));              
+                assert_eq!(address, HumanAddr::from(account.to_string()));              
             }else{
                 assert!(false, "Query returned unexpected response");
             }
@@ -422,7 +424,7 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
                     address: ammPair.address.0.clone(),
                     code_hash: s_ammPair.code_hash.to_string(),
                 },
-                &factory_contract.address,
+                ACCOUNT_KEY,
                 Some(GAS),
                 Some("test"),
                 None,
@@ -430,7 +432,7 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
                 None,
             )
             .unwrap();   
-                  
+           
             print_header("\n\tPairQueryMsg::GetWhiteListAddress...");            
             let msg = PairQueryMsg::GetWhiteListAddress {};        
             let address_query: PairQueryMsgResponse = query(

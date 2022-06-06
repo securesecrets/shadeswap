@@ -211,6 +211,7 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
                 }),
                 entropy,
                 prng_seed: load_prng_seed(&deps.storage)?,
+                admin: Some(env.message.sender.clone())
             })?,
         })],
         log: vec![log("action", "create_exchange"), log("pair", pair)],

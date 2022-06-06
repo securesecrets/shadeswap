@@ -83,6 +83,7 @@ pub mod tests {
             },
             prng_seed: seed.clone(),
             entropy: entropy.clone(),
+            admin: Some(HumanAddr::from(env.message.sender.clone())),
             callback: Some(Callback {
                 contract: ContractLink {
                     address: HumanAddr(String::from("CALLBACKADDR")),
@@ -365,6 +366,7 @@ fn make_init_config<S: Storage, A: Api, Q: Querier>(
         },
         prng_seed: seed.clone(),
         entropy: entropy.clone(),
+        admin: Some(HumanAddr::from(env.message.sender.clone())),
         callback: Some(Callback {
             contract: ContractLink {
                 address: HumanAddr(String::from("CALLBACKADDR")),

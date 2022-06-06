@@ -110,9 +110,12 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     };
 
     store_config(deps, &config)?;       
-    let sender_adress = env.message.sender.clone();
-    // by default admin is factory 
-    store_admin(deps, &sender_adress)?;
+
+    match msg.admin {
+        Some(admin) =>  store_admin(deps, &admin)?,
+        None => println!("No admin given"),
+    }
+   
     Ok(InitResponse {
         messages,
         log: vec![log("created_exchange_address", env.contract.address)],

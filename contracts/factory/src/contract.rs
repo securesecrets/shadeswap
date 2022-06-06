@@ -159,7 +159,6 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
         
         config_write(deps, &config)?;
 
-
         Ok(HandleResponse {
             messages: vec![],
             log: vec![],
@@ -222,7 +221,8 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
                     })?,
                 }),
                 entropy,
-                prng_seed: load_prng_seed(&deps.storage)?
+                prng_seed: load_prng_seed(&deps.storage)?,
+                admin: Some(env.message.sender.clone())
             })?,
         })],
         log: vec![log("action", "create_exchange"), log("pair", pair)],

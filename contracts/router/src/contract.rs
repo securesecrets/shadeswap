@@ -482,6 +482,5 @@ fn register_pair_token(
 
 
 pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
-    //return ViewingKey("password".to_string());
     ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
 }

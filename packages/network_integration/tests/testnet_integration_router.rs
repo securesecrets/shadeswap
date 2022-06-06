@@ -18,7 +18,7 @@ use shadeswap_shared::{
             QueryRequest, QueryResult, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
         },
         secret_toolkit::snip20::{Balance, BalanceResponse},
-        Callback, ContractInstantiationInfo, ContractLink,
+        Callback, ContractInstantiationInfo, ContractLink, ViewingKey,
     },
     msg::{
         amm_pair::{HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg},
@@ -149,8 +149,8 @@ fn shortcut_test() -> Result<()> {
 
         print_header("\n\tInitiating Swap");
 
-        let oldSCRTBalance =  get_balance(&s_sCRT, account.to_string());
-        let oldSHDBalance =  get_balance(&s_sSHD, account.to_string());
+        let oldSCRTBalance =  get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+        let oldSHDBalance =  get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
 
 
         let test = handle(
@@ -178,19 +178,19 @@ fn shortcut_test() -> Result<()> {
         .unwrap();
 
         print_header("ROUTER BALANCE");
-        println!("{}",get_balance(&s_sCRT, router_contract.address.to_string()));
-        println!("{}",get_balance(&s_sSHD, router_contract.address.to_string()));
+        println!("{}",get_balance(&s_sCRT, router_contract.address.to_string(), VIEW_KEY.to_string()));
+        println!("{}",get_balance(&s_sSHD, router_contract.address.to_string(), VIEW_KEY.to_string()));
 
         assert_eq!(
-            get_balance(&s_sCRT, account.to_string()),
+            get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
             (oldSCRTBalance - Uint128(100)).unwrap()
         );
 
-        let newBalance = get_balance(&s_sSHD, account.to_string());
+        let newBalance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
         println!("{}",oldSHDBalance);
         println!("{}",newBalance);
 
-        assert!(get_balance(&s_sSHD, account.to_string()) > oldSHDBalance);
+        assert!(get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()) > oldSHDBalance);
     }
 
     Ok(())
@@ -285,7 +285,7 @@ fn run_testnet_router() -> Result<()> {
         )?;
     }
 
-    assert_eq!(get_balance(&s_sCRT, account.to_string()), Uint128(0));
+    assert_eq!(get_balance(&s_sCRT, account.to_string() , VIEW_KEY.to_string()), Uint128(0));
 
     println!("\n\tDepositing 1000000000uscrt sSCRT");
 
@@ -304,7 +304,7 @@ fn run_testnet_router() -> Result<()> {
         )?;
     }
     assert_eq!(
-        get_balance(&s_sCRT, account.to_string()),
+        get_balance(&s_sCRT, account.to_string() , VIEW_KEY.to_string()),
         Uint128(1000000000)
     );
 
@@ -400,7 +400,6 @@ fn run_testnet_router() -> Result<()> {
         )
         .unwrap();
 
-        println!("{}", result.0.input);
     }
 
     print_header("\n\tChecking something was done...");
@@ -488,23 +487,23 @@ fn run_testnet_router() -> Result<()> {
             .unwrap();
 
             assert_eq!(
-                get_balance(&s_sCRT, account.to_string()),
+                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
                 Uint128(1000000000 - 100000000)
             );
             assert_eq!(
-                get_balance(&s_sSHD, account.to_string()),
+                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
                 Uint128(1000000000 - 100000000)
             );
 
             print_header("\n\tInitializing Router");
 
             let router_msg = RouterInitMsg {
-                prng_seed: to_binary(&"SEED".to_string()).unwrap(),
+                prng_seed: to_binary(&VIEW_KEY.to_string()).unwrap(),
                 factory_address: ContractLink {
                     address: HumanAddr(String::from(factory_contract.address)),
                     code_hash: factory_contract.code_hash,
                 },
-                entropy: to_binary(&"Entropy".to_string()).unwrap(),
+                entropy: to_binary(&"".to_string()).unwrap(),
             };
 
             let router_contract = init(
@@ -544,8 +543,8 @@ fn run_testnet_router() -> Result<()> {
 
             print_header("\n\tInitiating Swap");
     
-            let oldSCRTBalance =  get_balance(&s_sCRT, account.to_string());
-            let oldSHDBalance =  get_balance(&s_sSHD, account.to_string());
+            let oldSCRTBalance =  get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            let oldSHDBalance =  get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
     
     
             let test = handle(
@@ -573,16 +572,26 @@ fn run_testnet_router() -> Result<()> {
             .unwrap();
     
             print_header("ROUTER BALANCE");
-            println!("{}",get_balance(&s_sCRT, router_contract.address.to_string()));
-            println!("{}",get_balance(&s_sSHD, router_contract.address.to_string()));
+            println!("{}",get_balance(&s_sCRT, router_contract.address.to_string(), VIEW_KEY.to_string()));
+            println!("{}",get_balance(&s_sSHD, router_contract.address.to_string(), VIEW_KEY.to_string()));
     
             assert_eq!(
-                get_balance(&s_sCRT, account.to_string()),
+                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
                 (oldSCRTBalance - Uint128(100)).unwrap()
             );
+
+            print_header("Checking balances have reset to 0");
+            assert_eq!(
+                get_balance(&s_sCRT, router_contract.address.to_string(), VIEW_KEY.to_string()),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(&s_sCRT, router_contract.address.to_string(), VIEW_KEY.to_string()),
+                Uint128(0)
+            );
     
-            let newBalance = get_balance(&s_sSHD, account.to_string());
-            assert!(get_balance(&s_sSHD, account.to_string()) > oldSHDBalance);
+            let newBalance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            assert!(get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()) > oldSHDBalance);
         } else {
             assert!(false, "Query returned unexpected response")
         }
@@ -706,10 +715,10 @@ pub fn test_amm_pair_init() -> Result<()>{
     Ok(())
 }
 
-pub fn get_balance(contract: &NetContract, from: String) -> Uint128 {
+pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Uint128 {
     let msg = snip20::QueryMsg::Balance {
         address: HumanAddr::from(from),
-        key: String::from(VIEW_KEY),
+        key: view_key,
     };
 
     let balance: BalanceResponse = query(contract, &msg, None).unwrap();

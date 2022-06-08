@@ -9,7 +9,7 @@ use shadeswap_shared::{
         },
         scrt_link::ContractLink,
         scrt_storage::{load, save}, ContractInstantiationInfo, HandleResult,
-        QueryRequest, Uint128, ViewingKey, WasmQuery,
+        QueryRequest, Uint128, ViewingKey, WasmQuery, BankMsg, Coin,
     },
     msg::{
         amm_pair::{
@@ -40,7 +40,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
-    config_write(deps, &Config{ factory_address: msg.factory_address, viewing_key: create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone()) })?;
+    config_write(deps, &Config{ factory_address: msg.factory_address, viewing_key: msg.viewing_key.unwrap_or(create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone())) })?;
 
     debug_print!("Contract was initialized by {}", env.message.sender);
 
@@ -237,7 +237,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                 if let Some(min_out) = info.amount_out_min {
                     if  token_in.amount.lt(&min_out) {
                         return Err(StdError::generic_err(
-                            "Operation fell short of expected_return",
+                            "Operation fell short of expected_return. Actual: ".to_owned() + &token_in.amount.to_string().to_owned() + ", Expected: " + &min_out.to_string().to_owned(),
                         ));
                     }
                 }
@@ -306,7 +306,7 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
     let mut messages: Vec<CosmosMsg> = vec![];
 
     match &token_in.token {
-        TokenType::NativeToken { .. } => {
+        TokenType::NativeToken { denom } => {
             let msg = to_binary(&AMMPairHandleMsg::SwapTokens {
                 expected_return: None,
                 to: None,
@@ -314,9 +314,18 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
                     address: env.contract.address.clone(),
                     code_hash: env.contract_code_hash.clone(),
                 }),
-                offer: token_in,
+                offer: token_in.clone(),
                 callback_signature: Some(signature)
             })?;
+
+            messages.push(CosmosMsg::Bank(BankMsg::Send {
+                from_address: env.contract.address.clone(),
+                to_address: path.clone(),
+                amount: vec![Coin {
+                    denom: denom.clone(),
+                    amount: token_in.amount,
+                }],
+            }));
 
             messages.push(
                 WasmMsg::Execute {

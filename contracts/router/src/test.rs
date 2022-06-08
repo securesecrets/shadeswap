@@ -467,6 +467,7 @@ pub mod tests {
                 },
                 prng_seed: to_binary(&"prng").unwrap(),
                 entropy: to_binary(&"entropy").unwrap(),
+                viewing_key: None
             },
         )
     }
@@ -483,6 +484,7 @@ pub mod tests {
                 factory_address: self.factory_address.clone(),
                 prng_seed: to_binary(&"prng").unwrap(),
                 entropy: to_binary(&"entropy").unwrap(),
+                viewing_key: None
             }
         }
     }
@@ -503,6 +505,7 @@ pub mod tests {
             },
             prng_seed: to_binary(&"prng").unwrap(),
             entropy: to_binary(&"entropy").unwrap(),
+            viewing_key: None
         };
 
         (init(&mut deps, env, init_msg), deps)

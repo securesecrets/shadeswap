@@ -35,6 +35,8 @@ pub struct CountResponse {
 
 pub mod router {
 
+    use fadroma::ViewingKey;
+
     use super::*;
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -51,6 +53,7 @@ pub mod router {
         pub factory_address: ContractLink<HumanAddr>,
         pub prng_seed: Binary,
         pub entropy: Binary,
+        pub viewing_key: Option<ViewingKey>
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

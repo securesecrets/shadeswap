@@ -318,21 +318,15 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
                 callback_signature: Some(signature)
             })?;
 
-            messages.push(CosmosMsg::Bank(BankMsg::Send {
-                from_address: env.contract.address.clone(),
-                to_address: path.clone(),
-                amount: vec![Coin {
-                    denom: denom.clone(),
-                    amount: token_in.amount,
-                }],
-            }));
-
             messages.push(
                 WasmMsg::Execute {
                     contract_addr: path.clone(),
                     callback_code_hash: code_hash,
                     msg,
-                    send: vec![],
+                    send: vec![Coin {
+                        denom: denom.clone(),
+                        amount: token_in.amount,
+                    }],
                 }
                 .into(),
             );

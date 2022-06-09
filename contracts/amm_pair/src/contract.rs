@@ -5,11 +5,11 @@ use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::token_pair::{{TokenPair}};
+use shadeswap_shared::admin::{{apply_admin_guard, store_admin, load_admin, set_admin_guard}};
 use shadeswap_shared::Pagination;
 use crate::state::{{Config}};
 use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist, store_trade_counter,
-     load_whitelist_address,add_whitelist_address, store_admin, load_admin,
-    load_config, store_trade_history,remove_whitelist_address,
+     load_whitelist_address,add_whitelist_address,  load_config, store_trade_history,remove_whitelist_address,
 load_trade_counter, load_trade_history};
 use crate::help_math::{{substraction, multiply}};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
@@ -341,31 +341,7 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-pub fn set_admin_guard<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>, 
-    env: Env,
-    admin: HumanAddr
-) -> StdResult<HandleResponse>{
-    // only owner of contract can set admin
-    let config = load_config(&deps)?;
-    let factory_address = config.factory_info.address;
-    let sender = env.message.sender.clone();
-    if sender != factory_address{
-        return Err(StdError::unauthorized())
-    }
 
-    store_admin(deps,&admin)?;
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-                log("action", "set_admin_guard"),
-                log("caller", sender),
-                log("admin", admin),
-        ],
-        data: None,
-    })
-
-}
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {
@@ -863,13 +839,3 @@ fn query_liquidity(
 }
 
 
-fn apply_admin_guard(
-    caller: HumanAddr,
-    storage: &impl Storage,
-) -> StdResult<bool> {    
-    let admin_address = load_admin(storage)?;
-    if caller.as_str() != admin_address.as_str() {
-         return Err(StdError::unauthorized())
-    }
-    return Ok(true)
-}

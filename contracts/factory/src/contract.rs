@@ -10,12 +10,13 @@ use shadeswap_shared::msg::factory::HandleMsg;
 use shadeswap_shared::msg::factory::InitMsg;
 use shadeswap_shared::msg::factory::QueryMsg;
 use shadeswap_shared::msg::factory::QueryResponse;
+use shadeswap_shared::admin::{{apply_admin_guard, store_admin, load_admin, set_admin_guard}};
 use shadeswap_shared::Pagination;
 use shadeswap_shared::TokenPair;
 use shadeswap_shared::{
     fadroma::{
         admin::{
-            assert_admin, handle as admin_handle, load_admin, query as admin_query, save_admin,
+            assert_admin, handle as admin_handle, query as admin_query, save_admin,
             DefaultImpl as AdminImpl,
         },
         require_admin::require_admin,
@@ -43,8 +44,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
     save_prng_seed(&mut deps.storage, &msg.prng_seed)?;
-    config_write(deps, &Config::from_init_msg(msg));
-
+    config_write(deps, &Config::from_init_msg(msg))?;
+    store_admin(deps, &env.message.sender.clone())?;
     Ok(InitResponse::default())
 }
 
@@ -59,7 +60,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::AddAMMPairs { amm_pair } => add_amm_pairs(deps, env, amm_pair),
         HandleMsg::RegisterAMMPair { pair, signature } => {
             register_amm_pair(deps, env, pair, signature)
-        }
+        },
+        HandleMsg::SetFactoryAdmin {admin} => set_admin_guard(deps,env,admin),
     };
 }
 
@@ -71,7 +73,13 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         QueryMsg::GetConfig {} => get_config(deps),
         QueryMsg::ListAMMPairs { pagination } => list_pairs(deps, pagination),
         QueryMsg::GetAMMPairAddress { pair } => query_amm_pair_address(deps, pair),
-        QueryMsg::GetAMMSettings { } => query_amm_settings(deps)
+        QueryMsg::GetAMMSettings { } => query_amm_settings(deps),
+        QueryMsg::GetAdmin{} =>{
+            let admin_address = load_admin(&deps.storage)?;
+            to_binary(&QueryResponse::GetAdminAddress{
+                address: admin_address
+            })
+        },
     }
 }
 
@@ -81,6 +89,7 @@ fn register_amm_pair<S: Storage, A: Api, Q: Querier>(
     pair: TokenPair<HumanAddr>,
     signature: Binary,
 ) -> StdResult<HandleResponse> {
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     ensure_correct_signature(&mut deps.storage, signature)?;
 
     let amm_pair = AMMPair {
@@ -105,6 +114,7 @@ pub fn add_amm_pairs<S: Storage, A: Api, Q: Querier>(
     env: Env,
     amm_pairs: Vec<AMMPair<HumanAddr>>,
 ) -> StdResult<HandleResponse> {
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     save_amm_pairs(deps, amm_pairs)?;
 
     Ok(HandleResponse {
@@ -147,8 +157,8 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     if let HandleMsg::SetConfig { pair_contract, lp_token_contract, amm_settings } = msg {
+        apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
         let mut config = config_read(&deps)?;
-
         if let Some(new_value) = pair_contract {
             config.pair_contract = new_value;
         }
@@ -190,7 +200,7 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
     entropy: Binary
 ) -> StdResult<HandleResponse> {
     let mut config = config_read(&deps)?;
-
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     //Used for verifying callback
     let signature = create_signature(&env)?;
     save(&mut deps.storage, EPHEMERAL_STORAGE_KEY, &signature)?;

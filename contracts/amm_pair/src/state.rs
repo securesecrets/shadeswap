@@ -22,7 +22,6 @@ pub static CONFIG_KEY: &[u8] = b"config";
 pub static TRADE_COUNT: &[u8] = b"tradecount";
 pub static TRADE_HISTORY: &[u8] = b"trade_history";
 pub static WHITELIST: &[u8] = b"whitelist";
-pub static ADMIN: &[u8] =b"amm_pair_admin";
 pub const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
@@ -131,17 +130,7 @@ pub mod amm_pair_storage{
         save(&mut deps.storage, TRADE_COUNT, &count)
     }   
     
-    pub fn store_admin <S: Storage, A: Api, Q: Querier>(
-        deps:   &mut Extern<S, A, Q>,
-        admin: &HumanAddr
-    ) -> StdResult<()> {
-        save(&mut deps.storage, ADMIN, &admin)
-    }
-
-    pub fn load_admin(storage: &impl Storage) -> StdResult<HumanAddr> {
-        let admin = load(storage, ADMIN)?.unwrap_or(HumanAddr("".to_string()));
-        Ok(admin)
-    }
+ 
 
     // WHITELIST
     pub fn add_whitelist_address(storage: &mut impl Storage, address: HumanAddr) -> StdResult<()> {

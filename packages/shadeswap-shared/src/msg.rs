@@ -187,7 +187,7 @@ pub mod amm_pair {
         GetTradeCount {
             count: u64,
         },
-        GetAdminAddress{
+        GetAdminAddress {
             address: HumanAddr
         }
     }
@@ -228,6 +228,9 @@ pub mod factory {
             pair: TokenPair<HumanAddr>,
             signature: Binary,
         },
+        SetFactoryAdmin {
+            admin: HumanAddr
+        }
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -247,6 +250,9 @@ pub mod factory {
         GetAMMSettings {
             settings: AMMSettings<HumanAddr>,
         },
+        GetAdminAddress {
+            address: HumanAddr
+        }
     }
 
     #[derive(Serialize, Deserialize, JsonSchema)]
@@ -257,6 +263,7 @@ pub mod factory {
         GetAMMPairAddress { pair: TokenPair<HumanAddr> },
         GetAMMSettings,
         GetConfig,
+        GetAdmin
     }
 }
 

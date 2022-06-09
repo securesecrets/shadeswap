@@ -242,6 +242,13 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
         &mut repo,
     )?;
 
+    let get_admin_msg = FactoryQueryMsg::GetAdmin{};
+    let factory_query: FactoryQueryResponse = query(&factory_contract, get_admin_msg, None)?;
+    if let FactoryQueryResponse::GetAdminAddress { address } = factory_query {
+        println!("factory admin address {}", address);
+
+    }
+
     print_contract(&factory_contract);
 
     print_header("\n\tInitializing New Pair Contract via Factory");

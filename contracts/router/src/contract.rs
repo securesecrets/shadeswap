@@ -26,6 +26,7 @@ use shadeswap_shared::{
 use shadeswap_shared::token_pair::TokenPair;
 use shadeswap_shared::token_amount::TokenAmount;
 use shadeswap_shared::token_type::TokenType;
+use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
 
 use crate::state::{config_read, config_write, Config, CurrentSwapInfo};
 
@@ -43,7 +44,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     config_write(deps, &Config{ factory_address: msg.factory_address, viewing_key: msg.viewing_key.unwrap_or(create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone())) })?;
 
     debug_print!("Contract was initialized by {}", env.message.sender);
-
+    store_admin(deps, &env.message.sender.clone())?;
     Ok(InitResponse::default())
 }
 
@@ -95,6 +96,7 @@ fn refresh_tokens<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let mut msg = vec![];
     let config = config_read(deps)?;
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     register_pair_token(&env, &mut msg, &TokenType::CustomToken { contract_addr: token_address, token_code_hash: token_code_hash }, &config.viewing_key)?;
 
     Ok(HandleResponse {

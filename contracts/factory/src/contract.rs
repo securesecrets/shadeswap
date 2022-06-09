@@ -3,6 +3,7 @@ use crate::state::{
     save_amm_pairs, save_prng_seed, Config,
 };
 use shadeswap_shared::{
+    admin::{{apply_admin_guard, set_admin_guard, store_admin, load_admin }},
     amm_pair::AMMPair,
     fadroma::{
         scrt::{
@@ -58,6 +59,12 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         QueryMsg::ListAMMPairs { pagination } => list_pairs(deps, pagination),
         QueryMsg::GetAMMPairAddress { pair } => query_amm_pair_address(deps, pair),
         QueryMsg::GetAMMSettings {} => query_amm_settings(deps),
+        QueryMsg::GetAdmin {} => {
+            let admin_address = load_admin(&deps.storage)?;
+            to_binary(&QueryResponse::GetAdminAddress{
+                address: admin_address
+            })
+        }
     }
 }
 
@@ -66,15 +73,12 @@ fn register_amm_pair<S: Storage, A: Api, Q: Querier>(
     env: Env,
     pair: TokenPair<HumanAddr>,
     signature: Binary,
-) -> StdResult<HandleResponse> {
-    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
+) -> StdResult<HandleResponse> {  
     ensure_correct_signature(&mut deps.storage, signature)?;
-
     let amm_pair = AMMPair {
         pair,
         address: env.message.sender.clone(),
     };
-
     save_amm_pairs(deps, vec![amm_pair])?;
 
     Ok(HandleResponse {
@@ -181,6 +185,7 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
     entropy: Binary,
 ) -> StdResult<HandleResponse> {
     let mut config = config_read(&deps)?;
+    println!("create_pair caller {}", env.message.sender.clone());
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     //Used for verifying callback
     let signature = create_signature(&env)?;

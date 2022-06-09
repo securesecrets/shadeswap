@@ -1,28 +1,15 @@
-use std::{borrow::BorrowMut, str::from_utf8, iter::FromIterator};
-use serde::{Deserialize, Serialize};
-
 use shadeswap_shared::{
     amm_pair::AMMSettings,
     fadroma::{
-        self,
-        admin::{
-            assert_admin, handle as admin_handle, load_admin, query as admin_query, save_admin,
-            DefaultImpl as AdminImpl,
-        },
         debug_print, from_binary,
-        require_admin::require_admin,
         scrt::{
-            log, secret_toolkit::snip20, to_binary, Api, Binary, CosmosMsg, Env, Extern,
+            secret_toolkit::snip20, to_binary, Api, Binary, CosmosMsg, Env, Extern,
             HandleResponse, HumanAddr, InitResponse, Querier, StdError, StdResult, Storage,
             WasmMsg,
         },
-        scrt_callback::Callback,
         scrt_link::ContractLink,
-        scrt_migrate,
-        scrt_migrate::get_status,
-        scrt_storage::{load, remove, save},
-        with_status, Canonize, ContractInfo, ContractInstantiationInfo, Empty, HandleResult,
-        QueryRequest, Uint128, ViewingKey, WasmQuery, secret_toolkit::snip20::BalanceResponse, BankMsg, Coin,
+        scrt_storage::{load, save}, ContractInstantiationInfo, HandleResult,
+        QueryRequest, Uint128, ViewingKey, WasmQuery, BankMsg, Coin,
     },
     msg::{
         amm_pair::{
@@ -38,11 +25,9 @@ use shadeswap_shared::{
 };
 use shadeswap_shared::token_pair::TokenPair;
 use shadeswap_shared::token_amount::TokenAmount;
-use shadeswap_shared::token_pair_amount::TokenPairAmount;
 use shadeswap_shared::token_type::TokenType;
 
-use crate::state::{config_read, config_write, Config};
-use crate::state::{read_token, write_new_token, CurrentSwapInfo};
+use crate::state::{config_read, config_write, Config, CurrentSwapInfo};
 
 /// Pad handle responses and log attributes to blocks
 /// of 256 bytes to prevent leaking info based on response size
@@ -55,7 +40,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
-    config_write(deps, &Config{ factory_address: msg.factory_address, viewing_key: create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone()) })?;
+    config_write(deps, &Config{ factory_address: msg.factory_address, viewing_key: msg.viewing_key.unwrap_or(create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone())) })?;
 
     debug_print!("Contract was initialized by {}", env.message.sender);
 
@@ -82,7 +67,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
             offer.assert_sent_native_token_balance(&env)?;
             let sender = env.message.sender.clone();
-            swap_exact_tokens_for_tokens(
+            swap_tokens_for_exact_tokens(
                 deps,
                 env,
                 offer,
@@ -126,11 +111,8 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
     msg: Option<Binary>,
 ) -> StdResult<HandleResponse> {
-    /*let msg = msg.ok_or_else(|| {
-        StdError::generic_err("Receiver callback \"msg\" parameter cannot be empty.")
-    });*/
     
-    match(msg) {
+    match msg {
         Some(content) => {
             match from_binary(&content)? {
                 InvokeMsg::SwapTokensForExact {
@@ -140,8 +122,8 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                 } => {
                     let config = config_read(deps)?;
                     let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
-                    let pairConfig = query_pair_contract_config(&deps.querier, ContractLink{ address: paths[0].clone(), code_hash: factory_config.pair_contract.code_hash })?;
-                    for token in pairConfig.pair.into_iter() {
+                    let pair_config = query_pair_contract_config(&deps.querier, ContractLink{ address: paths[0].clone(), code_hash: factory_config.pair_contract.code_hash })?;
+                    for token in pair_config.pair.into_iter() {
                         match token {
                             TokenType::CustomToken { contract_addr, .. } => {
                                 if *contract_addr == env.message.sender {
@@ -150,7 +132,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                                         amount,
                                     };
         
-                                    return swap_exact_tokens_for_tokens(
+                                    return swap_tokens_for_exact_tokens(
                                         deps,
                                         env,
                                         offer,
@@ -165,9 +147,6 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                         }
                     }
                     Err(StdError::unauthorized())
-                }
-                _ => {
-                    Err(StdError::generic_err("No valid matching msg."))
                 }
             }
         },
@@ -198,13 +177,13 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
         log: vec![],
         data: None,
     })*/
-    let currentTradeInfo: Option<CurrentSwapInfo> = load(&deps.storage, EPHEMERAL_STORAGE_KEY)?;
+    let current_trade_info: Option<CurrentSwapInfo> = load(&deps.storage, EPHEMERAL_STORAGE_KEY)?;
     let config = config_read(deps)?;
     let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
     
-    match currentTradeInfo {
+    match current_trade_info {
         Some(info) => {
-            if (signature != info.signature) {
+            if signature != info.signature {
                 return Err(StdError::unauthorized());
             }
             let pair_contract = query_pair_contract_config(
@@ -217,16 +196,16 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
 
             let mut next_token_in = pair_contract.pair.0.clone();
 
-            if (pair_contract.pair.1.clone() == last_token_out.token) {
+            if pair_contract.pair.1.clone() == last_token_out.token {
                 next_token_in = pair_contract.pair.1;
             }
 
-            let mut tokenIn: TokenAmount<HumanAddr> = TokenAmount {
+            let token_in: TokenAmount<HumanAddr> = TokenAmount {
                 token: next_token_in.clone(),
                 amount: last_token_out.amount,
             };
 
-            if(info.paths.len() > (info.current_index + 1) as usize)
+            if info.paths.len() > (info.current_index + 1) as usize
             {
                 save(
                     &mut deps.storage,
@@ -237,13 +216,14 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                         signature: info.signature.clone(),
                         recipient: info.recipient,
                         current_index: info.current_index + 1,
+                        amount_out_min: info.amount_out_min
                     }
                 )?;
                 Ok(HandleResponse {
                     messages: get_trade_with_callback(
                         deps,
                         env,
-                        tokenIn,
+                        token_in,
                         info.paths[(info.current_index + 1) as usize].clone(),
                         factory_config.pair_contract.code_hash.clone(),
                         info.signature,
@@ -254,8 +234,16 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
             }
             else
             {
+                if let Some(min_out) = info.amount_out_min {
+                    if  token_in.amount.lt(&min_out) {
+                        return Err(StdError::generic_err(
+                            "Operation fell short of expected_return. Actual: ".to_owned() + &token_in.amount.to_string().to_owned() + ", Expected: " + &min_out.to_string().to_owned(),
+                        ));
+                    }
+                }
+                
                 Ok(HandleResponse {
-                    messages: vec![tokenIn.token.create_send_msg(env.contract.address, info.recipient, tokenIn.amount)?],
+                    messages: vec![token_in.token.create_send_msg(env.contract.address, info.recipient, token_in.amount)?],
                     log: vec![],
                     data: None,
                 })
@@ -266,26 +254,26 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
 }
 
 
-pub fn swap_exact_tokens_for_tokens<S: Storage, A: Api, Q: Querier>(
+pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    amountIn: TokenAmount<HumanAddr>,
-    amountOutMin: Option<Uint128>,
+    amount_in: TokenAmount<HumanAddr>,
+    amount_out_min: Option<Uint128>,
     paths: &Vec<HumanAddr>,
     sender: HumanAddr,
     recipient: Option<HumanAddr>,
 ) -> HandleResult {
     let querier = &deps.querier;
-    //Validates whether the amount received is greater then the amountOutMin
+    //Validates whether the amount received is greater then the amount_out_min
     let config = config_read(deps)?;
     let factory_config = query_factory_config(querier, config.factory_address.clone())?;
-    let contract_address = HumanAddr::from(env.contract.address.clone());
     let signature = create_signature(&env)?;
     save(
         &mut deps.storage,
         EPHEMERAL_STORAGE_KEY,
         &CurrentSwapInfo {
-            amount: amountIn.clone(),
+            amount: amount_in.clone(),
+            amount_out_min: amount_out_min,
             paths: paths.clone(),
             signature: signature.clone(),
             recipient: recipient.unwrap_or(sender),
@@ -297,7 +285,7 @@ pub fn swap_exact_tokens_for_tokens<S: Storage, A: Api, Q: Querier>(
         messages: get_trade_with_callback(
             deps,
             env,
-            amountIn,
+            amount_in,
             paths[0].clone(),
             factory_config.pair_contract.code_hash,
             signature.clone(),
@@ -310,15 +298,15 @@ pub fn swap_exact_tokens_for_tokens<S: Storage, A: Api, Q: Querier>(
 fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    tokenIn: TokenAmount<HumanAddr>,
+    token_in: TokenAmount<HumanAddr>,
     path: HumanAddr,
     code_hash: String,
     signature: Binary,
 ) -> StdResult<Vec<CosmosMsg>> {
     let mut messages: Vec<CosmosMsg> = vec![];
 
-    match &tokenIn.token {
-        TokenType::NativeToken { .. } => {
+    match &token_in.token {
+        TokenType::NativeToken { denom } => {
             let msg = to_binary(&AMMPairHandleMsg::SwapTokens {
                 expected_return: None,
                 to: None,
@@ -326,9 +314,18 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
                     address: env.contract.address.clone(),
                     code_hash: env.contract_code_hash.clone(),
                 }),
-                offer: tokenIn,
+                offer: token_in.clone(),
                 callback_signature: Some(signature)
             })?;
+
+            messages.push(CosmosMsg::Bank(BankMsg::Send {
+                from_address: env.contract.address.clone(),
+                to_address: path.clone(),
+                amount: vec![Coin {
+                    denom: denom.clone(),
+                    amount: token_in.amount,
+                }],
+            }));
 
             messages.push(
                 WasmMsg::Execute {
@@ -346,7 +343,7 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
         } => {
             let msg = to_binary(&snip20::HandleMsg::Send {
                 recipient: path.clone(),
-                amount: tokenIn.amount,
+                amount: token_in.amount,
                 msg: Some(
                     to_binary(&AMMPairInvokeMsg::SwapTokens {
                         expected_return: None,
@@ -390,7 +387,7 @@ fn query_factory_config(
         FactoryQueryResponse::GetConfig {
             pair_contract,
             amm_settings,
-            lp_token_contract,
+            lp_token_contract: _,
         } => Ok(FactoryConfig {
             pair_contract,
             amm_settings,
@@ -433,45 +430,6 @@ fn query_pair_contract_config(
             "An error occurred while trying to retrieve factory settings.",
         )),
     }
-}
-
-fn query_token_addr(
-    querier: &impl Querier,
-    token1: &TokenType<HumanAddr>,
-    token2: &TokenType<HumanAddr>,
-    factory_address: ContractLink<HumanAddr>,
-) -> StdResult<HumanAddr> {
-    let result: FactoryQueryResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: factory_address.address.clone(),
-        callback_code_hash: factory_address.code_hash.clone(),
-        msg: to_binary(&FactoryQueryMsg::GetAMMPairAddress {
-            pair: (TokenPair(token1.clone(), token2.clone())),
-        })?,
-    }))?;
-
-    match result {
-        FactoryQueryResponse::GetAMMPairAddress { address } => Ok(address),
-        _ => Err(StdError::generic_err(
-            "An error occurred while trying to retrieve factory settings.",
-        )),
-    }
-}
-
-pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    amountOut: Uint128,
-    amountInMax: Uint128,
-    path: &[ContractInfo],
-    to: ContractInfo,
-) -> HandleResult {
-    //Validates whether the amount required to be paid is greater then the amount in max
-
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![],
-        data: None,
-    })
 }
 
 struct FactoryConfig {
@@ -533,6 +491,5 @@ fn register_pair_token(
 
 
 pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
-    return ViewingKey("password".to_string());
-    //ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
+    ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
 }

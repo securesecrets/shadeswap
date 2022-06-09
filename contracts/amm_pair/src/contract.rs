@@ -319,7 +319,10 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
             callback_code_hash: router_link.clone().unwrap().code_hash,
             send: vec![],
             msg: to_binary(&RouterHandleMsg::SwapCallBack {
-                last_token_in: TokenAmount{ token: token.clone(), amount: swap_result.result.return_amount },
+                last_token_in: TokenAmount {
+                    token: token.clone(),
+                    amount: swap_result.result.return_amount,
+                },
                 signature: callback_signature.unwrap(),
             })?,
         }));
@@ -779,7 +782,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
             to,
             expected_return,
             router_link,
-            callback_signature
+            callback_signature,
         } => {
             for token in config.pair.into_iter() {
                 match token {
@@ -799,7 +802,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                                 offer,
                                 expected_return,
                                 router_link,
-                                callback_signature
+                                callback_signature,
                             );
                         }
                     }

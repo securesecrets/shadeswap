@@ -1,59 +1,35 @@
-use shadeswap_shared::msg::snip20::InitialBalance;
-
-use crate::{contract::init, msg::InitMsg};
-
 #[cfg(test)]
 pub mod tests {
-    use super::*;
     use crate::contract::init;
-    use crate::contract::swap_exact_tokens_for_tokens;
     use crate::contract::EPHEMERAL_STORAGE_KEY;
     use crate::state::config_read;
     use crate::state::Config;
     use crate::state::CurrentSwapInfo;
 
     use crate::contract::handle;
-    use serde::de::DeserializeOwned;
-    use serde::Deserialize;
-    use serde::Serialize;
-    use shadeswap_shared::amm_pair::AMMPair;
-    use shadeswap_shared::amm_pair::Fee;
-    use shadeswap_shared::fadroma::from_slice;
-    use shadeswap_shared::fadroma::secret_toolkit::snip20;
-    use shadeswap_shared::fadroma::secret_toolkit::snip20::Balance;
-    use shadeswap_shared::fadroma::BankMsg;
-    use shadeswap_shared::fadroma::Coin;
-    use shadeswap_shared::fadroma::CosmosMsg;
-    use shadeswap_shared::fadroma::Empty;
-    use shadeswap_shared::fadroma::InitResponse;
-    use shadeswap_shared::fadroma::QuerierResult;
-    use shadeswap_shared::fadroma::QueryRequest;
-    use shadeswap_shared::fadroma::WasmMsg;
-    use shadeswap_shared::fadroma::WasmQuery;
-    use shadeswap_shared::msg::router::HandleMsg;
-    use shadeswap_shared::msg::router::InitMsg;
-    use shadeswap_shared::msg::router::InvokeMsg;
-    use shadeswap_shared::TokenAmount;
-    pub use shadeswap_shared::{
+    use serde::{de::DeserializeOwned, Deserialize, Serialize};
+    use shadeswap_shared::{
+        amm_pair::Fee,
         fadroma::{
+            from_slice,
             scrt::{
                 from_binary,
-                testing::{
-                    mock_dependencies, mock_env, MockApi, MockQuerierCustomHandlerResult,
-                    MockStorage,
-                },
-                to_binary, Api, Binary, Env, Extern, HandleResponse, HumanAddr, Querier, StdError,
+                testing::{mock_dependencies, mock_env, MockApi, MockStorage},
+                to_binary, Api, Env, Extern, HumanAddr, Querier, StdError,
                 StdResult, Storage, Uint128,
             },
-            scrt_addr::Canonize,
             scrt_link::{ContractInstantiationInfo, ContractLink},
             scrt_storage::{load, save},
+            secret_toolkit::snip20::{self, Balance},
+            Coin, CosmosMsg, Empty, InitResponse, QuerierResult, QueryRequest, WasmMsg,
+            WasmQuery,
         },
         msg::{
             amm_pair::QueryMsgResponse as AMMPairQueryMsgResponse,
             factory::QueryResponse as FactoryQueryResponse,
+            router::{HandleMsg, InitMsg, InvokeMsg},
         },
-        Pagination, TokenPair, TokenType,
+        TokenAmount, TokenPair, TokenType,
     };
 
     pub const FACTORY_ADDRESS: &str = "FACTORY_ADDRESS";
@@ -197,6 +173,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
+                amount_out_min: Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -236,7 +213,7 @@ pub mod tests {
             }
             Err(err) => {
                 let test = err.to_string();
-                panic!("Must not return error ".to_string() + &test)
+                panic!("{}","Must not return error ".to_string() + &test)
             }
         }
 
@@ -258,6 +235,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
+                amount_out_min: Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -311,6 +289,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
+                amount_out_min: Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -362,6 +341,7 @@ pub mod tests {
             &mut deps.storage,
             EPHEMERAL_STORAGE_KEY,
             &CurrentSwapInfo {
+                amount_out_min: Some(Uint128(10)),
                 amount: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -392,28 +372,6 @@ pub mod tests {
 
         assert_eq!(result.messages.len(), 1);
 
-        /* match &result.messages[0] {
-            CosmosMsg::Wasm(msg) => match msg {
-                WasmMsg::Execute {
-                    contract_addr,
-                    callback_code_hash,
-                    msg,
-                    send,
-                } => {
-                    let test: snip20::HandleMsg = from_binary(&msg)?;
-                    println!("{:?}", test);
-                }
-                _ => unimplemented!(),
-            },
-            _ => unimplemented!(),
-        }
-
-        println!("{:?}", &snip20::HandleMsg::Send {
-            recipient: HumanAddr("recipient".into()),
-            amount: Uint128(100),
-            padding: None,
-            msg: None
-        });*/
         println!("{:?}", result.messages[0]);
         let test: CosmosMsg<WasmMsg> = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: HumanAddr::from(CUSTOM_TOKEN_1),
@@ -441,6 +399,56 @@ pub mod tests {
         Ok(())
     }
 
+    #[test]
+    fn first_swap_callback_with_no_more_not_enough_return() -> StdResult<()> {
+        let (init_result, mut deps) = init_helper(100);
+        let mut env = mkenv("admin");
+
+        assert!(
+            init_result.is_ok(),
+            "Init failed: {}",
+            init_result.err().unwrap()
+        );
+
+        save(
+            &mut deps.storage,
+            EPHEMERAL_STORAGE_KEY,
+            &CurrentSwapInfo {
+                amount_out_min: Some(Uint128(100)),
+                amount: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".into(),
+                    },
+                    amount: Uint128(10),
+                },
+                paths: vec![HumanAddr(PAIR_CONTRACT_1.into())],
+                signature: to_binary("this is signature").unwrap(),
+                recipient: HumanAddr("recipient".into()),
+                current_index: 0,
+            },
+        )?;
+
+        let result = handle(
+            &mut deps,
+            env.clone(),
+            HandleMsg::SwapCallBack {
+                last_token_in: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".into(),
+                    },
+                    amount: Uint128(10),
+                },
+                signature: to_binary("this is signature").unwrap(),
+            },
+        );
+
+        match result {
+            Err(StdError::GenericErr { .. }) => {}
+            _ => panic!("Must return error"),
+        }
+        Ok(())
+    }
+
     /*
 
         //*** */
@@ -459,6 +467,7 @@ pub mod tests {
                 },
                 prng_seed: to_binary(&"prng").unwrap(),
                 entropy: to_binary(&"entropy").unwrap(),
+                viewing_key: None
             },
         )
     }
@@ -475,6 +484,7 @@ pub mod tests {
                 factory_address: self.factory_address.clone(),
                 prng_seed: to_binary(&"prng").unwrap(),
                 entropy: to_binary(&"entropy").unwrap(),
+                viewing_key: None
             }
         }
     }
@@ -495,6 +505,7 @@ pub mod tests {
             },
             prng_seed: to_binary(&"prng").unwrap(),
             entropy: to_binary(&"entropy").unwrap(),
+            viewing_key: None
         };
 
         (init(&mut deps, env, init_msg), deps)

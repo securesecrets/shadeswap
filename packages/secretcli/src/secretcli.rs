@@ -1,5 +1,6 @@
 use crate::cli_types::{
-    ListCodeResponse, ListContractCode, NetContract, SignedTx, TxCompute, TxQuery, TxResponse, StoredContract,
+    ListCodeResponse, ListContractCode, NetContract, SignedTx, StoredContract, TxCompute, TxQuery,
+    TxResponse,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Result, Value};
@@ -55,12 +56,14 @@ fn secretcli_run(command: Vec<String>, max_retry: Option<i32>) -> Result<Value> 
         result = cli.output().expect("Unexpected error");
     }
     let out = result.stdout;
-    println!("{:?}",&String::from_utf8_lossy(&out));
+    if String::from_utf8_lossy(&out).contains("output_error") {
+        println!("{:?}", &String::from_utf8_lossy(&out));
+    }
     serde_json::from_str(&String::from_utf8_lossy(&out))
 }
 
 ///
-/// Stores the given contract
+/// Stores the given `contract
 ///
 /// # Arguments
 ///
@@ -260,8 +263,8 @@ pub fn store_and_return_contract(
     contract_file: &str,
     sender: &str,
     store_gas: Option<&str>,
-    backend: Option<&str>
-) -> Result<StoredContract> {    
+    backend: Option<&str>,
+) -> Result<StoredContract> {
     let store_response = store_contract(contract_file, Option::from(&*sender), store_gas, backend)?;
     let store_query = query_hash(store_response.txhash)?;
     let mut contract = StoredContract {
@@ -334,7 +337,6 @@ pub fn init<Message: serde::Serialize>(
 
     let init_query = query_hash(tx.txhash)?;
 
-    println!("{}",init_query.raw_log);
     // Include the instantiation info in the report
     report.push(Report {
         msg_type: "Instantiate".to_string(),
@@ -384,7 +386,6 @@ fn execute_contract<Handle: serde::Serialize>(
     max_tries: Option<i32>,
 ) -> Result<TxResponse> {
     let message = serde_json::to_string(&msg)?;
-    println!("{}", message);
     let mut command = vec![
         "tx",
         "compute",

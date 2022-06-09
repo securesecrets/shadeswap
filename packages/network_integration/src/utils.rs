@@ -4,6 +4,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use secretcli::secretcli::{init, handle, Report};
 use secretcli::{cli_types::NetContract, secretcli::query};
 use serde::Serialize;
+use shadeswap_shared::fadroma::ViewingKey;
 use std::fmt::Display;
 use std::fs;
 
@@ -36,6 +37,7 @@ pub const GAS: &str = "800000";
 pub const VIEW_KEY: &str = "password";
 pub const ACCOUNT_KEY: &str = "a";
 pub const STAKER_KEY: &str = "b";
+pub const SHADE_DAO_KEY: &str = "c";
 
 pub fn generate_label(size: usize) -> String {
     rand::thread_rng()
@@ -115,4 +117,8 @@ pub fn init_snip20(
         reports,
     )?;
     Ok((init_msg, s_sToken))
+}
+
+pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
+    ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
 }

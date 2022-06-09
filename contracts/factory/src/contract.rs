@@ -1,40 +1,24 @@
-use crate::state::get_address_for_pair;
-use crate::state::load_amm_pairs;
-use crate::state::load_prng_seed;
-use crate::state::save_amm_pairs;
-use crate::state::save_prng_seed;
-use secret_toolkit::utils::HandleCallback;
-use secret_toolkit::utils::InitCallback;
-use shadeswap_shared::amm_pair::AMMPair;
-use shadeswap_shared::msg::factory::HandleMsg;
-use shadeswap_shared::msg::factory::InitMsg;
-use shadeswap_shared::msg::factory::QueryMsg;
-use shadeswap_shared::msg::factory::QueryResponse;
-use shadeswap_shared::admin::{{apply_admin_guard, store_admin, load_admin, set_admin_guard}};
-use shadeswap_shared::Pagination;
-use shadeswap_shared::TokenPair;
+use crate::state::{
+    config_read, config_write, get_address_for_pair, load_amm_pairs, load_prng_seed,
+    save_amm_pairs, save_prng_seed, Config,
+};
 use shadeswap_shared::{
+    amm_pair::AMMPair,
     fadroma::{
-        admin::{
-            assert_admin, handle as admin_handle, query as admin_query, save_admin,
-            DefaultImpl as AdminImpl,
-        },
-        require_admin::require_admin,
         scrt::{
             log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr,
             InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
         },
         scrt_callback::Callback,
         scrt_link::ContractLink,
-        scrt_migrate,
-        scrt_migrate::get_status,
         scrt_storage::{load, remove, save},
-        with_status,
     },
-    msg::amm_pair::InitMsg as AMMPairInitMsg,
+    msg::{
+        amm_pair::InitMsg as AMMPairInitMsg,
+        factory::{HandleMsg, InitMsg, QueryMsg, QueryResponse},
+    },
+    Pagination, TokenPair,
 };
-
-use crate::state::{config_read, config_write, Config};
 
 pub const EPHEMERAL_STORAGE_KEY: &[u8] = b"ephemeral_storage";
 
@@ -73,13 +57,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         QueryMsg::GetConfig {} => get_config(deps),
         QueryMsg::ListAMMPairs { pagination } => list_pairs(deps, pagination),
         QueryMsg::GetAMMPairAddress { pair } => query_amm_pair_address(deps, pair),
-        QueryMsg::GetAMMSettings { } => query_amm_settings(deps),
-        QueryMsg::GetAdmin{} =>{
-            let admin_address = load_admin(&deps.storage)?;
-            to_binary(&QueryResponse::GetAdminAddress{
-                address: admin_address
-            })
-        },
+        QueryMsg::GetAMMSettings {} => query_amm_settings(deps),
     }
 }
 
@@ -156,8 +134,12 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
-    if let HandleMsg::SetConfig { pair_contract, lp_token_contract, amm_settings } = msg {
-        apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
+    if let HandleMsg::SetConfig {
+        pair_contract,
+        lp_token_contract,
+        amm_settings,
+    } = msg
+    {
         let mut config = config_read(&deps)?;
         if let Some(new_value) = pair_contract {
             config.pair_contract = new_value;
@@ -166,7 +148,6 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
         if let Some(new_value) = lp_token_contract {
             config.lp_token_contract = new_value;
         }
-        
         config_write(deps, &config)?;
 
         Ok(HandleResponse {
@@ -183,13 +164,13 @@ pub fn get_config<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> Std
     let Config {
         pair_contract,
         amm_settings,
-        lp_token_contract
+        lp_token_contract,
     } = config_read(deps)?;
 
     to_binary(&QueryResponse::GetConfig {
         pair_contract,
         amm_settings,
-        lp_token_contract
+        lp_token_contract,
     })
 }
 
@@ -197,7 +178,7 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     pair: TokenPair<HumanAddr>,
-    entropy: Binary
+    entropy: Binary,
 ) -> StdResult<HandleResponse> {
     let mut config = config_read(&deps)?;
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
@@ -225,7 +206,7 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
                         address: env.contract.address,
                         code_hash: env.contract_code_hash,
                     },
-                    msg: to_binary(&HandleMsg::RegisterAMMPair { 
+                    msg: to_binary(&HandleMsg::RegisterAMMPair {
                         pair: pair.clone(),
                         signature,
                     })?,

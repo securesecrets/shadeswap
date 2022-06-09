@@ -82,6 +82,7 @@ impl Config<HumanAddr> {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct CurrentSwapInfo {
     pub(crate) amount: TokenAmount<HumanAddr>,
+    pub amount_out_min: Option<Uint128>,
     pub paths: Vec<HumanAddr>,
     pub signature: Binary,
     pub recipient: HumanAddr,

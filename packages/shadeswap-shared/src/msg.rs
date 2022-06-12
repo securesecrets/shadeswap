@@ -44,7 +44,7 @@ pub mod router {
         SwapTokensForExact {
             paths: Vec<HumanAddr>,
             expected_return: Option<Uint128>,
-            to: Option<HumanAddr>
+            recipient: Option<HumanAddr>
         },
     }
 
@@ -73,7 +73,7 @@ pub mod router {
             recipient: Option<HumanAddr>
         },
         SwapCallBack {
-            last_token_in: TokenAmount<HumanAddr>,
+            last_token_out: TokenAmount<HumanAddr>,
             signature: Binary,
         },
         RegisterSNIP20Token{
@@ -232,7 +232,7 @@ pub mod factory {
             staking_contract: Option<StakingContractInit>
         },
         AddAMMPairs {
-            amm_pair: Vec<AMMPair<HumanAddr>>,
+            amm_pairs: Vec<AMMPair<HumanAddr>>,
         },
         RegisterAMMPair {
             pair: TokenPair<HumanAddr>,

@@ -182,7 +182,7 @@ use super::*;
             deps,
             env,
             HandleMsg::AddAMMPairs {
-                amm_pair: amm_pairs.clone()[0..].into(),
+                amm_pairs: amm_pairs.clone()[0..].into(),
             },
         )
         .unwrap();

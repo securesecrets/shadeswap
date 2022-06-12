@@ -1,25 +1,23 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shadeswap_shared::{
-    amm_pair:: {
-        AMMPair, AMMSettings
-    },
+    amm_pair::{AMMPair, AMMSettings},
     fadroma::{
         scrt::{
-            Api, Binary, CanonicalAddr, Extern, HumanAddr,
-            Querier, StdError, StdResult, Storage
+            Api, Binary, CanonicalAddr, Extern, HumanAddr, Querier, StdError, StdResult, Storage,
         },
         scrt_addr::{Canonize, Humanize},
         scrt_link::{ContractInstantiationInfo, ContractLink},
         scrt_storage::{load, ns_load, ns_remove, ns_save, save},
     },
-    Pagination, TokenType, TokenPair, msg::factory::InitMsg,
+    msg::factory::InitMsg,
+    Pagination, TokenPair, TokenType,
 };
 
 use secret_toolkit::utils::{HandleCallback, InitCallback, Query};
 
 const NS_AMM_PAIRS: &[u8] = b"amm_pairs";
-const AMM_PAIR_COUNT_KEY : &[u8] = b"amm_pairs_count";
+const AMM_PAIR_COUNT_KEY: &[u8] = b"amm_pairs_count";
 const PRNG_KEY: &[u8] = b"prng_seed";
 
 pub static CONFIG_KEY: &[u8] = b"config";
@@ -29,7 +27,7 @@ pub const PAGINATION_LIMIT: u8 = 30;
 pub struct Config<A> {
     pub pair_contract: ContractInstantiationInfo,
     pub amm_settings: AMMSettings<A>,
-    pub lp_token_contract: ContractInstantiationInfo
+    pub lp_token_contract: ContractInstantiationInfo,
 }
 
 impl Config<HumanAddr> {
@@ -37,7 +35,7 @@ impl Config<HumanAddr> {
         Self {
             pair_contract: msg.pair_contract,
             amm_settings: msg.amm_settings,
-            lp_token_contract: msg.lp_token_contract
+            lp_token_contract: msg.lp_token_contract,
         }
     }
 }
@@ -46,7 +44,7 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
         Ok(Config {
             pair_contract: self.pair_contract.clone(),
             amm_settings: self.amm_settings.canonize(api)?,
-            lp_token_contract: self.lp_token_contract.clone()
+            lp_token_contract: self.lp_token_contract.clone(),
         })
     }
 }
@@ -55,7 +53,7 @@ impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
         Ok(Config {
             pair_contract: self.pair_contract.clone(),
             amm_settings: self.amm_settings.clone().humanize(api)?,
-            lp_token_contract: self.lp_token_contract.clone()
+            lp_token_contract: self.lp_token_contract.clone(),
         })
     }
 }
@@ -118,12 +116,12 @@ pub(crate) fn save_amm_pairs<S: Storage, A: Api, Q: Querier>(
             count.to_string().as_bytes(),
             &exchange,
         )?;
-         
         count += 1;
     }
 
     save_amm_pairs_count(&mut deps.storage, count)
 }
+
 
 pub(crate) fn get_address_for_pair<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,

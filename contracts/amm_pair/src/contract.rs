@@ -339,7 +339,7 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
             callback_code_hash: router_link.clone().unwrap().code_hash,
             send: vec![],
             msg: to_binary(&RouterHandleMsg::SwapCallBack {
-                last_token_in: TokenAmount {
+                last_token_out: TokenAmount {
                     token: token.clone(),
                     amount: swap_result.result.return_amount,
                 },

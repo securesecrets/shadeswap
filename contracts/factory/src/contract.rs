@@ -43,7 +43,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     return match msg {
         HandleMsg::CreateAMMPair { pair, entropy, staking_contract } => create_pair(deps, env, pair, entropy, staking_contract),
         HandleMsg::SetConfig { .. } => set_config(deps, env, msg),
-        HandleMsg::AddAMMPairs { amm_pair } => add_amm_pairs(deps, env, amm_pair),
+        HandleMsg::AddAMMPairs { amm_pairs } => add_amm_pairs(deps, env, amm_pairs),
         HandleMsg::RegisterAMMPair { pair, signature } => {
             register_amm_pair(deps, env, pair, signature)
         },

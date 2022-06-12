@@ -1,9 +1,12 @@
 # ShadeSwap Core Contracts
 | Contract                    | Reference                         | Description                           |
 | --------------------------- | --------------------------------- | ------------------------------------- |
-| [`amm_pair`](./contracts/governance)  | [doc](./contracts/amm_pair/README.md) | |
-| [`factory`](./contracts/staking)  | [doc](./contracts/factory/README.md) |  |
-| [`router`](./contracts/scrt_staking)  | [doc](./contracts/router/README.md) |  |
+| [`amm_pair`](./contracts/amm_pair)  | [doc](./contracts/amm_pair/README.md) | |
+| [`factory`](./contracts/factory)  | [doc](./contracts/factory/README.md) |  |
+| [`lp_token`](./contracts/lp_token)  | [doc](./contracts/lp_token/README.md) |  |
+| [`router`](./contracts/router)  | [doc](./contracts/router/README.md) |  |
+| [`snip20`](./contracts/snip20)  | [doc](./contracts/snip20/README.md) |  |
+| [`staking`](./contracts/staking)  | [doc](./contracts/staking/README.md) |  |
 
 ## Development Environment
 

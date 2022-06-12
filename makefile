@@ -78,4 +78,4 @@ server-connect:
 
 # Runs integration tests
 integration-tests:
-	cargo test -- --nocapture --test-threads=1
+	cargo test run_testnet -- --nocapture --test-threads=1

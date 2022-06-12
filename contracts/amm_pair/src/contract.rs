@@ -571,8 +571,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
     env: Env,
     amount: Uint128,
     recipient: HumanAddr,
-) -> StdResult<HandleResponse> {
-    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
+) -> StdResult<HandleResponse> {    
     let config = load_config(&deps)?;
     let Config {
         pair,
@@ -605,8 +604,6 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
             pool_withdrawn[i],
         )?);
     }
-
-   
 
     pair_messages.push(snip20::burn_msg(
         amount,

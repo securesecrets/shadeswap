@@ -5,13 +5,12 @@
     * [Admin](#Admin)
         * Messages
             * [AddWhiteListAddress](#AddWhiteListAddress)
-            * [RemoveWhitelistAddresses](#RemoveWhitelistAddresses)    
-            * [RemoveLiquidity](#RemoveLiquidity)                     
+            * [RemoveWhitelistAddresses](#RemoveWhitelistAddresses)   
+            * [SetAMMPairAdmin](#SetAMMPairAdmin)                     
     * [User](#User)
-        * Messages
-            * [GetPairInfo](#GetPairInfo)
-            * [SwapTokensForExact]
-            * [SwapCallBack]
+        * Messages       
+            * [SwapTokens](#SwapTokens)
+            * [AddLiquidityToAMMContract](#AddLiquidityToAMMContract)
         * Queries
             * [GetPairInfo](#GetPairInfo)
             * [GetTradeHistory](#GetTradeHistory)   
@@ -21,8 +20,12 @@
             * [GetClaimReward](#GetClaimReward)                          
     * [Hooks]
         * Messages
-            * [SwapTokens]
-            * [OnLpTokenInitAddr]
+            * [Receive](#Receive)
+            * [OnLpTokenInitAddr](#OnLpTokenInitAddr)
+    * [Invoke]
+        * Messages
+            * [SwapTokens](#SwapTokens)
+            * [RemoveLiquidity](#RemoveLiquidity)
 
 # Introduction
 The Contract to hold Pair Between Swap Tokens.
@@ -43,7 +46,7 @@ The Contract to hold Pair Between Swap Tokens.
 | staking_contract  | StakingContractInit              | Staking Contract Init Config                                               | yes      |
 
 
-##Admin
+## Admin
 
 ### Messages
 
@@ -51,9 +54,9 @@ The Contract to hold Pair Between Swap Tokens.
 Add address to whitelist, group of addresses which fee doesn't apply.
 
 ##### Request
-| Name    | Type   | Description                                   | optional |
-|---------|--------|-----------------------------------------------|----------|
-| address | String | The address to add to whitelist               | no       |
+| Name    | Type      | Description                                   | optional |
+|---------|-----------|-----------------------------------------------|----------|
+| address | HumanAddr | The address to add to whitelist               | no       |
 
 ##### Response
 ```json
@@ -62,14 +65,16 @@ Add address to whitelist, group of addresses which fee doesn't apply.
     "status": "success"
   }
 }
+```
+
 
 #### RemoveWhitelistAddresses
 Address to remove from whitelist.
 
 ##### Request
-| Name    | Type   | Description                                   | optional |
-|---------|--------|-----------------------------------------------|----------|
-| address | String | The address to remove from whitelist          | no       |
+| Name    | Type      | Description                                   | optional |
+|---------|-----------|-----------------------------------------------|----------|
+| address | HumanAddr | The address to remove from whitelist          | no       |
 
 ##### Response
 ```json
@@ -78,14 +83,16 @@ Address to remove from whitelist.
     "status": "success"
   }
 }
+```
 
 #### RemoveLiquidity
 Remove liquidity from Liquidity Pool (LP).
 
 ##### Request
-| Name      | Type   | Description                                   | optional |
-|-----------|--------|-----------------------------------------------|----------|
-| recipient | String | The address to remove from LP                 | no       |
+
+| Name      | Type      | Description                                   | optional |
+|-----------|-----------|-----------------------------------------------|----------|
+| recipient | HumanAddr | The address to remove from LP                 | no       |
 
 ##### Response
 ```json
@@ -94,10 +101,11 @@ Remove liquidity from Liquidity Pool (LP).
     "status": "success"
   }
 }
+```
 
-##User
+## User
 
-### Messages
+### Queries
 
 #### GetPairInfo
 Get information about the token pair.
@@ -118,5 +126,165 @@ Get information about the token pair.
   "total_liquidity": "Total liquidity of pool",
   "contract_version": "Contract Version of the Smart Contract"
 }
+```
+
+#### GetTradeHistory
+Get Information about trade history.
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+| pagination | Pagination  |                                          |    no    |
+
+##### Response
+```json
+{
+  "data": "[array of trade history]",
+}
+```
+
+#### GetTradeCount
+Get Count of trade for pair contract.
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+|            |             |                                          |          |
+
+##### Response
+```json
+{
+  "count": "trade count",
+}
+```
+
+#### GetAdmin
+Get Admin Address of AMMPair Contract.
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+|            |             |                                          |          |
+
+##### Response
+```json
+{
+  "address": "Admin Address",
+}
+```
 
 
+#### GetClaimReward
+Get Claimable Reward Amount for staking.
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+|  staker    | HumanAddr   | staker's address                         |    no    |
+
+##### Response
+```json
+{
+  "amount": "Claimable Reward Amount",
+}
+```
+
+
+#### GetWhiteListAddress
+Get All addresses from whitelist.
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+|  staker    | HumanAddr   | staker's address                         |    no    |
+
+##### Response
+```json
+{
+  "amount": "Get all whitelist's addresses",
+}
+```
+
+### Messages
+
+#### SwapTokens
+Swap Native Token.
+
+##### Request
+
+| Name      | Type        | Description                             | optional |
+|-----------|----------------|--------------------------------------|----------|
+| offer     | TokenAmount | Amount and Token Type                   | no       |
+| expected_return | Uint128 | slippage, amount willing to accept    | yes      |
+| to | HumanAddr | The address to remove from LP                  | yes       |
+| router_link | ContractLink | Router Contract Info               | yes       |
+| callback_signature | Binary | signature to verify snip20        | yes       |
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+
+
+#### AddLiquidityToAMMContract
+Add Liquidity to the Pool and Staking Contract if configured.
+
+##### Request
+
+| Name      | Type        | Description                             | optional |
+|-----------|----------------|--------------------------------------|----------|
+| deposit     | TokenPairAmount | Amount and Token Type             | no       |
+| slippage | Uint128 | slippage, amount willing to accept         | yes      |
+
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+
+
+## Invoke
+### Messages
+
+#### SwapTokens
+Swap Native Token.
+
+##### Request
+
+| Name      | Type        | Description                             | optional |
+|-----------|----------------|--------------------------------------|----------|
+| expected_return | Uint128 | slippage, amount willing to accept    | yes      |
+| to | HumanAddr | The address to remove from LP                  | yes       |
+| router_link | ContractLink | Router Contract Info               | yes       |
+| callback_signature | Binary | signature to verify snip20        | yes       |
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+
+#### RemoveLiquidity
+Remove liqudity for address and remove from staking if applicable.
+
+##### Request
+
+| Name      | Type        | Description                             | optional |
+|-----------|----------------|--------------------------------------|----------|
+| recipient | HumanAddr | address to remove liqudity             | no      |
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```

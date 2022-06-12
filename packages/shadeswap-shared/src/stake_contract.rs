@@ -15,6 +15,5 @@ use crate::token_pair_amount::TokenPairAmount;
 pub struct StakingContractInit{
     pub contract_info: ContractInstantiationInfo,
     pub amount: Uint128,
-    pub reward_token: TokenType<HumanAddr>,
-    pub code_hash: String
+    pub reward_token: TokenType<HumanAddr>    
 }

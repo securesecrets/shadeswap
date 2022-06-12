@@ -1,7 +1,7 @@
 use colored::Colorize;
 use network_integration::utils::{
     generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
-    ACCOUNT_KEY, AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY,
+    ACCOUNT_KEY, AMM_PAIR_FILE, STAKING_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY,
     SNIP20_FILE, STORE_GAS, VIEW_KEY,
 };
 use secretcli::{
@@ -20,6 +20,7 @@ use shadeswap_shared::{
         secret_toolkit::snip20::{Balance, BalanceResponse},
         Callback, ContractInstantiationInfo, ContractLink, ViewingKey,
     },
+    stake_contract::StakingContractInit,
     msg::{
         amm_pair::{HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg},
         factory::{
@@ -56,6 +57,10 @@ fn run_testnet() -> Result<()> {
     print_warning("Storing AMM Pair Token Contract");
     let s_ammPair =
         store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
+    
+    print_warning("Storing Staking Contract");
+    let staking_contract = 
+        store_and_return_contract(STAKING_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
 
     print_header("Initializing sSCRT");
     let (s_sSINIT, s_sCRT) = init_snip20(
@@ -224,6 +229,18 @@ fn run_testnet() -> Result<()> {
             &FactoryHandleMsg::CreateAMMPair {
                 pair: test_pair.clone(),
                 entropy: entropy,
+                // staking_contract: None,
+                staking_contract: Some(StakingContractInit {
+                    contract_info: ContractInstantiationInfo{
+                        code_hash: staking_contract.code_hash.to_string(),
+                        id: staking_contract.id.clone().parse::<u64>().unwrap(),
+                    },
+                    amount: Uint128(100000u128),
+                    reward_token:  TokenType::CustomToken {
+                        contract_addr: s_sSHD.address.clone().into(),
+                        token_code_hash: s_sSHD.code_hash.to_string(),
+                    },
+                })
             },
             &factory_contract,
             ACCOUNT_KEY,
@@ -253,7 +270,19 @@ fn run_testnet() -> Result<()> {
             &FactoryHandleMsg::CreateAMMPair {
                 pair: test_native_pair.clone(),
                 entropy: to_binary(&"".to_string()).unwrap(),
-            },
+                staking_contract: None,
+                // staking_contract: Some(StakingContractInit {
+                //     contract_info: ContractInstantiationInfo{
+                //         code_hash: staking_contract.code_hash.to_string(),
+                //         id: staking_contract.id.clone().parse::<u64>().unwrap(),
+                //     },
+                //     amount: Uint128(100000u128),
+                //     reward_token:  TokenType::CustomToken {
+                //         contract_addr: s_sCRT.address.clone().into(),
+                //         token_code_hash: s_sCRT.code_hash.to_string(),
+                //     },
+                // })
+            },           
             &factory_contract,
             ACCOUNT_KEY,
             Some(GAS),

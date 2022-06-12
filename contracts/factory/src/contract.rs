@@ -15,9 +15,10 @@ use shadeswap_shared::{
         scrt_storage::{load, remove, save},
     },
     msg::{
-        amm_pair::InitMsg as AMMPairInitMsg,
+        amm_pair::{{InitMsg as AMMPairInitMsg }},
         factory::{HandleMsg, InitMsg, QueryMsg, QueryResponse},
     },
+    stake_contract::StakingContractInit,
     Pagination, TokenPair,
 };
 
@@ -40,13 +41,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     return match msg {
-        HandleMsg::CreateAMMPair { pair, entropy } => create_pair(deps, env, pair, entropy),
+        HandleMsg::CreateAMMPair { pair, entropy, staking_contract } => create_pair(deps, env, pair, entropy, staking_contract),
         HandleMsg::SetConfig { .. } => set_config(deps, env, msg),
         HandleMsg::AddAMMPairs { amm_pair } => add_amm_pairs(deps, env, amm_pair),
         HandleMsg::RegisterAMMPair { pair, signature } => {
             register_amm_pair(deps, env, pair, signature)
         },
-        HandleMsg::SetFactoryAdmin {admin} => set_admin_guard(deps,env,admin),
+        HandleMsg::SetFactoryAdmin {admin} => set_admin_guard(deps,env,admin),       
     };
 }
 
@@ -80,6 +81,7 @@ fn register_amm_pair<S: Storage, A: Api, Q: Querier>(
         address: env.message.sender.clone(),
     };
     save_amm_pairs(deps, vec![amm_pair])?;
+    // create staking contract
 
     Ok(HandleResponse {
         messages: vec![],
@@ -183,6 +185,7 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
     env: Env,
     pair: TokenPair<HumanAddr>,
     entropy: Binary,
+    staking_contract: Option<StakingContractInit>
 ) -> StdResult<HandleResponse> {
     let mut config = config_read(&deps)?;
     println!("create_pair caller {}", env.message.sender.clone());
@@ -218,8 +221,9 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
                 }),
                 entropy,
                 prng_seed: load_prng_seed(&deps.storage)?,
-                admin: Some(env.message.sender.clone())
-            })?,
+                admin: Some(env.message.sender.clone()),
+                staking_contract: staking_contract
+            },)?,
         })],
         log: vec![log("action", "create_exchange"), log("pair", pair)],
         data: None,

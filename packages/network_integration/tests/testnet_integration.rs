@@ -265,7 +265,8 @@ fn run_testnet() -> Result<()> {
         prng_seed: seed,
         callback: None,
         entropy: entropy.clone(),
-        admin: Some(HumanAddr::from(account.to_string()))
+        admin: Some(HumanAddr::from(account.to_string())),
+        staking_contract: None
     };
 
     let s_ammPair = init(
@@ -325,6 +326,7 @@ fn run_testnet() -> Result<()> {
         let msg = FactoryHandleMsg::CreateAMMPair {
             pair: test_pair.clone(),
             entropy: entropy,
+            staking_contract: None
         };
 
         let result = handle(

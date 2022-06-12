@@ -1,8 +1,11 @@
-use shadeswap_shared::msg::staking::{{InitMsg, QueryMsg,QueryResponse, InvokeMsg, HandleMsg}};
+use shadeswap_shared::msg::staking::{{InitMsg, QueryMsg,QueryResponse,  HandleMsg}};
+use shadeswap_shared::msg::amm_pair::HandleMsg as AmmPairHandleMsg;
+
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
     get_total_staking_amount, load_stakers, load_config, is_address_already_staker, store_claim_reward_info,
-    store_staker, load_staker_info, store_staker_info, remove_staker, StakingInfo, load_claim_reward_info}};
+    store_staker, load_staker_info, store_staker_info, remove_staker, StakingInfo, load_claim_reward_info}};   
 use std::time::{SystemTime, UNIX_EPOCH};
+use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
 use shadeswap_shared::{ 
     fadroma::{
         scrt::{
@@ -25,18 +28,26 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<InitResponse> {
 
     let config = Config {
-        contract_owner: env.message.sender,
+        contract_owner: env.message.sender.clone(),
         daily_reward_amount: msg.staking_amount,
-        reward_token: msg.reward_token.clone(),
-        lp_token: msg.lp_token.clone()
+        reward_token: msg.reward_token.clone()
     };
     store_config(deps, &config)?;
+    store_admin(deps, &env.message.sender.clone())?;
+    let mut messages = vec![];
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: env.message.sender.clone(),
+        callback_code_hash: msg.code_hash.clone(),
+        msg: to_binary(&AmmPairHandleMsg::SetStakingContract{ code_hash: env.contract_code_hash})?,
+        send: vec![],
+    }));
+
     Ok(InitResponse {
-        messages: vec![],
+        messages: messages,
         log: vec![
            log("staking_contract_addr", env.contract.address),
            log("reward_token", msg.reward_token.clone()),
-           log("lp_token", msg.lp_token.clone()),
+           log("daily_reward_amount", msg.staking_amount),
         ],
     })
 }
@@ -47,13 +58,16 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::Receive {
-           msg, ..
-        } => receiver_callback(deps, env, msg),
+        HandleMsg::Stake {         
+            amount,
+            from,
+        } => {
+            return stake(deps,env, amount,from)
+        },
         HandleMsg::ClaimRewards { } => {
             claim_rewards(deps, env)
         }
-        HandleMsg::Unstake {} => unstake(deps,env),
+        HandleMsg::Unstake {address} => unstake(deps,env, address),
     }    
 }
 
@@ -65,6 +79,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
     from: HumanAddr
 ) -> StdResult<HandleResponse>{
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let current_timestamp  = get_current_timestamp()?;
     claim_rewards_for_all_stakers(deps, current_timestamp)?;
     let caller = from;
@@ -102,27 +117,6 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
         ],
         data: None,
     })
-}
-
-
-fn receiver_callback<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    msg: Option<Binary>,
-) -> StdResult<HandleResponse> {
-    let msg = msg.ok_or_else(|| {
-        StdError::generic_err("Receiver callback \"msg\" parameter cannot be empty.")
-    })?;
-
-    match from_binary(&msg)? {
-        InvokeMsg::Stake {         
-            amount,
-            from,
-        } => {
-            return stake(deps,env, amount,from)
-        },
-        _ => Err(StdError::unauthorized())
-    }
 }
 
 pub fn claim_rewards<S: Storage, A: Api, Q: Querier>(
@@ -225,7 +219,15 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
     match msg {
         QueryMsg::GetStakers{ } => {get_all_stakers(deps)},
         QueryMsg::GetClaimReward{staker} =>{get_claim_reward_for_user(deps, staker)},
+        QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps)},
     }
+}
+
+pub fn get_staking_contract_owner<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>
+)-> StdResult<Binary> {
+    let config = load_config(&deps)?;
+    to_binary(&QueryResponse::ContractOwner { address: config.contract_owner})
 }
 
 pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
@@ -258,9 +260,11 @@ pub fn get_current_timestamp()-> StdResult<Uint128> {
 
 pub fn unstake<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env
+    env: Env,
+    address: HumanAddr,
 ) -> StdResult<HandleResponse>{
-    let caller = env.message.sender.clone();
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
+    let caller = address;
     let current_timestamp = get_current_timestamp()?;
     let is_user_staker = is_address_already_staker(deps, caller.clone())?;
     let config = load_config(deps)?;
@@ -273,14 +277,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     remove_staker(deps, caller.clone())?;
     let mut messages = Vec::new();
     // update stake_info
-    let mut staker_info = load_staker_info(deps, caller.clone())?;
-    // send back lp token
-    messages.push(config.lp_token.create_send_msg(
-        env.contract.address.clone(),
-        caller.clone(),
-        staker_info.amount,
-    )?);   
-        
+    let mut staker_info = load_staker_info(deps, caller.clone())?;        
     staker_info.amount = Uint128(0);
     staker_info.last_time_updated = current_timestamp;
     store_staker_info(deps, &staker_info)?;

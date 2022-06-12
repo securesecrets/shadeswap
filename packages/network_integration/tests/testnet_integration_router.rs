@@ -224,6 +224,7 @@ fn run_testnet() -> Result<()> {
             &FactoryHandleMsg::CreateAMMPair {
                 pair: test_pair.clone(),
                 entropy: entropy,
+                staking_contract: None
             },
             &factory_contract,
             ACCOUNT_KEY,
@@ -253,6 +254,7 @@ fn run_testnet() -> Result<()> {
             &FactoryHandleMsg::CreateAMMPair {
                 pair: test_native_pair.clone(),
                 entropy: to_binary(&"".to_string()).unwrap(),
+                staking_contract: None
             },
             &factory_contract,
             ACCOUNT_KEY,

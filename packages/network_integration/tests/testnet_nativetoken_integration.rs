@@ -1,12 +1,12 @@
 use colored::Colorize;
 use network_integration::utils::{
     generate_label, print_contract, print_header, print_vec, print_warning,STAKER_KEY,
-    ACCOUNT_KEY,  AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, SNIP20_FILE,
+    ACCOUNT_KEY,  AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE,STAKING_FILE,  SNIP20_FILE,
     STORE_GAS, VIEW_KEY,
 };
 use secretcli::{
     cli_types::NetContract,
-    secretcli::{account_address, handle, init, query, Report},
+    secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
 };
 use serde_json::Result;
 use shadeswap_shared::{
@@ -26,6 +26,7 @@ use shadeswap_shared::{
             QueryResponse as FactoryQueryResponse,
         },
     },
+    stake_contract::StakingContractInit,
     Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType,
 };
 use std::env;
@@ -43,7 +44,8 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
     println!("Using Account: {}", account.blue());
     println!("Using Account: {}", buyer.blue());
     let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
-    
+    let s_staking_contract =  
+    store_and_return_contract(STAKING_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
     let denom = "uscrt".to_string();
     let mut reports = vec![];
     let mut repo: Vec<Report> = vec![];
@@ -189,7 +191,8 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
         prng_seed: seed,
         callback: None,
         entropy: entropy.clone(),
-        admin: Some(HumanAddr::from(account.clone()))
+        admin: Some(HumanAddr::from(account.clone())),
+        staking_contract: None
     };
 
     let s_ammPair = init(
@@ -256,6 +259,10 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
         let msg = FactoryHandleMsg::CreateAMMPair {
             pair: test_pair.clone(),
             entropy: entropy,
+            staking_contract: None
+            // staking_contract: Some(StakingContractInit{
+
+            // }),
         };
 
         let mut newAMMPairReport = vec![];
@@ -404,6 +411,22 @@ fn run_testnet_with_native_token_swap() -> Result<()> {
                     assert_eq!(count, 1);
                 }else{
                     assert!(false, "Query returned unexpected response")
+                }
+            }
+
+            print_header("\n\tChecking Claim Reward for Staker ...");
+            {      
+                let msg = PairQueryMsg::GetClaimReward {staker: HumanAddr::from(account.to_string())};        
+                let query: PairQueryMsgResponse = query(  &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                },msg , None)?;
+                if let PairQueryMsgResponse::GetClaimReward { amount } = query {
+                    assert_eq!(amount, Uint128(1u128));
+                }else{
+                    assert!(false, "Query::GetClaimReward returned unexpected response")
                 }
             }
 

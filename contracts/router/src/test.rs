@@ -199,7 +199,7 @@ pub mod tests {
                     to_binary(&InvokeMsg::SwapTokensForExact {
                         expected_return: Some(Uint128(1000)),
                         paths: vec![PAIR_CONTRACT_1.into()],
-                        to: None,
+                        recipient: None,
                     })
                     .unwrap(),
                 ),
@@ -256,7 +256,7 @@ pub mod tests {
             &mut deps,
             env,
             HandleMsg::SwapCallBack {
-                last_token_in: TokenAmount {
+                last_token_out: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
                     },
@@ -310,7 +310,7 @@ pub mod tests {
             &mut deps,
             env,
             HandleMsg::SwapCallBack {
-                last_token_in: TokenAmount {
+                last_token_out: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
                     },
@@ -359,7 +359,7 @@ pub mod tests {
             &mut deps,
             env.clone(),
             HandleMsg::SwapCallBack {
-                last_token_in: TokenAmount {
+                last_token_out: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
                     },
@@ -432,7 +432,7 @@ pub mod tests {
             &mut deps,
             env.clone(),
             HandleMsg::SwapCallBack {
-                last_token_in: TokenAmount {
+                last_token_out: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
                     },

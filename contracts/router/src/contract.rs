@@ -78,9 +78,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             )
         }
         HandleMsg::SwapCallBack {
-            last_token_in,
+            last_token_out,
             signature,
-        } => next_swap(deps, env, last_token_in, signature),
+        } => next_swap(deps, env, last_token_out, signature),
         HandleMsg::RegisterSNIP20Token { token, token_code_hash } => {
             refresh_tokens(deps, env, token, token_code_hash)
         }
@@ -118,7 +118,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                 InvokeMsg::SwapTokensForExact {
                     expected_return,
                     paths,
-                    to,
+                    recipient,
                 } => {
                     let config = config_read(deps)?;
                     let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
@@ -139,7 +139,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                                         expected_return,
                                         &paths,
                                         from,
-                                        to,
+                                        recipient,
                                     );
                                 }
                             }
@@ -172,11 +172,6 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
     last_token_out: TokenAmount<HumanAddr>,
     signature: Binary,
 ) -> HandleResult {
-    /*Ok(HandleResponse {
-        messages: vec![],
-        log: vec![],
-        data: None,
-    })*/
     let current_trade_info: Option<CurrentSwapInfo> = load(&deps.storage, EPHEMERAL_STORAGE_KEY)?;
     let config = config_read(deps)?;
     let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
@@ -242,6 +237,14 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                     }
                 }
                 
+                let clear_storage:Option<CurrentSwapInfo> = None;
+
+                save(
+                    &mut deps.storage,
+                    EPHEMERAL_STORAGE_KEY,
+                    &clear_storage
+                )?;
+
                 Ok(HandleResponse {
                     messages: vec![token_in.token.create_send_msg(env.contract.address, info.recipient, token_in.amount)?],
                     log: vec![],
@@ -249,7 +252,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                 })
             }
         }
-        None => Err(StdError::generic_err("")),
+        None => Err(StdError::generic_err("There is currently no trade in progress.")),
     }
 }
 
@@ -268,6 +271,7 @@ pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
     let config = config_read(deps)?;
     let factory_config = query_factory_config(querier, config.factory_address.clone())?;
     let signature = create_signature(&env)?;
+    
     save(
         &mut deps.storage,
         EPHEMERAL_STORAGE_KEY,

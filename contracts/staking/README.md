@@ -25,7 +25,7 @@ The Contract to hold Pair Between Swap Tokens.
 |-------------------|----------------------------------|----------------------------------------------------------------------------|----------|
 | staking_amount    | Uint128     | Total Reward Amount for staking | no       |
 | reward_token | TokenType   |   Reward Token Type              | no       |
-| code_hash | String | AMMPair code hash for register staking contract  | no    |
+| contract | ContractLink | AMMPair Contract Address Link to register staking contract  | no    |
 
 
 ## Admin
@@ -109,6 +109,7 @@ Get Claimable Reward for staker.
 | Name       | Type        | Description                              | optional |
 |------------|-------------|------------------------------------------|----------|
 |   staker  | HumanAddr |  Address to calculate claimable amount      |   no |
+|   time  | u128 |  Time to use for calculation claimable amount      |   no |
 
 ##### Response
 ```json

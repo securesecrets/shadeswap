@@ -260,7 +260,10 @@ pub mod tests {
                 contract_addr: HumanAddr::from(CONTRACT_ADDRESS),
                 token_code_hash: CONTRACT_ADDRESS.to_string(),
             },           
-            code_hash: env.contract_code_hash.clone()            
+            contract: ContractLink {
+                address: HumanAddr::from(CONTRACT_ADDRESS),
+                code_hash: "".to_string().clone(),
+            }           
         };         
         assert!(init(deps, env.clone(), msg).is_ok());
         let config = load_config(deps)?;

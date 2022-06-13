@@ -17,7 +17,8 @@
             * [GetAdmin](#GetAdmin)  
             * [GetWhiteListAddress](#GetWhiteListAddress)  
             * [GetTradeCount](#GetTradeCount)  
-            * [GetClaimReward](#GetClaimReward)                          
+            * [GetClaimReward](#GetClaimReward)  
+            * [GetStakingContract](#GetStakingContract)  
     * [Hooks]
         * Messages
             * [Receive](#Receive)
@@ -127,6 +128,22 @@ Get information about the token pair.
   "contract_version": "Contract Version of the Smart Contract"
 }
 ```
+
+#### GetStakingContract
+Get Staking Contract Link if SC exist.
+
+##### Request
+| Name    | Type   | Description                                   | optional |
+|---------|--------|-----------------------------------------------|----------|
+|         |        |                                               |          |
+
+##### Response
+```json
+{
+  "staking_contract": "Staking Contract Link",
+}
+```
+
 
 #### GetTradeHistory
 Get Information about trade history.

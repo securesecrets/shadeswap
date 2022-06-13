@@ -36,9 +36,12 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     store_admin(deps, &env.message.sender.clone())?;
     let mut messages = vec![];
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: env.message.sender.clone(),
-        callback_code_hash: msg.code_hash.clone(),
-        msg: to_binary(&AmmPairHandleMsg::SetStakingContract{ code_hash: env.contract_code_hash})?,
+        contract_addr: msg.contract.address.clone(),
+        callback_code_hash: msg.contract.code_hash.clone(),
+        msg: to_binary(&AmmPairHandleMsg::SetStakingContract{ contract: ContractLink {
+            address: env.contract.address.clone(),
+            code_hash: env.contract_code_hash.clone()
+        }})?,
         send: vec![],
     }));
 
@@ -80,15 +83,14 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
     from: HumanAddr
 ) -> StdResult<HandleResponse>{
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
-    let current_timestamp  = get_current_timestamp()?;
-    claim_rewards_for_all_stakers(deps, current_timestamp)?;
-    let caller = from;
+    claim_rewards_for_all_stakers(deps, Uint128(env.block.time as u128))?;
+    let caller = from.clone();
     // check if caller exist
     let is_staker = is_address_already_staker(&deps, caller.clone())?;   
     if is_staker == true {
         let mut stake_info = load_staker_info(deps, caller.clone())?;
         stake_info.amount += amount;
-        stake_info.last_time_updated = current_timestamp;        
+        stake_info.last_time_updated = Uint128(env.block.time as u128);        
         store_staker_info(deps, &stake_info)?;
     }
     else{
@@ -96,7 +98,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
         store_staker_info(deps, &StakingInfo{
             staker: caller.clone(),
             amount: amount,
-            last_time_updated:  current_timestamp
+            last_time_updated: Uint128(env.block.time as u128),
         })?;
     }
 
@@ -104,7 +106,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
     store_claim_reward_info(deps, &ClaimRewardsInfo{
         staker: caller.clone(),
         amount: Uint128(0u128),
-        last_time_claimed: current_timestamp
+        last_time_claimed: Uint128(env.block.time as u128),
     })?;
 
     // return response
@@ -129,7 +131,7 @@ pub fn claim_rewards<S: Storage, A: Api, Q: Querier>(
     if is_user_staker != true {
         return Err(StdError::unauthorized())
     }
-    let current_timestamp = get_current_timestamp()?;
+    let current_timestamp =  Uint128(env.block.time as u128); // get_current_timestamp()?;
     let mut messages = Vec::new();
     // calculate for all also for user
     claim_rewards_for_all_stakers(deps, current_timestamp)?;
@@ -218,7 +220,7 @@ pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {
         QueryMsg::GetStakers{ } => {get_all_stakers(deps)},
-        QueryMsg::GetClaimReward{staker} =>{get_claim_reward_for_user(deps, staker)},
+        QueryMsg::GetClaimReward{time,staker} =>{get_claim_reward_for_user(deps, staker, time)},
         QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps)},
     }
 }
@@ -233,10 +235,11 @@ pub fn get_staking_contract_owner<S: Storage, A: Api, Q: Querier>(
 pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>, 
     staker: HumanAddr,
+    time: u128
 )-> StdResult<Binary> {
     let unpaid_claim = load_claim_reward_info(deps, staker.clone())?;
     let last_claim_timestamp = load_claim_reward_timestamp(deps)?;   
-    let current_timestamp = get_current_timestamp()?; 
+    let current_timestamp = Uint128(time); //  get_current_timestamp()?; 
     let current_claim = calculate_staking_reward(deps,
         staker.clone(), last_claim_timestamp, current_timestamp)?;
     let total_claim = unpaid_claim.amount + current_claim;
@@ -265,7 +268,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse>{
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let caller = address;
-    let current_timestamp = get_current_timestamp()?;
+    let current_timestamp = Uint128(env.block.time as u128);
     let is_user_staker = is_address_already_staker(deps, caller.clone())?;
     let config = load_config(deps)?;
     if is_user_staker != true {
@@ -297,7 +300,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     store_claim_reward_info(deps, &ClaimRewardsInfo{
         staker: caller.clone(),
         amount: Uint128(0),
-        last_time_claimed: get_current_timestamp()?
+        last_time_claimed: Uint128(env.block.time as u128)
     })?;
   
     Ok(HandleResponse {

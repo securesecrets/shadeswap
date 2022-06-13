@@ -113,7 +113,7 @@ pub mod amm_pair_storage{
         deps:   &mut Extern<S, A, Q>,
         contract: &ContractLink<HumanAddr>
     ) -> StdResult<()> {
-        save(&mut deps.storage, STAKINGCONTRACT_LINK, &contract.canonize(&deps.api)?)
+        save(&mut deps.storage, STAKINGCONTRACT_LINK, &contract)
     }
     
     pub fn load_config<S: Storage, A: Api, Q: Querier>(

@@ -100,7 +100,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
             msg: to_binary(&StakingInitMsg {
                 staking_amount: c.amount,
                 reward_token: c.reward_token.clone(),             
-                code_hash: env.contract_code_hash.clone(),                       
+                contract: ContractLink {
+                    address: env.contract.address.clone(),
+                    code_hash: env.contract_code_hash.clone(),
+                },                       
             })?
         })),
         None => println!("No staking contract"),
@@ -215,7 +218,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::AddLiquidityToAMMContract { deposit, slippage } => {
             add_liquidity(deps, env, deposit, slippage)
         }
-        HandleMsg::SetStakingContract{code_hash} => set_staking_contract(deps, env, code_hash),
+        HandleMsg::SetStakingContract{contract} => set_staking_contract(deps, env, contract),
         HandleMsg::SetAMMPairAdmin {admin} => set_admin_guard(deps,env,admin),
         HandleMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
         HandleMsg::AddWhiteListAddress{address} => add_address_to_whitelist(&mut deps.storage, address, env),
@@ -367,25 +370,20 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
 pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>, 
     env: Env,
-    code_hash: String
+    contract: ContractLink<HumanAddr>
 )-> StdResult<HandleResponse>{      
     // only callback can call this method
     let contract_info = load_staking_contract(&deps)?;    
     if contract_info.address != HumanAddr::default(){
         return Err(StdError::unauthorized())
     }
-
-    store_staking_contract(deps, &ContractLink{
-        address: env.message.sender.clone(),
-        code_hash: code_hash.to_string().clone()
-    })?;
-
+    store_staking_contract(deps, &contract.clone())?;
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
             log("action", "set_staking_contract"),
-            log("contract_address", env.contract.address.clone()),
-            log("contract_hash", code_hash.to_string().clone()),
+            log("contract_address", contract.address.clone()),
+            log("contract_hash", contract.code_hash.to_string().clone()),
         ],
         data: None,
     })
@@ -431,8 +429,14 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             let count = load_trade_counter(&deps.storage)?;
             to_binary(&QueryMsgResponse::GetTradeCount { count })
         },
-        QueryMsg::GetClaimReward {staker} => {
-            let amount = query_claim_rewards(&deps, staker)?;
+        QueryMsg::GetStakingContract => {
+            let staking_contract = load_staking_contract(&deps)?;
+            to_binary(&QueryMsgResponse::StakingContractInfo{
+                staking_contract: staking_contract
+            })
+        },
+        QueryMsg::GetClaimReward {time, staker} => {
+            let amount = query_claim_rewards(&deps, staker, time)?;
             to_binary(&QueryMsgResponse::GetClaimReward { amount: amount })
         },       
     }
@@ -618,7 +622,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
      if staking_contract.address != HumanAddr::default() {
         pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: staking_contract.address.clone(),
-            callback_code_hash: staking_contract.code_hash.clone(),
+            callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
             msg: to_binary(&StakingHandleMsg::Unstake{address: recipient.clone()})?,
             send: vec![],
         }));
@@ -752,7 +756,7 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     if staking_contract.address != HumanAddr::default() {
         pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: staking_contract.address.clone(),
-            callback_code_hash: staking_contract.code_hash.clone(),
+            callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
             msg: to_binary(&StakingHandleMsg::Stake{from: env.message.sender.clone(), amount: Uint128(lp_tokens)})?,
             send: vec![],
         }));
@@ -836,14 +840,15 @@ fn query_factory_amm_settings(
 
 fn query_claim_rewards<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,   
-    staker: HumanAddr
+    staker: HumanAddr,
+    time: u128
 ) -> StdResult<Uint128>{
     let staking_contract = load_staking_contract(deps)?;
     if staking_contract.address.clone() != HumanAddr::default() {
         let result: StakingQueryResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             callback_code_hash: staking_contract.code_hash,
             contract_addr: staking_contract.address,
-            msg: to_binary(&StakingQueryMsg::GetClaimReward { staker: staker.clone()})?,
+            msg: to_binary(&StakingQueryMsg::GetClaimReward {time: time, staker: staker.clone()})?,
         }))?;
     
         return match result {

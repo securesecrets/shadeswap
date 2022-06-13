@@ -147,7 +147,7 @@ pub mod amm_pair {
         SetAMMPairAdmin {
             admin: HumanAddr
         },
-        SetStakingContract {code_hash: String },
+        SetStakingContract { contract: ContractLink<HumanAddr> },
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -170,7 +170,8 @@ pub mod amm_pair {
         GetWhiteListAddress,
         GetTradeCount,
         GetAdmin,
-        GetClaimReward{staker: HumanAddr},
+        GetStakingContract,
+        GetClaimReward{time: u128, staker: HumanAddr},
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -198,6 +199,9 @@ pub mod amm_pair {
         },
         GetClaimReward {
             amount: Uint128,
+        },
+        StakingContractInfo{
+            staking_contract: ContractLink<HumanAddr>
         }
     }
 }
@@ -285,8 +289,8 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub staking_amount: Uint128,
-        pub reward_token: TokenType<HumanAddr>,     
-        pub code_hash: String
+        pub reward_token: TokenType<HumanAddr>, 
+        pub contract: ContractLink<HumanAddr>
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -299,14 +303,14 @@ pub mod staking {
         },
         Unstake {
             address: HumanAddr
-        }         
+        },  
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         GetStakers {},
-        GetClaimReward {staker: HumanAddr},
+        GetClaimReward {time: u128, staker: HumanAddr},
         GetContractOwner {}
     }
 

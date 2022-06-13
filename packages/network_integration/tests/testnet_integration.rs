@@ -22,7 +22,8 @@ use shadeswap_shared::{
     },
     stake_contract::StakingContractInit,
     msg::{
-        amm_pair::{HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg},
+        amm_pair::{HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg,QueryMsgResponse as AMMPairQueryMsgResponse ,
+             QueryMsg as AMMPairQueryMsg, InvokeMsg},
         factory::{
             HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse,
@@ -303,8 +304,8 @@ fn run_testnet() -> Result<()> {
             },
         };
 
-        let query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
-        if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = query {
+        let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
+        if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
             assert_eq!(amm_pairs.len(), 2);
             let ammPair = amm_pairs[0].clone();
             let amm_pair_2 = amm_pairs[1].clone();
@@ -375,6 +376,22 @@ fn run_testnet() -> Result<()> {
                 None,
             )
             .unwrap();
+
+            print_header("\n\tGet Staking Contract");
+            let staking_contract_msg = AMMPairQueryMsg::GetStakingContract {};    
+            let staking_contract_query: AMMPairQueryMsgResponse = query( 
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                }, 
+                staking_contract_msg, 
+                None
+            )?;
+            if let AMMPairQueryMsgResponse::StakingContractInfo { staking_contract } = staking_contract_query {
+                assert_ne!(staking_contract.address, HumanAddr::default());
+            }
 
             handle(
                 &AMMPairHandlMsg::AddLiquidityToAMMContract {

@@ -1,15 +1,16 @@
 use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg,  HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
+
 use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair, Fee}};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::token_pair::{{TokenPair}};
+use shadeswap_shared::admin::{{apply_admin_guard, store_admin, load_admin, set_admin_guard}};
 use shadeswap_shared::Pagination;
 use crate::state::{{Config}};
 use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist, store_trade_counter,
-     load_whitelist_address,add_whitelist_address, store_admin, load_admin,
-    load_config, store_trade_history,remove_whitelist_address,
+     load_whitelist_address,add_whitelist_address,load_staking_contract, store_staking_contract, load_config, store_trade_history,remove_whitelist_address,
 load_trade_counter, load_trade_history};
 use crate::help_math::{{substraction, multiply}};
 use crate::state::swapdetails::{SwapInfo, SwapResult};
@@ -26,8 +27,11 @@ use shadeswap_shared::fadroma::{
     scrt_uint256::Uint256,
     scrt_vk::ViewingKey,
 };
+use shadeswap_shared::msg::staking::QueryMsg as StakingQueryMsg;
+use shadeswap_shared::msg::staking::QueryResponse as StakingQueryResponse;
+use shadeswap_shared::msg::staking::HandleMsg as StakingHandleMsg;
 use shadeswap_shared::msg::router::HandleMsg as RouterHandleMsg;
-
+use shadeswap_shared::msg::staking::InitMsg as StakingInitMsg;
 use composable_snip20::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
@@ -65,7 +69,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
                 msg: to_binary(&HandleMsg::OnLpTokenInitAddr)?,
                 contract: ContractLink {
                     address: env.contract.address.clone(),
-                    code_hash: env.contract_code_hash,
+                    code_hash: env.contract_code_hash.clone(),
                 },
             }),
             initial_balances: None,
@@ -86,6 +90,24 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         ),
         callback_code_hash: msg.lp_token_contract.code_hash.clone(),
     }));
+
+    match msg.staking_contract {
+        Some(c) => messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
+            code_id: c.contract_info.id,
+            send: vec![],
+            label:  format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
+            callback_code_hash: c.contract_info.code_hash.clone(),
+            msg: to_binary(&StakingInitMsg {
+                staking_amount: c.amount,
+                reward_token: c.reward_token.clone(),             
+                contract: ContractLink {
+                    address: env.contract.address.clone(),
+                    code_hash: env.contract_code_hash.clone(),
+                },                       
+            })?
+        })),
+        None => println!("No staking contract"),
+    }
 
     match msg.callback {
         Some(c) => messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -196,6 +218,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::AddLiquidityToAMMContract { deposit, slippage } => {
             add_liquidity(deps, env, deposit, slippage)
         }
+        HandleMsg::SetStakingContract{contract} => set_staking_contract(deps, env, contract),
         HandleMsg::SetAMMPairAdmin {admin} => set_admin_guard(deps,env,admin),
         HandleMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
         HandleMsg::AddWhiteListAddress{address} => add_address_to_whitelist(&mut deps.storage, address, env),
@@ -344,30 +367,26 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-pub fn set_admin_guard<S: Storage, A: Api, Q: Querier>(
+pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>, 
     env: Env,
-    admin: HumanAddr
-) -> StdResult<HandleResponse>{
-    // only owner of contract can set admin
-    let config = load_config(&deps)?;
-    let factory_address = config.factory_info.address;
-    let sender = env.message.sender.clone();
-    if sender != factory_address{
+    contract: ContractLink<HumanAddr>
+)-> StdResult<HandleResponse>{      
+    // only callback can call this method
+    let contract_info = load_staking_contract(&deps)?;    
+    if contract_info.address != HumanAddr::default(){
         return Err(StdError::unauthorized())
     }
-
-    store_admin(deps,&admin)?;
+    store_staking_contract(deps, &contract.clone())?;
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
-                log("action", "set_admin_guard"),
-                log("caller", sender),
-                log("admin", admin),
+            log("action", "set_staking_contract"),
+            log("contract_address", contract.address.clone()),
+            log("contract_hash", contract.code_hash.to_string().clone()),
         ],
         data: None,
     })
-
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
@@ -409,7 +428,17 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
         QueryMsg::GetTradeCount => {
             let count = load_trade_counter(&deps.storage)?;
             to_binary(&QueryMsgResponse::GetTradeCount { count })
-        }
+        },
+        QueryMsg::GetStakingContract => {
+            let staking_contract = load_staking_contract(&deps)?;
+            to_binary(&QueryMsgResponse::StakingContractInfo{
+                staking_contract: staking_contract
+            })
+        },
+        QueryMsg::GetClaimReward {time, staker} => {
+            let amount = query_claim_rewards(&deps, staker, time)?;
+            to_binary(&QueryMsgResponse::GetClaimReward { amount: amount })
+        },       
     }
 }
 
@@ -546,8 +575,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
     env: Env,
     amount: Uint128,
     recipient: HumanAddr,
-) -> StdResult<HandleResponse> {
-    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
+) -> StdResult<HandleResponse> {    
     let config = load_config(&deps)?;
     let Config {
         pair,
@@ -571,7 +599,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
             .into();
     }
 
-    let mut pair_messages: Vec<CosmosMsg> = Vec::with_capacity(3);
+    let mut pair_messages: Vec<CosmosMsg> = Vec::with_capacity(4);
 
     for (i, token) in pair.into_iter().enumerate() {
         pair_messages.push(token.create_send_msg(
@@ -589,6 +617,17 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
         lp_token_info.address,
     )?);
 
+     // unstake
+     let staking_contract = load_staking_contract(deps)?;
+     if staking_contract.address != HumanAddr::default() {
+        pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: staking_contract.address.clone(),
+            callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
+            msg: to_binary(&StakingHandleMsg::Unstake{address: recipient.clone()})?,
+            send: vec![],
+        }));
+     }    
+  
     Ok(HandleResponse {
         messages: pair_messages,
         log: vec![
@@ -626,7 +665,6 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     slippage: Option<Decimal>,
 ) -> StdResult<HandleResponse> {
     let config = load_config(&deps)?;
-
     let Config {
         pair,
         contract_addr,
@@ -640,6 +678,8 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
             "The provided tokens dont match those managed by the contract.",
         ));
     }
+
+    // let staking_contract = load_staking_contract(&deps)?;
     let mut pair_messages: Vec<CosmosMsg> = vec![];
     let mut pool_balances =
         deposit
@@ -659,7 +699,7 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
                     BLOCK_SIZE,
                     token_code_hash.clone(),
                     contract_addr.clone(),
-                )?);
+                )?);              
             }
             TokenType::NativeToken { .. } => {
                 // If the asset is native token, balance is already increased.
@@ -704,13 +744,23 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     };
 
     pair_messages.push(snip20::mint_msg(
-        env.message.sender,
+        env.message.sender.clone(),
         Uint128(lp_tokens),
         None,
         BLOCK_SIZE,
         lp_token_info.code_hash,
         lp_token_info.address,
     )?);
+
+    let staking_contract = load_staking_contract(deps)?;
+    if staking_contract.address != HumanAddr::default() {
+        pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: staking_contract.address.clone(),
+            callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
+            msg: to_binary(&StakingHandleMsg::Stake{from: env.message.sender.clone(), amount: Uint128(lp_tokens)})?,
+            send: vec![],
+        }));
+    }   
 
     Ok(HandleResponse {
         messages: pair_messages,
@@ -788,6 +838,31 @@ fn query_factory_amm_settings(
     }
 }
 
+fn query_claim_rewards<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,   
+    staker: HumanAddr,
+    time: u128
+) -> StdResult<Uint128>{
+    let staking_contract = load_staking_contract(deps)?;
+    if staking_contract.address.clone() != HumanAddr::default() {
+        let result: StakingQueryResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+            callback_code_hash: staking_contract.code_hash,
+            contract_addr: staking_contract.address,
+            msg: to_binary(&StakingQueryMsg::GetClaimReward {time: time, staker: staker.clone()})?,
+        }))?;
+    
+        return match result {
+            StakingQueryResponse::ClaimReward { amount } => Ok(amount),
+            _ => Err(StdError::generic_err(
+                "An error occurred while trying to retrieve factory settings.",
+            ))
+        }
+    }
+
+    Ok(Uint128(0u128))
+}
+
+
 fn receiver_callback<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -840,7 +915,6 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
             if config.lp_token_info.address != env.message.sender {
                 return Err(StdError::unauthorized());
             }
-
             remove_liquidity(deps, env, amount, recipient)
         }
     }
@@ -866,13 +940,5 @@ fn query_liquidity(
 }
 
 
-fn apply_admin_guard(
-    caller: HumanAddr,
-    storage: &impl Storage,
-) -> StdResult<bool> {    
-    let admin_address = load_admin(storage)?;
-    if caller.as_str() != admin_address.as_str() {
-         return Err(StdError::unauthorized())
-    }
-    return Ok(true)
-}
+
+

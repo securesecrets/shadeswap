@@ -35,7 +35,7 @@ use shadeswap_shared::fadroma::BalanceResponse;
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use shadeswap_shared::msg::staking::{{InitMsg,QueryMsg,QueryResponse, InvokeMsg, HandleMsg}};
+    use shadeswap_shared::msg::staking::{{InitMsg,QueryMsg,QueryResponse,  HandleMsg}};
     use crate::state::{{Config , store_config, load_stakers, get_total_staking_amount, load_claim_reward_timestamp,
         load_config, is_address_already_staker, load_claim_reward_info,
         load_staker_info}};    
@@ -62,10 +62,6 @@ pub mod tests {
             contract_addr: HumanAddr::from(CONTRACT_ADDRESS),
             token_code_hash: CONTRACT_ADDRESS.to_string(),
         });
-        assert_eq!(config.lp_token, TokenType::CustomToken{
-            contract_addr: HumanAddr::from(CONTRACT_ADDRESS),
-            token_code_hash: CONTRACT_ADDRESS.to_string(),
-        });
         Ok(())
     }
 
@@ -79,12 +75,9 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env.clone(),
-            HandleMsg::Receive {
-                msg: Some(to_binary(&InvokeMsg::Stake{
-                    amount: Uint128(100u128),
-                    from: staker.clone()
-                })?),
-                
+            HandleMsg::Stake{
+                amount: Uint128(100u128),
+                from: staker.clone()
             },
         )
         .unwrap();
@@ -95,12 +88,9 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env.clone(),
-            HandleMsg::Receive {
-                msg: Some(to_binary(&InvokeMsg::Stake{
-                    amount: Uint128(100u128),
-                    from: staker.clone()
-                })?),
-                
+            HandleMsg::Stake{
+                amount: Uint128(100u128),
+                from: staker.clone()
             },
         )
         .unwrap();
@@ -118,12 +108,9 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env.clone(),
-            HandleMsg::Receive {
-                msg: Some(to_binary(&InvokeMsg::Stake{
-                    amount: Uint128(100u128),
-                    from: staker.clone()
-                })?),
-                
+            HandleMsg::Stake{
+                amount: Uint128(100u128),
+                from: staker.clone()
             },
         )
         .unwrap();            
@@ -132,7 +119,7 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env.clone(),
-            HandleMsg::Unstake {},
+            HandleMsg::Unstake {address: staker.clone()},
         )
         .unwrap();
         let stake_info = load_staker_info(&deps, staker.clone())?;    
@@ -149,29 +136,24 @@ pub mod tests {
         let config: Config = make_init_config(&mut deps, env_a.clone(), Uint128(100u128))?;     
         let result = handle(
             &mut deps,
-            env_a.clone(),
-            HandleMsg::Receive {
-                msg: Some(to_binary(&InvokeMsg::Stake{
-                    amount: Uint128(100u128),
-                    from: env_a.message.sender.clone()
-                })?),
-                
+            env_a.clone(),         
+            HandleMsg::Stake{
+                amount: Uint128(100u128),
+                from: env_a.message.sender.clone()
             },
         )
         .unwrap();     
         let result = handle(
             &mut deps,
-            env_b.clone(),
-            HandleMsg::Receive {
-                msg: Some(to_binary(&InvokeMsg::Stake{
-                    amount: Uint128(100u128),
-                    from: env_b.message.sender.clone()
-                })?),                
+            env_b.clone(),        
+            HandleMsg::Stake{
+                amount: Uint128(100u128),
+                from: env_b.message.sender.clone()
             },
         )
         .unwrap();         
       
-        let test = query(&mut deps, QueryMsg::GetStakers{})?;
+        let test = query(&deps, QueryMsg::GetStakers{})?;
         match from_binary(&test)? {
             QueryResponse::Stakers {         
                 stakers,
@@ -180,6 +162,9 @@ pub mod tests {
             },
             QueryResponse::ClaimReward{amount} => {
                 assert_eq!(amount, Uint128(0));
+            },
+            QueryResponse::ContractOwner{address} =>{
+                assert_eq!(env_b.message.sender.clone(),address)
             }
         };    
         Ok(())
@@ -196,13 +181,12 @@ pub mod tests {
         let config: Config = make_init_config(&mut deps, env_a.clone(), Uint128(1000000000000u128))?;                       
         let result = handle(
             &mut deps,
-            env_a.clone(),
-            HandleMsg::Receive {
-                msg: Some(to_binary(&InvokeMsg::Stake{
-                    amount: Uint128(150u128),
-                    from: staker_a.clone()
-                })?),                
+            env_a.clone(),          
+            HandleMsg::Stake{
+                amount: Uint128(150u128),
+                from: staker_a.clone()
             },
+            
         )
         .unwrap();
         let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;        
@@ -210,13 +194,10 @@ pub mod tests {
         let env_b = mock_env(STAKING_CONTRACT_ADDRESS, (current_timestamp + Uint128(100u128)).u128() as u64, 1524, CONTRACT_ADDRESS, &[]);
         let result = handle(
             &mut deps,
-            env_b.clone(),
-            HandleMsg::Receive {
-                msg: Some(to_binary(&InvokeMsg::Stake{
-                    amount: Uint128(50u128),
-                    from: staker_b.clone()
-                })?),
-                
+            env_b.clone(),        
+            HandleMsg::Stake{
+                amount: Uint128(50u128),
+                from: staker_b.clone()
             },
         )
         .unwrap();            
@@ -240,13 +221,10 @@ pub mod tests {
         let staker_b = HumanAddr("STAKERB".to_string());       
         let result = handle(
             &mut deps,
-            env_a.clone(),
-            HandleMsg::Receive {
-                msg: Some(to_binary(&InvokeMsg::Stake{
-                    amount: Uint128(150u128),
-                    from: staker_a.clone()
-                })?),
-                
+            env_a.clone(),        
+            HandleMsg::Stake{
+                amount: Uint128(150u128),
+                from: staker_a.clone()
             },
         )
         .unwrap();
@@ -255,13 +233,10 @@ pub mod tests {
         assert_eq!(is_user_staker, true);
         let result = handle(
             &mut deps,
-            env_b.clone(),
-            HandleMsg::Receive {
-                msg: Some(to_binary(&InvokeMsg::Stake{
-                    amount: Uint128(50u128),
-                    from: staker_b.clone()
-                })?),
-                
+            env_b.clone(),      
+            HandleMsg::Stake{
+                amount: Uint128(50u128),
+                from: staker_b.clone()
             },
         )
         .unwrap();
@@ -280,15 +255,15 @@ pub mod tests {
         env: Env,
         amount: Uint128) -> StdResult<Config> {    
         let msg = InitMsg {
-            staking_amount: amount.clone(),
-            lp_token: TokenType::CustomToken{
-                contract_addr: HumanAddr::from(CONTRACT_ADDRESS),
-                token_code_hash: CONTRACT_ADDRESS.to_string(),
-            },
+            staking_amount: amount.clone(),         
             reward_token: TokenType::CustomToken{
                 contract_addr: HumanAddr::from(CONTRACT_ADDRESS),
                 token_code_hash: CONTRACT_ADDRESS.to_string(),
-            }
+            },           
+            contract: ContractLink {
+                address: HumanAddr::from(CONTRACT_ADDRESS),
+                code_hash: "".to_string().clone(),
+            }           
         };         
         assert!(init(deps, env.clone(), msg).is_ok());
         let config = load_config(deps)?;

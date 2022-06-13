@@ -144,7 +144,7 @@ use super::*;
             },
         );
 
-        let result = create_pair(deps, mkenv("sender"), pair, to_binary(&"entropy").unwrap());
+        let result = create_pair(deps, mkenv("sender"), pair, to_binary(&"entropy").unwrap(), None);
         //let error: StdError = result.unwrap_err();
         print!("BOPOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
         //print!("{}",error);

@@ -31,6 +31,7 @@ pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
 pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
 pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
 pub const ROUTER_FILE: &str = "../../compiled/router.wasm.gz";
+pub const STAKING_FILE: &str = "../../compiled/staking.wasm.gz";
 
 pub const STORE_GAS: &str = "10000000";
 pub const GAS: &str = "800000";

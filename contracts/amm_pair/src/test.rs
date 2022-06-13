@@ -90,7 +90,8 @@ pub mod tests {
                     code_hash: "Test".to_string()
                 },
                 msg: to_binary(&String::from("Welcome bytes"))?
-            })
+            }),
+            staking_contract: None
         };     
         assert!(init(deps, env.clone(), msg).is_ok());
       
@@ -374,6 +375,7 @@ fn make_init_config<S: Storage, A: Api, Q: Querier>(
             },
             msg: to_binary(&String::from("Welcome bytes"))?,
         }),
+        staking_contract: None,
     };         
     assert!(init(deps, env.clone(), msg).is_ok());
     let config = load_config(deps)?;

@@ -90,10 +90,10 @@ pub mod router {
 
 pub mod amm_pair {
     use super::*;
-    use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair};
+    use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair, stake_contract::StakingContractInit};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
-
+    
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
     pub struct TradeHistory {
         pub price: Uint128,
@@ -112,7 +112,8 @@ pub mod amm_pair {
         pub prng_seed: Binary,
         pub callback: Option<Callback<HumanAddr>>,
         pub entropy: Binary,
-        pub admin: Option<HumanAddr>
+        pub admin: Option<HumanAddr>,
+        pub staking_contract: Option<StakingContractInit>
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -145,7 +146,8 @@ pub mod amm_pair {
         },
         SetAMMPairAdmin {
             admin: HumanAddr
-        }
+        },
+        SetStakingContract { contract: ContractLink<HumanAddr> },
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -167,7 +169,9 @@ pub mod amm_pair {
         GetTradeHistory { pagination: Pagination },
         GetWhiteListAddress,
         GetTradeCount,
-        GetAdmin
+        GetAdmin,
+        GetStakingContract,
+        GetClaimReward{time: u128, staker: HumanAddr},
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -190,8 +194,14 @@ pub mod amm_pair {
         GetTradeCount {
             count: u64,
         },
-        GetAdminAddress{
+        GetAdminAddress {
             address: HumanAddr
+        },
+        GetClaimReward {
+            amount: Uint128,
+        },
+        StakingContractInfo{
+            staking_contract: ContractLink<HumanAddr>
         }
     }
 }
@@ -201,8 +211,8 @@ pub mod factory {
     use fadroma::{Binary, ContractInstantiationInfo};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
-
-    use crate::amm_pair::AMMPair;
+    use crate::amm_pair::{{AMMPair}};
+    use crate::stake_contract::StakingContractInit;
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
@@ -223,6 +233,7 @@ pub mod factory {
         CreateAMMPair {
             pair: TokenPair<HumanAddr>,
             entropy: Binary,
+            staking_contract: Option<StakingContractInit>
         },
         AddAMMPairs {
             amm_pairs: Vec<AMMPair<HumanAddr>>,
@@ -230,6 +241,9 @@ pub mod factory {
         RegisterAMMPair {
             pair: TokenPair<HumanAddr>,
             signature: Binary,
+        },
+        SetFactoryAdmin {
+            admin: HumanAddr
         }
     }
 
@@ -250,6 +264,9 @@ pub mod factory {
         GetAMMSettings {
             settings: AMMSettings<HumanAddr>,
         },
+        GetAdminAddress {
+            address: HumanAddr
+        }
     }
 
     #[derive(Serialize, Deserialize, JsonSchema)]
@@ -260,6 +277,7 @@ pub mod factory {
         GetAMMPairAddress { pair: TokenPair<HumanAddr> },
         GetAMMSettings,
         GetConfig,
+        GetAdmin
     }
 }
 
@@ -271,34 +289,29 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub staking_amount: Uint128,
-        pub reward_token: TokenType<HumanAddr>,
-        pub lp_token: TokenType<HumanAddr>,
+        pub reward_token: TokenType<HumanAddr>, 
+        pub contract: ContractLink<HumanAddr>
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum HandleMsg {
-        ClaimRewards {},
-        Receive {   
-            msg: Option<Binary>,
-        },
-        Unstake {}
-    }
-
-    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-    #[serde(rename_all = "snake_case")]
-    pub enum InvokeMsg {
+        ClaimRewards {}, 
         Stake {   
             from: HumanAddr,
             amount: Uint128,
         },
+        Unstake {
+            address: HumanAddr
+        },  
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         GetStakers {},
-        GetClaimReward {staker: HumanAddr}
+        GetClaimReward {time: u128, staker: HumanAddr},
+        GetContractOwner {}
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -309,6 +322,9 @@ pub mod staking {
         },
         ClaimReward {
             amount: Uint128
+        },
+        ContractOwner {
+            address: HumanAddr
         }
     }
 

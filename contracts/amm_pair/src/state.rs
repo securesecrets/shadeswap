@@ -18,10 +18,10 @@ use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
 
 pub const PAGINATION_LIMIT: u8 = 30;
 pub static CONFIG_KEY: &[u8] = b"config";
+pub static STAKINGCONTRACT_LINK: &[u8] = b"staking_contract_link";
 pub static TRADE_COUNT: &[u8] = b"tradecount";
 pub static TRADE_HISTORY: &[u8] = b"trade_history";
 pub static WHITELIST: &[u8] = b"whitelist";
-pub static ADMIN: &[u8] =b"amm_pair_admin";
 pub const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
@@ -108,6 +108,13 @@ pub mod amm_pair_storage{
     ) -> StdResult<()> {
         save(&mut deps.storage, CONFIG_KEY, &config.canonize(&deps.api)?)
     }
+
+    pub fn store_staking_contract <S: Storage, A: Api, Q: Querier>(
+        deps:   &mut Extern<S, A, Q>,
+        contract: &ContractLink<HumanAddr>
+    ) -> StdResult<()> {
+        save(&mut deps.storage, STAKINGCONTRACT_LINK, &contract)
+    }
     
     pub fn load_config<S: Storage, A: Api, Q: Querier>(
         deps: &Extern<S, A, Q>
@@ -122,6 +129,18 @@ pub mod amm_pair_storage{
         let count = load(storage, TRADE_COUNT)?.unwrap_or(0);
         Ok(count)
     }
+
+    pub fn load_staking_contract<S: Storage, A: Api, Q: Querier>(
+        deps: &Extern<S, A, Q>
+    ) -> StdResult<ContractLink<HumanAddr>> {
+        let staking_contract: ContractLink<HumanAddr> = load(&deps.storage, STAKINGCONTRACT_LINK)?.unwrap_or(
+            ContractLink { 
+                address:  HumanAddr::default(),
+                code_hash: "".to_string(),
+             }
+        );
+        Ok(staking_contract)
+    }
  
     pub fn store_trade_counter<S: Storage, A: Api, Q: Querier>(
         deps: &mut Extern<S, A, Q>, 
@@ -130,17 +149,7 @@ pub mod amm_pair_storage{
         save(&mut deps.storage, TRADE_COUNT, &count)
     }   
     
-    pub fn store_admin <S: Storage, A: Api, Q: Querier>(
-        deps:   &mut Extern<S, A, Q>,
-        admin: &HumanAddr
-    ) -> StdResult<()> {
-        save(&mut deps.storage, ADMIN, &admin)
-    }
-
-    pub fn load_admin(storage: &impl Storage) -> StdResult<HumanAddr> {
-        let admin = load(storage, ADMIN)?.unwrap_or(HumanAddr("".to_string()));
-        Ok(admin)
-    }
+ 
 
     // WHITELIST
     pub fn add_whitelist_address(storage: &mut impl Storage, address: HumanAddr) -> StdResult<()> {

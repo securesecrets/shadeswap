@@ -100,6 +100,43 @@ fn run_testnet() -> Result<()> {
 
     print_contract(&s_sCRT);
 
+    print_header("Initializing s_sREWARDSNIP20");
+
+    let (s_sREWARDSNIP20INIT, s_sREWARDSNIP20) = init_snip20(
+        "RWSN".to_string(),
+        "RWSN".to_string(),
+        6,
+        Some(Snip20ComposableConfig {
+            public_total_supply: Some(true),
+            enable_deposit: Some(true),
+            enable_redeem: Some(true),
+            enable_mint: Some(true),
+            enable_burn: Some(false),
+        }),
+        &mut reports,
+        ACCOUNT_KEY,
+        None,
+    )?;
+
+    print_contract(&s_sREWARDSNIP20);
+    {
+        let msg = snip20::HandleMsg::SetViewingKey {
+            key: String::from(VIEW_KEY),
+            padding: None,
+        };
+
+        handle(
+            &msg,
+            &s_sREWARDSNIP20,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            None,
+            &mut reports,
+            None,
+        )?;
+    } 
+    
     print_header("Initializing sSHD");
 
     let (s_sSHDINIT, s_sSHD) = init_snip20(
@@ -137,6 +174,29 @@ fn run_testnet() -> Result<()> {
             None,
         )?;
     }
+
+    println!("\n\tDepositing 1000000000uscrt s_sREWARDSNIP20");
+
+    {
+        let msg = snip20::HandleMsg::Deposit { padding: None };
+
+        handle(
+            &msg,
+            &s_sREWARDSNIP20,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            Some("1000000000uscrt"),
+            &mut reports,
+            None,
+        )?;
+    }
+
+    assert_eq!(
+        get_balance(&s_sREWARDSNIP20, account.to_string(), VIEW_KEY.to_string()),
+        Uint128(1000000000)
+    );
+
 
     println!("\n\tDepositing 1000000000uscrt sSCRT");
 
@@ -238,8 +298,8 @@ fn run_testnet() -> Result<()> {
                     },
                     amount: Uint128(100000u128),
                     reward_token:  TokenType::CustomToken {
-                        contract_addr: s_sSHD.address.clone().into(),
-                        token_code_hash: s_sSHD.code_hash.to_string(),
+                        contract_addr: s_sREWARDSNIP20.address.clone().into(),
+                        token_code_hash: s_sREWARDSNIP20.code_hash.to_string(),
                     },
                 })
             },
@@ -504,6 +564,23 @@ fn run_testnet() -> Result<()> {
                 None,
             )
             .unwrap();
+
+            // println!("\n\tDepositing 1000000000uscrt s_sREWARDSNIP20");
+
+            // {
+            //     let msg = snip20::HandleMsg::Deposit { padding: None };
+        
+            //     handle(
+            //         &msg,
+            //         &s_sREWARDSNIP20,
+            //         ACCOUNT_KEY,
+            //         Some(GAS),
+            //         Some("test"),
+            //         Some("1000000000uscrt"),
+            //         &mut reports,
+            //         None,
+            //     )?;
+            // }
 
             print_header("\n\tInitiating sSCRT to sSHD Swap");
 

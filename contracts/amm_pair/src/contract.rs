@@ -657,7 +657,7 @@ pub fn calculate_price(
     token0_pool_balance: Uint256,
     token1_pool_balance: Uint256,
 ) -> StdResult<Uint256> {
-    Ok(((token0_pool_balance * amount)? / (token1_pool_balance + amount)?)?)
+    Ok(((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?)
 }
 
 pub fn calculate_spread(
@@ -665,8 +665,8 @@ pub fn calculate_spread(
     token0_pool_balance: Uint256,
     token1_pool_balance: Uint256,
 ) -> StdResult<Uint256> {
-    let update_amount = ((token0_pool_balance * amount)? / (token1_pool_balance + amount)?)?;
-    let original_amount = ((token0_pool_balance * amount)? / (token1_pool_balance))?;
+    let update_amount = ((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?;
+    let original_amount = ((token1_pool_balance * amount)? / (token0_pool_balance))?;
     let spread_amount = (update_amount - original_amount).unwrap_or(Uint256::zero());
     Ok(spread_amount)
 }

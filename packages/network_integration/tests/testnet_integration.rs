@@ -616,7 +616,7 @@ fn run_testnet() -> Result<()> {
             );
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                (old_shd_balance + Uint128(90))
+                (old_shd_balance + Uint128(91))
             );
 
             print_header("\n\tInitiating sSHD to sSCRT Swap");
@@ -667,7 +667,7 @@ fn run_testnet() -> Result<()> {
             );
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                Uint128(899999990)
+                Uint128(899999991)
             );
 
             print_header("\n\tInitiating SCRT to sSCRT Swap");

@@ -83,14 +83,15 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
     from: HumanAddr
 ) -> StdResult<HandleResponse>{
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
-    claim_rewards_for_all_stakers(deps, Uint128(env.block.time as u128))?;
+    let current_timestamp = Uint128(env.block.time * 1000 as u128);
+    claim_rewards_for_all_stakers(deps, current_timestamp)?;
     let caller = from.clone();
     // check if caller exist
     let is_staker = is_address_already_staker(&deps, caller.clone())?;   
     if is_staker == true {
         let mut stake_info = load_staker_info(deps, caller.clone())?;
         stake_info.amount += amount;
-        stake_info.last_time_updated = Uint128(env.block.time as u128);        
+        stake_info.last_time_updated = current_timestamp;        
         store_staker_info(deps, &stake_info)?;
     }
     else{
@@ -98,7 +99,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
         store_staker_info(deps, &StakingInfo{
             staker: caller.clone(),
             amount: amount,
-            last_time_updated: Uint128(env.block.time as u128),
+            last_time_updated: current_timestamp,
         })?;
     }
 
@@ -106,7 +107,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
     store_claim_reward_info(deps, &ClaimRewardsInfo{
         staker: caller.clone(),
         amount: Uint128(0u128),
-        last_time_claimed: Uint128(env.block.time as u128),
+        last_time_claimed: current_timestamp,
     })?;
 
     // return response
@@ -234,7 +235,7 @@ pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
 )-> StdResult<Binary> {
     let unpaid_claim = load_claim_reward_info(deps, staker.clone())?;
     let last_claim_timestamp = load_claim_reward_timestamp(deps)?;   
-    let current_timestamp = Uint128(time); //  get_current_timestamp()?; 
+    let current_timestamp = Uint128(time); 
     let current_claim = calculate_staking_reward(deps,
         staker.clone(), last_claim_timestamp, current_timestamp)?;
     let total_claim = unpaid_claim.amount + current_claim;
@@ -295,7 +296,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     store_claim_reward_info(deps, &ClaimRewardsInfo{
         staker: caller.clone(),
         amount: Uint128(0),
-        last_time_claimed: Uint128(env.block.time as u128)
+        last_time_claimed: current_timestamp
     })?;
   
     Ok(HandleResponse {

@@ -26,7 +26,10 @@
     * [Invoke]
         * Messages
             * [SwapTokens](#SwapTokens)
-            * [RemoveLiquidity](#RemoveLiquidity)
+    * [Callback]
+        * Messages
+            * [Callback](#Callback)
+            
 
 # Introduction
 The Contract to hold Pair Between Swap Tokens.
@@ -86,23 +89,6 @@ Address to remove from whitelist.
 }
 ```
 
-#### RemoveLiquidity
-Remove liquidity from Liquidity Pool (LP).
-
-##### Request
-
-| Name      | Type      | Description                                   | optional |
-|-----------|-----------|-----------------------------------------------|----------|
-| recipient | HumanAddr | The address to remove from LP                 | no       |
-
-##### Response
-```json
-{
-  "complete_task": {
-    "status": "success"
-  }
-}
-```
 
 ## User
 
@@ -129,8 +115,31 @@ Get information about the token pair.
 }
 ```
 
+
+#### GetEstimatedPrice
+Get Estimated Price for amount.
+
+##### Request
+| Name    | Type   | Description                                   | optional |
+|---------|--------|-----------------------------------------------|----------|
+|  offer  | TokenAmount   | amount as buying quantity, token as price    |  no  |
+
+##### Response
+```json
+{
+  "liquidity_token": "LP Token ContractLink",
+  "factory": "Factory ContractLink",
+  "pair": "Token Pair with two Token Type",
+  "amount_0": "Balance of Token 0",
+  "amount_1": "Balance of Token 1",
+  "total_liquidity": "Total liquidity of pool",
+  "contract_version": "Contract Version of the Smart Contract"
+}
+```
+
+
 #### GetStakingContract
-Get Staking Contract Link if SC exist.
+Get Staking Contract Link if SC exists.
 
 ##### Request
 | Name    | Type   | Description                                   | optional |
@@ -198,6 +207,8 @@ Get Claimable Reward Amount for staking.
 | Name       | Type        | Description                              | optional |
 |------------|-------------|------------------------------------------|----------|
 |  staker    | HumanAddr   | staker's address                         |    no    |
+|  time      | HumanAddr   | current utc time in miliseconds          |    no    |
+
 
 ##### Response
 ```json
@@ -290,13 +301,13 @@ Swap Native Token.
 ```
 
 #### RemoveLiquidity
-Remove liqudity for address and remove from staking if applicable.
+Remove liquidity for address and remove from staking if applicable.
 
 ##### Request
 
 | Name      | Type        | Description                             | optional |
 |-----------|----------------|--------------------------------------|----------|
-| recipient | HumanAddr | address to remove liqudity             | no      |
+| recipient | HumanAddr | address to remove liquidity             | no      |
 ##### Response
 ```json
 {
@@ -305,3 +316,28 @@ Remove liqudity for address and remove from staking if applicable.
   }
 }
 ```
+
+
+## Callback
+### Messages
+
+#### Receive
+Receive Callback.
+
+##### Request
+
+| Name      | Type        | Description                             | optional |
+|-----------|----------------|--------------------------------------|----------|
+| from | HumanAddr | who invokes the callback                  | no      |
+| msg |  | Message to Invoke in Pair Contract                  | yes       |
+| amount | Uint128 | amount sent               | no       |
+
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+

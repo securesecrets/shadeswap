@@ -1,4 +1,4 @@
-use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg,  HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}};
+use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
 
 use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair, Fee}};
@@ -13,7 +13,6 @@ use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist, stor
      load_whitelist_address,add_whitelist_address,load_staking_contract, store_staking_contract, load_config, store_trade_history,remove_whitelist_address,
 load_trade_counter, load_trade_history};
 use crate::help_math::{{substraction, multiply}};
-use crate::state::swapdetails::{SwapInfo, SwapResult};
 use crate::state::tradehistory::DirectionType;
 use crate::state::PAGINATION_LIMIT;
 use shadeswap_shared::fadroma::{
@@ -253,6 +252,16 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
+pub fn query_calculate_price_and_spread<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    offer: TokenAmount<HumanAddr>
+) -> StdResult<SwapInfo>{
+    let config_settings = load_config(deps)?;
+    let amm_settings = query_factory_amm_settings(&deps.querier, config_settings.factory_info.clone())?;
+    let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config_settings,&offer,  &deps.storage, HumanAddr::default())?;
+    Ok(swap_result)
+}
+
 pub fn swap<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -439,6 +448,10 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             let amount = query_claim_rewards(&deps, staker, time)?;
             to_binary(&QueryMsgResponse::GetClaimReward { amount: amount })
         },       
+        QueryMsg::GetEstimatedPrice {offer} => {
+           let swap_result = query_calculate_price_and_spread(&deps,offer)?;
+           to_binary(&QueryMsgResponse::EstimatedPrice { estimated_price : swap_result.price })
+        }
     }
 }
 
@@ -478,7 +491,7 @@ pub fn calculate_swap_result(
     settings: &AMMSettings<HumanAddr>,
     config: &Config<HumanAddr>,
     offer: &TokenAmount<HumanAddr>,
-    storage: &mut impl Storage,
+    storage: &impl Storage,
     recipient: HumanAddr,
 ) -> StdResult<SwapInfo> {
     if !config.pair.contains(&offer.token) {
@@ -644,7 +657,7 @@ pub fn calculate_price(
     token0_pool_balance: Uint256,
     token1_pool_balance: Uint256,
 ) -> StdResult<Uint256> {
-    Ok(((token0_pool_balance * amount)? / (token1_pool_balance + amount)?)?)
+    Ok(((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?)
 }
 
 pub fn calculate_spread(
@@ -652,8 +665,8 @@ pub fn calculate_spread(
     token0_pool_balance: Uint256,
     token1_pool_balance: Uint256,
 ) -> StdResult<Uint256> {
-    let update_amount = ((token0_pool_balance * amount)? / (token1_pool_balance + amount)?)?;
-    let original_amount = ((token0_pool_balance * amount)? / (token1_pool_balance))?;
+    let update_amount = ((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?;
+    let original_amount = ((token1_pool_balance * amount)? / (token0_pool_balance))?;
     let spread_amount = (update_amount - original_amount).unwrap_or(Uint256::zero());
     Ok(spread_amount)
 }

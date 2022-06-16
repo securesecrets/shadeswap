@@ -131,7 +131,7 @@ pub fn claim_rewards<S: Storage, A: Api, Q: Querier>(
     if is_user_staker != true {
         return Err(StdError::unauthorized())
     }
-    let current_timestamp =  Uint128(env.block.time as u128); // get_current_timestamp()?;
+    let current_timestamp =  Uint128((env.block.time * 1000) as u128); 
     let mut messages = Vec::new();
     // calculate for all also for user
     claim_rewards_for_all_stakers(deps, current_timestamp)?;
@@ -186,19 +186,14 @@ pub fn calculate_staking_reward<S:Storage, A:Api, Q: Querier>(
     current_timestamp: Uint128
 ) -> StdResult<Uint128>{
     let cons = Uint128(100u128);
-    let percentage = Uint256::from(get_staking_percentage(deps,staker, cons)?);
+    let percentage = get_staking_percentage(deps,staker, cons)?;
     let config = load_config(deps)?;
-    let milisec = Uint256::from(Uint128(24u128 * 60u128 *60u128 * 1000u128));   
-    let converted_current_time = Uint256::from(current_timestamp);
-    let converted_last_time = Uint256::from(last_timestamp);
-    let time_dif = (converted_current_time - converted_last_time)?;   
-    let milisec_offset = (milisec * time_dif)?;            
-    if milisec_offset != Uint256::from(Uint128(0u128)) {
-        println!("config.daily_reward_amount {}",config.daily_reward_amount);
-        println!("milisec_offset {}",milisec_offset );
-        let total_available_reward = (Uint256::from(config.daily_reward_amount) / milisec_offset)?;
-        let result = ((total_available_reward * percentage)? / Uint256::from(cons))?;
-        Ok(Uint128(result.clamp_u128()?))
+    let milisec = Uint128(24u128 * 60u128 *60u128 * 1000u128); 
+    let time_dif = (current_timestamp - last_timestamp)?;           
+    if time_dif != Uint128(0u128) {        
+        let total_available_reward = config.daily_reward_amount.multiply_ratio(time_dif, milisec);
+        let result = total_available_reward.multiply_ratio(percentage, cons);
+        Ok(result)
     }else{
         Ok(Uint128(0u128))
     }
@@ -268,7 +263,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse>{
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let caller = address;
-    let current_timestamp = Uint128(env.block.time as u128);
+    let current_timestamp = Uint128((env.block.time * 1000) as u128);
     let is_user_staker = is_address_already_staker(deps, caller.clone())?;
     let config = load_config(deps)?;
     if is_user_staker != true {

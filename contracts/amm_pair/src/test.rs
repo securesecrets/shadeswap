@@ -1,4 +1,4 @@
-use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg, InvokeMsg, QueryMsgResponse}};
+use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg,SwapInfo, SwapResult,  InvokeMsg, QueryMsgResponse}};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair::{{TokenPair}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
@@ -8,7 +8,6 @@ use crate::state::{Config};
 use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
 use crate::state::amm_pair_storage::{{ store_config, load_config,
     remove_whitelist_address,is_address_in_whitelist, add_whitelist_address,load_whitelist_address, }};
-use crate::state::swapdetails::{SwapInfo, SwapResult};
 use crate::contract::init;
 use shadeswap_shared::fadroma::secret_toolkit::snip20::Balance;
 use crate::contract::{{create_viewing_key, calculate_price, calculate_swap_result,swap, query, handle}};

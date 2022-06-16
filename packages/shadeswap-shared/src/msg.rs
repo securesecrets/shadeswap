@@ -93,6 +93,21 @@ pub mod amm_pair {
     use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair, stake_contract::StakingContractInit};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize,  PartialEq, Debug, JsonSchema)]
+    pub struct SwapInfo {
+        pub total_fee_amount: Uint128,
+        pub lp_fee_amount: Uint128,
+        pub shade_dao_fee_amount: Uint128,
+        pub result: SwapResult,
+        pub price: Uint128
+    }
+    
+    #[derive(Serialize, Deserialize,  PartialEq, Debug, JsonSchema)]
+    pub struct SwapResult {
+        pub return_amount: Uint128,
+        pub spread_amount: Uint128,
+    } 
     
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
     pub struct TradeHistory {
@@ -172,6 +187,7 @@ pub mod amm_pair {
         GetAdmin,
         GetStakingContract,
         GetClaimReward{time: u128, staker: HumanAddr},
+        GetEstimatedPrice { offer: TokenAmount<HumanAddr>}
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -202,6 +218,9 @@ pub mod amm_pair {
         },
         StakingContractInfo{
             staking_contract: ContractLink<HumanAddr>
+        },
+        EstimatedPrice {
+            estimated_price: Uint128
         }
     }
 }
@@ -266,7 +285,7 @@ pub mod factory {
         },
         GetAdminAddress {
             address: HumanAddr
-        }
+        },        
     }
 
     #[derive(Serialize, Deserialize, JsonSchema)]

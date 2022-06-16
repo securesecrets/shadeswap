@@ -129,6 +129,29 @@ Get information about the token pair.
 }
 ```
 
+
+#### GetEstimatedPrice
+Get Estimated Price for amount.
+
+##### Request
+| Name    | Type   | Description                                   | optional |
+|---------|--------|-----------------------------------------------|----------|
+|  offer  | TokenAmount   | amount as buying quantity, token as price    |  no  |
+
+##### Response
+```json
+{
+  "liquidity_token": "LP Token ContractLink",
+  "factory": "Factory ContractLink",
+  "pair": "Token Pair with two Token Type",
+  "amount_0": "Balance of Token 0",
+  "amount_1": "Balance of Token 1",
+  "total_liquidity": "Total liquidity of pool",
+  "contract_version": "Contract Version of the Smart Contract"
+}
+```
+
+
 #### GetStakingContract
 Get Staking Contract Link if SC exist.
 

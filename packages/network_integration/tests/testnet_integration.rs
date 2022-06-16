@@ -563,24 +563,7 @@ fn run_testnet() -> Result<()> {
                 &mut reports,
                 None,
             )
-            .unwrap();
-
-            // println!("\n\tDepositing 1000000000uscrt s_sREWARDSNIP20");
-
-            // {
-            //     let msg = snip20::HandleMsg::Deposit { padding: None };
-        
-            //     handle(
-            //         &msg,
-            //         &s_sREWARDSNIP20,
-            //         ACCOUNT_KEY,
-            //         Some(GAS),
-            //         Some("test"),
-            //         Some("1000000000uscrt"),
-            //         &mut reports,
-            //         None,
-            //     )?;
-            // }
+            .unwrap();         
 
             print_header("\n\tInitiating sSCRT to sSHD Swap");
 
@@ -788,6 +771,31 @@ fn run_testnet() -> Result<()> {
             assert_eq!(
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()), old_scrt_balance
             );
+
+            print_header("\n\tGet Estimated Price for AMM Pair");
+            let estimated_price_query_msg = AMMPairQueryMsg::GetEstimatedPrice {
+                offer: TokenAmount {
+                    token: TokenType::CustomToken {
+                        contract_addr: s_sCRT.address.clone().into(),
+                        token_code_hash: s_sCRT.code_hash.clone(),
+                    },
+                    amount: Uint128(100),
+                },
+            };    
+            let estimated_price_query: AMMPairQueryMsgResponse = query( 
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                }, 
+                estimated_price_query_msg, 
+                None
+            )?;
+            if let AMMPairQueryMsgResponse::EstimatedPrice { estimated_price } = estimated_price_query {
+                assert_ne!(estimated_price, Uint128(0u128));
+            }         
+                
 
         } else {
             assert!(false, "Query returned unexpected response")

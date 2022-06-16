@@ -79,24 +79,6 @@ pub mod tradehistory{
 }
 
 
-pub mod swapdetails {
-    use super::*;
-
-    #[derive(Serialize, Deserialize,  PartialEq, Debug)]
-    pub struct SwapInfo {
-        pub total_fee_amount: Uint128,
-        pub lp_fee_amount: Uint128,
-        pub shade_dao_fee_amount: Uint128,
-        pub result: SwapResult,
-        pub price: Uint128
-    }
-    
-    #[derive(Serialize, Deserialize,  PartialEq, Debug)]
-    pub struct SwapResult {
-        pub return_amount: Uint128,
-        pub spread_amount: Uint128,
-    }    
-}
 
 pub mod amm_pair_storage{
     use super::*;

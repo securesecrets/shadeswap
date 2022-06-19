@@ -188,10 +188,10 @@ pub fn calculate_staking_reward<S:Storage, A:Api, Q: Querier>(
     let cons = Uint128(100u128);
     let percentage = get_staking_percentage(deps,staker, cons)?;
     let config = load_config(deps)?;
-    let milisec = Uint128(24u128 * 60u128 *60u128 * 1000u128); 
+    let seconds = Uint128(24u128 * 60u128 *60u128); 
     let time_dif = (current_timestamp - last_timestamp)?;           
     if time_dif != Uint128(0u128) {        
-        let total_available_reward = config.daily_reward_amount.multiply_ratio(time_dif, milisec);
+        let total_available_reward = config.daily_reward_amount.multiply_ratio(time_dif, seconds);
         let result = total_available_reward.multiply_ratio(percentage, cons);
         Ok(result)
     }else{

@@ -805,6 +805,86 @@ fn run_testnet() -> Result<()> {
     return Ok(());
 }
 
+#[test]
+fn run_test_deploy() -> Result<()> {
+    
+    let account = account_address(ACCOUNT_KEY)?;
+    let shade_dao = account_address(SHADE_DAO_KEY)?;
+
+    println!("Using Account: {}", account.blue());
+
+    let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
+
+    let mut reports = vec![];
+
+    print_header("Storing all contracts");
+    print_warning("Storing LP Token Contract");
+    
+    let s_lp =
+        store_and_return_contract(LPTOKEN20_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
+    print_warning("Storing AMM Pair Token Contract");
+    let s_ammPair =
+        store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
+    
+    print_warning("Storing Staking Contract");
+    let staking_contract = 
+        store_and_return_contract(STAKING_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
+
+    print_header("\n\tInitializing Factory Contract");
+
+    let factory_msg = FactoryInitMsg {
+        pair_contract: ContractInstantiationInfo {
+            code_hash: s_ammPair.code_hash.to_string(),
+            id: s_ammPair.id.clone().parse::<u64>().unwrap(),
+        },
+        amm_settings: AMMSettings {
+            lp_fee: Fee::new(8, 100),
+            shade_dao_fee: Fee::new(2, 100),
+            shade_dao_address: ContractLink {
+                address: HumanAddr(String::from(shade_dao.to_string())),
+                code_hash: "asd".to_string(),
+            }
+        },
+        lp_token_contract: ContractInstantiationInfo {
+            code_hash: s_lp.code_hash.clone(),
+            id: s_lp.id.clone().parse::<u64>().unwrap(),
+        },
+        prng_seed: to_binary(&"".to_string()).unwrap(),
+    };
+
+    let factory_contract = init(
+        &factory_msg,
+        FACTORY_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+
+    print_contract(&factory_contract);
+
+    print_header("\n\tGetting Pairs from Factory");
+    {
+        let msg = FactoryQueryMsg::ListAMMPairs {
+            pagination: Pagination {
+                start: 0,
+                limit: 10,
+            },
+        };
+
+        let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
+        if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
+            assert_eq!(amm_pairs.len(), 0);
+        } else {
+            assert!(false, "Query returned unexpected response")
+        }
+    }
+
+    return Ok(());
+}
+
 pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Uint128 {
     let msg = snip20::QueryMsg::Balance {
         address: HumanAddr::from(from),

@@ -79,3 +79,10 @@ server-connect:
 # Runs integration tests
 integration-tests:
 	cargo test run_testnet -- --nocapture --test-threads=1
+
+	
+deploy-test:
+	cargo test run_test_deploy -- --nocapture --test-threads=1
+
+deploy:
+	cargo build --manifest-path ./packages/network_integration/Cargo.toml && cargo run ./target/debug/deploy

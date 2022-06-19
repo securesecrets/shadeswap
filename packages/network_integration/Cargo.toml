@@ -5,9 +5,8 @@ authors = ["Tony Nguyen <tnguyen@polarity.exchange>"]
 edition = "2018"
 
 [[bin]]
-name = "launch_factory"
-path = "src/launch/factory.rs"
-
+name = "deploy"
+path = "src/launch/deploy.rs"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -23,7 +22,6 @@ serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0.67"}
 getrandom = { version = "0.2", features = ["js"] } # Prevents wasm from freaking out when running make
 rand = { version = "0.8.4"}
-cosmwasm-std = { version = "0.10", package = "secret-cosmwasm-std" }
 rs_merkle = { git = "https://github.com/FloppyDisck/rs-merkle", branch = "node_export" }
 query-authentication = {git = "https://github.com/securesecrets/query-authentication", tag = "v1.2.0"}
 shadeswap-shared = {path = "../shadeswap-shared"}

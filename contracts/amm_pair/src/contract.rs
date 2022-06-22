@@ -337,6 +337,7 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
         price: swap_result.price,
         amount: swap_result.result.return_amount,
         timestamp: env.block.time,
+        height: env.block.height,
         direction: sell_or_swap.to_string(),
         lp_fee_amount: swap_result.lp_fee_amount,
         total_fee_amount: swap_result.total_fee_amount,
@@ -533,7 +534,7 @@ pub fn calculate_swap_result(
         shade_dao_fee_amount: shade_dao_fee_amount,
         total_fee_amount: total_fee_amount,
         result: result_swap,
-        price: ((token0_pool + amount)? / (token1_pool - swap_amount)?)?
+        price: (swap_amount / amount)?  // find decimal 0.004 plus denom 4 -> 3 0.004
             .clamp_u128()?
             .into(),
     })

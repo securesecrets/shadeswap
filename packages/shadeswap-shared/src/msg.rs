@@ -118,6 +118,7 @@ pub mod amm_pair {
         pub total_fee_amount: Uint128,
         pub lp_fee_amount: Uint128,
         pub shade_dao_fee_amount: Uint128,
+        pub height: u64,
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {

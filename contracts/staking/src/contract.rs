@@ -83,7 +83,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
     from: HumanAddr
 ) -> StdResult<HandleResponse>{
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
-    let current_timestamp = Uint128(env.block.time * 1000 as u128);
+    let current_timestamp = Uint128((env.block.time * 1000) as u128);
     claim_rewards_for_all_stakers(deps, current_timestamp)?;
     let caller = from.clone();
     // check if caller exist

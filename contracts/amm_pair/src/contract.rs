@@ -12,7 +12,7 @@ use crate::state::{{Config}};
 use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist, store_trade_counter,
      load_whitelist_address,add_whitelist_address,load_staking_contract, store_staking_contract, load_config, store_trade_history,remove_whitelist_address,
 load_trade_counter, load_trade_history};
-use crate::help_math::{{substraction, multiply}};
+use crate::help_math::{{substraction, multiply,calculate_and_print_price}};
 use crate::state::tradehistory::DirectionType;
 use crate::state::PAGINATION_LIMIT;
 use shadeswap_shared::fadroma::{
@@ -483,7 +483,7 @@ fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(
 fn calculate_fee(amount: Uint256, fee: Fee) -> StdResult<Uint128> {
     let nom = Uint256::from(fee.nom);
     let denom = Uint256::from(fee.denom);
-    let amount = ((amount * nom)? / denom)?;
+    let amount = ((amount * nom)? / denom)?;   
     Ok(amount.clamp_u128()?.into())
 }
 
@@ -534,9 +534,7 @@ pub fn calculate_swap_result(
         shade_dao_fee_amount: shade_dao_fee_amount,
         total_fee_amount: total_fee_amount,
         result: result_swap,
-        price: (swap_amount / amount)?  // find decimal 0.004 plus denom 4 -> 3 0.004
-            .clamp_u128()?
-            .into(),
+        price: calculate_and_print_price(swap_amount.clamp_u128()?.into(), amount.clamp_u128()?.into())?,
     })
 }
 

@@ -1,5 +1,3 @@
-pyyaml
-pywaves
 rsa
 pycryptodome
-psycopg2
+pyyaml

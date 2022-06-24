@@ -56,9 +56,9 @@ fn secretcli_run(command: Vec<String>, max_retry: Option<i32>) -> Result<Value> 
         result = cli.output().expect("Unexpected error");
     }
     let out = result.stdout;
-    // if String::from_utf8_lossy(&out).contains("output_error") {
-    //     println!("{:?}", &String::from_utf8_lossy(&out));
-    // }
+    if String::from_utf8_lossy(&out).contains("output_error") {
+        println!("{:?}", &String::from_utf8_lossy(&out));
+    }
     println!("{:?}", &String::from_utf8_lossy(&out));
     serde_json::from_str(&String::from_utf8_lossy(&out))
 }

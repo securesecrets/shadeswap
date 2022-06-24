@@ -1,6 +1,6 @@
 use colored::*;
-use cosmwasm_std::StdResult;
 use rand::{distributions::Alphanumeric, Rng};
+use secretcli::cli_types::StoredContract;
 use secretcli::secretcli::{init, handle, Report};
 use secretcli::{cli_types::NetContract, secretcli::query};
 use serde::Serialize;
@@ -60,6 +60,13 @@ pub fn print_contract(contract: &NetContract) {
     println!(
         "\tLabel: {}\n\tID: {}\n\tAddress: {}\n\tHash: {}",
         contract.label, contract.id, contract.address, contract.code_hash
+    );
+}
+
+pub fn print_stored_contract(contract: &StoredContract) {
+    println!(
+        "\tID: {}\n\tHash: {}",
+        contract.id, contract.code_hash
     );
 }
 

@@ -324,11 +324,12 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
         swaper_receiver,
         swap_result.result.return_amount,
     )?);
-    let mut sell_or_swap = "".to_string();
+    let mut action = "".to_string();
     if index == 0 {
-        sell_or_swap = "Buy".to_string();
-    } else {
-        sell_or_swap = "Sell".to_string();
+        action = "BUY".to_string();
+    } 
+    if index == 1 {
+        action = "SELL".to_string();
     }      
     
     // Push Trade History
@@ -338,7 +339,7 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
         amount: swap_result.result.return_amount,
         timestamp: env.block.time,
         height: env.block.height,
-        direction: sell_or_swap.to_string(),
+        direction: action.to_string(),
         lp_fee_amount: swap_result.lp_fee_amount,
         total_fee_amount: swap_result.total_fee_amount,
         shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
@@ -529,12 +530,14 @@ pub fn calculate_swap_result(
         spread_amount: spread_amount.clamp_u128()?.into(),
     };
 
+    let token_index = config.pair.get_token_index(&offer.token).unwrap();  
+
     Ok(SwapInfo {
         lp_fee_amount: lp_fee_amount,
         shade_dao_fee_amount: shade_dao_fee_amount,
         total_fee_amount: total_fee_amount,
         result: result_swap,
-        price: calculate_and_print_price(swap_amount.clamp_u128()?.into(), amount.clamp_u128()?.into())?,
+        price: calculate_and_print_price(swap_amount.clamp_u128()?.into(), amount.clamp_u128()?.into(), token_index)?,
     })
 }
 

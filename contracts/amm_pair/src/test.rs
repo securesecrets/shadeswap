@@ -62,11 +62,11 @@ pub mod tests {
     
     #[test]
     fn assert_calculate_and_print_price() -> StdResult<()>{
-        let result_a = calculate_and_print_price(99, 100)?;
-        let result_b = calculate_and_print_price(58, 124)?;
-        let result_c = calculate_and_print_price(158, 124)?;
+        let result_a = calculate_and_print_price(99, 100,0)?;
+        let result_b = calculate_and_print_price(58, 124,1)?;
+        let result_c = calculate_and_print_price(158, 124,0)?;
         assert_eq!(result_a, "0.99".to_string());
-        assert_eq!(result_b, "0.467741935483870967".to_string());
+        assert_eq!(result_b, "0.467741935".to_string());
         assert_eq!(result_c, "1.274193548387096774".to_string());
         Ok(())
     }

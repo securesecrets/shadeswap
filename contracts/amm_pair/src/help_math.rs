@@ -15,3 +15,11 @@ pub fn multiply(nominator: Decimal, denominator: Decimal) -> Decimal {
         DECIMAL_FRACTIONAL,
     )
 }
+
+pub fn calculate_and_print_price(nominator: u128, denominator: u128) -> StdResult<String> {
+    let result =  Decimal::from_ratio(
+        nominator,
+        denominator,
+    );
+    Ok(result.to_string())
+}

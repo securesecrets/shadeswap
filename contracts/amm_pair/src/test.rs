@@ -54,12 +54,23 @@ pub mod tests {
     use serde::Deserialize;
     use serde::Serialize;
     use shadeswap_shared::fadroma::BalanceResponse;
-
+    use crate::help_math::calculate_and_print_price;
     pub const FACTORY_CONTRACT_ADDRESS: &str = "FACTORY_CONTRACT_ADDRESS";
     pub const CUSTOM_TOKEN_1: &str = "CUSTOM_TOKEN_1";
     pub const CUSTOM_TOKEN_2: &str = "CUSTOM_TOKEN_2";
     pub const CONTRACT_ADDRESS: &str = "CONTRACT_ADDRESS";
     
+    #[test]
+    fn assert_calculate_and_print_price() -> StdResult<()>{
+        let result_a = calculate_and_print_price(99, 100)?;
+        let result_b = calculate_and_print_price(58, 124)?;
+        let result_c = calculate_and_print_price(158, 124)?;
+        assert_eq!(result_a, "0.99".to_string());
+        assert_eq!(result_b, "0.467741935483870967".to_string());
+        assert_eq!(result_c, "1.274193548387096774".to_string());
+        Ok(())
+    }
+
     //#[test]
     fn assert_init_config() -> StdResult<()> {       
         // let info = mock_info("amm_pair_contract", &amount);
@@ -172,14 +183,15 @@ pub mod tests {
     fn assert_store_trade_history_increase_counter_and_store_success()-> StdResult<()>{
         let mut deps = mkdeps();
         let env = mkenv("sender");       
-        let trade_history = TradeHistory{
-            price: Uint128::from(50u128),
+        let trade_history = TradeHistory {
+            price: "50".to_string(),
             amount: Uint128::from(50u128),
             timestamp: 6000,
             direction: "Sell".to_string(),
             total_fee_amount: Uint128::from(50u128),
             lp_fee_amount: Uint128::from(50u128),
             shade_dao_fee_amount: Uint128::from(50u128),
+            height: 1045667
         };
         store_trade_history(&mut deps, &trade_history)?;
         let current_index = load_trade_counter(&deps.storage)?;
@@ -289,7 +301,7 @@ pub mod tests {
         assert_eq!(swap_result.result.return_amount, Uint128(997u128));
         assert_eq!(swap_result.lp_fee_amount, Uint128(2u128));
         assert_eq!(swap_result.shade_dao_fee_amount, Uint128(0u128));
-        assert_eq!(swap_result.price, Uint128(1u128));
+        assert_eq!(swap_result.price, "0.999".to_string());
         Ok(())
     }
 

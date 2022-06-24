@@ -793,7 +793,7 @@ fn run_testnet() -> Result<()> {
                 None
             )?;
             if let AMMPairQueryMsgResponse::EstimatedPrice { estimated_price } = estimated_price_query {
-                assert_ne!(estimated_price, Uint128(0u128));
+                assert_eq!(estimated_price, "0.99".to_string());
             }         
                 
 

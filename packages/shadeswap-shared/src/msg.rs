@@ -100,7 +100,7 @@ pub mod amm_pair {
         pub lp_fee_amount: Uint128,
         pub shade_dao_fee_amount: Uint128,
         pub result: SwapResult,
-        pub price: Uint128
+        pub price: String
     }
     
     #[derive(Serialize, Deserialize,  PartialEq, Debug, JsonSchema)]
@@ -111,7 +111,7 @@ pub mod amm_pair {
     
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
     pub struct TradeHistory {
-        pub price: Uint128,
+        pub price: String,
         pub amount: Uint128,
         pub timestamp: u64,
         pub direction: String,
@@ -221,7 +221,7 @@ pub mod amm_pair {
             staking_contract: ContractLink<HumanAddr>
         },
         EstimatedPrice {
-            estimated_price: Uint128
+            estimated_price: String
         }
     }
 }

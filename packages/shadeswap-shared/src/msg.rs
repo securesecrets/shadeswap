@@ -3,6 +3,7 @@ use fadroma::{
     scrt_callback::Callback,
     scrt_link::{ContractInstantiationInfo, ContractLink},
 };
+use secret_toolkit::utils::Query;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use crate::TokenType;
@@ -10,28 +11,6 @@ use crate::TokenType;
 pub use crate::snip20_impl::msg as snip20;
 use crate::token_amount::TokenAmount;
 use crate::token_pair_amount::TokenPairAmount;
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
-    pub count: i32,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum HandleMsg {}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum QueryMsg {
-    // GetCount returns the current count as a json-encoded number
-    GetCount {},
-}
-
-// We define a custom struct for each query response
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct CountResponse {
-    pub count: i32,
-}
 
 pub mod router {
 
@@ -190,6 +169,11 @@ pub mod amm_pair {
         GetClaimReward{time: u128, staker: HumanAddr},
         GetEstimatedPrice { offer: TokenAmount<HumanAddr>}
     }
+
+    impl Query for QueryMsg {
+        const BLOCK_SIZE: usize = 256;
+    }
+
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsgResponse {

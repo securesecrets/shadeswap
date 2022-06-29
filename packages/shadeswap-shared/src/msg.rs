@@ -171,9 +171,11 @@ pub mod amm_pair {
         GetEstimatedPrice { offer: TokenAmount<HumanAddr>}
     }
 
+    /*
     impl Query for QueryMsg {
         const BLOCK_SIZE: usize = 256;
     }
+    */
 
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]

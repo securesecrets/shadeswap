@@ -638,7 +638,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
         pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: staking_contract.address.clone(),
             callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
-            msg: to_binary(&StakingHandleMsg::Unstake{address: recipient.clone()})?,
+            msg: to_binary(&StakingHandleMsg::Unstake{address: recipient.clone(), amount: amount })?,
             send: vec![],
         }));
      }    
@@ -678,6 +678,7 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     env: Env,
     deposit: TokenPairAmount<HumanAddr>,
     slippage: Option<Decimal>,
+    staking: Option<bool>
 ) -> StdResult<HandleResponse> {
     let config = load_config(&deps)?;
     let Config {
@@ -758,28 +759,51 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         lp_tokens = std::cmp::min(percent_token0_pool, percent_token1_pool).clamp_u128()?
     };
 
-    pair_messages.push(snip20::mint_msg(
-        env.message.sender.clone(),
-        Uint128(lp_tokens),
-        None,
-        BLOCK_SIZE,
-        lp_token_info.code_hash,
-        lp_token_info.address,
-    )?);
+    let mut add_to_staking = false;
+    // check if user wants add his LP token to Staking
+    if let Some(true) = staking {
+        // check if the Staking Contract has been set for AMM Pairs
+        add_to_staking = true;
+        let staking_contract = load_staking_contract(deps)?;
+        if staking_contract.address == HumanAddr::default() {
+            return Err(StdError::generic_err(
+                "Staking Contract has not been set for AMM Pairs",
+            ));          
+        }
 
-    let staking_contract = load_staking_contract(deps)?;
-    if staking_contract.address != HumanAddr::default() {
         pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: staking_contract.address.clone(),
             callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
             msg: to_binary(&StakingHandleMsg::Stake{from: env.message.sender.clone(), amount: Uint128(lp_tokens)})?,
             send: vec![],
         }));
-    }   
+           
+        pair_messages.push(snip20::mint_msg(
+            staking_contract.address.clone(),
+            Uint128(lp_tokens),
+            None,
+            BLOCK_SIZE,
+            lp_token_info.code_hash,
+            lp_token_info.address,
+        )?);
+    }
+    else {
+        add_to_staking = false;
+        pair_messages.push(snip20::mint_msg(
+            env.message.sender.clone(),
+            Uint128(lp_tokens),
+            None,
+            BLOCK_SIZE,
+            lp_token_info.code_hash,
+            lp_token_info.address,
+        )?);
+    }  
+   
 
     Ok(HandleResponse {
         messages: pair_messages,
         log: vec![
+            log("staking", format!("{}", add_to_staking)),
             log("action", "add_liquidity_to_pair_contract"),
             log("assets", format!("{}, {}", deposit.pair.0, deposit.pair.1)),
             log("share_pool", lp_tokens),
@@ -787,6 +811,7 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         data: None,
     })
 }
+
 
 fn assert_slippage_acceptance(
     slippage: Option<Decimal>,

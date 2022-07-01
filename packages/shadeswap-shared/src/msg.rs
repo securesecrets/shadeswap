@@ -322,7 +322,8 @@ pub mod staking {
             amount: Uint128,
         },
         Unstake {
-            address: HumanAddr
+            address: HumanAddr,
+            amount: Uint128
         },  
     }
 

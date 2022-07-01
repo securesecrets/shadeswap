@@ -70,7 +70,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ClaimRewards { } => {
             claim_rewards(deps, env)
         }
-        HandleMsg::Unstake {address} => unstake(deps,env, address),
+        HandleMsg::Unstake {address, amount} => unstake(deps,env, address, amount),
     }    
 }
 
@@ -261,6 +261,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     address: HumanAddr,
+    amount: Uint128
 ) -> StdResult<HandleResponse>{
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let caller = address;
@@ -277,7 +278,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     let mut messages = Vec::new();
     // update stake_info
     let mut staker_info = load_staker_info(deps, caller.clone())?;        
-    staker_info.amount = Uint128(0);
+    staker_info.amount -= amount;
     staker_info.last_time_updated = current_timestamp;
     store_staker_info(deps, &staker_info)?;
 

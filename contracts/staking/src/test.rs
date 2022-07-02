@@ -119,7 +119,7 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env.clone(),
-            HandleMsg::Unstake {address: staker.clone()},
+            HandleMsg::Unstake {amount: Uint128(100u128)},
         )
         .unwrap();
         let stake_info = load_staker_info(&deps, staker.clone())?;    
@@ -151,22 +151,7 @@ pub mod tests {
                 from: env_b.message.sender.clone()
             },
         )
-        .unwrap();         
-      
-        let test = query(&deps, QueryMsg::GetStakers{})?;
-        match from_binary(&test)? {
-            QueryResponse::Stakers {         
-                stakers,
-            } => {
-                assert_eq!(stakers.len(), 2);
-            },
-            QueryResponse::ClaimReward{amount} => {
-                assert_eq!(amount, Uint128(0));
-            },
-            QueryResponse::ContractOwner{address} =>{
-                assert_eq!(env_b.message.sender.clone(),address)
-            }
-        };    
+        .unwrap();       
         Ok(())
     }
 

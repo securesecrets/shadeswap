@@ -175,7 +175,7 @@ fn run_testnet() -> Result<()> {
         )?;
     }
 
-    println!("\n\tDepositing 1000000000uscrt s_sREWARDSNIP20");
+    println!("\n\tDepositing 1000000000000uscrt s_sREWARDSNIP20");
 
     {
         let msg = snip20::HandleMsg::Deposit { padding: None };
@@ -186,7 +186,7 @@ fn run_testnet() -> Result<()> {
             ACCOUNT_KEY,
             Some(GAS),
             Some("test"),
-            Some("1000000000uscrt"),
+            Some("1000000000000uscrt"),
             &mut reports,
             None,
         )?;
@@ -194,11 +194,11 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&s_sREWARDSNIP20, account.to_string(), VIEW_KEY.to_string()),
-        Uint128(1000000000)
+        Uint128(1000000000000)
     );
 
 
-    println!("\n\tDepositing 1000000000uscrt sSCRT");
+    println!("\n\tDepositing 1000000000000uscrt sSCRT");
 
     {
         let msg = snip20::HandleMsg::Deposit { padding: None };
@@ -209,7 +209,7 @@ fn run_testnet() -> Result<()> {
             ACCOUNT_KEY,
             Some(GAS),
             Some("test"),
-            Some("1000000000uscrt"),
+            Some("1000000000000uscrt"),
             &mut reports,
             None,
         )?;
@@ -217,10 +217,10 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-        Uint128(1000000000)
+        Uint128(1000000000000)
     );
 
-    println!("\n\tDepositing 1000000000uscrt sSHD");
+    println!("\n\tDepositing 1000000000000uscrt sSHD");
 
     {
         let msg = snip20::HandleMsg::Deposit { padding: None };
@@ -231,7 +231,7 @@ fn run_testnet() -> Result<()> {
             ACCOUNT_KEY,
             Some(GAS),
             Some("test"),
-            Some("1000000000uscrt"),
+            Some("1000000000000uscrt"),
             &mut reports,
             None,
         )?;
@@ -296,7 +296,7 @@ fn run_testnet() -> Result<()> {
                         code_hash: staking_contract.code_hash.to_string(),
                         id: staking_contract.id.clone().parse::<u64>().unwrap(),
                     },
-                    amount: Uint128(100000u128),
+                    amount: Uint128(3450000000000u128),
                     reward_token:  TokenType::CustomToken {
                         contract_addr: s_sREWARDSNIP20.address.clone().into(),
                         token_code_hash: s_sREWARDSNIP20.code_hash.to_string(),
@@ -374,7 +374,7 @@ fn run_testnet() -> Result<()> {
             handle(
                 &snip20::HandleMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-                    amount: Uint128(100000000),
+                    amount: Uint128(10000000000),
                     expiration: None,
                     padding: None,
                 },
@@ -396,7 +396,7 @@ fn run_testnet() -> Result<()> {
             handle(
                 &snip20::HandleMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-                    amount: Uint128(100000000),
+                    amount: Uint128(10000000000),
                     expiration: None,
                     padding: None,
                 },
@@ -418,7 +418,7 @@ fn run_testnet() -> Result<()> {
             handle(
                 &snip20::HandleMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(amm_pair_2.address.0.to_string())),
-                    amount: Uint128(100000000),
+                    amount: Uint128(10000000000),
                     expiration: None,
                     padding: None,
                 },
@@ -457,10 +457,11 @@ fn run_testnet() -> Result<()> {
                 &AMMPairHandlMsg::AddLiquidityToAMMContract {
                     deposit: TokenPairAmount {
                         pair: test_pair.clone(),
-                        amount_0: Uint128(100000000),
-                        amount_1: Uint128(100000000),
+                        amount_0: Uint128(10000000000),
+                        amount_1: Uint128(10000000000),
                     },
                     slippage: None,
+                    staking: Some(true),
                 },
                 &NetContract {
                     label: "".to_string(),
@@ -481,10 +482,11 @@ fn run_testnet() -> Result<()> {
                 &AMMPairHandlMsg::AddLiquidityToAMMContract {
                     deposit: TokenPairAmount {
                         pair: test_native_pair.clone(),
-                        amount_0: Uint128(100000000),
-                        amount_1: Uint128(100000000),
+                        amount_0: Uint128(10000000000),
+                        amount_1: Uint128(10000000000),
                     },
                     slippage: None,
+                    staking: None,
                 },
                 &NetContract {
                     label: "".to_string(),
@@ -495,7 +497,7 @@ fn run_testnet() -> Result<()> {
                 ACCOUNT_KEY,
                 Some(GAS),
                 Some("test"),
-                Some("100000000uscrt"),
+                Some("10000000000uscrt"),
                 &mut reports,
                 None,
             )
@@ -503,11 +505,11 @@ fn run_testnet() -> Result<()> {
 
             assert_eq!(
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-                Uint128(1000000000 - 200000000)
+                Uint128(1000000000000 - 20000000000)
             );
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                Uint128(1000000000 - 100000000)
+                Uint128(1000000000000 - 10000000000)
             );
 
             print_header("\n\tInitializing Router");
@@ -616,17 +618,17 @@ fn run_testnet() -> Result<()> {
             );
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                (old_shd_balance + Uint128(91))
+                (old_shd_balance + Uint128(89))
             );
 
-            print_header("\n\tInitiating sSHD to sSCRT Swap");
+            print_header("\n\tInitiating sSCRT to sSHD Swap");
             handle(
                 &snip20::HandleMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
-                    amount: Uint128(100),
+                    amount: Uint128(50),
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
-                            expected_return: Some(Uint128(10)),
+                            expected_return: Some(Uint128(5)),
                             paths: vec![ammPair.address.clone()],
                             recipient: Some(HumanAddr::from(account.to_string())),
                         })
@@ -634,7 +636,7 @@ fn run_testnet() -> Result<()> {
                     ),
                     padding: None,
                 },
-                &s_sSHD,
+                &s_sCRT,
                 ACCOUNT_KEY,
                 Some(GAS),
                 Some("test"),
@@ -645,8 +647,8 @@ fn run_testnet() -> Result<()> {
             .unwrap();
 
             assert_eq!(
-                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-                Uint128(799999991)
+                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+                old_shd_balance + Uint128(44)
             );
 
             assert_eq!(

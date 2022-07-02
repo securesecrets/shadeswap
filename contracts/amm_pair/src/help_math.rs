@@ -11,7 +11,7 @@ pub fn substraction(nominator: Decimal, denominator: Decimal) -> StdResult<Decim
 
 pub fn multiply(nominator: Decimal, denominator: Decimal) -> Decimal {
     Decimal::from_ratio(
-        (nominator * DECIMAL_FRACTIONAL * denominator),
+        nominator * DECIMAL_FRACTIONAL * denominator,
         DECIMAL_FRACTIONAL,
     )
 }
@@ -22,7 +22,6 @@ pub fn decimal_multiplication(a: Decimal, b: Decimal) -> Decimal {
 
 
 pub fn calculate_and_print_price(nominator: u128, denominator: u128, index: usize) -> StdResult<String> {
-    let mut price_to_string = "".to_string();
     if index == 0 {
         let result =  Decimal::from_ratio(
             nominator,

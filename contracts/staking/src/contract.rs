@@ -1,10 +1,10 @@
 use shadeswap_shared::msg::staking::{{InitMsg, QueryMsg,QueryResponse,  HandleMsg}};
 use shadeswap_shared::msg::amm_pair::HandleMsg as AmmPairHandleMsg;
-
+use shadeswap_shared::msg::amm_pair::InvokeMsg as AmmPairInvokeMsg;
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
     get_total_staking_amount, load_stakers, load_config, is_address_already_staker, store_claim_reward_info,
     store_staker, load_staker_info, store_staker_info, remove_staker, StakingInfo, load_claim_reward_info}};   
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{time::{SystemTime, UNIX_EPOCH}, env};
 use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
 use shadeswap_shared::{ 
     fadroma::{
@@ -30,7 +30,11 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     let config = Config {
         contract_owner: env.message.sender.clone(),
         daily_reward_amount: msg.staking_amount,
-        reward_token: msg.reward_token.clone()
+        reward_token: msg.reward_token.clone(),
+        lp_token: ContractLink { 
+            address: HumanAddr::default(),
+            code_hash: "".to_string()
+        }
     };
     store_config(deps, &config)?;
     store_admin(deps, &env.message.sender.clone())?;
@@ -65,12 +69,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             amount,
             from,
         } => {
-            return stake(deps,env, amount,from)
+            stake(deps,env, amount,from)
         },
         HandleMsg::ClaimRewards { } => {
             claim_rewards(deps, env)
         }
-        HandleMsg::Unstake {address, amount} => unstake(deps,env, address, amount),
+        HandleMsg::SetLPToken {lp_token} => set_lp_token(deps, env, lp_token),
+        HandleMsg::Unstake {amount} => unstake(deps,env, amount),
     }    
 }
 
@@ -180,6 +185,25 @@ pub fn claim_rewards_for_all_stakers<S:Storage, A:Api, Q: Querier>(
     Ok(())
 }
 
+pub fn set_lp_token<S:Storage, A:Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    lp_token: ContractLink<HumanAddr>
+) -> StdResult<HandleResponse>{
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
+    let mut config = load_config(deps)?;
+    config.lp_token = lp_token.clone();
+    //store lp_token
+    store_config(deps, &config)?;
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+                log("action", "set_lp_token"),               
+        ],
+        data: None,
+    })
+}
+
 pub fn calculate_staking_reward<S:Storage, A:Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     staker: HumanAddr,
@@ -215,7 +239,7 @@ pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {
-        QueryMsg::GetStakers{ } => {get_all_stakers(deps)},
+        // QueryMsg::GetStakers{ } => {get_all_stakers(deps)},
         QueryMsg::GetClaimReward{time,staker} =>{get_claim_reward_for_user(deps, staker, time)},
         QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps)},
     }
@@ -259,12 +283,10 @@ pub fn get_current_timestamp()-> StdResult<Uint128> {
 
 pub fn unstake<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
-    address: HumanAddr,
+    env: Env,   
     amount: Uint128
 ) -> StdResult<HandleResponse>{
-    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
-    let caller = address;
+    let caller = env.message.sender.clone();
     let current_timestamp = Uint128((env.block.time * 1000) as u128);
     let is_user_staker = is_address_already_staker(deps, caller.clone())?;
     let config = load_config(deps)?;
@@ -278,7 +300,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     let mut messages = Vec::new();
     // update stake_info
     let mut staker_info = load_staker_info(deps, caller.clone())?;        
-    staker_info.amount -= amount;
+    staker_info.amount = (staker_info.amount - amount)?;
     staker_info.last_time_updated = current_timestamp;
     store_staker_info(deps, &staker_info)?;
 
@@ -299,11 +321,37 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
         amount: Uint128(0),
         last_time_claimed: current_timestamp
     })?;
+
+    // send back amount of lp token to pair contract to send pair token back with burn 
+    let config = load_config(deps)?;
+    let msg = to_binary(&snip20::HandleMsg::Send {
+        recipient: config.lp_token.address.clone(),
+        amount: amount,
+        msg: Some(
+            to_binary(&AmmPairInvokeMsg::RemoveLiquidity {
+                recipient: caller.clone(),               
+            })
+            .unwrap(),
+        ),
+        padding: None,
+    })?;
+
+    messages.push(
+        WasmMsg::Execute {
+            contract_addr:  config.lp_token.address.clone(),
+            callback_code_hash: config.lp_token.code_hash.clone(),
+            msg,
+            send: vec![],
+        }
+        .into(),
+    );
+        
   
     Ok(HandleResponse {
         messages: messages,
         log: vec![
                 log("action", "unstake"),
+                log("amount", amount),
                 log("staker", caller.as_str()),
         ],
         data: None,

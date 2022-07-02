@@ -106,7 +106,7 @@ pub mod amm_pair {
     #[derive(Serialize, Deserialize,  PartialEq, Debug, JsonSchema)]
     pub struct SwapResult {
         pub return_amount: Uint128,
-        pub spread_amount: Uint128,
+        // pub spread_amount: Uint128,
     } 
     
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
@@ -137,6 +137,7 @@ pub mod amm_pair {
         AddLiquidityToAMMContract {
             deposit: TokenPairAmount<HumanAddr>,
             slippage: Option<Decimal>,
+            staking: Option<bool>
         },
         SwapTokens {
             /// The token type to swap from.
@@ -321,16 +322,18 @@ pub mod staking {
             from: HumanAddr,
             amount: Uint128,
         },
-        Unstake {
-            address: HumanAddr,
+        Unstake {            
             amount: Uint128
-        },  
+        },
+        SetLPToken {
+            lp_token: ContractLink<HumanAddr>
+        }  
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        GetStakers {},
+        // GetStakers {},
         GetClaimReward {time: u128, staker: HumanAddr},
         GetContractOwner {}
     }

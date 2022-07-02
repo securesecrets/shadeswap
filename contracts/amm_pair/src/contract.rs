@@ -161,14 +161,17 @@ fn register_lp_token<S: Storage, A: Api, Q: Querier>(
     // store config against Smart contract address
     store_config(deps, &config)?;
 
+    let mut messages = Vec::new();
+    messages.push(snip20::register_receive_msg(
+        env.contract_code_hash,
+        None,
+        BLOCK_SIZE,
+        config.lp_token_info.code_hash,
+        env.message.sender.clone(),
+    )?);
+
     Ok(HandleResponse {
-        messages: vec![snip20::register_receive_msg(
-            env.contract_code_hash,
-            None,
-            BLOCK_SIZE,
-            config.lp_token_info.code_hash,
-            env.message.sender.clone(),
-        )?],
+        messages: messages,
         log: vec![log("liquidity_token_addr", env.message.sender)],
         data: None,
     })
@@ -214,8 +217,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::Receive {
             from, amount, msg, ..
         } => receiver_callback(deps, env, from, amount, msg),
-        HandleMsg::AddLiquidityToAMMContract { deposit, slippage } => {
-            add_liquidity(deps, env, deposit, slippage)
+        HandleMsg::AddLiquidityToAMMContract { deposit, slippage, staking } => {
+            add_liquidity(deps, env, deposit, slippage, staking)
         }
         HandleMsg::SetStakingContract{contract} => set_staking_contract(deps, env, contract),
         HandleMsg::SetAMMPairAdmin {admin} => set_admin_guard(deps,env,admin),
@@ -369,7 +372,6 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
             log("offer_token", offer.token),
             log("offer_amount", offer.amount),
             log("return_amount", swap_result.result.return_amount),
-            log("spread_amount", swap_result.result.spread_amount),
             log("lp_fee", swap_result.lp_fee_amount),
             log("shade_dao_fee", swap_result.shade_dao_fee_amount),
             log("shade_total_fee", swap_result.total_fee_amount),
@@ -389,8 +391,17 @@ pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized())
     }
     store_staking_contract(deps, &contract.clone())?;
+    let config = load_config(deps)?;
+    // send lp contractLink to staking contract 
     Ok(HandleResponse {
-        messages: vec![],
+        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: contract.address.clone(),
+            callback_code_hash: contract.code_hash.clone(),
+            send: vec![],
+            msg: to_binary(&StakingHandleMsg::SetLPToken {
+               lp_token: config.lp_token_info.clone()
+            })?,
+        })],
         log: vec![
             log("action", "set_staking_contract"),
             log("contract_address", contract.address.clone()),
@@ -473,8 +484,8 @@ fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(
     let mut result = Vec::with_capacity((end - pagination.start) as usize);
 
     for i in pagination.start..end {
-        let tempIndex = i + 1;
-        let trade_history: TradeHistory = load_trade_history(deps, tempIndex)?;
+        let temp_index = i + 1;
+        let trade_history: TradeHistory = load_trade_history(deps, temp_index)?;
         result.push(trade_history);
     }
 
@@ -508,9 +519,7 @@ pub fn calculate_swap_result(
     let tokens_pool = get_token_pool_balance(querier, config, offer)?;
     let token0_pool = tokens_pool[0];
     let token1_pool = tokens_pool[1];
-    // calculate price
-    let swap_amount = calculate_price(amount, token0_pool, token1_pool)?;
-    let spread_amount = calculate_spread(amount, token0_pool, token1_pool)?;
+    // calculate price   
 
     // calculate fee
     let lp_fee = settings.lp_fee;
@@ -520,14 +529,18 @@ pub fn calculate_swap_result(
     // calculation fee
     let discount_fee = is_address_in_whitelist(storage, recipient)?;
     if discount_fee == false {
-        lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;
-        shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;
+        lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
+        shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), shade_dao_fee)?;
     }
+    // total fee
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
-    let deducted_offer_amount = (swap_amount - Uint256::from(total_fee_amount))?;
+
+    // sub fee from offer amount
+    let deducted_offer_amount = (offer.amount - total_fee_amount)?; 
+    let swap_amount = calculate_price(Uint256::from(deducted_offer_amount), token0_pool, token1_pool)?;
     let result_swap = SwapResult {
-        return_amount: deducted_offer_amount.clamp_u128()?.into(),
-        spread_amount: spread_amount.clamp_u128()?.into(),
+        return_amount: swap_amount.clamp_u128()?.into(),
+        // spread_amount: spread_amount.clamp_u128()?.into(),
     };
 
     let token_index = config.pair.get_token_index(&offer.token).unwrap();  
@@ -633,15 +646,15 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
     )?);
 
      // unstake
-     let staking_contract = load_staking_contract(deps)?;
-     if staking_contract.address != HumanAddr::default() {
-        pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: staking_contract.address.clone(),
-            callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
-            msg: to_binary(&StakingHandleMsg::Unstake{address: recipient.clone(), amount: amount })?,
-            send: vec![],
-        }));
-     }    
+    //  let staking_contract = load_staking_contract(deps)?;
+    //  if staking_contract.address != HumanAddr::default() {
+    //     pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+    //         contract_addr: staking_contract.address.clone(),
+    //         callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
+    //         msg: to_binary(&StakingHandleMsg::Unstake{address: recipient.clone(), amount: amount })?,
+    //         send: vec![],
+    //     }));
+    //  }    
   
     Ok(HandleResponse {
         messages: pair_messages,
@@ -662,16 +675,16 @@ pub fn calculate_price(
     Ok(((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?)
 }
 
-pub fn calculate_spread(
-    amount: Uint256,
-    token0_pool_balance: Uint256,
-    token1_pool_balance: Uint256,
-) -> StdResult<Uint256> {
-    let update_amount = ((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?;
-    let original_amount = ((token1_pool_balance * amount)? / (token0_pool_balance))?;
-    let spread_amount = (update_amount - original_amount).unwrap_or(Uint256::zero());
-    Ok(spread_amount)
-}
+// pub fn calculate_spread(
+//     amount: Uint256,
+//     token0_pool_balance: Uint256,
+//     token1_pool_balance: Uint256,
+// ) -> StdResult<Uint256> {
+//     let update_amount = ((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?;
+//     let original_amount = ((token1_pool_balance * amount)? / (token0_pool_balance))?;
+//     let spread_amount = (update_amount - original_amount).unwrap_or(Uint256::zero());
+//     Ok(spread_amount)
+// }
 
 fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,

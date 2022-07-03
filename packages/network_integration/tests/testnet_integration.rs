@@ -1,6 +1,6 @@
 use colored::Colorize;
-use network_integration::utils::{
-    generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
+use network_integration::utils::{ generate_label, 
+    init_snip20, print_contract, print_header, print_vec, print_warning,
     ACCOUNT_KEY, STAKER_KEY, SHADE_DAO_KEY, AMM_PAIR_FILE, STAKING_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, 
     SNIP20_FILE, STORE_GAS, VIEW_KEY,
 };
@@ -28,6 +28,7 @@ use shadeswap_shared::{
             HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse,
         },
+        staking::{ HandleMsg as StakingMsgHandle},
         router::{
             HandleMsg as RouterHandleMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
         },
@@ -976,6 +977,7 @@ fn run_testnet() -> Result<()> {
                 lp_token_info_msg, 
                 None
             )?;
+            
             if let AMMPairQueryMsgResponse::GetPairInfo { 
                 liquidity_token,
                 factory,
@@ -992,35 +994,55 @@ fn run_testnet() -> Result<()> {
                     total_liquidity,
                     Uint128(10000000000)
                 );
-            }   
-           
+            }              
             
-            // add liquidity and add it to staking contract
-            handle(
-                &AMMPairHandlMsg::AddLiquidityToAMMContract {
-                    deposit: TokenPairAmount {
-                        pair: test_pair.clone(),
-                        amount_0: Uint128(10000000000),
-                        amount_1: Uint128(10000000000),
-                    },
-                    slippage: None,
-                    staking: Some(true),
-                },
+          
+            let staking_contract_msg = AMMPairQueryMsg::GetStakingContract {};    
+            let staking_contract_query: AMMPairQueryMsgResponse = query( 
                 &NetContract {
                     label: "".to_string(),
                     id: s_ammPair.id.clone(),
                     address: ammPair.address.0.clone(),
                     code_hash: s_ammPair.code_hash.to_string(),
-                },
-                ACCOUNT_KEY,
-                Some(GAS),
-                Some("test"),
-                None,
-                &mut reports,
-                None,
-            )
-            .unwrap();
-                
+                }, 
+                staking_contract_msg, 
+                None
+            )?;
+
+            if let AMMPairQueryMsgResponse::StakingContractInfo { 
+                staking_contract
+             } = staking_contract_query {
+
+                println!("\n\tUnstake 5000000000 LP TOKEN");  
+
+                handle(
+                    &StakingMsgHandle::Unstake {
+                       amount: Uint128(5000000000),
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+    
+                // assert_eq!(
+                //     total_liquidity,
+                //     Uint128(20010000000)
+                // );
+            }   
+
+
+
+            
 
         } else {
             assert!(false, "Query returned unexpected response")

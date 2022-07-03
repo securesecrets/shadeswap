@@ -149,7 +149,7 @@ pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey
 
 fn register_lp_token<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
+    env: Env   
 ) -> StdResult<HandleResponse> {    
     let mut config = load_config(&deps)?;
     // address must be default otherwise it has been initialized.
@@ -163,10 +163,10 @@ fn register_lp_token<S: Storage, A: Api, Q: Querier>(
 
     let mut messages = Vec::new();
     messages.push(snip20::register_receive_msg(
-        env.contract_code_hash,
+        env.contract_code_hash.clone(),
         None,
         BLOCK_SIZE,
-        config.lp_token_info.code_hash,
+        config.lp_token_info.code_hash.clone(),
         env.message.sender.clone(),
     )?);
 
@@ -255,7 +255,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn query_calculate_price_and_spread<S: Storage, A: Api, Q: Querier>(
+pub fn query_calculate_price<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     offer: TokenAmount<HumanAddr>
 ) -> StdResult<SwapInfo>{
@@ -430,7 +430,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 total_liquidity,
                 contract_version: AMM_PAIR_CONTRACT_VERSION,
             })
-        }
+        }       
         QueryMsg::GetTradeHistory { pagination } => {
             let data = load_trade_history_query(&deps, pagination)?;
             to_binary(&QueryMsgResponse::GetTradeHistory { data })
@@ -462,7 +462,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             to_binary(&QueryMsgResponse::GetClaimReward { amount: amount })
         },       
         QueryMsg::GetEstimatedPrice {offer} => {
-           let swap_result = query_calculate_price_and_spread(&deps,offer)?;
+           let swap_result = query_calculate_price(&deps,offer)?;
            to_binary(&QueryMsgResponse::EstimatedPrice { estimated_price : swap_result.price })
         }
     }

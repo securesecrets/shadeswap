@@ -181,7 +181,7 @@ pub mod amm_pair {
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
-    pub enum QueryMsg {
+    pub enum QueryMsg {       
         GetPairInfo,
         GetTradeHistory { pagination: Pagination },
         GetWhiteListAddress,
@@ -202,7 +202,7 @@ pub mod amm_pair {
             amount_1: Uint128,
             total_liquidity: Uint128,
             contract_version: u32,
-        },
+        },      
         GetTradeHistory {
             data: Vec<TradeHistory>,
         },

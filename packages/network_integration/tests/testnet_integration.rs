@@ -1,7 +1,7 @@
 use colored::Colorize;
 use network_integration::utils::{
     generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
-    ACCOUNT_KEY, AMM_PAIR_FILE, STAKING_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY,
+    ACCOUNT_KEY, STAKER_KEY, SHADE_DAO_KEY, AMM_PAIR_FILE, STAKING_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, 
     SNIP20_FILE, STORE_GAS, VIEW_KEY,
 };
 use secretcli::{
@@ -567,8 +567,7 @@ fn run_testnet() -> Result<()> {
             )
             .unwrap();         
 
-            print_header("\n\tInitiating sSCRT to sSHD Swap");
-
+            print_header("\n\t 1. - BUY 100 sSHD Initiating sSCRT to sSHD Swap ");
             let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             handle(
@@ -621,7 +620,10 @@ fn run_testnet() -> Result<()> {
                 (old_shd_balance + Uint128(89))
             );
 
-            print_header("\n\tInitiating sSCRT to sSHD Swap");
+            let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            print_header("\n\t 2 - BUY 50 sSHD Initiating sSCRT to sSHD Swap ");
+
             handle(
                 &snip20::HandleMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
@@ -668,9 +670,173 @@ fn run_testnet() -> Result<()> {
                 Uint128(0)
             );
             assert_eq!(
-                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                Uint128(899999991)
+                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+                (old_scrt_balance - Uint128(50)).unwrap()
             );
+
+            
+            print_header("\n\t 3 - SELL 2500 sSHD Initiating sSHD to sSCRT Swap ");
+            let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            handle(
+                &snip20::HandleMsg::Send {
+                    recipient: HumanAddr::from(router_contract.address.to_string()),
+                    amount: Uint128(2500),
+                    msg: Some(
+                        to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                            expected_return: Some(Uint128(5)),
+                            paths: vec![ammPair.address.clone()],
+                            recipient: Some(HumanAddr::from(account.to_string())),
+                        })
+                        .unwrap(),
+                    ),
+                    padding: None,
+                },
+                &s_sSHD,
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
+
+            assert_eq!(
+                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+                (old_shd_balance - Uint128(2500)).unwrap()
+            );
+
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+                old_scrt_balance + Uint128(2249)
+            );
+
+
+            print_header("\n\t 4 - SELL 36500 sSHD Initiating sSHD to sSCRT Swap ");
+            let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            handle(
+                &snip20::HandleMsg::Send {
+                    recipient: HumanAddr::from(router_contract.address.to_string()),
+                    amount: Uint128(36500),
+                    msg: Some(
+                        to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                            expected_return: Some(Uint128(5)),
+                            paths: vec![ammPair.address.clone()],
+                            recipient: Some(HumanAddr::from(account.to_string())),
+                        })
+                        .unwrap(),
+                    ),
+                    padding: None,
+                },
+                &s_sSHD,
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
+
+            assert_eq!(
+                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+                (old_shd_balance - Uint128(36500)).unwrap()
+            );
+
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+                old_scrt_balance + Uint128(32849)
+            );
+
+
+            print_header("\n\t 5 - BUY 25000 sSHD Initiating sSCRT to sSHD Swap ");
+            let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            handle(
+                &snip20::HandleMsg::Send {
+                    recipient: HumanAddr::from(router_contract.address.to_string()),
+                    amount: Uint128(25000),
+                    msg: Some(
+                        to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                            expected_return: Some(Uint128(5)),
+                            paths: vec![ammPair.address.clone()],
+                            recipient: Some(HumanAddr::from(account.to_string())),
+                        })
+                        .unwrap(),
+                    ),
+                    padding: None,
+                },
+                &s_sCRT,
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
+
+            assert_eq!(
+                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+                old_shd_balance + Uint128(22500)
+            );
+
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+                (old_scrt_balance - Uint128(25000)).unwrap()
+            );
+
+
 
             print_header("\n\tInitiating SCRT to sSCRT Swap");
             
@@ -795,8 +961,65 @@ fn run_testnet() -> Result<()> {
                 None
             )?;
             if let AMMPairQueryMsgResponse::EstimatedPrice { estimated_price } = estimated_price_query {
-                assert_eq!(estimated_price, "0.99".to_string());
-            }         
+                assert_eq!(estimated_price, "0.9".to_string());
+            }   
+
+            print_header("\n\tGet LP Token for AMM Pair");
+            let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};    
+            let lp_token_info_query: AMMPairQueryMsgResponse = query( 
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                }, 
+                lp_token_info_msg, 
+                None
+            )?;
+            if let AMMPairQueryMsgResponse::GetPairInfo { 
+                liquidity_token,
+                factory,
+                pair,
+                amount_0,
+                amount_1,
+                total_liquidity,
+                contract_version,
+             } = lp_token_info_query {
+
+                println!("\n\tLP Token Address {}", liquidity_token.address.to_string());
+                print_header("\n\tLP Token Liquidity - 10000000000");    
+                assert_eq!(
+                    total_liquidity,
+                    Uint128(10000000000)
+                );
+            }   
+           
+            
+            // add liquidity and add it to staking contract
+            handle(
+                &AMMPairHandlMsg::AddLiquidityToAMMContract {
+                    deposit: TokenPairAmount {
+                        pair: test_pair.clone(),
+                        amount_0: Uint128(10000000000),
+                        amount_1: Uint128(10000000000),
+                    },
+                    slippage: None,
+                    staking: Some(true),
+                },
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                },
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
                 
 
         } else {

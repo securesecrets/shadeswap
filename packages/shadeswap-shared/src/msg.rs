@@ -6,6 +6,7 @@ use fadroma::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use crate::TokenType;
+use secret_toolkit::utils::{HandleCallback, InitCallback, Query};
 
 pub use crate::snip20_impl::msg as snip20;
 use crate::token_amount::TokenAmount;
@@ -16,15 +17,27 @@ pub struct InitMsg {
     pub count: i32,
 }
 
+impl InitCallback for InitMsg {
+    const BLOCK_SIZE: usize = 256;
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {}
+
+impl HandleCallback for HandleMsg {
+    const BLOCK_SIZE: usize = 256;
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     // GetCount returns the current count as a json-encoded number
     GetCount {},
+}
+
+impl Query for QueryMsg {
+    const BLOCK_SIZE: usize = 256;
 }
 
 // We define a custom struct for each query response
@@ -56,6 +69,10 @@ pub mod router {
         pub viewing_key: Option<ViewingKey>
     }
 
+    impl InitCallback for InitMsg {
+        const BLOCK_SIZE: usize = 256;
+    }
+
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum HandleMsg {
@@ -82,9 +99,17 @@ pub mod router {
         }
     }
 
+    impl HandleCallback for HandleMsg {
+        const BLOCK_SIZE: usize = 256;
+    }
+
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
+    }
+
+    impl Query for QueryMsg {
+        const BLOCK_SIZE: usize = 256;
     }
 }
 
@@ -130,6 +155,11 @@ pub mod amm_pair {
         pub admin: Option<HumanAddr>,
         pub staking_contract: Option<StakingContractInit>
     }
+
+    impl InitCallback for InitMsg {
+        const BLOCK_SIZE: usize = 256;
+    }
+
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum HandleMsg {
@@ -164,6 +194,11 @@ pub mod amm_pair {
         },
         SetStakingContract { contract: ContractLink<HumanAddr> },
     }
+
+    impl HandleCallback for HandleMsg {
+        const BLOCK_SIZE: usize = 256;
+    }
+
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
@@ -189,6 +224,11 @@ pub mod amm_pair {
         GetClaimReward{time: u128, staker: HumanAddr},
         GetEstimatedPrice { offer: TokenAmount<HumanAddr>}
     }
+
+    impl Query for QueryMsg {
+        const BLOCK_SIZE: usize = 256;
+    }
+
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsgResponse {
@@ -227,6 +267,7 @@ pub mod amm_pair {
 
 pub mod factory {
     use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair};
+    use secret_toolkit::utils::{HandleCallback, InitCallback, Query};
     use fadroma::{Binary, ContractInstantiationInfo};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
@@ -239,6 +280,10 @@ pub mod factory {
         pub amm_settings: AMMSettings<HumanAddr>,
         pub lp_token_contract: ContractInstantiationInfo,
         pub prng_seed: Binary,
+    }
+
+    impl InitCallback for InitMsg {
+        const BLOCK_SIZE: usize = 256;
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -264,6 +309,10 @@ pub mod factory {
         SetFactoryAdmin {
             admin: HumanAddr
         }
+    }
+
+    impl HandleCallback for HandleMsg {
+        const BLOCK_SIZE: usize = 256;
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -298,6 +347,10 @@ pub mod factory {
         GetConfig,
         GetAdmin
     }
+
+    impl Query for QueryMsg {
+        const BLOCK_SIZE: usize = 256;
+    }
 }
 
 pub mod staking {
@@ -310,6 +363,10 @@ pub mod staking {
         pub staking_amount: Uint128,
         pub reward_token: TokenType<HumanAddr>, 
         pub contract: ContractLink<HumanAddr>
+    }
+
+    impl InitCallback for InitMsg {
+        const BLOCK_SIZE: usize = 256;
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -325,12 +382,20 @@ pub mod staking {
         },  
     }
 
+    impl HandleCallback for HandleMsg {
+        const BLOCK_SIZE: usize = 256;
+    }
+
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         GetStakers {},
         GetClaimReward {time: u128, staker: HumanAddr},
         GetContractOwner {}
+    }
+
+    impl Query for QueryMsg {
+        const BLOCK_SIZE: usize = 256;
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]

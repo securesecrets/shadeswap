@@ -1034,10 +1034,36 @@ fn run_testnet() -> Result<()> {
                 )
                 .unwrap();
     
-                // assert_eq!(
-                //     total_liquidity,
-                //     Uint128(20010000000)
-                // );
+                print_header("\n\tGet LP Token for AMM Pair");
+                let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};    
+                let lp_token_info_query_unstake: AMMPairQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }, 
+                    lp_token_info_msg, 
+                    None
+                )?;
+                
+                if let AMMPairQueryMsgResponse::GetPairInfo { 
+                    liquidity_token,
+                    factory,
+                    pair,
+                    amount_0,
+                    amount_1,
+                    total_liquidity,
+                    contract_version,
+                } = lp_token_info_query_unstake {
+
+                    println!("\n\tLP Token Address {}", liquidity_token.address.to_string());
+                    print_header("\n\tLP Token Liquidity - 5000000000");    
+                    assert_eq!(
+                        total_liquidity,
+                        Uint128(5000000000)
+                    );
+                }             
             }   
 
 

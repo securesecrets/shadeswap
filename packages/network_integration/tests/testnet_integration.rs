@@ -1009,15 +1009,41 @@ fn run_testnet() -> Result<()> {
                 None
             )?;
 
+           
+
             if let AMMPairQueryMsgResponse::StakingContractInfo { 
                 staking_contract
              } = staking_contract_query {
 
-                println!("\n\tUnstake 5000000000 LP TOKEN");  
+                println!("\n\tAllowed IncreaseAllowance for reward token - staking contract");  
+                 // increase allowance for reward token
+                handle(
+                    &snip20::HandleMsg::IncreaseAllowance {
+                        spender: staking_contract.address.clone(),
+                        amount: Uint128(1000000000000),
+                        expiration: None,
+                        padding: None,
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+
+                println!("\n\tUnstake 50000000 LP TOKEN");  
 
                 handle(
                     &StakingMsgHandle::Unstake {
-                       amount: Uint128(5000000000),
+                       amount: Uint128(50000000),
                     },
                     &NetContract {
                         label: "".to_string(),

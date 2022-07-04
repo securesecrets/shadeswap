@@ -3,7 +3,6 @@ use fadroma::{
     scrt_callback::Callback,
     scrt_link::{ContractInstantiationInfo, ContractLink},
 };
-use secret_toolkit::utils::Query;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use crate::TokenType;

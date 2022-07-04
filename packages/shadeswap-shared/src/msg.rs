@@ -12,6 +12,40 @@ pub use crate::snip20_impl::msg as snip20;
 use crate::token_amount::TokenAmount;
 use crate::token_pair_amount::TokenPairAmount;
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct InitMsg {
+    pub count: i32,
+}
+
+impl InitCallback for InitMsg {
+    const BLOCK_SIZE: usize = 256;
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum HandleMsg {}
+
+impl HandleCallback for HandleMsg {
+    const BLOCK_SIZE: usize = 256;
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum QueryMsg {
+    // GetCount returns the current count as a json-encoded number
+    GetCount {},
+}
+
+impl Query for QueryMsg {
+    const BLOCK_SIZE: usize = 256;
+}
+
+// We define a custom struct for each query response
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct CountResponse {
+    pub count: i32,
+}
+
 pub mod router {
 
     use fadroma::ViewingKey;

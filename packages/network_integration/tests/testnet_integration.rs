@@ -819,7 +819,6 @@ fn run_test_deploy() -> Result<()> {
 
     print_header("Storing all contracts");
     print_warning("Storing LP Token Contract");
-    
     let s_lp =
         store_and_return_contract(LPTOKEN20_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
     print_warning("Storing AMM Pair Token Contract");
@@ -842,8 +841,8 @@ fn run_test_deploy() -> Result<()> {
             shade_dao_fee: Fee::new(2, 100),
             shade_dao_address: ContractLink {
                 address: HumanAddr(String::from(shade_dao.to_string())),
-                code_hash: "asd".to_string(),
-            }
+                code_hash: "".to_string(),
+            },
         },
         lp_token_contract: ContractInstantiationInfo {
             code_hash: s_lp.code_hash.clone(),
@@ -865,6 +864,7 @@ fn run_test_deploy() -> Result<()> {
 
     print_contract(&factory_contract);
 
+
     print_header("\n\tGetting Pairs from Factory");
     {
         let msg = FactoryQueryMsg::ListAMMPairs {
@@ -877,6 +877,33 @@ fn run_test_deploy() -> Result<()> {
         let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
         if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
             assert_eq!(amm_pairs.len(), 0);
+
+
+            print_header("\n\tInitializing Router");
+
+            let router_msg = RouterInitMsg {
+                prng_seed: to_binary(&"".to_string()).unwrap(),
+                factory_address: ContractLink {
+                    address: HumanAddr(String::from(factory_contract.address)),
+                    code_hash: factory_contract.code_hash,
+                },
+                entropy: to_binary(&"".to_string()).unwrap(),
+                viewing_key: Some(ViewingKey::from(VIEW_KEY)),
+            };
+
+            let router_contract = init(
+                &router_msg,
+                ROUTER_FILE,
+                &*generate_label(8),
+                ACCOUNT_KEY,
+                Some(STORE_GAS),
+                Some(GAS),
+                Some("test"),
+                &mut reports,
+            )?;
+            print_contract(&router_contract);
+                
+
         } else {
             assert!(false, "Query returned unexpected response")
         }

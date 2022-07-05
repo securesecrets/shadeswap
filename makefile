@@ -84,5 +84,8 @@ integration-tests:
 deploy-test:
 	cargo test run_test_deploy -- --nocapture --test-threads=1
 
+build-deploy:
+	cargo build --manifest-path ./packages/network_integration/Cargo.toml
+
 deploy:
-	cargo build --manifest-path ./packages/network_integration/Cargo.toml && cargo run ./target/debug/deploy
+	cargo run ./target/debug/deploy

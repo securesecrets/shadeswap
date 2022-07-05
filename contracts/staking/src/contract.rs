@@ -325,7 +325,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     // send back amount of lp token to pair contract to send pair token back with burn 
     let config = load_config(deps)?;
     let msg = to_binary(&snip20::HandleMsg::Send {
-        recipient: config.lp_token.address.clone(),
+        recipient: config.contract_owner.clone(),
         amount: amount,
         msg: Some(
             to_binary(&AmmPairInvokeMsg::RemoveLiquidity {

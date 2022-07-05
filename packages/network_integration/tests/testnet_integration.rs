@@ -1016,7 +1016,7 @@ fn run_testnet() -> Result<()> {
              } = staking_contract_query {
 
                 println!("\n\tAllowed IncreaseAllowance for reward token - staking contract");  
-                 // increase allowance for reward token
+                // increase allowance for reward token
                 handle(
                     &snip20::HandleMsg::IncreaseAllowance {
                         spender: staking_contract.address.clone(),
@@ -1027,8 +1027,8 @@ fn run_testnet() -> Result<()> {
                     &NetContract {
                         label: "".to_string(),
                         id: "".to_string(),
-                        address: staking_contract.address.to_string(),
-                        code_hash: staking_contract.code_hash.to_string(),
+                        address: s_sREWARDSNIP20.address.to_string(),
+                        code_hash: s_sREWARDSNIP20.code_hash.to_string(),
                     },
                     ACCOUNT_KEY,
                     Some(GAS),
@@ -1039,11 +1039,29 @@ fn run_testnet() -> Result<()> {
                 )
                 .unwrap();
 
-                println!("\n\tUnstake 50000000 LP TOKEN");  
+                // send Reward token to staking contract
+                handle(
+                    &snip20::HandleMsg::Send {
+                        recipient: staking_contract.address.clone(),
+                        amount: Uint128(100000000000),
+                        msg: None,
+                        padding: None,
+                    },
+                    &s_sREWARDSNIP20,
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+
+                println!("\n\tUnstake 50000000 00LP TOKEN");  
 
                 handle(
                     &StakingMsgHandle::Unstake {
-                       amount: Uint128(50000000),
+                       amount: Uint128(5000000000),
                     },
                     &NetContract {
                         label: "".to_string(),

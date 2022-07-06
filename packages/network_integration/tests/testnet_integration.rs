@@ -1057,7 +1057,7 @@ fn run_testnet() -> Result<()> {
                 )
                 .unwrap();
 
-                println!("\n\tUnstake 50000000 00LP TOKEN");  
+                println!("\n\tUnstake 5000000000LP TOKEN");  
 
                 handle(
                     &StakingMsgHandle::Unstake {
@@ -1107,12 +1107,109 @@ fn run_testnet() -> Result<()> {
                         total_liquidity,
                         Uint128(5000000000)
                     );
-                }             
-            }   
+                }    
+                
+                print_header("\n\tIncreaseAllowance - 500000000 for liqudity ");
+                handle(
+                    &snip20::HandleMsg::IncreaseAllowance {
+                        spender: HumanAddr(String::from(ammPair.address.0.to_string())),
+                        amount: Uint128(500000000),
+                        expiration: None,
+                        padding: None,
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_sCRT.id.clone(),
+                        address: s_sCRT.address.clone(),
+                        code_hash: s_sCRT.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+    
+                handle(
+                    &snip20::HandleMsg::IncreaseAllowance {
+                        spender: HumanAddr(String::from(ammPair.address.0.to_string())),
+                        amount: Uint128(500000000),
+                        expiration: None,
+                        padding: None,
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_sSHD.id.clone(),
+                        address: s_sSHD.address.clone(),
+                        code_hash: s_sSHD.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+                print_header("\n\tAddLiquidityToAMMContract - 500000000 with staking");
+                handle(
+                    &AMMPairHandlMsg::AddLiquidityToAMMContract {
+                        deposit: TokenPairAmount {
+                            pair: test_pair.clone(),
+                            amount_0: Uint128(500000000),
+                            amount_1: Uint128(500000000),
+                        },
+                        slippage: None,
+                        staking: Some(true),
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();   
+                
+                print_header("\n\tGet LP Token for AMM Pair");
+                let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};    
+                let lp_token_info_query_unstake: AMMPairQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }, 
+                    lp_token_info_msg, 
+                    None
+                )?;
+                
+                if let AMMPairQueryMsgResponse::GetPairInfo { 
+                    liquidity_token,
+                    factory,
+                    pair,
+                    amount_0,
+                    amount_1,
+                    total_liquidity,
+                    contract_version,
+                } = lp_token_info_query_unstake {
 
-
-
-            
+                    println!("\n\tLP Token Address {}", liquidity_token.address.to_string());
+                    print_header("\n\tLP Token Liquidity - 5499999219");    
+                    assert_eq!(
+                        total_liquidity,
+                        Uint128(5499999219)
+                    );
+                }    
+            }               
 
         } else {
             assert!(false, "Query returned unexpected response")

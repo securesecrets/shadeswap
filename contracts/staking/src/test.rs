@@ -68,10 +68,9 @@ pub mod tests {
     #[test]
     fn assert_stake_existing_staker() -> StdResult<()>{
         let mut deps = mock_deps();  
-        let env = mock_env(CONTRACT_ADDRESS,1571797523, 1524,CONTRACT_ADDRESS,  &[]);
-        let env = mock_env(CONTRACT_ADDRESS,1571797523, 1524,CONTRACT_ADDRESS, &[]);
+        let env = mock_env(CONTRACT_ADDRESS,1656480000, 1524,CONTRACT_ADDRESS,  &[]);    
         let staker = env.message.sender.clone();     
-        let config: Config = make_init_config(&mut deps, env.clone(), Uint128(100u128))?;     
+        let config: Config = make_init_config(&mut deps, env.clone(), Uint128(10000000000u128))?;     
         let result = handle(
             &mut deps,
             env.clone(),
@@ -81,6 +80,7 @@ pub mod tests {
             },
         )
         .unwrap();
+
         let is_user_staker = is_address_already_staker(&deps, staker.clone())?;
         let stake_info = load_staker_info(&deps, staker.clone())?;
         assert_eq!(is_user_staker, true);

@@ -1062,6 +1062,7 @@ fn run_testnet() -> Result<()> {
                 handle(
                     &StakingMsgHandle::Unstake {
                        amount: Uint128(5000000000),
+                       remove_liqudity: Some(true)
                     },
                     &NetContract {
                         label: "".to_string(),

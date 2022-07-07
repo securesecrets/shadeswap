@@ -1,4 +1,4 @@
-use shadeswap_shared::msg::staking::{{InitMsg, QueryMsg,QueryResponse,  HandleMsg}};
+use shadeswap_shared::msg::staking::{{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}};
 use shadeswap_shared::msg::amm_pair::HandleMsg as AmmPairHandleMsg;
 use shadeswap_shared::msg::amm_pair::InvokeMsg as AmmPairInvokeMsg;
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
@@ -20,6 +20,8 @@ use shadeswap_shared::{
         scrt_vk::ViewingKey,
     }
 };
+
+pub const BLOCK_SIZE: usize = 256;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -65,18 +67,37 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::Stake {         
-            amount,
-            from,
-        } => {
-            stake(deps,env, amount,from)
-        },
+        HandleMsg::Receive {
+            from, amount, msg, ..
+        } => receiver_callback(deps, env, from, amount, msg),      
         HandleMsg::ClaimRewards { } => {
             claim_rewards(deps, env)
         }
         HandleMsg::SetLPToken {lp_token} => set_lp_token(deps, env, lp_token),
-        HandleMsg::Unstake {amount} => unstake(deps,env, amount),
+        HandleMsg::Unstake {amount, remove_liqudity} => unstake(deps,env, amount, remove_liqudity),
     }    
+}
+
+fn receiver_callback<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    from: HumanAddr,
+    amount: Uint128,
+    msg: Option<Binary>,
+) -> StdResult<HandleResponse> {
+    let msg = msg.ok_or_else(|| {
+        StdError::generic_err("Receiver callback \"msg\" parameter cannot be empty.")
+    })?;
+
+    let config = load_config(deps)?;
+    match from_binary(&msg)? {       
+        InvokeMsg::Stake { from, amount } => {
+            if config.lp_token.address != env.message.sender {
+                return Err(StdError::unauthorized());
+            }
+            stake(deps, env, amount, from)
+        }
+    }
 }
 
 // This should be callback from Snip20 Receiver
@@ -87,7 +108,11 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
     from: HumanAddr
 ) -> StdResult<HandleResponse>{
-    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
+    // this is receiver for LP Token send to staking contract -> 
+    let config = load_config(deps)?;
+    if config.lp_token.address != env.message.sender {
+        return Err(StdError::unauthorized());
+    }
     let current_timestamp = Uint128((env.block.time * 1000) as u128);
     claim_rewards_for_all_stakers(deps, current_timestamp)?;
     let caller = from.clone();
@@ -193,10 +218,21 @@ pub fn set_lp_token<S:Storage, A:Api, Q: Querier>(
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let mut config = load_config(deps)?;
     config.lp_token = lp_token.clone();
+
+    let mut messages = Vec::new();
+    // register pair contract for LP receiver
+    messages.push(snip20::register_receive_msg(
+        env.contract_code_hash.clone(),
+        None,
+        BLOCK_SIZE,
+        lp_token.code_hash.clone(),
+        lp_token.address.clone(),
+    )?);      
+  
     //store lp_token
     store_config(deps, &config)?;
     Ok(HandleResponse {
-        messages: vec![],
+        messages: messages,
         log: vec![
                 log("action", "set_lp_token"),               
         ],
@@ -284,7 +320,8 @@ pub fn get_current_timestamp()-> StdResult<Uint128> {
 pub fn unstake<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,   
-    amount: Uint128
+    amount: Uint128,
+    remove_liqudity: Option<bool>
 ) -> StdResult<HandleResponse>{
     let caller = env.message.sender.clone();
     let current_timestamp = Uint128((env.block.time * 1000) as u128);
@@ -322,30 +359,58 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
         last_time_claimed: current_timestamp
     })?;
 
-    // send back amount of lp token to pair contract to send pair token back with burn 
+    // send back amount of lp token to pair contract to send pair token back with burn
+    // TODO send LP token to user add option either to remove liqudity or just remove from staking
     let config = load_config(deps)?;
-    let msg = to_binary(&snip20::HandleMsg::Send {
-        recipient: config.contract_owner.clone(),
-        amount: amount,
-        msg: Some(
-            to_binary(&AmmPairInvokeMsg::RemoveLiquidity {
-                recipient: caller.clone(),               
-            })
-            .unwrap(),
-        ),
-        padding: None,
-    })?;
 
-    messages.push(
-        WasmMsg::Execute {
-            contract_addr:  config.lp_token.address.clone(),
-            callback_code_hash: config.lp_token.code_hash.clone(),
-            msg,
-            send: vec![],
-        }
-        .into(),
-    );
+    if let Some(true) = remove_liqudity {
+        // SEND LP Token back to Pair Contract With Remove Liquidity
+        let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity { 
+            recipient: caller.clone() }).unwrap();
         
+        let receive_msg  = to_binary(&AmmPairHandleMsg::Receive {
+            from: caller.clone(),                  
+            msg: Some(remove_liquidity_msg),
+            amount: amount, 
+        })
+        .unwrap();
+
+        let msg = to_binary(&snip20::HandleMsg::Send {
+            recipient: config.contract_owner.clone(),
+            amount: amount,
+            msg: Some(receive_msg),
+            padding: None,
+        })?;
+    
+        messages.push(
+            WasmMsg::Execute {
+                contract_addr:  config.lp_token.address.clone(),
+                callback_code_hash: config.lp_token.code_hash.clone(),
+                msg,
+                send: vec![],
+            }
+            .into(),
+        );
+    }
+    else{
+        // SEND LP Token back to Staker And User Will Manually Remove Liquidity
+        let msg = to_binary(&snip20::HandleMsg::Send {
+            recipient: caller.clone(),
+            amount: amount,
+            msg: None,
+            padding: None,
+        })?;
+    
+        messages.push(
+            WasmMsg::Execute {
+                contract_addr:  config.lp_token.address.clone(),
+                callback_code_hash: config.lp_token.code_hash.clone(),
+                msg,
+                send: vec![],
+            }
+            .into(),
+        );
+    }        
   
     Ok(HandleResponse {
         messages: messages,

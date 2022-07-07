@@ -308,17 +308,28 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum HandleMsg {
-        ClaimRewards {}, 
-        Stake {   
-            from: HumanAddr,
-            amount: Uint128,
-        },
+        ClaimRewards {},        
         Unstake {            
-            amount: Uint128
+            amount: Uint128,
+            remove_liqudity: Option<bool>
         },
         SetLPToken {
             lp_token: ContractLink<HumanAddr>
-        }  
+        },
+        Receive {
+            from: HumanAddr,
+            msg: Option<Binary>,
+            amount: Uint128,
+        }, 
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum InvokeMsg {
+        Stake {   
+            from: HumanAddr,
+            amount: Uint128,
+        }
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]

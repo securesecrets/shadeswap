@@ -1,6 +1,6 @@
 use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-
+use shadeswap_shared::msg::staking::InvokeMsg as StakingInvokeMsg;
 use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair, Fee}};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
@@ -162,14 +162,15 @@ fn register_lp_token<S: Storage, A: Api, Q: Querier>(
     store_config(deps, &config)?;
 
     let mut messages = Vec::new();
+    // register pair contract for LP receiver
     messages.push(snip20::register_receive_msg(
         env.contract_code_hash.clone(),
         None,
         BLOCK_SIZE,
         config.lp_token_info.code_hash.clone(),
         env.message.sender.clone(),
-    )?);
-
+    )?);    
+    
     Ok(HandleResponse {
         messages: messages,
         log: vec![log("liquidity_token_addr", env.message.sender)],
@@ -392,16 +393,29 @@ pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
     }
     store_staking_contract(deps, &contract.clone())?;
     let config = load_config(deps)?;
+
+    let mut messages = Vec::new();
+    // register staking contract for LP receiver
+    messages.push(snip20::register_receive_msg(
+        contract.code_hash.clone(),
+        None,
+        BLOCK_SIZE,
+        config.lp_token_info.code_hash.clone(),
+        config.lp_token_info.address.clone(),
+    )?);
+
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: contract.address.clone(),
+        callback_code_hash: contract.code_hash.clone(),
+        send: vec![],
+        msg: to_binary(&StakingHandleMsg::SetLPToken {
+           lp_token: config.lp_token_info.clone()
+        })?,
+    }));
+
     // send lp contractLink to staking contract 
     Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: contract.address.clone(),
-            callback_code_hash: contract.code_hash.clone(),
-            send: vec![],
-            msg: to_binary(&StakingHandleMsg::SetLPToken {
-               lp_token: config.lp_token_info.clone()
-            })?,
-        })],
+        messages: messages,
         log: vec![
             log("action", "set_staking_contract"),
             log("contract_address", contract.address.clone()),
@@ -644,18 +658,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
         lp_token_info.code_hash,
         lp_token_info.address,
     )?);
-
-     // unstake
-    //  let staking_contract = load_staking_contract(deps)?;
-    //  if staking_contract.address != HumanAddr::default() {
-    //     pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-    //         contract_addr: staking_contract.address.clone(),
-    //         callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
-    //         msg: to_binary(&StakingHandleMsg::Unstake{address: recipient.clone(), amount: amount })?,
-    //         send: vec![],
-    //     }));
-    //  }    
-  
+    
     Ok(HandleResponse {
         messages: pair_messages,
         log: vec![
@@ -674,17 +677,6 @@ pub fn calculate_price(
 ) -> StdResult<Uint256> {
     Ok(((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?)
 }
-
-// pub fn calculate_spread(
-//     amount: Uint256,
-//     token0_pool_balance: Uint256,
-//     token1_pool_balance: Uint256,
-// ) -> StdResult<Uint256> {
-//     let update_amount = ((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?;
-//     let original_amount = ((token1_pool_balance * amount)? / (token0_pool_balance))?;
-//     let spread_amount = (update_amount - original_amount).unwrap_or(Uint256::zero());
-//     Ok(spread_amount)
-// }
 
 fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -782,23 +774,42 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
             return Err(StdError::generic_err(
                 "Staking Contract has not been set for AMM Pairs",
             ));          
-        }
-
-        pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: staking_contract.address.clone(),
-            callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
-            msg: to_binary(&StakingHandleMsg::Stake{from: env.message.sender.clone(), amount: Uint128(lp_tokens)})?,
-            send: vec![],
-        }));
+        } 
            
         pair_messages.push(snip20::mint_msg(
-            staking_contract.address.clone(),
+            env.contract.address.clone(),
             Uint128(lp_tokens),
             None,
             BLOCK_SIZE,
-            lp_token_info.code_hash,
-            lp_token_info.address,
+            lp_token_info.code_hash.clone(),
+            lp_token_info.address.clone(),
         )?);
+      
+        let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
+            from: env.message.sender.clone(),  
+            amount: Uint128(lp_tokens)           
+        })
+        .unwrap();
+
+        let receive_msg = to_binary(&StakingHandleMsg::Receive { 
+            from:  env.message.sender.clone(), msg: Some(invoke_msg), amount: Uint128(lp_tokens) })?;
+        // SEND LP Token to Staking Contract with Staking Message
+        let msg = to_binary(&snip20::HandleMsg::Send {
+            recipient: staking_contract.address.clone(),
+            amount: Uint128(lp_tokens),
+            msg: Some(receive_msg),
+            padding: None,
+        })?;
+        
+        pair_messages.push(
+            WasmMsg::Execute {
+                contract_addr:  lp_token_info.address.clone(),
+                callback_code_hash: lp_token_info.code_hash.clone(),
+                msg,
+                send: vec![],
+                }
+            .into(),
+        );
     }
     else {
         add_to_staking = false;
@@ -807,8 +818,8 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
             Uint128(lp_tokens),
             None,
             BLOCK_SIZE,
-            lp_token_info.code_hash,
-            lp_token_info.address,
+            lp_token_info.code_hash.clone(),
+            lp_token_info.address.clone(),
         )?);
     }  
    

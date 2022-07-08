@@ -607,7 +607,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     amount: Uint128,
-    recipient: HumanAddr,
+    from: HumanAddr,
 ) -> StdResult<HandleResponse> {    
     let config = load_config(&deps)?;
     let Config {
@@ -637,7 +637,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
     for (i, token) in pair.into_iter().enumerate() {
         pair_messages.push(token.create_send_msg(
             env.contract.address.clone(),
-            recipient.clone(),
+            from.clone(),
             pool_withdrawn[i],
         )?);
     }
@@ -930,7 +930,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
     })?;
 
     let config = load_config(deps)?;
-
+    let from_caller = from.clone();
     match from_binary(&msg)? {
         InvokeMsg::SwapTokens {
             to,
@@ -966,11 +966,14 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
 
             Err(StdError::unauthorized())
         }
-        InvokeMsg::RemoveLiquidity { recipient } => {
+        InvokeMsg::RemoveLiquidity { from } => {
             if config.lp_token_info.address != env.message.sender {
                 return Err(StdError::unauthorized());
             }
-            remove_liquidity(deps, env, amount, recipient)
+            match from {
+                Some(address) =>  remove_liquidity(deps, env, amount, address),
+                None =>  remove_liquidity(deps, env, amount, from_caller),
+            }                 
         }
     }
 }

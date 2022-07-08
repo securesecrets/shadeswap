@@ -366,15 +366,8 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     if let Some(true) = remove_liqudity {
         // SEND LP Token back to Pair Contract With Remove Liquidity
         let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity { 
-            recipient: caller.clone() }).unwrap();
-        
-        let receive_msg  = to_binary(&AmmPairHandleMsg::Receive {
-            from: caller.clone(),                  
-            msg: Some(remove_liquidity_msg.clone()),
-            amount: amount, 
-        })
-        .unwrap();
-
+            from: Some(caller.clone())}).unwrap();      
+       
         let msg = to_binary(&snip20::HandleMsg::Send {
             recipient: config.contract_owner.clone(),
             amount: amount,

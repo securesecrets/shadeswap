@@ -160,7 +160,7 @@ pub mod amm_pair {
             callback_signature: Option<Binary>
         },
         RemoveLiquidity {
-            recipient: HumanAddr,
+            from: Option<HumanAddr>,
         },
     }
     #[derive(Serialize, Deserialize, JsonSchema)]

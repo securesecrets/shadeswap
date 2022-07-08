@@ -1,7 +1,7 @@
 use colored::Colorize;
-use network_integration::utils::{
-    generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
-    ACCOUNT_KEY, AMM_PAIR_FILE, STAKING_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY,
+use network_integration::utils::{ generate_label, 
+    init_snip20, print_contract, print_header, print_vec, print_warning,
+    ACCOUNT_KEY, STAKER_KEY, SHADE_DAO_KEY, AMM_PAIR_FILE, STAKING_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, 
     SNIP20_FILE, STORE_GAS, VIEW_KEY,
 };
 use secretcli::{
@@ -28,6 +28,7 @@ use shadeswap_shared::{
             HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse,
         },
+        staking::{ HandleMsg as StakingMsgHandle},
         router::{
             HandleMsg as RouterHandleMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
         },
@@ -175,7 +176,7 @@ fn run_testnet() -> Result<()> {
         )?;
     }
 
-    println!("\n\tDepositing 1000000000uscrt s_sREWARDSNIP20");
+    println!("\n\tDepositing 1000000000000uscrt s_sREWARDSNIP20");
 
     {
         let msg = snip20::HandleMsg::Deposit { padding: None };
@@ -186,7 +187,7 @@ fn run_testnet() -> Result<()> {
             ACCOUNT_KEY,
             Some(GAS),
             Some("test"),
-            Some("1000000000uscrt"),
+            Some("1000000000000uscrt"),
             &mut reports,
             None,
         )?;
@@ -194,11 +195,11 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&s_sREWARDSNIP20, account.to_string(), VIEW_KEY.to_string()),
-        Uint128(1000000000)
+        Uint128(1000000000000)
     );
 
 
-    println!("\n\tDepositing 1000000000uscrt sSCRT");
+    println!("\n\tDepositing 1000000000000uscrt sSCRT");
 
     {
         let msg = snip20::HandleMsg::Deposit { padding: None };
@@ -209,7 +210,7 @@ fn run_testnet() -> Result<()> {
             ACCOUNT_KEY,
             Some(GAS),
             Some("test"),
-            Some("1000000000uscrt"),
+            Some("1000000000000uscrt"),
             &mut reports,
             None,
         )?;
@@ -217,10 +218,10 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-        Uint128(1000000000)
+        Uint128(1000000000000)
     );
 
-    println!("\n\tDepositing 1000000000uscrt sSHD");
+    println!("\n\tDepositing 1000000000000uscrt sSHD");
 
     {
         let msg = snip20::HandleMsg::Deposit { padding: None };
@@ -231,7 +232,7 @@ fn run_testnet() -> Result<()> {
             ACCOUNT_KEY,
             Some(GAS),
             Some("test"),
-            Some("1000000000uscrt"),
+            Some("1000000000000uscrt"),
             &mut reports,
             None,
         )?;
@@ -296,7 +297,7 @@ fn run_testnet() -> Result<()> {
                         code_hash: staking_contract.code_hash.to_string(),
                         id: staking_contract.id.clone().parse::<u64>().unwrap(),
                     },
-                    amount: Uint128(100000u128),
+                    amount: Uint128(3450000000000u128),
                     reward_token:  TokenType::CustomToken {
                         contract_addr: s_sREWARDSNIP20.address.clone().into(),
                         token_code_hash: s_sREWARDSNIP20.code_hash.to_string(),
@@ -374,7 +375,7 @@ fn run_testnet() -> Result<()> {
             handle(
                 &snip20::HandleMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-                    amount: Uint128(100000000),
+                    amount: Uint128(10000000000),
                     expiration: None,
                     padding: None,
                 },
@@ -396,7 +397,7 @@ fn run_testnet() -> Result<()> {
             handle(
                 &snip20::HandleMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-                    amount: Uint128(100000000),
+                    amount: Uint128(10000000000),
                     expiration: None,
                     padding: None,
                 },
@@ -418,7 +419,7 @@ fn run_testnet() -> Result<()> {
             handle(
                 &snip20::HandleMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(amm_pair_2.address.0.to_string())),
-                    amount: Uint128(100000000),
+                    amount: Uint128(10000000000),
                     expiration: None,
                     padding: None,
                 },
@@ -457,10 +458,11 @@ fn run_testnet() -> Result<()> {
                 &AMMPairHandlMsg::AddLiquidityToAMMContract {
                     deposit: TokenPairAmount {
                         pair: test_pair.clone(),
-                        amount_0: Uint128(100000000),
-                        amount_1: Uint128(100000000),
+                        amount_0: Uint128(10000000000),
+                        amount_1: Uint128(10000000000),
                     },
                     slippage: None,
+                    staking: Some(true),
                 },
                 &NetContract {
                     label: "".to_string(),
@@ -481,10 +483,11 @@ fn run_testnet() -> Result<()> {
                 &AMMPairHandlMsg::AddLiquidityToAMMContract {
                     deposit: TokenPairAmount {
                         pair: test_native_pair.clone(),
-                        amount_0: Uint128(100000000),
-                        amount_1: Uint128(100000000),
+                        amount_0: Uint128(10000000000),
+                        amount_1: Uint128(10000000000),
                     },
                     slippage: None,
+                    staking: None,
                 },
                 &NetContract {
                     label: "".to_string(),
@@ -495,7 +498,7 @@ fn run_testnet() -> Result<()> {
                 ACCOUNT_KEY,
                 Some(GAS),
                 Some("test"),
-                Some("100000000uscrt"),
+                Some("10000000000uscrt"),
                 &mut reports,
                 None,
             )
@@ -503,11 +506,11 @@ fn run_testnet() -> Result<()> {
 
             assert_eq!(
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-                Uint128(1000000000 - 200000000)
+                Uint128(1000000000000 - 20000000000)
             );
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                Uint128(1000000000 - 100000000)
+                Uint128(1000000000000 - 10000000000)
             );
 
             print_header("\n\tInitializing Router");
@@ -565,8 +568,7 @@ fn run_testnet() -> Result<()> {
             )
             .unwrap();         
 
-            print_header("\n\tInitiating sSCRT to sSHD Swap");
-
+            print_header("\n\t 1. - BUY 100 sSHD Initiating sSCRT to sSHD Swap ");
             let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             handle(
@@ -616,17 +618,74 @@ fn run_testnet() -> Result<()> {
             );
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                (old_shd_balance + Uint128(91))
+                (old_shd_balance + Uint128(89))
             );
 
-            print_header("\n\tInitiating sSHD to sSCRT Swap");
+            let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            print_header("\n\t 2 - BUY 50 sSHD Initiating sSCRT to sSHD Swap ");
+
             handle(
                 &snip20::HandleMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
-                    amount: Uint128(100),
+                    amount: Uint128(50),
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
-                            expected_return: Some(Uint128(10)),
+                            expected_return: Some(Uint128(5)),
+                            paths: vec![ammPair.address.clone()],
+                            recipient: Some(HumanAddr::from(account.to_string())),
+                        })
+                        .unwrap(),
+                    ),
+                    padding: None,
+                },
+                &s_sCRT,
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
+
+            assert_eq!(
+                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+                old_shd_balance + Uint128(44)
+            );
+
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+                (old_scrt_balance - Uint128(50)).unwrap()
+            );
+
+            
+            print_header("\n\t 3 - SELL 2500 sSHD Initiating sSHD to sSCRT Swap ");
+            let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            handle(
+                &snip20::HandleMsg::Send {
+                    recipient: HumanAddr::from(router_contract.address.to_string()),
+                    amount: Uint128(2500),
+                    msg: Some(
+                        to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                            expected_return: Some(Uint128(5)),
                             paths: vec![ammPair.address.clone()],
                             recipient: Some(HumanAddr::from(account.to_string())),
                         })
@@ -645,8 +704,8 @@ fn run_testnet() -> Result<()> {
             .unwrap();
 
             assert_eq!(
-                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-                Uint128(799999991)
+                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+                (old_shd_balance - Uint128(2500)).unwrap()
             );
 
             assert_eq!(
@@ -666,9 +725,119 @@ fn run_testnet() -> Result<()> {
                 Uint128(0)
             );
             assert_eq!(
-                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                Uint128(899999991)
+                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+                old_scrt_balance + Uint128(2249)
             );
+
+
+            print_header("\n\t 4 - SELL 36500 sSHD Initiating sSHD to sSCRT Swap ");
+            let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            handle(
+                &snip20::HandleMsg::Send {
+                    recipient: HumanAddr::from(router_contract.address.to_string()),
+                    amount: Uint128(36500),
+                    msg: Some(
+                        to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                            expected_return: Some(Uint128(5)),
+                            paths: vec![ammPair.address.clone()],
+                            recipient: Some(HumanAddr::from(account.to_string())),
+                        })
+                        .unwrap(),
+                    ),
+                    padding: None,
+                },
+                &s_sSHD,
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
+
+            assert_eq!(
+                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+                (old_shd_balance - Uint128(36500)).unwrap()
+            );
+
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+                old_scrt_balance + Uint128(32849)
+            );
+
+
+            print_header("\n\t 5 - BUY 25000 sSHD Initiating sSCRT to sSHD Swap ");
+            let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            handle(
+                &snip20::HandleMsg::Send {
+                    recipient: HumanAddr::from(router_contract.address.to_string()),
+                    amount: Uint128(25000),
+                    msg: Some(
+                        to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                            expected_return: Some(Uint128(5)),
+                            paths: vec![ammPair.address.clone()],
+                            recipient: Some(HumanAddr::from(account.to_string())),
+                        })
+                        .unwrap(),
+                    ),
+                    padding: None,
+                },
+                &s_sCRT,
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
+
+            assert_eq!(
+                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+                old_shd_balance + Uint128(22500)
+            );
+
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(
+                    &s_sCRT,
+                    router_contract.address.to_string(),
+                    VIEW_KEY.to_string()
+                ),
+                Uint128(0)
+            );
+            assert_eq!(
+                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+                (old_scrt_balance - Uint128(25000)).unwrap()
+            );
+
+
 
             print_header("\n\tInitiating SCRT to sSCRT Swap");
             
@@ -793,9 +962,255 @@ fn run_testnet() -> Result<()> {
                 None
             )?;
             if let AMMPairQueryMsgResponse::EstimatedPrice { estimated_price } = estimated_price_query {
-                assert_ne!(estimated_price, Uint128(0u128));
-            }         
+                assert_eq!(estimated_price, "0.9".to_string());
+            }   
+
+            print_header("\n\tGet LP Token for AMM Pair");
+            let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};    
+            let lp_token_info_query: AMMPairQueryMsgResponse = query( 
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                }, 
+                lp_token_info_msg, 
+                None
+            )?;
+            
+            if let AMMPairQueryMsgResponse::GetPairInfo { 
+                liquidity_token,
+                factory,
+                pair,
+                amount_0,
+                amount_1,
+                total_liquidity,
+                contract_version,
+             } = lp_token_info_query {
+
+                println!("\n\tLP Token Address {}", liquidity_token.address.to_string());
+                print_header("\n\tLP Token Liquidity - 10000000000");    
+                assert_eq!(
+                    total_liquidity,
+                    Uint128(10000000000)
+                );
+            }              
+            
+          
+            let staking_contract_msg = AMMPairQueryMsg::GetStakingContract {};    
+            let staking_contract_query: AMMPairQueryMsgResponse = query( 
+                &NetContract {
+                    label: "".to_string(),
+                    id: s_ammPair.id.clone(),
+                    address: ammPair.address.0.clone(),
+                    code_hash: s_ammPair.code_hash.to_string(),
+                }, 
+                staking_contract_msg, 
+                None
+            )?;
+
+           
+
+            if let AMMPairQueryMsgResponse::StakingContractInfo { 
+                staking_contract
+             } = staking_contract_query {
+
+                println!("\n\tAllowed IncreaseAllowance for reward token - staking contract");  
+                // increase allowance for reward token
+                handle(
+                    &snip20::HandleMsg::IncreaseAllowance {
+                        spender: staking_contract.address.clone(),
+                        amount: Uint128(1000000000000),
+                        expiration: None,
+                        padding: None,
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: s_sREWARDSNIP20.address.to_string(),
+                        code_hash: s_sREWARDSNIP20.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+
+                // send Reward token to staking contract
+                handle(
+                    &snip20::HandleMsg::Send {
+                        recipient: staking_contract.address.clone(),
+                        amount: Uint128(100000000000),
+                        msg: None,
+                        padding: None,
+                    },
+                    &s_sREWARDSNIP20,
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+
+                println!("\n\tUnstake 5000000000LP TOKEN");  
+
+                handle(
+                    &StakingMsgHandle::Unstake {
+                       amount: Uint128(5000000000),
+                       remove_liqudity: Some(true)
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+    
+                print_header("\n\tGet LP Token for AMM Pair");
+                let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};    
+                let lp_token_info_query_unstake: AMMPairQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }, 
+                    lp_token_info_msg, 
+                    None
+                )?;
                 
+                if let AMMPairQueryMsgResponse::GetPairInfo { 
+                    liquidity_token,
+                    factory,
+                    pair,
+                    amount_0,
+                    amount_1,
+                    total_liquidity,
+                    contract_version,
+                } = lp_token_info_query_unstake {
+
+                    println!("\n\tLP Token Address {}", liquidity_token.address.to_string());
+                    print_header("\n\tLP Token Liquidity - 5000000000");    
+                    assert_eq!(
+                        total_liquidity,
+                        Uint128(5000000000)
+                    );
+                }    
+                
+                print_header("\n\tIncreaseAllowance - 500000000 for liqudity ");
+                handle(
+                    &snip20::HandleMsg::IncreaseAllowance {
+                        spender: HumanAddr(String::from(ammPair.address.0.to_string())),
+                        amount: Uint128(500000000),
+                        expiration: None,
+                        padding: None,
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_sCRT.id.clone(),
+                        address: s_sCRT.address.clone(),
+                        code_hash: s_sCRT.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+    
+                handle(
+                    &snip20::HandleMsg::IncreaseAllowance {
+                        spender: HumanAddr(String::from(ammPair.address.0.to_string())),
+                        amount: Uint128(500000000),
+                        expiration: None,
+                        padding: None,
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_sSHD.id.clone(),
+                        address: s_sSHD.address.clone(),
+                        code_hash: s_sSHD.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+                print_header("\n\tAddLiquidityToAMMContract - 500000000 with staking");
+                handle(
+                    &AMMPairHandlMsg::AddLiquidityToAMMContract {
+                        deposit: TokenPairAmount {
+                            pair: test_pair.clone(),
+                            amount_0: Uint128(500000000),
+                            amount_1: Uint128(500000000),
+                        },
+                        slippage: None,
+                        staking: Some(true),
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();   
+                
+                print_header("\n\tGet LP Token for AMM Pair");
+                let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};    
+                let lp_token_info_query_unstake: AMMPairQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }, 
+                    lp_token_info_msg, 
+                    None
+                )?;
+                
+                if let AMMPairQueryMsgResponse::GetPairInfo { 
+                    liquidity_token,
+                    factory,
+                    pair,
+                    amount_0,
+                    amount_1,
+                    total_liquidity,
+                    contract_version,
+                } = lp_token_info_query_unstake {
+
+                    println!("\n\tLP Token Address {}", liquidity_token.address.to_string());
+                    print_header("\n\tLP Token Liquidity - 5499999219");    
+                    assert_eq!(
+                        total_liquidity,
+                        Uint128(5499999219)
+                    );
+                }    
+            }               
 
         } else {
             assert!(false, "Query returned unexpected response")

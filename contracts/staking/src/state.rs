@@ -28,7 +28,8 @@ pub static LAST_REWARD_TIME_CLAIMED: &[u8] = b"LAST_REWARD_TIME_CLAIMED";
 pub struct Config {
     pub contract_owner: HumanAddr,
     pub daily_reward_amount: Uint128,
-    pub reward_token: TokenType<HumanAddr>   
+    pub reward_token: TokenType<HumanAddr>,
+    pub lp_token: ContractLink<HumanAddr>,
 }
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]

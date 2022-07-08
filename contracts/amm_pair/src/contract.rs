@@ -1,6 +1,6 @@
 use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-
+use shadeswap_shared::msg::staking::InvokeMsg as StakingInvokeMsg;
 use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair, Fee}};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
@@ -12,7 +12,7 @@ use crate::state::{{Config}};
 use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist, store_trade_counter,
      load_whitelist_address,add_whitelist_address,load_staking_contract, store_staking_contract, load_config, store_trade_history,remove_whitelist_address,
 load_trade_counter, load_trade_history};
-use crate::help_math::{{substraction, multiply}};
+use crate::help_math::{{substraction, multiply,calculate_and_print_price}};
 use crate::state::tradehistory::DirectionType;
 use crate::state::PAGINATION_LIMIT;
 use shadeswap_shared::fadroma::{
@@ -149,7 +149,7 @@ pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey
 
 fn register_lp_token<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
+    env: Env   
 ) -> StdResult<HandleResponse> {    
     let mut config = load_config(&deps)?;
     // address must be default otherwise it has been initialized.
@@ -161,14 +161,18 @@ fn register_lp_token<S: Storage, A: Api, Q: Querier>(
     // store config against Smart contract address
     store_config(deps, &config)?;
 
+    let mut messages = Vec::new();
+    // register pair contract for LP receiver
+    messages.push(snip20::register_receive_msg(
+        env.contract_code_hash.clone(),
+        None,
+        BLOCK_SIZE,
+        config.lp_token_info.code_hash.clone(),
+        env.message.sender.clone(),
+    )?);    
+
     Ok(HandleResponse {
-        messages: vec![snip20::register_receive_msg(
-            env.contract_code_hash,
-            None,
-            BLOCK_SIZE,
-            config.lp_token_info.code_hash,
-            env.message.sender.clone(),
-        )?],
+        messages: messages,
         log: vec![log("liquidity_token_addr", env.message.sender)],
         data: None,
     })
@@ -214,8 +218,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::Receive {
             from, amount, msg, ..
         } => receiver_callback(deps, env, from, amount, msg),
-        HandleMsg::AddLiquidityToAMMContract { deposit, slippage } => {
-            add_liquidity(deps, env, deposit, slippage)
+        HandleMsg::AddLiquidityToAMMContract { deposit, slippage, staking } => {
+            add_liquidity(deps, env, deposit, slippage, staking)
         }
         HandleMsg::SetStakingContract{contract} => set_staking_contract(deps, env, contract),
         HandleMsg::SetAMMPairAdmin {admin} => set_admin_guard(deps,env,admin),
@@ -252,7 +256,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn query_calculate_price_and_spread<S: Storage, A: Api, Q: Querier>(
+pub fn query_calculate_price<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     offer: TokenAmount<HumanAddr>
 ) -> StdResult<SwapInfo>{
@@ -324,11 +328,12 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
         swaper_receiver,
         swap_result.result.return_amount,
     )?);
-    let mut sell_or_swap = "".to_string();
+    let mut action = "".to_string();
     if index == 0 {
-        sell_or_swap = "Buy".to_string();
-    } else {
-        sell_or_swap = "Sell".to_string();
+        action = "BUY".to_string();
+    } 
+    if index == 1 {
+        action = "SELL".to_string();
     }      
     
     // Push Trade History
@@ -337,7 +342,8 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
         price: swap_result.price,
         amount: swap_result.result.return_amount,
         timestamp: env.block.time,
-        direction: sell_or_swap.to_string(),
+        height: env.block.height,
+        direction: action.to_string(),
         lp_fee_amount: swap_result.lp_fee_amount,
         total_fee_amount: swap_result.total_fee_amount,
         shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
@@ -367,7 +373,6 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
             log("offer_token", offer.token),
             log("offer_amount", offer.amount),
             log("return_amount", swap_result.result.return_amount),
-            log("spread_amount", swap_result.result.spread_amount),
             log("lp_fee", swap_result.lp_fee_amount),
             log("shade_dao_fee", swap_result.shade_dao_fee_amount),
             log("shade_total_fee", swap_result.total_fee_amount),
@@ -387,8 +392,21 @@ pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized())
     }
     store_staking_contract(deps, &contract.clone())?;
+    let config = load_config(deps)?;
+
+    let mut messages = Vec::new();  
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: contract.address.clone(),
+        callback_code_hash: contract.code_hash.clone(),
+        send: vec![],
+        msg: to_binary(&StakingHandleMsg::SetLPToken {
+           lp_token: config.lp_token_info.clone()
+        })?,
+    }));
+
+    // send lp contractLink to staking contract 
     Ok(HandleResponse {
-        messages: vec![],
+        messages: messages,
         log: vec![
             log("action", "set_staking_contract"),
             log("contract_address", contract.address.clone()),
@@ -417,7 +435,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 total_liquidity,
                 contract_version: AMM_PAIR_CONTRACT_VERSION,
             })
-        }
+        }       
         QueryMsg::GetTradeHistory { pagination } => {
             let data = load_trade_history_query(&deps, pagination)?;
             to_binary(&QueryMsgResponse::GetTradeHistory { data })
@@ -449,7 +467,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             to_binary(&QueryMsgResponse::GetClaimReward { amount: amount })
         },       
         QueryMsg::GetEstimatedPrice {offer} => {
-           let swap_result = query_calculate_price_and_spread(&deps,offer)?;
+           let swap_result = query_calculate_price(&deps,offer)?;
            to_binary(&QueryMsgResponse::EstimatedPrice { estimated_price : swap_result.price })
         }
     }
@@ -471,8 +489,8 @@ fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(
     let mut result = Vec::with_capacity((end - pagination.start) as usize);
 
     for i in pagination.start..end {
-        let tempIndex = i + 1;
-        let trade_history: TradeHistory = load_trade_history(deps, tempIndex)?;
+        let temp_index = i + 1;
+        let trade_history: TradeHistory = load_trade_history(deps, temp_index)?;
         result.push(trade_history);
     }
 
@@ -482,7 +500,7 @@ fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(
 fn calculate_fee(amount: Uint256, fee: Fee) -> StdResult<Uint128> {
     let nom = Uint256::from(fee.nom);
     let denom = Uint256::from(fee.denom);
-    let amount = ((amount * nom)? / denom)?;
+    let amount = ((amount * nom)? / denom)?;   
     Ok(amount.clamp_u128()?.into())
 }
 
@@ -506,9 +524,7 @@ pub fn calculate_swap_result(
     let tokens_pool = get_token_pool_balance(querier, config, offer)?;
     let token0_pool = tokens_pool[0];
     let token1_pool = tokens_pool[1];
-    // calculate price
-    let swap_amount = calculate_price(amount, token0_pool, token1_pool)?;
-    let spread_amount = calculate_spread(amount, token0_pool, token1_pool)?;
+    // calculate price   
 
     // calculate fee
     let lp_fee = settings.lp_fee;
@@ -518,24 +534,28 @@ pub fn calculate_swap_result(
     // calculation fee
     let discount_fee = is_address_in_whitelist(storage, recipient)?;
     if discount_fee == false {
-        lp_fee_amount = calculate_fee(swap_amount, lp_fee)?;
-        shade_dao_fee_amount = calculate_fee(swap_amount, shade_dao_fee)?;
+        lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
+        shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), shade_dao_fee)?;
     }
+    // total fee
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
-    let deducted_offer_amount = (swap_amount - Uint256::from(total_fee_amount))?;
+
+    // sub fee from offer amount
+    let deducted_offer_amount = (offer.amount - total_fee_amount)?; 
+    let swap_amount = calculate_price(Uint256::from(deducted_offer_amount), token0_pool, token1_pool)?;
     let result_swap = SwapResult {
-        return_amount: deducted_offer_amount.clamp_u128()?.into(),
-        spread_amount: spread_amount.clamp_u128()?.into(),
+        return_amount: swap_amount.clamp_u128()?.into(),
+        // spread_amount: spread_amount.clamp_u128()?.into(),
     };
+
+    let token_index = config.pair.get_token_index(&offer.token).unwrap();  
 
     Ok(SwapInfo {
         lp_fee_amount: lp_fee_amount,
         shade_dao_fee_amount: shade_dao_fee_amount,
         total_fee_amount: total_fee_amount,
         result: result_swap,
-        price: ((token0_pool + amount)? / (token1_pool - swap_amount)?)?
-            .clamp_u128()?
-            .into(),
+        price: calculate_and_print_price(swap_amount.clamp_u128()?.into(), amount.clamp_u128()?.into(), token_index)?,
     })
 }
 
@@ -587,7 +607,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     amount: Uint128,
-    recipient: HumanAddr,
+    from: HumanAddr,
 ) -> StdResult<HandleResponse> {    
     let config = load_config(&deps)?;
     let Config {
@@ -617,7 +637,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
     for (i, token) in pair.into_iter().enumerate() {
         pair_messages.push(token.create_send_msg(
             env.contract.address.clone(),
-            recipient.clone(),
+            from.clone(),
             pool_withdrawn[i],
         )?);
     }
@@ -629,18 +649,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
         lp_token_info.code_hash,
         lp_token_info.address,
     )?);
-
-     // unstake
-     let staking_contract = load_staking_contract(deps)?;
-     if staking_contract.address != HumanAddr::default() {
-        pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: staking_contract.address.clone(),
-            callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
-            msg: to_binary(&StakingHandleMsg::Unstake{address: recipient.clone()})?,
-            send: vec![],
-        }));
-     }    
-  
+    
     Ok(HandleResponse {
         messages: pair_messages,
         log: vec![
@@ -660,22 +669,12 @@ pub fn calculate_price(
     Ok(((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?)
 }
 
-pub fn calculate_spread(
-    amount: Uint256,
-    token0_pool_balance: Uint256,
-    token1_pool_balance: Uint256,
-) -> StdResult<Uint256> {
-    let update_amount = ((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?;
-    let original_amount = ((token1_pool_balance * amount)? / (token0_pool_balance))?;
-    let spread_amount = (update_amount - original_amount).unwrap_or(Uint256::zero());
-    Ok(spread_amount)
-}
-
 fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     deposit: TokenPairAmount<HumanAddr>,
     slippage: Option<Decimal>,
+    staking: Option<bool>
 ) -> StdResult<HandleResponse> {
     let config = load_config(&deps)?;
     let Config {
@@ -756,28 +755,70 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         lp_tokens = std::cmp::min(percent_token0_pool, percent_token1_pool).clamp_u128()?
     };
 
-    pair_messages.push(snip20::mint_msg(
-        env.message.sender.clone(),
-        Uint128(lp_tokens),
-        None,
-        BLOCK_SIZE,
-        lp_token_info.code_hash,
-        lp_token_info.address,
-    )?);
+    let mut add_to_staking = false;
+    // check if user wants add his LP token to Staking
+    if let Some(true) = staking {
+        // check if the Staking Contract has been set for AMM Pairs
+        add_to_staking = true;
+        let staking_contract = load_staking_contract(deps)?;
+        if staking_contract.address == HumanAddr::default() {
+            return Err(StdError::generic_err(
+                "Staking Contract has not been set for AMM Pairs",
+            ));          
+        } 
+           
+        pair_messages.push(snip20::mint_msg(
+            env.contract.address.clone(),
+            Uint128(lp_tokens),
+            None,
+            BLOCK_SIZE,
+            lp_token_info.code_hash.clone(),
+            lp_token_info.address.clone(),
+        )?);
+      
+        let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
+            from: env.message.sender.clone(),  
+            amount: Uint128(lp_tokens)           
+        })
+        .unwrap();
 
-    let staking_contract = load_staking_contract(deps)?;
-    if staking_contract.address != HumanAddr::default() {
-        pair_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: staking_contract.address.clone(),
-            callback_code_hash: staking_contract.code_hash.to_uppercase().clone(),
-            msg: to_binary(&StakingHandleMsg::Stake{from: env.message.sender.clone(), amount: Uint128(lp_tokens)})?,
-            send: vec![],
-        }));
-    }   
+        let receive_msg = to_binary(&StakingHandleMsg::Receive { 
+            from:  env.message.sender.clone(), msg: Some(invoke_msg.clone()), amount: Uint128(lp_tokens) })?;
+        // SEND LP Token to Staking Contract with Staking Message
+        let msg = to_binary(&snip20::HandleMsg::Send {
+            recipient: staking_contract.address.clone(),
+            amount: Uint128(lp_tokens),
+            msg: Some(invoke_msg.clone()),
+            padding: None,
+        })?;
+        
+        pair_messages.push(
+            WasmMsg::Execute {
+                contract_addr:  lp_token_info.address.clone(),
+                callback_code_hash: lp_token_info.code_hash.clone(),
+                msg,
+                send: vec![],
+                }
+            .into(),
+        );
+    }
+    else {
+        add_to_staking = false;
+        pair_messages.push(snip20::mint_msg(
+            env.message.sender.clone(),
+            Uint128(lp_tokens),
+            None,
+            BLOCK_SIZE,
+            lp_token_info.code_hash.clone(),
+            lp_token_info.address.clone(),
+        )?);
+    }  
+   
 
     Ok(HandleResponse {
         messages: pair_messages,
         log: vec![
+            log("staking", format!("{}", add_to_staking)),
             log("action", "add_liquidity_to_pair_contract"),
             log("assets", format!("{}, {}", deposit.pair.0, deposit.pair.1)),
             log("share_pool", lp_tokens),
@@ -785,6 +826,7 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         data: None,
     })
 }
+
 
 fn assert_slippage_acceptance(
     slippage: Option<Decimal>,
@@ -888,7 +930,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
     })?;
 
     let config = load_config(deps)?;
-
+    let from_caller = from.clone();
     match from_binary(&msg)? {
         InvokeMsg::SwapTokens {
             to,
@@ -924,11 +966,14 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
 
             Err(StdError::unauthorized())
         }
-        InvokeMsg::RemoveLiquidity { recipient } => {
+        InvokeMsg::RemoveLiquidity { from } => {
             if config.lp_token_info.address != env.message.sender {
                 return Err(StdError::unauthorized());
             }
-            remove_liquidity(deps, env, amount, recipient)
+            match from {
+                Some(address) =>  remove_liquidity(deps, env, amount, address),
+                None =>  remove_liquidity(deps, env, amount, from_caller),
+            }                 
         }
     }
 }

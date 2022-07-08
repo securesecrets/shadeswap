@@ -3,7 +3,7 @@ compiled_dir=compiled
 checksum_dir=${compiled_dir}/checksum
 
 build-release=RUSTFLAGS='-C link-arg=-s' cargo build --release --target wasm32-unknown-unknown --locked
-build-debug=RUSTFLAGS='-C link-arg=-s' cargo build --release --target wasm32-unknown-unknown --locked --features="debug-print"
+build-debug=RUSTFLAGS='-C link-arg=-s' cargo build --release --target wasm32-unknown-unknown  --features="debug-print"  --locked
 
 # args (no extensions): wasm_name, contract_dir_name
 define opt_and_compress = 

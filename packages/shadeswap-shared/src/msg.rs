@@ -11,22 +11,6 @@ pub use crate::snip20_impl::msg as snip20;
 use crate::token_amount::TokenAmount;
 use crate::token_pair_amount::TokenPairAmount;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
-    pub count: i32,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum HandleMsg {}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum QueryMsg {
-    // GetCount returns the current count as a json-encoded number
-    GetCount {},
-}
-
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct CountResponse {
@@ -100,24 +84,25 @@ pub mod amm_pair {
         pub lp_fee_amount: Uint128,
         pub shade_dao_fee_amount: Uint128,
         pub result: SwapResult,
-        pub price: Uint128
+        pub price: String
     }
     
     #[derive(Serialize, Deserialize,  PartialEq, Debug, JsonSchema)]
     pub struct SwapResult {
         pub return_amount: Uint128,
-        pub spread_amount: Uint128,
+        // pub spread_amount: Uint128,
     } 
     
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
     pub struct TradeHistory {
-        pub price: Uint128,
+        pub price: String,
         pub amount: Uint128,
         pub timestamp: u64,
         pub direction: String,
         pub total_fee_amount: Uint128,
         pub lp_fee_amount: Uint128,
         pub shade_dao_fee_amount: Uint128,
+        pub height: u64,
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
@@ -136,6 +121,7 @@ pub mod amm_pair {
         AddLiquidityToAMMContract {
             deposit: TokenPairAmount<HumanAddr>,
             slippage: Option<Decimal>,
+            staking: Option<bool>
         },
         SwapTokens {
             /// The token type to swap from.
@@ -174,12 +160,12 @@ pub mod amm_pair {
             callback_signature: Option<Binary>
         },
         RemoveLiquidity {
-            recipient: HumanAddr,
+            from: Option<HumanAddr>,
         },
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
-    pub enum QueryMsg {
+    pub enum QueryMsg {       
         GetPairInfo,
         GetTradeHistory { pagination: Pagination },
         GetWhiteListAddress,
@@ -189,6 +175,13 @@ pub mod amm_pair {
         GetClaimReward{time: u128, staker: HumanAddr},
         GetEstimatedPrice { offer: TokenAmount<HumanAddr>}
     }
+
+    /*
+    impl Query for QueryMsg {
+        const BLOCK_SIZE: usize = 256;
+    }
+    */
+
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsgResponse {
@@ -200,7 +193,7 @@ pub mod amm_pair {
             amount_1: Uint128,
             total_liquidity: Uint128,
             contract_version: u32,
-        },
+        },      
         GetTradeHistory {
             data: Vec<TradeHistory>,
         },
@@ -220,7 +213,7 @@ pub mod amm_pair {
             staking_contract: ContractLink<HumanAddr>
         },
         EstimatedPrice {
-            estimated_price: Uint128
+            estimated_price: String
         }
     }
 }
@@ -315,20 +308,34 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum HandleMsg {
-        ClaimRewards {}, 
+        ClaimRewards {},        
+        Unstake {            
+            amount: Uint128,
+            remove_liqudity: Option<bool>
+        },
+        SetLPToken {
+            lp_token: ContractLink<HumanAddr>
+        },
+        Receive {
+            from: HumanAddr,
+            msg: Option<Binary>,
+            amount: Uint128,
+        }, 
+    }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum InvokeMsg {
         Stake {   
             from: HumanAddr,
             amount: Uint128,
-        },
-        Unstake {
-            address: HumanAddr
-        },  
+        }
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        GetStakers {},
+        // GetStakers {},
         GetClaimReward {time: u128, staker: HumanAddr},
         GetContractOwner {}
     }

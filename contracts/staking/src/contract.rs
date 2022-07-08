@@ -370,7 +370,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
         
         let receive_msg  = to_binary(&AmmPairHandleMsg::Receive {
             from: caller.clone(),                  
-            msg: Some(remove_liquidity_msg),
+            msg: Some(remove_liquidity_msg.clone()),
             amount: amount, 
         })
         .unwrap();
@@ -378,7 +378,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
         let msg = to_binary(&snip20::HandleMsg::Send {
             recipient: config.contract_owner.clone(),
             amount: amount,
-            msg: Some(receive_msg),
+            msg: Some(remove_liquidity_msg.clone()),
             padding: None,
         })?;
     

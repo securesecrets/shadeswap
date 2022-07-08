@@ -170,7 +170,7 @@ fn register_lp_token<S: Storage, A: Api, Q: Querier>(
         config.lp_token_info.code_hash.clone(),
         env.message.sender.clone(),
     )?);    
-    
+
     Ok(HandleResponse {
         messages: messages,
         log: vec![log("liquidity_token_addr", env.message.sender)],
@@ -394,16 +394,7 @@ pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
     store_staking_contract(deps, &contract.clone())?;
     let config = load_config(deps)?;
 
-    let mut messages = Vec::new();
-    // register staking contract for LP receiver
-    messages.push(snip20::register_receive_msg(
-        contract.code_hash.clone(),
-        None,
-        BLOCK_SIZE,
-        config.lp_token_info.code_hash.clone(),
-        config.lp_token_info.address.clone(),
-    )?);
-
+    let mut messages = Vec::new();  
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.address.clone(),
         callback_code_hash: contract.code_hash.clone(),
@@ -792,12 +783,12 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         .unwrap();
 
         let receive_msg = to_binary(&StakingHandleMsg::Receive { 
-            from:  env.message.sender.clone(), msg: Some(invoke_msg), amount: Uint128(lp_tokens) })?;
+            from:  env.message.sender.clone(), msg: Some(invoke_msg.clone()), amount: Uint128(lp_tokens) })?;
         // SEND LP Token to Staking Contract with Staking Message
         let msg = to_binary(&snip20::HandleMsg::Send {
             recipient: staking_contract.address.clone(),
             amount: Uint128(lp_tokens),
-            msg: Some(receive_msg),
+            msg: Some(invoke_msg.clone()),
             padding: None,
         })?;
         

@@ -154,6 +154,11 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
         if let Some(new_value) = lp_token_contract {
             config.lp_token_contract = new_value;
         }
+
+        if let Some(new_value) = amm_settings {
+            config.amm_settings = new_value;
+        }
+
         config_write(deps, &config)?;
 
         Ok(HandleResponse {

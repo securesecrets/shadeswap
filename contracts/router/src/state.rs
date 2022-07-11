@@ -59,14 +59,14 @@ pub fn config_read<S: Storage, A: Api, Q: Querier>(
         .humanize(&deps.api)
 }
 
-pub fn write_new_token<S: Storage>(store: &mut S, token_address: &CanonicalAddr, key: &ViewingKey) {
-    let mut balance_store = PrefixedStorage::new(ADDED_TOKEN_LIST, store);
-    balance_store.set(token_address.as_slice(), &key.to_hashed());
+pub fn write_new_registered_token<S: Storage>(store: &mut S, token_address: &CanonicalAddr, key: &ViewingKey) {
+    let mut registered_token_store = PrefixedStorage::new(ADDED_TOKEN_LIST, store);
+    registered_token_store.set(token_address.as_slice(), &key.to_hashed());
 }
 
-pub fn read_token<S: Storage>(store: &S, token_address: &CanonicalAddr) -> Option<Vec<u8>> {
-    let balance_store = ReadonlyPrefixedStorage::new(ADDED_TOKEN_LIST, store);
-    balance_store.get(token_address.as_slice())
+pub fn read_registered_token<S: Storage>(store: &S, token_address: &CanonicalAddr) -> Option<Vec<u8>> {
+    let registered_token_store = ReadonlyPrefixedStorage::new(ADDED_TOKEN_LIST, store);
+    registered_token_store.get(token_address.as_slice())
 }
 
 impl Config<HumanAddr> {

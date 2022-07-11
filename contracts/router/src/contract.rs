@@ -1,15 +1,19 @@
+use shadeswap_shared::admin::{apply_admin_guard, store_admin};
+use shadeswap_shared::token_amount::TokenAmount;
+use shadeswap_shared::token_pair::TokenPair;
+use shadeswap_shared::token_type::TokenType;
 use shadeswap_shared::{
     amm_pair::AMMSettings,
     fadroma::{
         debug_print, from_binary,
         scrt::{
-            secret_toolkit::snip20, to_binary, Api, Binary, CosmosMsg, Env, Extern,
-            HandleResponse, HumanAddr, InitResponse, Querier, StdError, StdResult, Storage,
-            WasmMsg,
+            secret_toolkit::snip20, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse,
+            HumanAddr, InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
         },
         scrt_link::ContractLink,
-        scrt_storage::{load, save}, ContractInstantiationInfo, HandleResult,
-        QueryRequest, Uint128, ViewingKey, WasmQuery, BankMsg, Coin,
+        scrt_storage::{load, save},
+        BankMsg, Canonize, Coin, ContractInstantiationInfo, HandleResult, QueryRequest, Uint128,
+        ViewingKey, WasmQuery,
     },
     msg::{
         amm_pair::{
@@ -23,12 +27,11 @@ use shadeswap_shared::{
         router::InitMsg,
     },
 };
-use shadeswap_shared::token_pair::TokenPair;
-use shadeswap_shared::token_amount::TokenAmount;
-use shadeswap_shared::token_type::TokenType;
-use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
 
-use crate::state::{config_read, config_write, Config, CurrentSwapInfo};
+use crate::state::{
+    config_read, config_write, read_registered_token, write_new_registered_token, Config,
+    CurrentSwapInfo,
+};
 
 /// Pad handle responses and log attributes to blocks
 /// of 256 bytes to prevent leaking info based on response size
@@ -41,7 +44,17 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
-    config_write(deps, &Config{ factory_address: msg.factory_address, viewing_key: msg.viewing_key.unwrap_or(create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone())) })?;
+    config_write(
+        deps,
+        &Config {
+            factory_address: msg.factory_address,
+            viewing_key: msg.viewing_key.unwrap_or(create_viewing_key(
+                &env,
+                msg.prng_seed.clone(),
+                msg.entropy.clone(),
+            )),
+        },
+    )?;
 
     debug_print!("Contract was initialized by {}", env.message.sender);
     store_admin(deps, &env.message.sender.clone())?;
@@ -82,9 +95,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             last_token_out,
             signature,
         } => next_swap(deps, env, last_token_out, signature),
-        HandleMsg::RegisterSNIP20Token { token, token_code_hash } => {
-            refresh_tokens(deps, env, token, token_code_hash)
-        }
+        HandleMsg::RegisterSNIP20Token {
+            token,
+            token_code_hash,
+        } => refresh_tokens(deps, env, token, token_code_hash),
     }
 }
 
@@ -92,12 +106,21 @@ fn refresh_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     token_address: HumanAddr,
-    token_code_hash: String
+    token_code_hash: String,
 ) -> StdResult<HandleResponse> {
     let mut msg = vec![];
     let config = config_read(deps)?;
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
-    register_pair_token(&env, &mut msg, &TokenType::CustomToken { contract_addr: token_address, token_code_hash: token_code_hash }, &config.viewing_key)?;
+    register_pair_token(
+        deps,
+        &env,
+        &mut msg,
+        &TokenType::CustomToken {
+            contract_addr: token_address,
+            token_code_hash: token_code_hash,
+        },
+        &config.viewing_key,
+    )?;
 
     Ok(HandleResponse {
         messages: msg,
@@ -113,43 +136,47 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
     msg: Option<Binary>,
 ) -> StdResult<HandleResponse> {
-    
     match msg {
-        Some(content) => {
-            match from_binary(&content)? {
-                InvokeMsg::SwapTokensForExact {
-                    expected_return,
-                    paths,
-                    recipient,
-                } => {
-                    let config = config_read(deps)?;
-                    let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
-                    let pair_config = query_pair_contract_config(&deps.querier, ContractLink{ address: paths[0].clone(), code_hash: factory_config.pair_contract.code_hash })?;
-                    for token in pair_config.pair.into_iter() {
-                        match token {
-                            TokenType::CustomToken { contract_addr, .. } => {
-                                if *contract_addr == env.message.sender {
-                                    let offer = TokenAmount {
-                                        token: token.clone(),
-                                        amount,
-                                    };
-        
-                                    return swap_tokens_for_exact_tokens(
-                                        deps,
-                                        env,
-                                        offer,
-                                        expected_return,
-                                        &paths,
-                                        from,
-                                        recipient,
-                                    );
-                                }
+        Some(content) => match from_binary(&content)? {
+            InvokeMsg::SwapTokensForExact {
+                expected_return,
+                paths,
+                recipient,
+            } => {
+                let config = config_read(deps)?;
+                let factory_config =
+                    query_factory_config(&deps.querier, config.factory_address.clone())?;
+                let pair_config = query_pair_contract_config(
+                    &deps.querier,
+                    ContractLink {
+                        address: paths[0].clone(),
+                        code_hash: factory_config.pair_contract.code_hash,
+                    },
+                )?;
+                for token in pair_config.pair.into_iter() {
+                    match token {
+                        TokenType::CustomToken { contract_addr, .. } => {
+                            if *contract_addr == env.message.sender {
+                                let offer = TokenAmount {
+                                    token: token.clone(),
+                                    amount,
+                                };
+
+                                return swap_tokens_for_exact_tokens(
+                                    deps,
+                                    env,
+                                    offer,
+                                    expected_return,
+                                    &paths,
+                                    from,
+                                    recipient,
+                                );
                             }
-                            _ => continue,
                         }
+                        _ => continue,
                     }
-                    Err(StdError::unauthorized())
                 }
+                Err(StdError::unauthorized())
             }
         },
         None => Ok(HandleResponse {
@@ -164,8 +191,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
-    match msg {
-    }
+    match msg {}
 }
 
 pub fn next_swap<S: Storage, A: Api, Q: Querier>(
@@ -177,7 +203,6 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
     let current_trade_info: Option<CurrentSwapInfo> = load(&deps.storage, EPHEMERAL_STORAGE_KEY)?;
     let config = config_read(deps)?;
     let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
-    
     match current_trade_info {
         Some(info) => {
             if signature != info.signature {
@@ -192,9 +217,11 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
             )?;
 
             let mut next_token_in = pair_contract.pair.0.clone();
+            let mut next_token_out = pair_contract.pair.1.clone();
 
             if pair_contract.pair.1.clone() == last_token_out.token {
                 next_token_in = pair_contract.pair.1;
+                next_token_out = pair_contract.pair.0;
             }
 
             let token_in: TokenAmount<HumanAddr> = TokenAmount {
@@ -202,8 +229,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                 amount: last_token_out.amount,
             };
 
-            if info.paths.len() > (info.current_index + 1) as usize
-            {
+            if info.paths.len() > (info.current_index + 1) as usize {
                 save(
                     &mut deps.storage,
                     EPHEMERAL_STORAGE_KEY,
@@ -213,14 +239,15 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                         signature: info.signature.clone(),
                         recipient: info.recipient,
                         current_index: info.current_index + 1,
-                        amount_out_min: info.amount_out_min
-                    }
+                        amount_out_min: info.amount_out_min,
+                    },
                 )?;
                 Ok(HandleResponse {
                     messages: get_trade_with_callback(
                         deps,
                         env,
                         token_in,
+                        next_token_out,
                         info.paths[(info.current_index + 1) as usize].clone(),
                         factory_config.pair_contract.code_hash.clone(),
                         info.signature,
@@ -228,36 +255,37 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                     log: vec![],
                     data: None,
                 })
-            }
-            else
-            {
+            } else {
                 if let Some(min_out) = info.amount_out_min {
-                    if  token_in.amount.lt(&min_out) {
+                    if token_in.amount.lt(&min_out) {
                         return Err(StdError::generic_err(
-                            "Operation fell short of expected_return. Actual: ".to_owned() + &token_in.amount.to_string().to_owned() + ", Expected: " + &min_out.to_string().to_owned(),
+                            "Operation fell short of expected_return. Actual: ".to_owned()
+                                + &token_in.amount.to_string().to_owned()
+                                + ", Expected: "
+                                + &min_out.to_string().to_owned(),
                         ));
                     }
                 }
-                
-                let clear_storage:Option<CurrentSwapInfo> = None;
 
-                save(
-                    &mut deps.storage,
-                    EPHEMERAL_STORAGE_KEY,
-                    &clear_storage
-                )?;
+                let clear_storage: Option<CurrentSwapInfo> = None;
 
+                save(&mut deps.storage, EPHEMERAL_STORAGE_KEY, &clear_storage)?;
                 Ok(HandleResponse {
-                    messages: vec![token_in.token.create_send_msg(env.contract.address, info.recipient, token_in.amount)?],
+                    messages: vec![token_in.token.create_send_msg(
+                        env.contract.address,
+                        info.recipient,
+                        token_in.amount,
+                    )?],
                     log: vec![],
                     data: None,
                 })
             }
         }
-        None => Err(StdError::generic_err("There is currently no trade in progress.")),
+        None => Err(StdError::generic_err(
+            "There is currently no trade in progress.",
+        )),
     }
 }
-
 
 pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -273,7 +301,20 @@ pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
     let config = config_read(deps)?;
     let factory_config = query_factory_config(querier, config.factory_address.clone())?;
     let signature = create_signature(&env)?;
+    let pair_contract = query_pair_contract_config(
+        &deps.querier,
+        ContractLink {
+            address: paths[0].clone(),
+            code_hash: factory_config.pair_contract.code_hash.clone(),
+        },
+    )?;
     
+    let mut next_token_out = pair_contract.pair.1.clone();
+
+    if pair_contract.pair.1.clone() == amount_in.token {
+        next_token_out = pair_contract.pair.0;
+    }
+
     save(
         &mut deps.storage,
         EPHEMERAL_STORAGE_KEY,
@@ -292,6 +333,7 @@ pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
             deps,
             env,
             amount_in,
+            next_token_out,
             paths[0].clone(),
             factory_config.pair_contract.code_hash,
             signature.clone(),
@@ -305,11 +347,22 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     token_in: TokenAmount<HumanAddr>,
+    token_out: TokenType<HumanAddr>,
     path: HumanAddr,
     code_hash: String,
     signature: Binary,
 ) -> StdResult<Vec<CosmosMsg>> {
     let mut messages: Vec<CosmosMsg> = vec![];
+
+    //Make sure that token out has been registered if it is SNIP20
+    match token_out {
+        TokenType::CustomToken { contract_addr, token_code_hash } =>  
+        //if read_registered_token(&deps.storage, &contract_addr.canonize(&deps.api)?).is_none() {
+            return Err(StdError::generic_err("Token ".to_owned() + &contract_addr.to_string() + " is not registered.")),
+        //}
+        _ => ()
+    }
+
 
     match &token_in.token {
         TokenType::NativeToken { denom } => {
@@ -321,7 +374,7 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
                     code_hash: env.contract_code_hash.clone(),
                 }),
                 offer: token_in.clone(),
-                callback_signature: Some(signature)
+                callback_signature: Some(signature),
             })?;
 
             messages.push(
@@ -341,6 +394,12 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
             contract_addr,
             token_code_hash,
         } => {
+            if read_registered_token(&deps.storage, &contract_addr.canonize(&deps.api)?).is_none() {
+                return Err(StdError::generic_err(
+                    "Token ".to_owned() + &contract_addr.to_string() + " is not registered.",
+                ));
+            }
+
             let msg = to_binary(&snip20::HandleMsg::Send {
                 recipient: path.clone(),
                 amount: token_in.amount,
@@ -458,7 +517,8 @@ pub(crate) fn create_signature(env: &Env) -> StdResult<Binary> {
     )
 }
 
-fn register_pair_token(
+fn register_pair_token<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
     env: &Env,
     messages: &mut Vec<CosmosMsg>,
     token: &TokenType<HumanAddr>,
@@ -470,6 +530,11 @@ fn register_pair_token(
         ..
     } = token
     {
+        write_new_registered_token(
+            &mut deps.storage,
+            &contract_addr.canonize(&deps.api)?,
+            viewing_key,
+        );
         messages.push(snip20::set_viewing_key_msg(
             viewing_key.0.clone(),
             None,
@@ -488,7 +553,6 @@ fn register_pair_token(
 
     Ok(())
 }
-
 
 pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
     ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())

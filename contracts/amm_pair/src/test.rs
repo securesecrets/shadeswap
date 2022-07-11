@@ -191,7 +191,8 @@ pub mod tests {
             total_fee_amount: Uint128::from(50u128),
             lp_fee_amount: Uint128::from(50u128),
             shade_dao_fee_amount: Uint128::from(50u128),
-            height: 1045667
+            height: 1045667,
+            trader: "address_hash".to_string()
         };
         store_trade_history(&mut deps, &trade_history)?;
         let current_index = load_trade_counter(&deps.storage)?;

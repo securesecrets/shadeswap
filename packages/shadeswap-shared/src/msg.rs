@@ -103,6 +103,7 @@ pub mod amm_pair {
         pub lp_fee_amount: Uint128,
         pub shade_dao_fee_amount: Uint128,
         pub height: u64,
+        pub trader: String
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
@@ -225,6 +226,7 @@ pub mod factory {
     use serde::{Deserialize, Serialize};
     use crate::amm_pair::{{AMMPair}};
     use crate::stake_contract::StakingContractInit;
+    use super::*;
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
@@ -256,6 +258,9 @@ pub mod factory {
         },
         SetFactoryAdmin {
             admin: HumanAddr
+        }, 
+        SetShadeDAOAddress {
+            shade_dao_address: ContractLink<HumanAddr>
         }
     }
 

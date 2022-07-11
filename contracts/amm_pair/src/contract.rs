@@ -1,3 +1,5 @@
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
 use shadeswap_shared::msg::staking::InvokeMsg as StakingInvokeMsg;
@@ -325,7 +327,7 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
     let token = config.pair.get_token(index ^ 1).unwrap();
     messages.push(token.create_send_msg(
         env.contract.address,
-        swaper_receiver,
+        swaper_receiver.clone(),
         swap_result.result.return_amount,
     )?);
     let mut action = "".to_string();
@@ -337,6 +339,9 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
     }      
     
     // Push Trade History
+    let mut hasher = DefaultHasher::new();
+    swaper_receiver.hash(&mut hasher);
+    let hash_address = hasher.finish();
     let trade_history =  TradeHistory
     {
         price: swap_result.price,
@@ -347,7 +352,9 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
         lp_fee_amount: swap_result.lp_fee_amount,
         total_fee_amount: swap_result.total_fee_amount,
         shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
+        trader: hash_address.to_string(),
     };
+
     store_trade_history(deps, &trade_history)?;
 
     if !router_link.is_none() {
@@ -996,7 +1003,3 @@ fn query_liquidity(
 
     Ok(result.total_supply.unwrap())
 }
-
-
-
-

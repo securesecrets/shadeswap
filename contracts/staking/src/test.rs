@@ -269,7 +269,7 @@ pub mod tests {
                 contract_addr: HumanAddr::from(CONTRACT_ADDRESS),
                 token_code_hash: CONTRACT_ADDRESS.to_string(),
             },           
-            contract: ContractLink {
+            pair_contract: ContractLink {
                 address: HumanAddr::from(CONTRACT_ADDRESS),
                 code_hash: "".to_string().clone(),
             }           

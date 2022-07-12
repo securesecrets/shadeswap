@@ -493,11 +493,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             to_binary(&QueryMsgResponse::StakingContractInfo{
                 staking_contract: staking_contract
             })
-        },
-        QueryMsg::GetClaimReward {time, staker} => {
-            let amount = query_claim_rewards(&deps, staker, time)?;
-            to_binary(&QueryMsgResponse::GetClaimReward { amount: amount })
-        },       
+        },         
         QueryMsg::GetEstimatedPrice {offer, feeless} => {
            let swap_result = query_calculate_price(&deps,offer, feeless)?;
            to_binary(&QueryMsgResponse::EstimatedPrice { estimated_price : swap_result.price })
@@ -963,29 +959,6 @@ fn query_factory_amm_settings(
     }
 }
 
-fn query_claim_rewards<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,   
-    staker: HumanAddr,
-    time: u128
-) -> StdResult<Uint128>{
-    let staking_contract = load_staking_contract(deps)?;
-    if staking_contract.address.clone() != HumanAddr::default() {
-        let result: StakingQueryResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            callback_code_hash: staking_contract.code_hash,
-            contract_addr: staking_contract.address,
-            msg: to_binary(&StakingQueryMsg::GetClaimReward {time: time, staker: staker.clone()})?,
-        }))?;
-    
-        return match result {
-            StakingQueryResponse::ClaimReward { amount } => Ok(amount),
-            _ => Err(StdError::generic_err(
-                "An error occurred while trying to retrieve factory settings.",
-            ))
-        }
-    }
-
-    Ok(Uint128(0u128))
-}
 
 
 fn receiver_callback<S: Storage, A: Api, Q: Querier>(

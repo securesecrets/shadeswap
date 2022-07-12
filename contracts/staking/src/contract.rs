@@ -74,7 +74,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             claim_rewards(deps, env)
         }
         HandleMsg::SetLPToken {lp_token} => set_lp_token(deps, env, lp_token),
-        HandleMsg::Unstake {amount, remove_liqudity} => unstake(deps,env, amount, remove_liqudity),
+        HandleMsg::Unstake {amount, remove_liqudity} => unstake(deps,env, amount, remove_liqudity)
     }    
 }
 
@@ -278,9 +278,8 @@ pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
-    match msg {
-        // QueryMsg::GetStakers{ } => {get_all_stakers(deps)},
-        QueryMsg::GetClaimReward{time,staker} =>{get_claim_reward_for_user(deps, staker, time)},
+    match msg {       
+        QueryMsg::GetClaimReward{time,staker, view_key} =>{get_claim_reward_for_user(deps, staker, time, view_key)},
         QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps)},
     }
 }
@@ -295,7 +294,8 @@ pub fn get_staking_contract_owner<S: Storage, A: Api, Q: Querier>(
 pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>, 
     staker: HumanAddr,
-    time: u128
+    time: u128,
+    view_key: ViewingKey
 )-> StdResult<Binary> {
     let unpaid_claim = load_claim_reward_info(deps, staker.clone())?;
     let last_claim_timestamp = load_claim_reward_timestamp(deps)?;   

@@ -81,8 +81,7 @@ pub mod router {
             result: SwapResult,
             price: String
         }
-    }
-    
+    }   
     
 }
 
@@ -92,7 +91,8 @@ pub mod amm_pair {
     use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair, stake_contract::StakingContractInit};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
-
+    use fadroma::ViewingKey;
+    
     #[derive(Serialize, Deserialize,  PartialEq, Debug, JsonSchema)]
     pub struct SwapInfo {
         pub total_fee_amount: Uint128,
@@ -189,7 +189,6 @@ pub mod amm_pair {
         GetTradeCount,
         GetAdmin,
         GetStakingContract,
-        GetClaimReward{time: u128, staker: HumanAddr},
         GetEstimatedPrice { offer: TokenAmount<HumanAddr>, feeless: Option<bool>},
         SwapSimulation{ offer: TokenAmount<HumanAddr> },
         GetShadeDAOInfo{}
@@ -226,7 +225,7 @@ pub mod amm_pair {
             address: HumanAddr
         },
         GetClaimReward {
-            amount: Uint128,
+            amount: Uint128
         },
         StakingContractInfo{
             staking_contract: ContractLink<HumanAddr>
@@ -332,7 +331,8 @@ pub mod staking {
     use super::*;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
-
+    use fadroma::ViewingKey;
+    
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub staking_amount: Uint128,
@@ -371,7 +371,7 @@ pub mod staking {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         // GetStakers {},
-        GetClaimReward {time: u128, staker: HumanAddr},
+        GetClaimReward {time: u128, staker: HumanAddr, view_key: ViewingKey},
         GetContractOwner {}
     }
 

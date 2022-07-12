@@ -165,6 +165,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
+        QueryMsg::SwapSimulation{offer} => swap_simulation(deps, offer)
     }
 }
 
@@ -406,6 +407,42 @@ fn query_pair_contract_config(
         contract_addr: pair_contract_address.address.clone(),
         callback_code_hash: pair_contract_address.code_hash.clone(),
         msg: to_binary(&AMMPairQueryMsg::GetPairInfo {})?,
+    }))?;
+
+    match result {
+        AMMPairQueryReponse::GetPairInfo {
+            liquidity_token,
+            factory,
+            pair,
+            amount_0,
+            amount_1,
+            total_liquidity,
+            contract_version,
+        } => Ok(PairConfig {
+            liquidity_token: liquidity_token,
+            factory: factory,
+            pair: pair,
+            amount_0: amount_0,
+            amount_1: amount_1,
+            total_liquidity: total_liquidity,
+            contract_version: contract_version,
+        }),
+        _ => Err(StdError::generic_err(
+            "An error occurred while trying to retrieve factory settings.",
+        )),
+    }
+}
+
+
+fn query_pair_contract_swap_simulation(
+    querier: &impl Querier,
+    pair_contract_address: ContractLink<HumanAddr>,
+    offer: TokenAmount<HumanAddr>
+) -> StdResult<PairConfig> {
+    let result: AMMPairQueryReponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: pair_contract_address.address.clone(),
+        callback_code_hash: pair_contract_address.code_hash.clone(),
+        msg: to_binary(&AMMPairQueryMsg::SwapSimulation {offer: offer})?,
     }))?;
 
     match result {

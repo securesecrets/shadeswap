@@ -476,8 +476,18 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
         QueryMsg::GetEstimatedPrice {offer} => {
            let swap_result = query_calculate_price(&deps,offer)?;
            to_binary(&QueryMsgResponse::EstimatedPrice { estimated_price : swap_result.price })
-        }
+        },
+        QueryMsg::SwapSimulation{ offer}=> swap_simulation(deps, offer),
     }
+}
+
+
+fn swap_simulation<S:Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,  
+    offer: TokenAmount<HumanAddr>
+) -> StdResult<Binary>{
+    let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config_settings,&offer,  &deps.storage, HumanAddr::default())?;
+    to_binary(&swap_result)
 }
 
 fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(

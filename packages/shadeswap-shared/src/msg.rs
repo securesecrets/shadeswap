@@ -69,6 +69,7 @@ pub mod router {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
+        SwapSimulation{offer: TokenAmount<HumanAddr>}
     }
 }
 
@@ -175,6 +176,7 @@ pub mod amm_pair {
         GetStakingContract,
         GetClaimReward{time: u128, staker: HumanAddr},
         GetEstimatedPrice { offer: TokenAmount<HumanAddr>}
+        SwapSimulation{ offer: TokenAmount<HumanAddr> }
     }
 
     /*

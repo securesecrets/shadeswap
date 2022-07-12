@@ -88,6 +88,7 @@ pub mod router {
 
 pub mod amm_pair {
     use super::*;
+    use crate::amm_pair::Fee;
     use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair, stake_contract::StakingContractInit};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
@@ -163,6 +164,8 @@ pub mod amm_pair {
             admin: HumanAddr
         },
         SetStakingContract { contract: ContractLink<HumanAddr> },
+        SetCustomPairFee{ shade_dao_fee: Fee, lp_fee: Fee}        
+
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -187,8 +190,9 @@ pub mod amm_pair {
         GetAdmin,
         GetStakingContract,
         GetClaimReward{time: u128, staker: HumanAddr},
-        GetEstimatedPrice { offer: TokenAmount<HumanAddr>},
-        SwapSimulation{ offer: TokenAmount<HumanAddr> }
+        GetEstimatedPrice { offer: TokenAmount<HumanAddr>, feeless: Option<bool>},
+        SwapSimulation{ offer: TokenAmount<HumanAddr> },
+        GetShadeDAOInfo{}
     }
 
     /*
@@ -236,6 +240,11 @@ pub mod amm_pair {
             shade_dao_fee_amount: Uint128,
             result: SwapResult,
             price: String
+        },
+        ShadeDAOInfo{
+            shade_dao_address: HumanAddr,
+            shade_dao_fee: Fee,
+            admin_address: HumanAddr
         }
     }
 }

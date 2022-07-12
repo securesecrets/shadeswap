@@ -11,12 +11,13 @@ use shadeswap_shared::token_pair::{{TokenPair}};
 use shadeswap_shared::admin::{{apply_admin_guard, store_admin, load_admin, set_admin_guard}};
 use shadeswap_shared::Pagination;
 use crate::state::{{Config}};
-use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist, store_trade_counter,
+use crate::state::amm_pair_storage::{store_config,store_custom_fee, load_custom_fee, is_address_in_whitelist, store_trade_counter,
      load_whitelist_address,add_whitelist_address,load_staking_contract, store_staking_contract, load_config, store_trade_history,remove_whitelist_address,
 load_trade_counter, load_trade_history};
 use crate::help_math::{{substraction, multiply,calculate_and_print_price}};
 use crate::state::tradehistory::DirectionType;
 use crate::state::PAGINATION_LIMIT;
+use crate::state::CustomFee;
 use shadeswap_shared::fadroma::{
     scrt::{
         from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg,
@@ -222,7 +223,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         } => receiver_callback(deps, env, from, amount, msg),
         HandleMsg::AddLiquidityToAMMContract { deposit, slippage, staking } => {
             add_liquidity(deps, env, deposit, slippage, staking)
-        }
+        },
+        HandleMsg::SetCustomPairFee {shade_dao_fee, lp_fee} => set_custom_fee(deps, env, shade_dao_fee, lp_fee),
         HandleMsg::SetStakingContract{contract} => set_staking_contract(deps, env, contract),
         HandleMsg::SetAMMPairAdmin {admin} => set_admin_guard(deps,env,admin),
         HandleMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
@@ -260,12 +262,35 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
 pub fn query_calculate_price<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    offer: TokenAmount<HumanAddr>
+    offer: TokenAmount<HumanAddr>,
+    feeless: Option<bool>
 ) -> StdResult<SwapInfo>{
     let config_settings = load_config(deps)?;
     let amm_settings = query_factory_amm_settings(&deps.querier, config_settings.factory_info.clone())?;
-    let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config_settings,&offer,  &deps.storage, HumanAddr::default())?;
+    let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config_settings,&offer,  &deps.storage, HumanAddr::default(), feeless)?;
     Ok(swap_result)
+}
+
+
+pub fn set_custom_fee<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    shade_dao_fee: Fee,
+    lp_fee: Fee
+) -> StdResult<HandleResponse> {
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
+    store_custom_fee(deps, &CustomFee{ 
+        shade_dao_fee: shade_dao_fee.clone(),
+        lp_fee: lp_fee.clone(),
+        configured: true
+    })?;
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "set_custom_fee"),
+        ],
+        data: None,
+    })
 }
 
 pub fn swap<S: Storage, A: Api, Q: Querier>(
@@ -281,7 +306,7 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let swaper_receiver = recipient.unwrap_or(sender);
     let amm_settings = query_factory_amm_settings(&deps.querier,config.factory_info.clone())?;
-    let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, &offer,&mut deps.storage, swaper_receiver.clone())?;
+    let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, &offer,&mut deps.storage, swaper_receiver.clone(), None)?;
 
     // check for the slippage expected value compare to actual value
     if let Some(expected_return) = expected_return {
@@ -473,14 +498,28 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
             let amount = query_claim_rewards(&deps, staker, time)?;
             to_binary(&QueryMsgResponse::GetClaimReward { amount: amount })
         },       
-        QueryMsg::GetEstimatedPrice {offer} => {
-           let swap_result = query_calculate_price(&deps,offer)?;
+        QueryMsg::GetEstimatedPrice {offer, feeless} => {
+           let swap_result = query_calculate_price(&deps,offer, feeless)?;
            to_binary(&QueryMsgResponse::EstimatedPrice { estimated_price : swap_result.price })
         },
         QueryMsg::SwapSimulation{ offer}=> swap_simulation(deps, offer),
+        QueryMsg::GetShadeDAOInfo{} => get_shade_dao_info(deps),
     }
 }
 
+fn get_shade_dao_info<S:Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>
+) -> StdResult<Binary>{
+    let config_settings = load_config(deps)?;
+    let admin = load_admin(&deps.storage)?;
+    let amm_settings = query_factory_amm_settings(&deps.querier, config_settings.factory_info.clone())?;
+    let shade_dao_info = QueryMsgResponse::ShadeDAOInfo{
+        shade_dao_address: amm_settings.shade_dao_address.address.clone(),
+        shade_dao_fee: amm_settings.shade_dao_fee.clone(),
+        admin_address: admin.clone(),
+    };
+    to_binary(&shade_dao_info)
+}
 
 fn swap_simulation<S:Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,  
@@ -488,7 +527,7 @@ fn swap_simulation<S:Storage, A: Api, Q: Querier>(
 ) -> StdResult<Binary>{
     let config_settings = load_config(deps)?;
     let amm_settings = query_factory_amm_settings(&deps.querier, config_settings.factory_info.clone())?;
-    let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config_settings,&offer,  &deps.storage, HumanAddr::default())?;
+    let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config_settings,&offer,  &deps.storage, HumanAddr::default(), None)?;
     to_binary(&swap_result)
 }
 
@@ -530,6 +569,7 @@ pub fn calculate_swap_result(
     offer: &TokenAmount<HumanAddr>,
     storage: &impl Storage,
     recipient: HumanAddr,
+    feeless: Option<bool>
 ) -> StdResult<SwapInfo> {
     if !config.pair.contains(&offer.token) {
         return Err(StdError::generic_err(format!(
@@ -552,15 +592,26 @@ pub fn calculate_swap_result(
     let mut shade_dao_fee_amount = Uint128(0u128);
     // calculation fee
     let discount_fee = is_address_in_whitelist(storage, recipient)?;
-    if discount_fee == false {
-        lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
-        shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), shade_dao_fee)?;
+    if discount_fee == false {        
+        let custom_fee = load_custom_fee(storage)?;
+        if  custom_fee.configured == true  {
+            lp_fee_amount = calculate_fee(Uint256::from(offer.amount), custom_fee.lp_fee)?;
+            shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), custom_fee.shade_dao_fee)?;
+        }
+        else{
+            lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
+            shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), shade_dao_fee)?;
+        }        
     }
     // total fee
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
 
-    // sub fee from offer amount
-    let deducted_offer_amount = (offer.amount - total_fee_amount)?; 
+    // sub fee from offer amount  
+    let mut deducted_offer_amount = (offer.amount - total_fee_amount)?; 
+    if let Some(true) = feeless {
+        deducted_offer_amount = offer.amount;
+    }
+
     let swap_amount = calculate_price(Uint256::from(deducted_offer_amount), token0_pool, token1_pool)?;
     let result_swap = SwapResult {
         return_amount: swap_amount.clamp_u128()?.into(),

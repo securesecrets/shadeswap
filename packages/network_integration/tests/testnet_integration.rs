@@ -950,6 +950,7 @@ fn run_testnet() -> Result<()> {
                     },
                     amount: Uint128(100),
                 },
+                feeless: None
             };    
             let estimated_price_query: AMMPairQueryMsgResponse = query( 
                 &NetContract {
@@ -1248,6 +1249,34 @@ fn run_testnet() -> Result<()> {
                         result.return_amount,
                         Uint128(0)
                     );
+                }    
+
+                print_header("\n\tGet Shade DAO Info with Admin Address");
+                let get_shade_dao_msg = AMMPairQueryMsg::GetShadeDAOInfo {};    
+                let shade_dao_response: AMMPairQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }, 
+                    get_shade_dao_msg, 
+                    None
+                )?;
+                
+                if let AMMPairQueryMsgResponse::ShadeDAOInfo { 
+                  shade_dao_address,
+                  shade_dao_fee,
+                  admin_address
+                } = shade_dao_response {                  
+                    assert_ne!(
+                        admin_address.to_string(),
+                        HumanAddr::default().to_string()
+                    );
+                    assert_ne!(
+                        shade_dao_address.to_string(),
+                        HumanAddr::default().to_string()
+                    )
                 }    
             }               
 

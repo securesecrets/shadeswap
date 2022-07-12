@@ -18,10 +18,9 @@ pub struct CountResponse {
 }
 
 pub mod router {
-
     use fadroma::ViewingKey;
-
     use super::*;
+    use crate::msg::amm_pair::SwapResult;
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub enum InvokeMsg {
@@ -69,8 +68,22 @@ pub mod router {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        SwapSimulation{offer: TokenAmount<HumanAddr>}
+        SwapSimulation {offer: TokenAmount<HumanAddr>, contract: ContractLink<HumanAddr>}, 
     }
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum QueryMsgResponse {
+        SwapSimulation {
+            total_fee_amount: Uint128,
+            lp_fee_amount: Uint128,
+            shade_dao_fee_amount: Uint128,
+            result: SwapResult,
+            price: String
+        }
+    }
+    
+    
 }
 
 pub mod amm_pair {
@@ -88,10 +101,9 @@ pub mod amm_pair {
         pub price: String
     }
     
-    #[derive(Serialize, Deserialize,  PartialEq, Debug, JsonSchema)]
+    #[derive(Serialize, Deserialize,  PartialEq, Clone, Debug, JsonSchema)]
     pub struct SwapResult {
         pub return_amount: Uint128,
-        // pub spread_amount: Uint128,
     } 
     
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
@@ -175,7 +187,7 @@ pub mod amm_pair {
         GetAdmin,
         GetStakingContract,
         GetClaimReward{time: u128, staker: HumanAddr},
-        GetEstimatedPrice { offer: TokenAmount<HumanAddr>}
+        GetEstimatedPrice { offer: TokenAmount<HumanAddr>},
         SwapSimulation{ offer: TokenAmount<HumanAddr> }
     }
 
@@ -217,6 +229,13 @@ pub mod amm_pair {
         },
         EstimatedPrice {
             estimated_price: String
+        },
+        SwapSimulation {
+            total_fee_amount: Uint128,
+            lp_fee_amount: Uint128,
+            shade_dao_fee_amount: Uint128,
+            result: SwapResult,
+            price: String
         }
     }
 }

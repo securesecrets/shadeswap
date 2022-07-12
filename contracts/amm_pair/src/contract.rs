@@ -101,7 +101,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
             msg: to_binary(&StakingInitMsg {
                 staking_amount: c.amount,
                 reward_token: c.reward_token.clone(),             
-                pair_contract: ContractLink {
+                contract: ContractLink {
                     address: env.contract.address.clone(),
                     code_hash: env.contract_code_hash.clone(),
                 }
@@ -486,6 +486,8 @@ fn swap_simulation<S:Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,  
     offer: TokenAmount<HumanAddr>
 ) -> StdResult<Binary>{
+    let config_settings = load_config(deps)?;
+    let amm_settings = query_factory_amm_settings(&deps.querier, config_settings.factory_info.clone())?;
     let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config_settings,&offer,  &deps.storage, HumanAddr::default())?;
     to_binary(&swap_result)
 }

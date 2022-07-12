@@ -27,7 +27,7 @@ use shadeswap_shared::token_pair::TokenPair;
 use shadeswap_shared::token_amount::TokenAmount;
 use shadeswap_shared::token_type::TokenType;
 use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
-
+use shadeswap_shared::msg::amm_pair::SwapInfo;
 use crate::state::{config_read, config_write, Config, CurrentSwapInfo};
 
 /// Pad handle responses and log attributes to blocks
@@ -165,7 +165,10 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        QueryMsg::SwapSimulation{offer} => swap_simulation(deps, offer)
+        QueryMsg::SwapSimulation{offer, contract} => {
+            let swap_result = query_pair_contract_swap_simulation(&deps.querier, contract, offer)?;
+            to_binary(&swap_result)
+        }
     }
 }
 
@@ -436,32 +439,28 @@ fn query_pair_contract_config(
 
 fn query_pair_contract_swap_simulation(
     querier: &impl Querier,
-    pair_contract_address: ContractLink<HumanAddr>,
+    contract: ContractLink<HumanAddr>,
     offer: TokenAmount<HumanAddr>
-) -> StdResult<PairConfig> {
+) -> StdResult<SwapInfo> {
     let result: AMMPairQueryReponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: pair_contract_address.address.clone(),
-        callback_code_hash: pair_contract_address.code_hash.clone(),
+        contract_addr: contract.address.clone(),
+        callback_code_hash: contract.code_hash.clone(),
         msg: to_binary(&AMMPairQueryMsg::SwapSimulation {offer: offer})?,
     }))?;
 
-    match result {
-        AMMPairQueryReponse::GetPairInfo {
-            liquidity_token,
-            factory,
-            pair,
-            amount_0,
-            amount_1,
-            total_liquidity,
-            contract_version,
-        } => Ok(PairConfig {
-            liquidity_token: liquidity_token,
-            factory: factory,
-            pair: pair,
-            amount_0: amount_0,
-            amount_1: amount_1,
-            total_liquidity: total_liquidity,
-            contract_version: contract_version,
+    return match result {
+        AMMPairQueryReponse::SwapSimulation {            
+            total_fee_amount,
+            lp_fee_amount,
+            shade_dao_fee_amount,
+            result,
+            price
+        } => Ok(SwapInfo {
+            total_fee_amount: total_fee_amount,
+            lp_fee_amount: lp_fee_amount,
+            shade_dao_fee_amount: shade_dao_fee_amount,
+            result: result,
+            price: price,
         }),
         _ => Err(StdError::generic_err(
             "An error occurred while trying to retrieve factory settings.",

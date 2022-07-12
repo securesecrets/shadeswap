@@ -30,7 +30,7 @@ use shadeswap_shared::{
         },
         staking::{ HandleMsg as StakingMsgHandle},
         router::{
-            HandleMsg as RouterHandleMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
+            HandleMsg as RouterHandleMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg, QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse
         },
     },
     Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType,
@@ -1208,6 +1208,45 @@ fn run_testnet() -> Result<()> {
                     assert_eq!(
                         total_liquidity,
                         Uint128(5499999219)
+                    );
+                }    
+
+                print_header("\n\tSwap Simulation - Buy 540000SSH");
+                let swap_simulation_msg = RouterQueryMsg::SwapSimulation {
+                    offer: TokenAmount {
+                        amount: Uint128(540000),
+                        token: TokenType::CustomToken {
+                            token_code_hash: s_sCRT.code_hash.to_string(),
+                            contract_addr: HumanAddr::from(s_sCRT.address.clone()),
+                        },
+                    },
+                    contract: ContractLink{
+                        address: HumanAddr::from(ammPair.address.0.clone()),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }
+                };    
+
+                let swap_result_response: RouterQueryResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: router_contract.id.clone(),
+                        address: router_contract.address.clone(),
+                        code_hash: router_contract.code_hash.to_string(),
+                    }, 
+                    swap_simulation_msg, 
+                    None
+                )?;
+                
+                if let RouterQueryResponse::SwapSimulation { 
+                    total_fee_amount,
+                    lp_fee_amount,
+                    shade_dao_fee_amount,
+                    result,
+                    price
+                } = swap_result_response {                  
+                    assert_ne!(
+                        result.return_amount,
+                        Uint128(0)
                     );
                 }    
             }               

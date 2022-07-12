@@ -909,7 +909,7 @@ fn query_claim_rewards<S: Storage, A: Api, Q: Querier>(
         return match result {
             StakingQueryResponse::ClaimReward { amount } => Ok(amount),
             _ => Err(StdError::generic_err(
-                "An error occurred while trying to retrieve factory settings.",
+                "An error occurred while trying to retrieve staking contract settings.",
             ))
         }
     }

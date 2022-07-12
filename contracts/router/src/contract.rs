@@ -427,7 +427,7 @@ fn query_pair_contract_config(
             contract_version: contract_version,
         }),
         _ => Err(StdError::generic_err(
-            "An error occurred while trying to retrieve factory settings.",
+            "An error occurred while trying to retrieve pair contract settings.",
         )),
     }
 }

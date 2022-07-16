@@ -99,10 +99,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
             msg: to_binary(&StakingInitMsg {
                 staking_amount: c.amount,
                 reward_token: c.reward_token.clone(),             
-                contract: ContractLink {
+                pair_contract: ContractLink {
                     address: env.contract.address.clone(),
                     code_hash: env.contract_code_hash.clone(),
-                },                       
+                }
             })?
         })),
         None => println!("No staking contract"),
@@ -169,7 +169,7 @@ fn register_lp_token<S: Storage, A: Api, Q: Querier>(
         BLOCK_SIZE,
         config.lp_token_info.code_hash.clone(),
         env.message.sender.clone(),
-    )?);    
+    )?);  
 
     Ok(HandleResponse {
         messages: messages,
@@ -909,7 +909,7 @@ fn query_claim_rewards<S: Storage, A: Api, Q: Querier>(
         return match result {
             StakingQueryResponse::ClaimReward { amount } => Ok(amount),
             _ => Err(StdError::generic_err(
-                "An error occurred while trying to retrieve factory settings.",
+                "An error occurred while trying to retrieve staking contract settings.",
             ))
         }
     }

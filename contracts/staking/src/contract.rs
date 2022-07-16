@@ -42,8 +42,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     store_admin(deps, &env.message.sender.clone())?;
     let mut messages = vec![];
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: msg.contract.address.clone(),
-        callback_code_hash: msg.contract.code_hash.clone(),
+        contract_addr: msg.pair_contract.address.clone(),
+        callback_code_hash: msg.pair_contract.code_hash.clone(),
         msg: to_binary(&AmmPairHandleMsg::SetStakingContract{ contract: ContractLink {
             address: env.contract.address.clone(),
             code_hash: env.contract_code_hash.clone()
@@ -215,8 +215,12 @@ pub fn set_lp_token<S:Storage, A:Api, Q: Querier>(
     env: Env,
     lp_token: ContractLink<HumanAddr>
 ) -> StdResult<HandleResponse>{
-    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let mut config = load_config(deps)?;
+
+    if config.lp_token.address != HumanAddr::default()
+    {
+        return Err(StdError::GenericErr { msg: "LP Token has already been added.".to_string(), backtrace: None });
+    }
     config.lp_token = lp_token.clone();
 
     let mut messages = Vec::new();

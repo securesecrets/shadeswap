@@ -356,6 +356,9 @@ pub mod staking {
             msg: Option<Binary>,
             amount: Uint128,
         }, 
+        SetVKForStaker{
+            prng_seed: String
+        },
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -371,7 +374,7 @@ pub mod staking {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         // GetStakers {},
-        GetClaimReward {time: u128, staker: HumanAddr, view_key: ViewingKey},
+        GetClaimReward {staker: HumanAddr, seed: String, time: u64}, // GetClaimReward {time: u128, staker: HumanAddr, seed: String},
         GetContractOwner {}
     }
 

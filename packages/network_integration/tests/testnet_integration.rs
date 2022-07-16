@@ -22,13 +22,13 @@ use shadeswap_shared::{
     },
     stake_contract::StakingContractInit,
     msg::{
-        amm_pair::{HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg,QueryMsgResponse as AMMPairQueryMsgResponse ,
+        amm_pair::{HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, QueryMsgResponse as AMMPairQueryMsgResponse ,
              QueryMsg as AMMPairQueryMsg, InvokeMsg},
         factory::{
             HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse,
         },
-        staking::{ HandleMsg as StakingMsgHandle},
+        staking::{ HandleMsg as StakingMsgHandle, QueryResponse as StakingQueryMsgResponse, QueryMsg as StakingQueryMsg},
         router::{
             HandleMsg as RouterHandleMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg, QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse
         },
@@ -1235,8 +1235,8 @@ fn run_testnet() -> Result<()> {
                         code_hash: router_contract.code_hash.to_string(),
                     }, 
                     swap_simulation_msg, 
-                    None
-                )?;
+                    None,
+                )?;          
                 
                 if let RouterQueryResponse::SwapSimulation { 
                     total_fee_amount,
@@ -1247,7 +1247,7 @@ fn run_testnet() -> Result<()> {
                 } = swap_result_response {                  
                     assert_ne!(
                         result.return_amount,
-                        Uint128(0)
+                        Uint128(0u128)
                     );
                 }    
 
@@ -1277,8 +1277,57 @@ fn run_testnet() -> Result<()> {
                         shade_dao_address.to_string(),
                         HumanAddr::default().to_string()
                     )
+                }  
+                
+                 
+                // set viewing key for staker
+                print_header("\n\t Set Viewing Key for Staker - Staking Contract password");
+                handle(
+                    &StakingMsgHandle::SetVKForStaker {
+                        prng_seed: "password".to_string()
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();  
+                
+                print_header("\n\tGet Claimamble Rewards ");                
+                let get_claims_reward_msg = StakingQueryMsg::GetClaimReward {
+                    staker: HumanAddr::from(account.to_string()), 
+                    seed: "password".to_string(),
+                    time: 1658868582, 
+                };   
+                let claims_reward_response: StakingQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    }, 
+                    get_claims_reward_msg, 
+                    None
+                )?;
+                
+                if let StakingQueryMsgResponse::ClaimReward { 
+                        amount
+                } = claims_reward_response {                  
+                    assert_ne!(
+                        amount,
+                        Uint128(0)
+                    );
                 }    
-            }               
+            } 
+           
 
         } else {
             assert!(false, "Query returned unexpected response")

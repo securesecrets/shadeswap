@@ -524,7 +524,14 @@ fn swap_simulation<S:Storage, A: Api, Q: Querier>(
     let config_settings = load_config(deps)?;
     let amm_settings = query_factory_amm_settings(&deps.querier, config_settings.factory_info.clone())?;
     let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config_settings,&offer,  &deps.storage, HumanAddr::default(), None)?;
-    to_binary(&swap_result)
+    let simulation_result = QueryMsgResponse::SwapSimulation{
+        total_fee_amount: swap_result.total_fee_amount,
+        lp_fee_amount: swap_result.lp_fee_amount,
+        shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
+        result: swap_result.result,
+        price: swap_result.price,
+    };
+    to_binary(&simulation_result)
 }
 
 fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(
@@ -589,7 +596,7 @@ pub fn calculate_swap_result(
     // calculation fee
     let discount_fee = is_address_in_whitelist(storage, recipient)?;
     if discount_fee == false {        
-        let custom_fee = load_custom_fee(storage)?;
+        let custom_fee: CustomFee = load_custom_fee(storage)?;
         if  custom_fee.configured == true  {
             lp_fee_amount = calculate_fee(Uint256::from(offer.amount), custom_fee.lp_fee)?;
             shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), custom_fee.shade_dao_fee)?;
@@ -598,6 +605,8 @@ pub fn calculate_swap_result(
             lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
             shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), shade_dao_fee)?;
         }        
+        lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
+        shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), shade_dao_fee)?;
     }
     // total fee
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
@@ -610,8 +619,7 @@ pub fn calculate_swap_result(
 
     let swap_amount = calculate_price(Uint256::from(deducted_offer_amount), token0_pool, token1_pool)?;
     let result_swap = SwapResult {
-        return_amount: swap_amount.clamp_u128()?.into(),
-        // spread_amount: spread_amount.clamp_u128()?.into(),
+        return_amount: swap_amount.clamp_u128()?.into(),       
     };
 
     let token_index = config.pair.get_token_index(&offer.token).unwrap();  

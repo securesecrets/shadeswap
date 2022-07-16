@@ -117,12 +117,13 @@ pub mod amm_pair_storage{
     }
 
     pub fn load_custom_fee(storage: &impl Storage) -> StdResult<CustomFee> {
-        let fee = load(storage, CUSTOMFEE)?.unwrap_or(CustomFee{
+        let default_custom_fee = CustomFee{
             shade_dao_fee : Fee::new(0, 0),
             lp_fee: Fee::new(0, 0),
             configured: false
-        });
-        Ok(fee)
+        };
+        let custom_fee: CustomFee = load(storage, CUSTOMFEE)?.unwrap_or(default_custom_fee.clone());
+        Ok(custom_fee)
     }
 
     pub fn store_custom_fee<S: Storage, A: Api, Q: Querier>(

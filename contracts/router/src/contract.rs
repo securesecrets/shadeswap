@@ -20,7 +20,7 @@ use shadeswap_shared::{
     },
     msg::{
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
-        router::InitMsg,
+        router::{{InitMsg, QueryMsgResponse}},
     },
 };
 use shadeswap_shared::token_pair::TokenPair;
@@ -166,8 +166,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<Binary> {
     match msg {
         QueryMsg::SwapSimulation{offer, contract} => {
-            let swap_result = query_pair_contract_swap_simulation(&deps.querier, contract, offer)?;
-            to_binary(&swap_result)
+            query_pair_contract_swap_simulation(&deps.querier, contract, offer)           
         }
     }
 }
@@ -441,7 +440,7 @@ fn query_pair_contract_swap_simulation(
     querier: &impl Querier,
     contract: ContractLink<HumanAddr>,
     offer: TokenAmount<HumanAddr>
-) -> StdResult<SwapInfo> {
+) -> StdResult<Binary> {
     let result: AMMPairQueryReponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: contract.address.clone(),
         callback_code_hash: contract.code_hash.clone(),
@@ -455,7 +454,7 @@ fn query_pair_contract_swap_simulation(
             shade_dao_fee_amount,
             result,
             price
-        } => Ok(SwapInfo {
+        } => to_binary(&QueryMsgResponse::SwapSimulation {
             total_fee_amount: total_fee_amount,
             lp_fee_amount: lp_fee_amount,
             shade_dao_fee_amount: shade_dao_fee_amount,

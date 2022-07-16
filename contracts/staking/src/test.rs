@@ -217,7 +217,7 @@ pub mod tests {
         Ok(())
     }
 
-    
+      
     #[test]
     fn assert_get_staking_percentage_success() -> StdResult<()>{
         let mut deps = mock_deps();  

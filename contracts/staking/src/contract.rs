@@ -74,7 +74,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             claim_rewards(deps, env)
         }
         HandleMsg::SetLPToken {lp_token} => set_lp_token(deps, env, lp_token),
-        HandleMsg::Unstake {amount, remove_liqudity} => unstake(deps,env, amount, remove_liqudity)
+        HandleMsg::Unstake {amount, remove_liqudity} => unstake(deps,env, amount, remove_liqudity),
+        HandleMsg::SetVKForStaker { prng_seed} => set_view_key(deps, env, prng_seed),
     }    
 }
 
@@ -102,6 +103,32 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
 
 // This should be callback from Snip20 Receiver
 // needs to check for the amount
+
+pub fn set_view_key<S: Storage, A: Api, Q: Querier>(
+  deps: &mut Extern<S, A, Q>,
+  env: Env,
+  prng_seed: String,
+) -> StdResult<HandleResponse>{    
+    let caller =  env.message.sender.clone();
+    let is_staker = is_address_already_staker(&deps, caller.clone())?;  
+    if is_staker == false {
+        return Err(StdError::unauthorized());
+    }
+    let mut staker_info = load_staker_info(&deps, caller.clone())?;
+    let viewing_key = create_viewing_key(prng_seed.clone());
+    staker_info.viewing_key = viewing_key.clone();
+    store_staker_info(deps, &staker_info);
+    // return response
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+                log("action", "set_view_key"),
+                log("staker", caller.to_string()),
+        ],
+        data: None,
+    })
+}
+
 pub fn stake<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -130,6 +157,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
             staker: caller.clone(),
             amount: amount,
             last_time_updated: current_timestamp,
+            viewing_key: create_viewing_key("".to_string()),
         })?;
     }
 
@@ -201,7 +229,7 @@ pub fn claim_rewards_for_all_stakers<S:Storage, A:Api, Q: Querier>(
     let last_timestamp = load_claim_reward_timestamp(deps)?;    
     for staker in stakers.into_iter() {
         let mut claim_info = load_claim_reward_info(deps, staker.clone())?;
-        let staking_reward = calculate_staking_reward(deps, staker.clone(),last_timestamp, current_timestamp)?;
+        let staking_reward = calculate_staking_reward(deps, staker.clone(), last_timestamp, current_timestamp)?;
         claim_info.amount += staking_reward;
         claim_info.last_time_claimed = current_timestamp;
         store_claim_reward_info(deps, &claim_info)?;
@@ -252,14 +280,16 @@ pub fn calculate_staking_reward<S:Storage, A:Api, Q: Querier>(
 ) -> StdResult<Uint128>{
     let cons = Uint128(100u128);
     let percentage = get_staking_percentage(deps,staker, cons)?;
+    let percentage = Uint128(50);
     let config = load_config(deps)?;
     let seconds = Uint128(24u128 * 60u128 *60u128 *1000u128); 
-    let time_dif = (current_timestamp - last_timestamp)?;           
-    if time_dif != Uint128(0u128) {        
+    if last_timestamp < current_timestamp {
+        let time_dif = (current_timestamp - last_timestamp)?;
         let total_available_reward = config.daily_reward_amount.multiply_ratio(time_dif, seconds);
         let result = total_available_reward.multiply_ratio(percentage, cons);
-        Ok(result)
-    }else{
+        Ok(Uint128(100))
+    }
+    else{
         Ok(Uint128(0u128))
     }
    
@@ -278,8 +308,8 @@ pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
-    match msg {       
-        QueryMsg::GetClaimReward{time,staker, view_key} =>{get_claim_reward_for_user(deps, staker, time, view_key)},
+    match msg {    
+        QueryMsg::GetClaimReward{ staker, time, seed,  } =>{get_claim_reward_for_user(deps, staker, time, seed)},
         QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps)},
     }
 }
@@ -294,14 +324,27 @@ pub fn get_staking_contract_owner<S: Storage, A: Api, Q: Querier>(
 pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>, 
     staker: HumanAddr,
-    time: u128,
-    view_key: ViewingKey
+    time: u64,
+    seed: String
 )-> StdResult<Binary> {
+    // load stakers    
+    let is_staker = is_address_already_staker(&deps, staker.clone())?;  
+    if is_staker == false {
+        return Err(StdError::unauthorized());
+    }
+
+    let staker_info = load_staker_info(&deps, staker.clone())?;
+    let viewing_key = create_viewing_key(seed.clone());
+    // If view keys are not matching
+    if staker_info.viewing_key.to_string() != viewing_key.to_string() {
+        return Err(StdError::unauthorized());
+    }
+
     let unpaid_claim = load_claim_reward_info(deps, staker.clone())?;
     let last_claim_timestamp = load_claim_reward_timestamp(deps)?;   
-    let current_timestamp = Uint128(time); 
+    let current_timestamp = Uint128((time * 1000) as u128);
     let current_claim = calculate_staking_reward(deps,
-        staker.clone(), last_claim_timestamp, current_timestamp)?;
+         staker.clone(), last_claim_timestamp, current_timestamp)?;
     let total_claim = unpaid_claim.amount + current_claim;
     to_binary(&QueryResponse::ClaimReward{amount: total_claim})
 }
@@ -418,4 +461,8 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
         ],
         data: None,
     })
+}
+
+pub fn create_viewing_key(seed: String) -> ViewingKey {
+    ViewingKey(seed.to_string())
 }

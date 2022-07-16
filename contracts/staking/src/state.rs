@@ -36,7 +36,8 @@ pub struct Config {
 pub struct StakingInfo{
     pub staker: HumanAddr,
     pub amount: Uint128,
-    pub last_time_updated: Uint128
+    pub last_time_updated: Uint128,
+    pub viewing_key: ViewingKey
 }
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]

@@ -383,7 +383,10 @@ pub mod staking {
     pub enum QueryMsg {
         // GetStakers {},
         GetClaimReward {staker: HumanAddr, seed: String, time: Uint128},
-        GetContractOwner {}
+        GetContractOwner {},
+        GetStakerLpTokenInfo{seed: String, staker: HumanAddr},
+        GetRewardTokenBalance {viewing_key: String, address: HumanAddr},
+        GetStakerRewardTokenBalance {viewing_key: String, staker: HumanAddr},
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -397,6 +400,17 @@ pub mod staking {
         },
         ContractOwner {
             address: HumanAddr
+        },
+        StakerLpTokenInfo{
+            staked_lp_token: Uint128,
+            total_staked_lp_token: Uint128
+        },
+        RewardTokenBalance{
+            amount: Uint128,
+        },
+        StakerRewardTokenBalance {
+            reward_amount: Uint128,
+            total_reward_liquidity: Uint128
         }
     }
 

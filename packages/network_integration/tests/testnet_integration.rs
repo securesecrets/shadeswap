@@ -1358,8 +1358,87 @@ fn run_testnet() -> Result<()> {
                         Uint128(0)
                     )
                 }  
-            } 
-           
+
+                print_header("\n\tGetStakeLpTokenInfo For Staker");
+                let get_stake_lp_token_info = StakingQueryMsg::GetStakerLpTokenInfo {
+                  seed: "password".to_string(),
+                  staker: HumanAddr::from(account.to_string()),
+                };    
+                let stake_lp_token_info: StakingQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    }, 
+                    get_stake_lp_token_info, 
+                    None
+                )?;
+                
+                if let StakingQueryMsgResponse::StakerLpTokenInfo { staked_lp_token, total_staked_lp_token } 
+                     = stake_lp_token_info {                  
+                    assert_ne!(
+                        staked_lp_token,
+                        Uint128(0)
+                    );
+                    assert_ne!(
+                        total_staked_lp_token,
+                        Uint128(0)
+                    )
+                }  
+
+                print_header("\n\tGetRewardTokenBalance");
+                let get_balance_reward_token_msg = StakingQueryMsg::GetRewardTokenBalance {
+                  viewing_key: String::from(VIEW_KEY),
+                  address: HumanAddr::from(account.to_string())
+                };    
+                let balance_reward_token: StakingQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    }, 
+                    get_balance_reward_token_msg, 
+                    None
+                )?;
+                
+                if let StakingQueryMsgResponse::RewardTokenBalance { amount }  
+                     = balance_reward_token {                  
+                    assert_ne!(
+                        amount,
+                        Uint128(0)
+                    );
+                }  
+
+                print_header("\n\t GetStakerRewardTokenBalance");
+                let get_staker_reward_token_balance_msg = StakingQueryMsg::GetStakerRewardTokenBalance {
+                  viewing_key: String::from(VIEW_KEY),
+                  staker: HumanAddr::from(account.to_string())
+                };    
+                let staker_reward_token_balance: StakingQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    }, 
+                    get_staker_reward_token_balance_msg, 
+                    None
+                )?;
+                
+                if let StakingQueryMsgResponse::StakerRewardTokenBalance { reward_amount, total_reward_liquidity }   
+                     = staker_reward_token_balance {                  
+                    assert_ne!(
+                        reward_amount,
+                        Uint128(0)
+                    );
+                    assert_ne!(
+                        total_reward_liquidity,
+                        Uint128(0)
+                    );
+                }  
+            }           
 
         } else {
             assert!(false, "Query returned unexpected response")

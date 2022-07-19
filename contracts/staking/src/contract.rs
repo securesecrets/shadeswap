@@ -1,6 +1,6 @@
-use shadeswap_shared::msg::staking::{{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}};
+use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}, fadroma::secret_toolkit::utils::Query};
 use shadeswap_shared::msg::amm_pair::HandleMsg as AmmPairHandleMsg;
-use shadeswap_shared::msg::amm_pair::InvokeMsg as AmmPairInvokeMsg;
+use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, token_type::{{TokenType}}};
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
     get_total_staking_amount, load_stakers, load_config, is_address_already_staker, store_claim_reward_info,
     store_staker, load_staker_info, store_staker_info, remove_staker, StakingInfo, load_claim_reward_info}};   
@@ -36,6 +36,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         lp_token: ContractLink { 
             address: HumanAddr::default(),
             code_hash: "".to_string()
+        },
+        staking_contract: ContractLink { 
+            address: env.contract.address.clone(), 
+            code_hash: env.contract_code_hash.clone()
         }
     };
     store_config(deps, &config)?;
@@ -249,8 +253,7 @@ pub fn set_lp_token<S:Storage, A:Api, Q: Querier>(
     {
         return Err(StdError::GenericErr { msg: "LP Token has already been added.".to_string(), backtrace: None });
     }
-    config.lp_token = lp_token.clone();
-
+    config.lp_token = lp_token.clone();   
     let mut messages = Vec::new();
     // register pair contract for LP receiver
     messages.push(snip20::register_receive_msg(
@@ -311,7 +314,72 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
     match msg {    
         QueryMsg::GetClaimReward{ staker, time, seed  } =>{get_claim_reward_for_user(deps, staker, seed,time)},
         QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps)},
+        QueryMsg::GetStakerLpTokenInfo { seed, staker } => {get_staking_stake_lp_token_info(deps, staker, seed)},
+        QueryMsg::GetRewardTokenBalance {viewing_key, address} => {get_staking_reward_token_balance(deps, viewing_key, address)},
+        QueryMsg::GetStakerRewardTokenBalance { viewing_key, staker } => {get_staker_reward_info(deps, viewing_key, staker)},
     }
+}
+
+fn get_staker_reward_info<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    viewing_key: String,
+    staker: HumanAddr
+) -> StdResult<Binary>{
+    let config = load_config(deps)?;
+    if let TokenType::CustomToken {
+        contract_addr,
+        token_code_hash,
+        ..
+    } = config.reward_token.clone()
+    {
+        let reward_token_info = ContractLink{
+            address: contract_addr.clone(),
+            code_hash: token_code_hash.clone(), 
+        };
+        let staking_contract_address = config.staking_contract;
+        let reward_token_balance =  config.reward_token.query_balance(&deps.querier,staker.clone() , viewing_key.to_string())?;
+        let total_reward_token_balance = query_total_reward_liquidity(&deps.querier, &reward_token_info)?;
+        let response_msg = QueryResponse::StakerRewardTokenBalance { reward_amount: reward_token_balance, total_reward_liquidity: total_reward_token_balance };
+        return to_binary(&response_msg)
+    }else{
+        return Err(StdError::generic_err("Invalid reward token"))
+    }   
+}
+
+fn get_staking_reward_token_balance<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    viewing_key: String,
+    address: HumanAddr,
+) -> StdResult<Binary>{
+    let config = load_config(deps)?;
+    let staking_contract_address = config.staking_contract;
+    let reward_token_balance = config.reward_token.query_balance(&deps.querier,  address.clone(), viewing_key.to_string())?;
+    let response_msg = QueryResponse::RewardTokenBalance { amount: reward_token_balance };
+    to_binary(&response_msg)
+}
+
+fn get_staking_stake_lp_token_info<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    staker: HumanAddr,
+    seed: String
+) -> StdResult<Binary>{
+    let is_staker = is_address_already_staker(&deps, staker.clone())?;  
+    if is_staker == false {
+        return Err(StdError::unauthorized());
+    }
+
+    let staker_info = load_staker_info(&deps, staker.clone())?;
+    let viewing_key = create_viewing_key(seed.clone());
+    // If view keys are not matching
+    if staker_info.viewing_key.to_string() != viewing_key.to_string() {
+        return Err(StdError::unauthorized());
+    }
+
+    let response_msg = QueryResponse::StakerLpTokenInfo { 
+        staked_lp_token: staker_info.amount, 
+        total_staked_lp_token: get_total_staking_amount(deps)?,
+    };
+    to_binary(&response_msg)
 }
 
 pub fn get_staking_contract_owner<S: Storage, A: Api, Q: Querier>(
@@ -353,14 +421,6 @@ pub fn get_all_stakers<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -
     let stakers = load_stakers(deps)?;   
     println!("get_all_stakers {}",stakers.len()); 
     to_binary(&QueryResponse::Stakers{stakers: stakers}) 
-}
-
-pub fn get_current_timestamp()-> StdResult<Uint128> {
-    let start = SystemTime::now();
-    let since_the_epoch = start
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
-    Ok(Uint128(since_the_epoch.as_millis()))
 }
 
 
@@ -465,4 +525,32 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
 
 pub fn create_viewing_key(seed: String) -> ViewingKey {
     ViewingKey(seed.to_string())
+}
+
+fn query_total_reward_liquidity(
+    querier: &impl Querier,
+    reward_token_info: &ContractLink<HumanAddr>,
+) -> StdResult<Uint128> {
+    let result = snip20::token_info_query(
+        querier,
+        BLOCK_SIZE,
+        reward_token_info.code_hash.clone(),
+        reward_token_info.address.clone(),
+    )?;
+
+    //If this happens, the LP token has been incorrectly configured
+    if result.total_supply.is_none() {
+       unreachable!("Reward token has no available supply.");
+    }
+
+    Ok(result.total_supply.unwrap())
+}
+
+
+pub fn get_current_timestamp()-> StdResult<Uint128> {
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+    Ok(Uint128(since_the_epoch.as_millis()))
 }

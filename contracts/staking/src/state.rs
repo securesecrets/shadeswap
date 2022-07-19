@@ -30,6 +30,7 @@ pub struct Config {
     pub daily_reward_amount: Uint128,
     pub reward_token: TokenType<HumanAddr>,
     pub lp_token: ContractLink<HumanAddr>,
+    pub staking_contract: ContractLink<HumanAddr>,
 }
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]

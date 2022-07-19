@@ -48,6 +48,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             register_amm_pair(deps, env, pair, signature)
         },
         HandleMsg::SetFactoryAdmin {admin} => set_admin_guard(deps,env,admin),       
+        HandleMsg::SetShadeDAOAddress {shade_dao_address} => set_shade_dao_address(deps,env, shade_dao_address),
     };
 }
 
@@ -67,6 +68,26 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             })
         }
     }
+}
+
+fn set_shade_dao_address<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    shade_dao_address: ContractLink<HumanAddr>
+) -> StdResult<HandleResponse> {
+    apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
+    let mut config = config_read(deps)?;
+    config.amm_settings.shade_dao_address = shade_dao_address.clone();
+    config_write(deps, &config)?;    
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "register_amm_pair"),
+            log("address", env.message.sender),
+        ],
+        data: None,
+    })
+
 }
 
 fn register_amm_pair<S: Storage, A: Api, Q: Querier>(

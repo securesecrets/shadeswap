@@ -20,14 +20,14 @@ use shadeswap_shared::{
     },
     msg::{
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
-        router::InitMsg,
+        router::{{InitMsg, QueryMsgResponse}},
     },
 };
 use shadeswap_shared::token_pair::TokenPair;
 use shadeswap_shared::token_amount::TokenAmount;
 use shadeswap_shared::token_type::TokenType;
 use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
-
+use shadeswap_shared::msg::amm_pair::SwapInfo;
 use crate::state::{config_read, config_write, Config, CurrentSwapInfo};
 
 /// Pad handle responses and log attributes to blocks
@@ -165,6 +165,9 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
+        QueryMsg::SwapSimulation{offer, contract} => {
+            query_pair_contract_swap_simulation(&deps.querier, contract, offer)           
+        }
     }
 }
 
@@ -428,6 +431,38 @@ fn query_pair_contract_config(
         }),
         _ => Err(StdError::generic_err(
             "An error occurred while trying to retrieve pair contract settings.",
+        )),
+    }
+}
+
+
+fn query_pair_contract_swap_simulation(
+    querier: &impl Querier,
+    contract: ContractLink<HumanAddr>,
+    offer: TokenAmount<HumanAddr>
+) -> StdResult<Binary> {
+    let result: AMMPairQueryReponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: contract.address.clone(),
+        callback_code_hash: contract.code_hash.clone(),
+        msg: to_binary(&AMMPairQueryMsg::SwapSimulation {offer: offer})?,
+    }))?;
+
+    return match result {
+        AMMPairQueryReponse::SwapSimulation {            
+            total_fee_amount,
+            lp_fee_amount,
+            shade_dao_fee_amount,
+            result,
+            price
+        } => to_binary(&QueryMsgResponse::SwapSimulation {
+            total_fee_amount: total_fee_amount,
+            lp_fee_amount: lp_fee_amount,
+            shade_dao_fee_amount: shade_dao_fee_amount,
+            result: result,
+            price: price,
+        }),
+        _ => Err(StdError::generic_err(
+            "An error occurred while trying to retrieve factory settings.",
         )),
     }
 }

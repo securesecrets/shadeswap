@@ -137,6 +137,7 @@ pub mod tests {
             &mk_custom_token_amount(Uint128::from(offer_amount),token_pair), 
             & mut deps.storage,
             HumanAddr("Test".to_string().clone()),
+            None
         );
 
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
@@ -154,7 +155,7 @@ pub mod tests {
         let expected_amount: u128 = 34028236692093846346337460;
         let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, 
             &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
-            &mut deps.storage, HumanAddr("Test".to_string().clone()));
+            &mut deps.storage, HumanAddr("Test".to_string().clone()), None);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -191,7 +192,8 @@ pub mod tests {
             total_fee_amount: Uint128::from(50u128),
             lp_fee_amount: Uint128::from(50u128),
             shade_dao_fee_amount: Uint128::from(50u128),
-            height: 1045667
+            height: 1045667,
+            trader: "address_hash".to_string()
         };
         store_trade_history(&mut deps, &trade_history)?;
         let current_index = load_trade_counter(&deps.storage)?;
@@ -274,7 +276,7 @@ pub mod tests {
         add_whitelist_address(&mut deps.storage, address_a.clone())?;    
         let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, 
             &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
-            &mut deps.storage, HumanAddr("TESTA".to_string().clone()))?;
+            &mut deps.storage, HumanAddr("TESTA".to_string().clone()), None)?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
         assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
         Ok(())
@@ -297,7 +299,7 @@ pub mod tests {
         };
         assert_eq!(config.factory_info.address.as_str(), FACTORY_CONTRACT_ADDRESS.clone());
         let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, &token_amount,
-            &mut deps.storage, address_a)?;
+            &mut deps.storage, address_a, None)?;
         assert_eq!(swap_result.result.return_amount, Uint128(997u128));
         assert_eq!(swap_result.lp_fee_amount, Uint128(2u128));
         assert_eq!(swap_result.shade_dao_fee_amount, Uint128(0u128));

@@ -1,3 +1,6 @@
+use cosmwasm_std::Uint128;
+use cosmwasm_std::HumanAddr;
+use cosmwasm_std::to_binary;
 use colored::Colorize;
 use network_integration::utils::{
     generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
@@ -9,17 +12,10 @@ use secretcli::{
     secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
 };
 use serde_json::Result;
+use shadeswap_shared::fadroma::prelude::ContractInstantiationInfo;
 use shadeswap_shared::{
+    secret_toolkit::snip20::{Balance},
     amm_pair::{AMMPair, AMMSettings, Fee},
-    fadroma::{
-        scrt::{
-            from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin,
-            CosmosMsg, Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
-            QueryRequest, QueryResult, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
-        },
-        secret_toolkit::snip20::{Balance, BalanceResponse},
-        Callback, ContractInstantiationInfo, ContractLink, ViewingKey,
-    },
     msg::{
         amm_pair::{
             HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
@@ -34,11 +30,11 @@ use shadeswap_shared::{
         },
     },
     stake_contract::StakingContractInit,
-    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType,
+    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType, fadroma::prelude::ContractLink,
 };
 use std::env;
 
-use composable_snip20::msg::{
+use snip20_reference_impl::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
 
@@ -129,7 +125,7 @@ fn main() -> serde_json::Result<()> {
                     code_hash: factory_contract.code_hash.to_string(),
                 },
                 entropy: to_binary(&"".to_string()).unwrap(),
-                viewing_key: Some(ViewingKey::from(VIEW_KEY)),
+                viewing_key: Some(VIEW_KEY.to_string()),
             };
 
             let router_contract = init(
@@ -166,7 +162,7 @@ fn main() -> serde_json::Result<()> {
             print_contract(&s_sCRT);
 
             {
-                let msg = snip20::HandleMsg::SetViewingKey {
+                let msg = snip20_reference_impl::msg::HandleMsg::SetViewingKey {
                     key: String::from(VIEW_KEY),
                     padding: None,
                 };
@@ -203,7 +199,7 @@ fn main() -> serde_json::Result<()> {
             print_contract(&s_sSHD);
 
             {
-                let msg = snip20::HandleMsg::SetViewingKey {
+                let msg = snip20_reference_impl::msg::HandleMsg::SetViewingKey {
                     key: String::from(VIEW_KEY),
                     padding: None,
                 };
@@ -223,7 +219,7 @@ fn main() -> serde_json::Result<()> {
             println!("\n\tDepositing 1000000000uscrt sSCRT");
 
             {
-                let msg = snip20::HandleMsg::Deposit { padding: None };
+                let msg = snip20_reference_impl::msg::HandleMsg::Deposit { padding: None };
 
                 handle(
                     &msg,
@@ -240,7 +236,7 @@ fn main() -> serde_json::Result<()> {
             println!("\n\tDepositing 1000000000uscrt sSHD");
 
             {
-                let msg = snip20::HandleMsg::Deposit { padding: None };
+                let msg = snip20_reference_impl::msg::HandleMsg::Deposit { padding: None };
 
                 handle(
                     &msg,
@@ -285,7 +281,7 @@ fn main() -> serde_json::Result<()> {
 
             print_contract(&s_sREWARDSNIP20);
             {
-                let msg = snip20::HandleMsg::SetViewingKey {
+                let msg = snip20_reference_impl::msg::HandleMsg::SetViewingKey {
                     key: String::from(VIEW_KEY),
                     padding: None,
                 };
@@ -348,7 +344,7 @@ fn main() -> serde_json::Result<()> {
 
                     print_header("\n\tAdding Liquidity to Pair Contract");
                     handle(
-                        &snip20::HandleMsg::IncreaseAllowance {
+                        &snip20_reference_impl::msg::HandleMsg::IncreaseAllowance {
                             spender: HumanAddr(String::from(ammPair.address.0.to_string())),
                             amount: Uint128(100000000),
                             expiration: None,
@@ -370,7 +366,7 @@ fn main() -> serde_json::Result<()> {
                     .unwrap();
 
                     handle(
-                        &snip20::HandleMsg::IncreaseAllowance {
+                        &snip20_reference_impl::msg::HandleMsg::IncreaseAllowance {
                             spender: HumanAddr(String::from(ammPair.address.0.to_string())),
                             amount: Uint128(100000000),
                             expiration: None,
@@ -392,7 +388,7 @@ fn main() -> serde_json::Result<()> {
                     .unwrap();
 
                     handle(
-                        &snip20::HandleMsg::IncreaseAllowance {
+                        &snip20_reference_impl::msg::HandleMsg::IncreaseAllowance {
                             spender: HumanAddr(String::from(amm_pair_2.address.0.to_string())),
                             amount: Uint128(100000000),
                             expiration: None,
@@ -434,6 +430,7 @@ fn main() -> serde_json::Result<()> {
                                 amount_1: Uint128(100000000),
                             },
                             slippage: None,
+                            staking: Some(false),
                         },
                         &NetContract {
                             label: "".to_string(),

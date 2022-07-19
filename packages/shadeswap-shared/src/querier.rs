@@ -1,14 +1,17 @@
-use fadroma::{
-    scrt::{
-        from_binary, from_slice, to_binary, Coin, Empty,
-        HumanAddr, Querier, QuerierResult, QueryRequest, StdResult, SystemError, Uint128, WasmQuery,
-        secret_toolkit::snip20::{Balance, TokenInfo}
-    },
-    scrt::cosmwasm_std::testing::MockQuerier  as StdMockQuerier,
-    scrt_link::ContractLink,
+use cosmwasm_std::{
+    from_binary,
+    Api,
+    Binary,
+    Extern,
+    HumanAddr,
+    Querier,
+    StdError,
+    StdResult,
+    Storage, Env, HandleResponse, log,
 };
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use secret_toolkit::snip20::{token_config_query, token_info_query, TokenConfig, TokenInfo, Balance};
 
 // Redefine here, so we can deserialize
 #[derive(Serialize, Deserialize)]
@@ -30,9 +33,7 @@ struct IntBalanceResponse {
     pub balance: Balance,
 }
 
-/// MockQuerier holds an immutable table of bank balances
-/// TODO: also allow querying contracts
-pub struct MockQuerier<C: DeserializeOwned = Empty> {
+/*pub struct MockQuerier<C: DeserializeOwned = Empty> {
     pub std_mock_querier: StdMockQuerier<C>,
     pub wasm: InternalWasmQuerier,
 }
@@ -132,4 +133,4 @@ impl InternalWasmQuerier {
             _ => panic!("MockQuerier: Expected WasmQuery::Smart."),
         }
     }
-}
+}*/

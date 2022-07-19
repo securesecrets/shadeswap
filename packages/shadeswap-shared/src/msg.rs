@@ -191,7 +191,11 @@ pub mod amm_pair {
         GetStakingContract,
         GetEstimatedPrice { offer: TokenAmount<HumanAddr>, feeless: Option<bool>},
         SwapSimulation{ offer: TokenAmount<HumanAddr> },
-        GetShadeDAOInfo{}
+        GetShadeDAOInfo{},
+        GetEstimatedLiquidity {
+            deposit: TokenPairAmount<HumanAddr>,
+            slippage: Option<Decimal>,
+        },
     }
 
     /*
@@ -244,6 +248,10 @@ pub mod amm_pair {
             shade_dao_address: HumanAddr,
             shade_dao_fee: Fee,
             admin_address: HumanAddr
+        },
+        EstimatedLiquidity {
+            lp_token: Uint128,
+            total_lp_token: Uint128,
         }
     }
 }

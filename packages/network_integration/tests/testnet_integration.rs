@@ -1326,6 +1326,38 @@ fn run_testnet() -> Result<()> {
                         Uint128(0)
                     );
                 }    
+
+                print_header("\n\tGet Estimated LP Token & Total LP Token Liquditiy");
+                let get_estimated_lp_token = AMMPairQueryMsg::GetEstimatedLiquidity {
+                    deposit: TokenPairAmount {
+                        pair: test_pair.clone(),
+                        amount_0: Uint128(10000000000),
+                        amount_1: Uint128(10000000000),
+                    },
+                    slippage: None
+                };    
+                let estimated_lp_token: AMMPairQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }, 
+                    get_estimated_lp_token, 
+                    None
+                )?;
+                
+                if let AMMPairQueryMsgResponse::EstimatedLiquidity { lp_token, total_lp_token }
+                     = estimated_lp_token {                  
+                    assert_ne!(
+                        lp_token,
+                        Uint128(0)
+                    );
+                    assert_ne!(
+                        total_lp_token,
+                        Uint128(0)
+                    )
+                }  
             } 
            
 

@@ -500,6 +500,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
         },
         QueryMsg::SwapSimulation{ offer}=> swap_simulation(deps, offer),
         QueryMsg::GetShadeDAOInfo{} => get_shade_dao_info(deps),
+        QueryMsg::GetEstimatedLiquidity { deposit, slippage} => get_estimated_lp_token(deps, deposit, slippage),
     }
 }
 
@@ -532,6 +533,69 @@ fn swap_simulation<S:Storage, A: Api, Q: Querier>(
         price: swap_result.price,
     };
     to_binary(&simulation_result)
+}
+
+fn get_estimated_lp_token<S:Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    deposit: TokenPairAmount<HumanAddr>,
+    slippage: Option<Decimal>
+) -> StdResult<Binary>{
+    let config = load_config(&deps)?;
+    let Config {
+        pair,
+        contract_addr,
+        viewing_key,
+        lp_token_info,
+        ..
+    } = config;
+
+    if pair != deposit.pair {
+        return Err(StdError::generic_err(
+            "The provided tokens dont match those managed by the contract.",
+        ));
+    }
+
+    let mut pool_balances =
+        deposit
+            .pair
+            .query_balances(&deps.querier, contract_addr, viewing_key.0)?;
+
+    assert_slippage_acceptance(
+        slippage,
+        &[deposit.amount_0, deposit.amount_1],
+        &pool_balances,
+    )?;
+
+    let pair_contract_pool_liquidity =
+        query_liquidity_pair_contract(&deps.querier, &lp_token_info)?;
+    let mut lp_tokens: u128 = u128::MIN;
+    if pair_contract_pool_liquidity == Uint128::zero() {
+        // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
+        // x and y is amount of token0 and token1 provided
+        let deposit_token0_amount = Uint256::from(deposit.amount_0);
+        let deposit_token1_amount = Uint256::from(deposit.amount_1);
+        lp_tokens = (deposit_token0_amount * deposit_token1_amount)?
+            .sqrt()?
+            .clamp_u128()?
+    } else {
+        // Total % of Pool
+        let total_share = Uint256::from(pair_contract_pool_liquidity);
+        // Deposit amounts of the tokens
+        let deposit_token0_amount = Uint256::from(deposit.amount_0);
+        let deposit_token1_amount = Uint256::from(deposit.amount_1);
+
+        // get token pair balance
+        let token0_pool = Uint256::from(pool_balances[0]);
+        let token1_pool = Uint256::from(pool_balances[1]);
+        // Calcualte new % of Pool
+        let percent_token0_pool = ((deposit_token0_amount * total_share)? / token0_pool)?;
+        let percent_token1_pool = ((deposit_token1_amount * total_share)? / token1_pool)?;
+        lp_tokens = std::cmp::min(percent_token0_pool, percent_token1_pool).clamp_u128()?
+    };
+
+    let response_msg = QueryMsgResponse::EstimatedLiquidity { lp_token: Uint128(lp_tokens), total_lp_token: pair_contract_pool_liquidity };
+    to_binary(&response_msg)
+
 }
 
 fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(

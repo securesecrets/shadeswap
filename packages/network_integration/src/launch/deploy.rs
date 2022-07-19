@@ -434,6 +434,7 @@ fn main() -> serde_json::Result<()> {
                                 amount_1: Uint128(100000000),
                             },
                             slippage: None,
+                            staking: None
                         },
                         &NetContract {
                             label: "".to_string(),

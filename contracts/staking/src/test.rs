@@ -217,7 +217,7 @@ pub mod tests {
         Ok(())
     }
 
-    
+      
     #[test]
     fn assert_get_staking_percentage_success() -> StdResult<()>{
         let mut deps = mock_deps();  
@@ -269,7 +269,7 @@ pub mod tests {
                 contract_addr: HumanAddr::from(CONTRACT_ADDRESS),
                 token_code_hash: CONTRACT_ADDRESS.to_string(),
             },           
-            pair_contract: ContractLink {
+            contract: ContractLink {
                 address: HumanAddr::from(CONTRACT_ADDRESS),
                 code_hash: "".to_string().clone(),
             }           

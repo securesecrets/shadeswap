@@ -1305,7 +1305,7 @@ fn run_testnet() -> Result<()> {
                 let get_claims_reward_msg = StakingQueryMsg::GetClaimReward {
                     staker: HumanAddr::from(account.to_string()), 
                     seed: "password".to_string(),
-                    time: 1658868582, 
+                    time: Uint128(1658868582000 as u128), 
                 };   
                 let claims_reward_response: StakingQueryMsgResponse = query( 
                     &NetContract {

@@ -374,7 +374,7 @@ pub mod staking {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         // GetStakers {},
-        GetClaimReward {staker: HumanAddr, seed: String, time: u64}, // GetClaimReward {time: u128, staker: HumanAddr, seed: String},
+        GetClaimReward {staker: HumanAddr, seed: String, time: Uint128},
         GetContractOwner {}
     }
 

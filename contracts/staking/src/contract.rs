@@ -309,7 +309,7 @@ pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {    
-        QueryMsg::GetClaimReward{ staker, time, seed,  } =>{get_claim_reward_for_user(deps, staker, time, seed)},
+        QueryMsg::GetClaimReward{ staker, time, seed  } =>{get_claim_reward_for_user(deps, staker, seed,time)},
         QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps)},
     }
 }
@@ -323,9 +323,9 @@ pub fn get_staking_contract_owner<S: Storage, A: Api, Q: Querier>(
 
 pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>, 
-    staker: HumanAddr,
-    time: u64,
-    seed: String
+    staker: HumanAddr,   
+    seed: String,
+    time: Uint128
 )-> StdResult<Binary> {
     // load stakers    
     let is_staker = is_address_already_staker(&deps, staker.clone())?;  
@@ -341,8 +341,8 @@ pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     }
 
     let unpaid_claim = load_claim_reward_info(deps, staker.clone())?;
-    let last_claim_timestamp = load_claim_reward_timestamp(deps)?;   
-    let current_timestamp = Uint128((time * 1000) as u128);
+    let last_claim_timestamp = load_claim_reward_timestamp(deps)?;     
+    let current_timestamp = time; 
     let current_claim = calculate_staking_reward(deps,
          staker.clone(), last_claim_timestamp, current_timestamp)?;
     let total_claim = unpaid_claim.amount + current_claim;

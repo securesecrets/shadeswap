@@ -295,11 +295,11 @@ pub fn get_staking_contract_owner<S: Storage, A: Api, Q: Querier>(
 pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>, 
     staker: HumanAddr,
-    time: u128
+    time: Uint128
 )-> StdResult<Binary> {
     let unpaid_claim = load_claim_reward_info(deps, staker.clone())?;
     let last_claim_timestamp = load_claim_reward_timestamp(deps)?;   
-    let current_timestamp = Uint128(time); 
+    let current_timestamp = time; 
     let current_claim = calculate_staking_reward(deps,
         staker.clone(), last_claim_timestamp, current_timestamp)?;
     let total_claim = unpaid_claim.amount + current_claim;

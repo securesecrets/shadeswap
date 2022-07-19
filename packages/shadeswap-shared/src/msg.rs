@@ -172,7 +172,7 @@ pub mod amm_pair {
         GetTradeCount,
         GetAdmin,
         GetStakingContract,
-        GetClaimReward{time: u128, staker: HumanAddr},
+        GetClaimReward{time: Uint128, staker: HumanAddr},
         GetEstimatedPrice { offer: TokenAmount<HumanAddr>}
     }
 
@@ -302,7 +302,7 @@ pub mod staking {
     pub struct InitMsg {
         pub staking_amount: Uint128,
         pub reward_token: TokenType<HumanAddr>, 
-        pub contract: ContractLink<HumanAddr>
+        pub pair_contract: ContractLink<HumanAddr>
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -336,7 +336,7 @@ pub mod staking {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         // GetStakers {},
-        GetClaimReward {time: u128, staker: HumanAddr},
+        GetClaimReward {time: Uint128, staker: HumanAddr},
         GetContractOwner {}
     }
 

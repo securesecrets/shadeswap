@@ -896,7 +896,7 @@ fn query_factory_amm_settings(
 fn query_claim_rewards<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,   
     staker: HumanAddr,
-    time: u128
+    time: Uint128
 ) -> StdResult<Uint128>{
     let staking_contract = load_staking_contract(deps)?;
     if staking_contract.address.clone() != HumanAddr::default() {

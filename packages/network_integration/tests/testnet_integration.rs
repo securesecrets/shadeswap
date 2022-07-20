@@ -1252,7 +1252,7 @@ fn run_testnet() -> Result<()> {
                 }    
 
                 print_header("\n\tGet Shade DAO Info with Admin Address");
-                let get_shade_dao_msg = AMMPairQueryMsg::GetShadeDAOInfo {};    
+                let get_shade_dao_msg = AMMPairQueryMsg::GetShadeDaoInfo {};    
                 let shade_dao_response: AMMPairQueryMsgResponse = query( 
                     &NetContract {
                         label: "".to_string(),

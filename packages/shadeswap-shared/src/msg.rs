@@ -191,7 +191,7 @@ pub mod amm_pair {
         GetStakingContract,
         GetEstimatedPrice { offer: TokenAmount<HumanAddr>, feeless: Option<bool>},
         SwapSimulation{ offer: TokenAmount<HumanAddr> },
-        GetShadeDAOInfo{},
+        GetShadeDaoInfo{},
         GetEstimatedLiquidity {
             deposit: TokenPairAmount<HumanAddr>,
             slippage: Option<Decimal>,

@@ -499,7 +499,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
            to_binary(&QueryMsgResponse::EstimatedPrice { estimated_price : swap_result.price })
         },
         QueryMsg::SwapSimulation{ offer}=> swap_simulation(deps, offer),
-        QueryMsg::GetShadeDAOInfo{} => get_shade_dao_info(deps),
+        QueryMsg::GetShadeDaoInfo{} => get_shade_dao_info(deps),
         QueryMsg::GetEstimatedLiquidity { deposit, slippage} => get_estimated_lp_token(deps, deposit, slippage),
     }
 }

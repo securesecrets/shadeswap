@@ -1267,7 +1267,8 @@ fn run_testnet() -> Result<()> {
                 if let AMMPairQueryMsgResponse::ShadeDAOInfo { 
                   shade_dao_address,
                   shade_dao_fee,
-                  admin_address
+                  admin_address,
+                  lp_fee
                 } = shade_dao_response {                  
                     assert_ne!(
                         admin_address.to_string(),

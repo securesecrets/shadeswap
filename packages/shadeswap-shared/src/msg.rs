@@ -247,6 +247,7 @@ pub mod amm_pair {
         ShadeDAOInfo{
             shade_dao_address: HumanAddr,
             shade_dao_fee: Fee,
+            lp_fee: Fee,
             admin_address: HumanAddr
         },
         EstimatedLiquidity {

@@ -514,6 +514,7 @@ fn get_shade_dao_info<S:Storage, A: Api, Q: Querier>(
         shade_dao_address: amm_settings.shade_dao_address.address.clone(),
         shade_dao_fee: amm_settings.shade_dao_fee.clone(),
         admin_address: admin.clone(),
+        lp_fee: amm_settings.lp_fee.clone(),
     };
     to_binary(&shade_dao_info)
 }

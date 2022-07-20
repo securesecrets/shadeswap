@@ -110,7 +110,8 @@ pub mod amm_pair {
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
     pub struct TradeHistory {
         pub price: String,
-        pub amount: Uint128,
+        pub amount_out: Uint128,
+        pub amount_in: Uint128,
         pub timestamp: u64,
         pub direction: String,
         pub total_fee_amount: Uint128,

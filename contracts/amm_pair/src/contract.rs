@@ -370,7 +370,8 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
     let trade_history =  TradeHistory
     {
         price: swap_result.price,
-        amount: swap_result.result.return_amount,
+        amount_in: swap_result.result.return_amount,
+        amount_out: offer.amount,
         timestamp: env.block.time,
         height: env.block.height,
         direction: action.to_string(),

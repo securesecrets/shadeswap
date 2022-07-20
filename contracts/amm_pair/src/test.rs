@@ -186,7 +186,8 @@ pub mod tests {
         let env = mkenv("sender");       
         let trade_history = TradeHistory {
             price: "50".to_string(),
-            amount: Uint128::from(50u128),
+            amount_in: Uint128::from(50u128),
+            amount_out: Uint128::from(50u128),
             timestamp: 6000,
             direction: "Sell".to_string(),
             total_fee_amount: Uint128::from(50u128),

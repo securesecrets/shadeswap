@@ -88,7 +88,6 @@ pub mod tradehistory{
 }
 
 
-
 pub mod amm_pair_storage{
     use super::*;
     use tradehistory::{DirectionType};

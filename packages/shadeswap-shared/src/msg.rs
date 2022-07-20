@@ -204,7 +204,7 @@ pub mod amm_pair {
     }
     */
 
-    #[derive(Serialize, Deserialize, JsonSchema)]
+    #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsgResponse {
         GetPairInfo {

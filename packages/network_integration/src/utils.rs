@@ -13,7 +13,7 @@ use composable_snip20::msg::{
 };
 
 use shadeswap_shared::{
-    amm_pair::{AMMPair, AMMSettings, Fee},
+    amm_pair::{AMMPair, AMMSettings},
     fadroma::{
         scrt::{
             from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin,

@@ -3,7 +3,7 @@ use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair::{{TokenPair}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
-use shadeswap_shared::amm_pair::{{AMMPair, AMMSettings, Fee}};
+use shadeswap_shared::amm_pair::{{AMMPair, AMMSettings}};
 use crate::state::{Config};
 use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
 use crate::state::amm_pair_storage::{{ store_config, load_config,
@@ -43,6 +43,7 @@ use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip
 pub mod tests {
     use super::*;
     use serde::de::DeserializeOwned;
+    use shadeswap_shared::custom_fee::Fee;
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
     use shadeswap_shared::fadroma::Empty;
     use shadeswap_shared::fadroma::from_slice;
@@ -101,7 +102,8 @@ pub mod tests {
                 },
                 msg: to_binary(&String::from("Welcome bytes"))?
             }),
-            staking_contract: None
+            staking_contract: None,
+            custom_fee: None
         };     
         assert!(init(deps, env.clone(), msg).is_ok());
       
@@ -137,6 +139,7 @@ pub mod tests {
             &mk_custom_token_amount(Uint128::from(offer_amount),token_pair), 
             & mut deps.storage,
             HumanAddr("Test".to_string().clone()),
+            None
         );
 
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
@@ -154,7 +157,7 @@ pub mod tests {
         let expected_amount: u128 = 34028236692093846346337460;
         let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, 
             &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
-            &mut deps.storage, HumanAddr("Test".to_string().clone()));
+            &mut deps.storage, HumanAddr("Test".to_string().clone()), None);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -185,13 +188,15 @@ pub mod tests {
         let env = mkenv("sender");       
         let trade_history = TradeHistory {
             price: "50".to_string(),
-            amount: Uint128::from(50u128),
+            amount_in: Uint128::from(50u128),
+            amount_out: Uint128::from(50u128),
             timestamp: 6000,
             direction: "Sell".to_string(),
             total_fee_amount: Uint128::from(50u128),
             lp_fee_amount: Uint128::from(50u128),
             shade_dao_fee_amount: Uint128::from(50u128),
-            height: 1045667
+            height: 1045667,
+            trader: "address_hash".to_string()
         };
         store_trade_history(&mut deps, &trade_history)?;
         let current_index = load_trade_counter(&deps.storage)?;
@@ -274,7 +279,7 @@ pub mod tests {
         add_whitelist_address(&mut deps.storage, address_a.clone())?;    
         let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, 
             &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
-            &mut deps.storage, HumanAddr("TESTA".to_string().clone()))?;
+            &mut deps.storage, HumanAddr("TESTA".to_string().clone()), None)?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
         assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
         Ok(())
@@ -297,7 +302,7 @@ pub mod tests {
         };
         assert_eq!(config.factory_info.address.as_str(), FACTORY_CONTRACT_ADDRESS.clone());
         let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, &token_amount,
-            &mut deps.storage, address_a)?;
+            &mut deps.storage, address_a, None)?;
         assert_eq!(swap_result.result.return_amount, Uint128(997u128));
         assert_eq!(swap_result.lp_fee_amount, Uint128(2u128));
         assert_eq!(swap_result.shade_dao_fee_amount, Uint128(0u128));
@@ -387,6 +392,7 @@ fn make_init_config<S: Storage, A: Api, Q: Querier>(
             msg: to_binary(&String::from("Welcome bytes"))?,
         }),
         staking_contract: None,
+        custom_fee: None
     };         
     assert!(init(deps, env.clone(), msg).is_ok());
     let config = load_config(deps)?;
@@ -478,6 +484,7 @@ fn mock_config(env: Env) -> StdResult<Config<HumanAddr>>
         pair:      mk_token_pair(),
         contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
         viewing_key:  create_viewing_key(&env, seed.clone(), entropy.clone()),
+        custom_fee: None
     })
 }
 

@@ -9,7 +9,7 @@ use shadeswap_shared::{
         scrt_storage::{load, save, ns_save, ns_load},
         scrt_vk::ViewingKey,
     },
-    token_pair::TokenPair
+    token_pair::TokenPair, custom_fee::CustomFee
 };
 
 use serde::{Deserialize, Serialize};
@@ -31,6 +31,7 @@ pub struct Config<A: Clone> {
     pub pair:      TokenPair<A>,
     pub contract_addr: A,
     pub viewing_key: ViewingKey,
+    pub custom_fee: Option<CustomFee>
 }
 
 impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
@@ -41,6 +42,7 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
             pair:          self.pair.canonize(api)?,
             contract_addr: self.contract_addr.canonize(api)?,
             viewing_key:   self.viewing_key.clone(),
+            custom_fee: self.custom_fee.clone()
         })
     }
 }
@@ -52,6 +54,7 @@ impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
             pair:          self.pair.humanize(api)?,
             contract_addr: self.contract_addr.humanize(api)?,
             viewing_key:   self.viewing_key.clone(),
+            custom_fee: self.custom_fee.clone()
         })
     }
 }
@@ -79,7 +82,6 @@ pub mod tradehistory{
 }
 
 
-
 pub mod amm_pair_storage{
     use super::*;
     use tradehistory::{DirectionType};
@@ -91,7 +93,7 @@ pub mod amm_pair_storage{
         save(&mut deps.storage, CONFIG_KEY, &config.canonize(&deps.api)?)
     }
 
-    pub fn store_staking_contract <S: Storage, A: Api, Q: Querier>(
+    pub fn store_staking_contract<S: Storage, A: Api, Q: Querier>(
         deps:   &mut Extern<S, A, Q>,
         contract: &ContractLink<HumanAddr>
     ) -> StdResult<()> {

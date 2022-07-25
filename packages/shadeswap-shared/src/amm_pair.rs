@@ -3,7 +3,7 @@ use fadroma::{
     scrt_addr::{Canonize, Humanize},
     scrt_link::ContractLink,
 };
-use crate::token_pair::TokenPair;
+use crate::{token_pair::TokenPair, custom_fee::Fee};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -61,14 +61,3 @@ impl AMMSettings<CanonicalAddr> {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Clone, Copy, Debug)]
-pub struct Fee {
-    pub nom: u8,
-    pub denom: u16,
-}
-
-impl Fee {
-    pub fn new(nom: u8, denom: u16) -> Self {
-        Self { nom, denom }
-    }
-}

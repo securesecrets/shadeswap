@@ -8,8 +8,8 @@ pub mod tests {
 
     use crate::contract::handle;
     use serde::{de::DeserializeOwned, Deserialize, Serialize};
+    use shadeswap_shared::custom_fee::Fee;
     use shadeswap_shared::{
-        amm_pair::Fee,
         fadroma::{
             from_slice,
             scrt::{

@@ -8,6 +8,7 @@ use secretcli::{
     cli_types::NetContract,
     secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
 };
+
 use serde_json::Result;
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings},

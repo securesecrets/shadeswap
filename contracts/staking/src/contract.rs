@@ -437,13 +437,24 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     if is_user_staker != true {
         return Err(StdError::unauthorized())
     }
+    
     // claim rewards
     claim_rewards_for_all_stakers(deps, current_timestamp)?;
     // remove staker
-    remove_staker(deps, caller.clone())?;
+   
     let mut messages = Vec::new();
     // update stake_info
     let mut staker_info = load_staker_info(deps, caller.clone())?;        
+    // check if the amount is higher than the current staking amount
+    if amount > staker_info.amount {
+        return Err(StdError::GenericErr{ msg: "Staking Amount is higher then actual staking amount".to_string(), backtrace: None})
+    }
+    // if amount is the same as current staking amount remove staker from list
+    let diff_amount = (staker_info.amount - amount)?;
+    if  diff_amount == Uint128(0) {
+        remove_staker(deps, caller.clone())?;
+    }
+
     staker_info.amount = (staker_info.amount - amount)?;
     staker_info.last_time_updated = current_timestamp;
     store_staker_info(deps, &staker_info)?;

@@ -1082,7 +1082,7 @@ fn run_testnet() -> Result<()> {
     
                 print_header("\n\tGet LP Token for AMM Pair");
                 let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};    
-                let lp_token_info_query_unstake: AMMPairQueryMsgResponse = query( 
+                let lp_token_info_query_unstake_a: AMMPairQueryMsgResponse = query( 
                     &NetContract {
                         label: "".to_string(),
                         id: s_ammPair.id.clone(),
@@ -1101,16 +1101,65 @@ fn run_testnet() -> Result<()> {
                     amount_1,
                     total_liquidity,
                     contract_version,
-                } = lp_token_info_query_unstake {
+                } = lp_token_info_query_unstake_a {
 
                     println!("\n\tLP Token Address {}", liquidity_token.address.to_string());
                     print_header("\n\tLP Token Liquidity - 5000000000");    
                     assert_eq!(
-                        total_liquidity,
+                        total_liquidity.clone(),
                         Uint128(5000000000)
                     );
-                }    
+                }
                 
+                handle(
+                    &StakingMsgHandle::Unstake {
+                       amount: Uint128(50000000),
+                       remove_liqudity: Some(true)
+                    },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    },
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+                
+                let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};    
+                let lp_token_info_query_unstake_b: AMMPairQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }, 
+                    lp_token_info_msg, 
+                    None
+                )?;
+                if let AMMPairQueryMsgResponse::GetPairInfo { 
+                    liquidity_token,
+                    factory,
+                    pair,
+                    amount_0,
+                    amount_1,
+                    total_liquidity,
+                    contract_version,
+                } = lp_token_info_query_unstake_b {
+
+                    println!("\n\tLP Token Address {}", liquidity_token.address.to_string());
+                    print_header("\n\tLP Token Liquidity - 4950000000");    
+                    assert_eq!(
+                        total_liquidity.clone(),
+                        Uint128(4950000000)
+                    );
+                }
+
                 print_header("\n\tIncreaseAllowance - 500000000 for liqudity ");
                 handle(
                     &snip20::HandleMsg::IncreaseAllowance {
@@ -1205,10 +1254,10 @@ fn run_testnet() -> Result<()> {
                 } = lp_token_info_query_unstake {
 
                     println!("\n\tLP Token Address {}", liquidity_token.address.to_string());
-                    print_header("\n\tLP Token Liquidity - 5499999219");    
+                    print_header("\n\tLP Token Liquidity - 5449999219");    
                     assert_eq!(
                         total_liquidity,
-                        Uint128(5499999219)
+                        Uint128(5449999219)
                     );
                 }    
 

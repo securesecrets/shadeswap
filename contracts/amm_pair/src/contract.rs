@@ -1,9 +1,10 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use shadeswap_shared::custom_fee::{Fee, CustomFee};
 use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
 use shadeswap_shared::msg::staking::InvokeMsg as StakingInvokeMsg;
-use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair, Fee}};
+use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair}};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
@@ -11,13 +12,12 @@ use shadeswap_shared::token_pair::{{TokenPair}};
 use shadeswap_shared::admin::{{apply_admin_guard, store_admin, load_admin, set_admin_guard}};
 use shadeswap_shared::Pagination;
 use crate::state::{{Config}};
-use crate::state::amm_pair_storage::{store_config,store_custom_fee, load_custom_fee, is_address_in_whitelist, store_trade_counter,
+use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist, store_trade_counter,
      load_whitelist_address,add_whitelist_address,load_staking_contract, store_staking_contract, load_config, store_trade_history,remove_whitelist_address,
 load_trade_counter, load_trade_history};
 use crate::help_math::{{substraction, multiply,calculate_and_print_price}};
 use crate::state::tradehistory::DirectionType;
 use crate::state::PAGINATION_LIMIT;
-use crate::state::CustomFee;
 use shadeswap_shared::fadroma::{
     scrt::{
         from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg,
@@ -29,8 +29,6 @@ use shadeswap_shared::fadroma::{
     scrt_uint256::Uint256,
     scrt_vk::ViewingKey,
 };
-use shadeswap_shared::msg::staking::QueryMsg as StakingQueryMsg;
-use shadeswap_shared::msg::staking::QueryResponse as StakingQueryResponse;
 use shadeswap_shared::msg::staking::HandleMsg as StakingHandleMsg;
 use shadeswap_shared::msg::router::HandleMsg as RouterHandleMsg;
 use shadeswap_shared::msg::staking::InitMsg as StakingInitMsg;
@@ -102,7 +100,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
             msg: to_binary(&StakingInitMsg {
                 staking_amount: c.amount,
                 reward_token: c.reward_token.clone(),             
-                contract: ContractLink {
+                pair_contract: ContractLink {
                     address: env.contract.address.clone(),
                     code_hash: env.contract_code_hash.clone(),
                 }
@@ -131,6 +129,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         pair: msg.pair,
         contract_addr: env.contract.address.clone(),
         viewing_key: viewing_key,
+        custom_fee: msg.custom_fee.clone()
     };
 
     store_config(deps, &config)?;       
@@ -263,11 +262,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 pub fn query_calculate_price<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     offer: TokenAmount<HumanAddr>,
-    feeless: Option<bool>
+    exclude_fee: Option<bool>
 ) -> StdResult<SwapInfo>{
     let config_settings = load_config(deps)?;
     let amm_settings = query_factory_amm_settings(&deps.querier, config_settings.factory_info.clone())?;
-    let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config_settings,&offer,  &deps.storage, HumanAddr::default(), feeless)?;
+    let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config_settings,&offer,  &deps.storage, HumanAddr::default(), exclude_fee)?;
     Ok(swap_result)
 }
 
@@ -279,11 +278,16 @@ pub fn set_custom_fee<S: Storage, A: Api, Q: Querier>(
     lp_fee: Fee
 ) -> StdResult<HandleResponse> {
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
-    store_custom_fee(deps, &CustomFee{ 
+
+    let mut config = load_config(&deps)?;
+
+    config.custom_fee = Some(CustomFee{ 
         shade_dao_fee: shade_dao_fee.clone(),
-        lp_fee: lp_fee.clone(),
-        configured: true
-    })?;
+        lp_fee: lp_fee.clone()
+    });
+
+    store_config(deps, &config)?;
+
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
@@ -495,8 +499,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 staking_contract: staking_contract
             })
         },         
-        QueryMsg::GetEstimatedPrice {offer, feeless} => {
-           let swap_result = query_calculate_price(&deps,offer, feeless)?;
+        QueryMsg::GetEstimatedPrice {offer, exclude_fee} => {
+           let swap_result = query_calculate_price(&deps,offer, exclude_fee)?;
            to_binary(&QueryMsgResponse::EstimatedPrice { estimated_price : swap_result.price })
         },
         QueryMsg::SwapSimulation{ offer}=> swap_simulation(deps, offer),
@@ -638,7 +642,7 @@ pub fn calculate_swap_result(
     offer: &TokenAmount<HumanAddr>,
     storage: &impl Storage,
     recipient: HumanAddr,
-    feeless: Option<bool>
+    exclude_fee: Option<bool>
 ) -> StdResult<SwapInfo> {
     if !config.pair.contains(&offer.token) {
         return Err(StdError::generic_err(format!(
@@ -662,10 +666,9 @@ pub fn calculate_swap_result(
     // calculation fee
     let discount_fee = is_address_in_whitelist(storage, recipient)?;
     if discount_fee == false {        
-        let custom_fee: CustomFee = load_custom_fee(storage)?;
-        if  custom_fee.configured == true  {
-            lp_fee_amount = calculate_fee(Uint256::from(offer.amount), custom_fee.lp_fee)?;
-            shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), custom_fee.shade_dao_fee)?;
+        if  config.custom_fee.is_some() {
+            lp_fee_amount = calculate_fee(Uint256::from(offer.amount), config.custom_fee.clone().unwrap().lp_fee)?;
+            shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), config.custom_fee.clone().unwrap().shade_dao_fee)?;
         }
         else{
             lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
@@ -679,7 +682,7 @@ pub fn calculate_swap_result(
 
     // sub fee from offer amount  
     let mut deducted_offer_amount = (offer.amount - total_fee_amount)?; 
-    if let Some(true) = feeless {
+    if let Some(true) = exclude_fee {
         deducted_offer_amount = offer.amount;
     }
 

@@ -46,8 +46,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     store_admin(deps, &env.message.sender.clone())?;
     let mut messages = vec![];
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: msg.contract.address.clone(),
-        callback_code_hash: msg.contract.code_hash.clone(),
+        contract_addr: msg.pair_contract.address.clone(),
+        callback_code_hash: msg.pair_contract.code_hash.clone(),
         msg: to_binary(&AmmPairHandleMsg::SetStakingContract{ contract: ContractLink {
             address: env.contract.address.clone(),
             code_hash: env.contract_code_hash.clone()

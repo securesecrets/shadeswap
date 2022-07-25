@@ -9,10 +9,9 @@ use shadeswap_shared::{
         scrt_storage::{load, save, ns_save, ns_load},
         scrt_vk::ViewingKey,
     },
-    token_pair::TokenPair
+    token_pair::TokenPair, custom_fee::CustomFee
 };
 
-use shadeswap_shared::amm_pair::Fee;
 use serde::{Deserialize, Serialize};
 
 use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
@@ -23,7 +22,6 @@ pub static STAKINGCONTRACT_LINK: &[u8] = b"staking_contract_link";
 pub static TRADE_COUNT: &[u8] = b"tradecount";
 pub static TRADE_HISTORY: &[u8] = b"trade_history";
 pub static WHITELIST: &[u8] = b"whitelist";
-pub static CUSTOMFEE: &[u8] = b"custom_fee";
 pub const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
@@ -33,6 +31,7 @@ pub struct Config<A: Clone> {
     pub pair:      TokenPair<A>,
     pub contract_addr: A,
     pub viewing_key: ViewingKey,
+    pub custom_fee: Option<CustomFee>
 }
 
 impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
@@ -43,6 +42,7 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
             pair:          self.pair.canonize(api)?,
             contract_addr: self.contract_addr.canonize(api)?,
             viewing_key:   self.viewing_key.clone(),
+            custom_fee: self.custom_fee.clone()
         })
     }
 }
@@ -54,15 +54,9 @@ impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
             pair:          self.pair.humanize(api)?,
             contract_addr: self.contract_addr.humanize(api)?,
             viewing_key:   self.viewing_key.clone(),
+            custom_fee: self.custom_fee.clone()
         })
     }
-}
-
-#[derive(Serialize, Deserialize, Clone,  Debug)]
-pub struct CustomFee {
-    pub shade_dao_fee: Fee,
-    pub lp_fee: Fee,
-    pub configured: bool
 }
 
 pub mod tradehistory{
@@ -113,23 +107,6 @@ pub mod amm_pair_storage{
             StdError::generic_err("Config doesn't exist in storage.")
         )?;
         result.humanize(&deps.api)
-    }
-
-    pub fn load_custom_fee(storage: &impl Storage) -> StdResult<CustomFee> {
-        let default_custom_fee = CustomFee{
-            shade_dao_fee : Fee::new(0, 0),
-            lp_fee: Fee::new(0, 0),
-            configured: false
-        };
-        let custom_fee: CustomFee = load(storage, CUSTOMFEE)?.unwrap_or(default_custom_fee.clone());
-        Ok(custom_fee)
-    }
-
-    pub fn store_custom_fee<S: Storage, A: Api, Q: Querier>(
-        deps:   &mut Extern<S, A, Q>,
-        fee_config: &CustomFee
-    ) -> StdResult<()> {
-        save(&mut deps.storage, CUSTOMFEE, &fee_config)
     }
     
     pub fn load_trade_counter(storage: &impl Storage) -> StdResult<u64> {

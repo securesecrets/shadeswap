@@ -10,7 +10,7 @@ use secretcli::{
 };
 use serde_json::Result;
 use shadeswap_shared::{
-    amm_pair::{AMMPair, AMMSettings, Fee},
+    amm_pair::{AMMPair, AMMSettings},
     fadroma::{
         scrt::{
             from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin,
@@ -34,7 +34,7 @@ use shadeswap_shared::{
         },
     },
     stake_contract::StakingContractInit,
-    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType,
+    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType, custom_fee::Fee,
 };
 use std::env;
 

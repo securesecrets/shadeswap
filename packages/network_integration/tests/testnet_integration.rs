@@ -10,7 +10,7 @@ use secretcli::{
 };
 use serde_json::Result;
 use shadeswap_shared::{
-    amm_pair::{AMMPair, AMMSettings, Fee},
+    amm_pair::{AMMPair, AMMSettings},
     fadroma::{
         scrt::{
             from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin,
@@ -33,7 +33,7 @@ use shadeswap_shared::{
             HandleMsg as RouterHandleMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg, QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse
         },
     },
-    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType,
+    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType, custom_fee::Fee,
 };
 use std::env;
 
@@ -950,7 +950,7 @@ fn run_testnet() -> Result<()> {
                     },
                     amount: Uint128(100),
                 },
-                feeless: None
+                exclude_fee: None
             };    
             let estimated_price_query: AMMPairQueryMsgResponse = query( 
                 &NetContract {
@@ -1221,10 +1221,7 @@ fn run_testnet() -> Result<()> {
                             contract_addr: HumanAddr::from(s_sCRT.address.clone()),
                         },
                     },
-                    contract: ContractLink{
-                        address: HumanAddr::from(ammPair.address.0.clone()),
-                        code_hash: s_ammPair.code_hash.to_string(),
-                    }
+                    path: vec![HumanAddr::from(ammPair.address.0.clone())],
                 };    
 
                 let swap_result_response: RouterQueryResponse = query( 

@@ -68,7 +68,7 @@ pub mod router {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        SwapSimulation {offer: TokenAmount<HumanAddr>, contract: ContractLink<HumanAddr>}, 
+        SwapSimulation {offer: TokenAmount<HumanAddr>, path: Vec<HumanAddr>}, 
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -87,7 +87,7 @@ pub mod router {
 
 pub mod amm_pair {
     use super::*;
-    use crate::amm_pair::Fee;
+    use crate::custom_fee::{CustomFee, Fee};
     use crate::{amm_pair::AMMSettings, fadroma::HumanAddr, Pagination, TokenPair, stake_contract::StakingContractInit};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
@@ -129,7 +129,8 @@ pub mod amm_pair {
         pub callback: Option<Callback<HumanAddr>>,
         pub entropy: Binary,
         pub admin: Option<HumanAddr>,
-        pub staking_contract: Option<StakingContractInit>
+        pub staking_contract: Option<StakingContractInit>,
+        pub custom_fee: Option<CustomFee>
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -190,7 +191,7 @@ pub mod amm_pair {
         GetTradeCount,
         GetAdmin,
         GetStakingContract,
-        GetEstimatedPrice { offer: TokenAmount<HumanAddr>, feeless: Option<bool>},
+        GetEstimatedPrice { offer: TokenAmount<HumanAddr>, exclude_fee: Option<bool>},
         SwapSimulation{ offer: TokenAmount<HumanAddr> },
         GetShadeDaoInfo{},
         GetEstimatedLiquidity {
@@ -347,7 +348,7 @@ pub mod staking {
     pub struct InitMsg {
         pub staking_amount: Uint128,
         pub reward_token: TokenType<HumanAddr>, 
-        pub contract: ContractLink<HumanAddr>
+        pub pair_contract: ContractLink<HumanAddr>
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

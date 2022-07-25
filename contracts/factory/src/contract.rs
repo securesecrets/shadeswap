@@ -3,7 +3,7 @@ use crate::state::{
     save_amm_pairs, save_prng_seed, Config,
 };
 use shadeswap_shared::{
-    admin::{{apply_admin_guard, set_admin_guard, store_admin, load_admin }},
+    admin::{apply_admin_guard, load_admin, set_admin_guard, store_admin},
     amm_pair::AMMPair,
     fadroma::{
         scrt::{
@@ -15,7 +15,7 @@ use shadeswap_shared::{
         scrt_storage::{load, remove, save},
     },
     msg::{
-        amm_pair::{{InitMsg as AMMPairInitMsg }},
+        amm_pair::InitMsg as AMMPairInitMsg,
         factory::{HandleMsg, InitMsg, QueryMsg, QueryResponse},
     },
     stake_contract::StakingContractInit,
@@ -41,14 +41,20 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     return match msg {
-        HandleMsg::CreateAMMPair { pair, entropy, staking_contract } => create_pair(deps, env, pair, entropy, staking_contract),
+        HandleMsg::CreateAMMPair {
+            pair,
+            entropy,
+            staking_contract,
+        } => create_pair(deps, env, pair, entropy, staking_contract),
         HandleMsg::SetConfig { .. } => set_config(deps, env, msg),
         HandleMsg::AddAMMPairs { amm_pairs } => add_amm_pairs(deps, env, amm_pairs),
         HandleMsg::RegisterAMMPair { pair, signature } => {
             register_amm_pair(deps, env, pair, signature)
-        },
-        HandleMsg::SetFactoryAdmin {admin} => set_admin_guard(deps,env,admin),       
-        HandleMsg::SetShadeDAOAddress {shade_dao_address} => set_shade_dao_address(deps,env, shade_dao_address),
+        }
+        HandleMsg::SetFactoryAdmin { admin } => set_admin_guard(deps, env, admin),
+        HandleMsg::SetShadeDAOAddress { shade_dao_address } => {
+            set_shade_dao_address(deps, env, shade_dao_address)
+        }
     };
 }
 
@@ -63,8 +69,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         QueryMsg::GetAMMSettings {} => query_amm_settings(deps),
         QueryMsg::GetAdmin {} => {
             let admin_address = load_admin(&deps.storage)?;
-            to_binary(&QueryResponse::GetAdminAddress{
-                address: admin_address
+            to_binary(&QueryResponse::GetAdminAddress {
+                address: admin_address,
             })
         }
     }
@@ -73,12 +79,12 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 fn set_shade_dao_address<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    shade_dao_address: ContractLink<HumanAddr>
+    shade_dao_address: ContractLink<HumanAddr>,
 ) -> StdResult<HandleResponse> {
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let mut config = config_read(deps)?;
     config.amm_settings.shade_dao_address = shade_dao_address.clone();
-    config_write(deps, &config)?;    
+    config_write(deps, &config)?;
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
@@ -87,7 +93,6 @@ fn set_shade_dao_address<S: Storage, A: Api, Q: Querier>(
         ],
         data: None,
     })
-
 }
 
 fn register_amm_pair<S: Storage, A: Api, Q: Querier>(
@@ -95,7 +100,7 @@ fn register_amm_pair<S: Storage, A: Api, Q: Querier>(
     env: Env,
     pair: TokenPair<HumanAddr>,
     signature: Binary,
-) -> StdResult<HandleResponse> {  
+) -> StdResult<HandleResponse> {
     ensure_correct_signature(&mut deps.storage, signature)?;
     let amm_pair = AMMPair {
         pair,
@@ -211,7 +216,7 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
     env: Env,
     pair: TokenPair<HumanAddr>,
     entropy: Binary,
-    staking_contract: Option<StakingContractInit>
+    staking_contract: Option<StakingContractInit>,
 ) -> StdResult<HandleResponse> {
     let mut config = config_read(&deps)?;
     println!("create_pair caller {}", env.message.sender.clone());
@@ -248,8 +253,9 @@ pub fn create_pair<S: Storage, A: Api, Q: Querier>(
                 entropy,
                 prng_seed: load_prng_seed(&deps.storage)?,
                 admin: Some(env.message.sender.clone()),
-                staking_contract: staking_contract
-            },)?,
+                staking_contract: staking_contract,
+                custom_fee: None,
+            })?,
         })],
         log: vec![log("action", "create_exchange"), log("pair", pair)],
         data: None,

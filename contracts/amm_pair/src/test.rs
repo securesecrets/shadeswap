@@ -3,7 +3,7 @@ use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair::{{TokenPair}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
 use shadeswap_shared::token_type::{{TokenType}};
-use shadeswap_shared::amm_pair::{{AMMPair, AMMSettings, Fee}};
+use shadeswap_shared::amm_pair::{{AMMPair, AMMSettings}};
 use crate::state::{Config};
 use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
 use crate::state::amm_pair_storage::{{ store_config, load_config,
@@ -43,6 +43,7 @@ use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip
 pub mod tests {
     use super::*;
     use serde::de::DeserializeOwned;
+    use shadeswap_shared::custom_fee::Fee;
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
     use shadeswap_shared::fadroma::Empty;
     use shadeswap_shared::fadroma::from_slice;
@@ -101,7 +102,8 @@ pub mod tests {
                 },
                 msg: to_binary(&String::from("Welcome bytes"))?
             }),
-            staking_contract: None
+            staking_contract: None,
+            custom_fee: None
         };     
         assert!(init(deps, env.clone(), msg).is_ok());
       
@@ -390,6 +392,7 @@ fn make_init_config<S: Storage, A: Api, Q: Querier>(
             msg: to_binary(&String::from("Welcome bytes"))?,
         }),
         staking_contract: None,
+        custom_fee: None
     };         
     assert!(init(deps, env.clone(), msg).is_ok());
     let config = load_config(deps)?;
@@ -481,6 +484,7 @@ fn mock_config(env: Env) -> StdResult<Config<HumanAddr>>
         pair:      mk_token_pair(),
         contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
         viewing_key:  create_viewing_key(&env, seed.clone(), entropy.clone()),
+        custom_fee: None
     })
 }
 

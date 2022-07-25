@@ -10,7 +10,7 @@ use shadeswap_shared::token_type::TokenType;
 use shadeswap_shared::{
     amm_pair::AMMSettings,
     fadroma::{
-        debug_print, from_binary,
+        from_binary,
         scrt::{
             secret_toolkit::snip20, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse,
             HumanAddr, InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
@@ -56,7 +56,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         },
     )?;
 
-    debug_print!("Contract was initialized by {}", env.message.sender);
     store_admin(deps, &env.message.sender.clone())?;
     Ok(InitResponse::default())
 }

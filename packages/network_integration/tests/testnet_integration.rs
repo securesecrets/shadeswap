@@ -1153,10 +1153,10 @@ fn run_testnet() -> Result<()> {
                 } = lp_token_info_query_unstake_b {
 
                     println!("\n\tLP Token Address {}", liquidity_token.address.to_string());
-                    print_header("\n\tLP Token Liquidity - 50000000");    
+                    print_header("\n\tLP Token Liquidity - 4950000000");    
                     assert_eq!(
                         total_liquidity.clone(),
-                        Uint128(50000000)
+                        Uint128(4950000000)
                     );
                 }
 
@@ -1254,10 +1254,10 @@ fn run_testnet() -> Result<()> {
                 } = lp_token_info_query_unstake {
 
                     println!("\n\tLP Token Address {}", liquidity_token.address.to_string());
-                    print_header("\n\tLP Token Liquidity - 5499999219");    
+                    print_header("\n\tLP Token Liquidity - 5449999219");    
                     assert_eq!(
                         total_liquidity,
-                        Uint128(5499999219)
+                        Uint128(5449999219)
                     );
                 }    
 

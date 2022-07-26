@@ -1,18 +1,28 @@
 # Staking Contract
 * [Introduction](#Introduction)
 * [Sections](#Sections)
-    * [Init](#Init)
-    * [Admin](#Admin)
-        * Messages
-            * [Stake](#Stake)
-            * [Unstake](#Unstake)                       
+    * [Init](#Init)                  
     * [User](#User)
         * Messages       
             * [ClaimRewards](#ClaimRewards)
+            * [SetVKForStaker](#SetVKForStaker)            
+            * [Unstake](#Unstake)    
         * Queries
-            * [GetStakers](#GetStakers)
+            * [GetContractOwner](#GetContractOwner)
             * [GetClaimReward](#GetClaimReward)   
-            * [GetContractOwner](#GetAGetContractOwnerdmin)    
+            * [GetStakerLpTokenInfo](#GetStakerLpTokenInfo)
+            * [GetRewardTokenBalance](#GetStakerLpTokenInfo)
+            * [GetStakerRewardTokenBalance](#GetStakerLpTokenInfo)   
+    * [Hooks](#Hooks)
+        * Messages
+            * [SetLPToken](#SetLPToken) 
+            * [Receive](#Receive)
+    * [Invoke]
+        * Messages
+            * [Stake](#Stake)            
+    * [Callback]
+        * Messages
+            * [Callback](#Callback)
 
 # Introduction
 The Contract to hold Pair Between Swap Tokens.
@@ -28,64 +38,13 @@ The Contract to hold Pair Between Swap Tokens.
 | contract | ContractLink | AMMPair Contract Address Link to register staking contract  | no    |
 
 
-## Admin
-
-### Messages
-
-#### Stake
-Add address to staking
-
-##### Request
-| Name    | Type      | Description                                   | optional |
-|---------|-----------|-----------------------------------------------|----------|
-| from  | HumanAddr | The address to add to staking               | no       |
-| amount  | Uint128 | staking amount               | no       |
-
-##### Response
-```json
-{
-  "complete_task": {
-    "status": "success"
-  }
-}
-```
 
 
-#### Unstake
-Remove address from staking
-
-##### Request
-| Name    | Type      | Description                                   | optional |
-|---------|-----------|-----------------------------------------------|----------|
-| address | HumanAddr | The address to remove from staking          | no       |
-
-##### Response
-```json
-{
-  "complete_task": {
-    "status": "success"
-  }
-}
-```
 
 
 ## User
 
 ### Queries
-
-#### GetStakers
-Get list of all stakers.
-
-##### Request
-| Name    | Type   | Description                                   | optional |
-|---------|--------|-----------------------------------------------|----------|
-
-##### Response
-```json
-{
-  "stakers": "[array of HumanAddr]",
-}
-```
 
 #### GetContractOwner
 Get Contract Owner Address.
@@ -110,11 +69,62 @@ Get Claimable Reward for staker.
 |------------|-------------|------------------------------------------|----------|
 |   staker  | HumanAddr |  Address to calculate claimable amount      |   no |
 |   time  | u128 |  Time to use for calculation claimable amount      |   no |
+|   seed  | String |  Seed which user setup for viewing key      |   no |
 
 ##### Response
 ```json
 {
-  "count": "trade count",
+  "amount": "trade count",
+}
+```
+
+#### GetStakerLpTokenInfo
+Get  Staker Lp Token Information.
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+|   staker  | HumanAddr |  Address to calculate claimable amount      |   no |
+|   viewing_key  | String |  Seed which user setup for viewing key      |   no |
+
+##### Response
+```json
+{
+  "staked_lp_token": "Uint128",
+  "total_staked_lp_token": "Uint128",
+}
+```
+
+#### GetRewardTokenBalance
+Get Reward Token Balance for staker
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+|   staker  | HumanAddr |  Address to calculate claimable amount      |   no |
+|   viewing_key  | String |  Seed which user setup for viewing key      |   no |
+
+##### Response
+```json
+{
+  "amount": "Uint128"
+}
+```
+
+#### GetStakerRewardTokenBalance
+Get Reward Token Balance for staker and total Reward Liquidity
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+|   staker  | HumanAddr |  Address to calculate claimable amount      |   no |
+|   viewing_key  | String |  Seed which user setup for viewing key      |   no |
+
+##### Response
+```json
+{
+  "reward_amount": "Uint128",
+  "total_rewards_liquidity": "Uint128"
 }
 ```
 
@@ -128,6 +138,89 @@ Claim reward.
 | Name      | Type        | Description                             | optional |
 |-----------|----------------|--------------------------------------|----------|
 
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+
+#### Unstake
+Remove amount and address from staking
+
+##### Request
+| Name    | Type      | Description                                   | optional |
+|---------|-----------|-----------------------------------------------|----------|
+| amount | Uint128 | Amount to unstake          | no       |
+| remove_liquidity | bool | Remove form liquidity          | yes       |
+
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+
+#### SetVKForStaker
+Set viewing key for staker
+
+##### Request
+| Name    | Type      | Description                                   | optional |
+|---------|-----------|-----------------------------------------------|----------|
+| prng_seed | String |  Seed for viewing key          | no       |
+
+
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+
+
+## Callback
+### Messages
+
+#### Receive
+Receive Callback.
+
+##### Request
+
+| Name      | Type        | Description                             | optional |
+|-----------|----------------|--------------------------------------|----------|
+| from | HumanAddr | who invokes the callback                  | no      |
+| msg |  | Message to Invoke in Pair Contract                  | yes       |
+| amount | Uint128 | amount sent               | no       |
+
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+
+
+## Invoke
+### Messages
+
+#### Stake
+Stake amount and address
+
+##### Request
+
+| Name      | Type        | Description                             | optional |
+|-----------|----------------|--------------------------------------|----------|
+| from | HumanAddr | who invokes the callback |  no      |
+| amount | Uint128 | amount sent |   no       |
+   |
 ##### Response
 ```json
 {

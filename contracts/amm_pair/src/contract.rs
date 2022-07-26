@@ -278,9 +278,7 @@ pub fn set_custom_fee<S: Storage, A: Api, Q: Querier>(
     lp_fee: Fee
 ) -> StdResult<HandleResponse> {
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
-
     let mut config = load_config(&deps)?;
-
     config.custom_fee = Some(CustomFee{ 
         shade_dao_fee: shade_dao_fee.clone(),
         lp_fee: lp_fee.clone()

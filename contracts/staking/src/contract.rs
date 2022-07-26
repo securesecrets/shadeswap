@@ -417,13 +417,6 @@ pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     to_binary(&QueryResponse::ClaimReward{amount: total_claim})
 }
 
-pub fn get_all_stakers<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<Binary>{
-    let stakers = load_stakers(deps)?;   
-    println!("get_all_stakers {}",stakers.len()); 
-    to_binary(&QueryResponse::Stakers{stakers: stakers}) 
-}
-
-
 pub fn unstake<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,   

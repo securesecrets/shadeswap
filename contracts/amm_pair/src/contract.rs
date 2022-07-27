@@ -628,7 +628,7 @@ fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(
     Ok(result)
 }
 
-fn calculate_fee(amount: Uint256, fee: Fee) -> StdResult<Uint128> {
+pub fn calculate_fee(amount: Uint256, fee: Fee) -> StdResult<Uint128> {
     let nom = Uint256::from(fee.nom);
     let denom = Uint256::from(fee.denom);
     let amount = ((amount * nom)? / denom)?;   

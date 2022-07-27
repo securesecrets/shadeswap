@@ -671,9 +671,7 @@ pub fn calculate_swap_result(
         else{
             lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
             shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), shade_dao_fee)?;
-        }        
-        lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
-        shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), shade_dao_fee)?;
+        }      
     }
     // total fee
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
@@ -810,7 +808,7 @@ pub fn calculate_price(
     Ok(((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?)
 }
 
-fn add_liquidity<S: Storage, A: Api, Q: Querier>(
+pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     deposit: TokenPairAmount<HumanAddr>,
@@ -869,6 +867,7 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         &pool_balances,
     )?;
 
+    println!("{:?}", lp_token_info.address.clone());
     let pair_contract_pool_liquidity =
         query_liquidity_pair_contract(&deps.querier, &lp_token_info)?;
     let mut lp_tokens: u128 = u128::MIN;

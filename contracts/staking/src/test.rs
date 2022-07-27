@@ -130,7 +130,7 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env.clone(),
-            HandleMsg::Unstake {amount: Uint128(100u128), remove_liqudity: Some(true)},
+            HandleMsg::Unstake {amount: Uint128(100u128), remove_liqudity: Some(false)},
         )
         .unwrap();
         let stake_info = load_staker_info(&deps, staker.clone())?;    

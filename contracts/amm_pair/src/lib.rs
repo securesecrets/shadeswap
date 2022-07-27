@@ -1,7 +1,6 @@
 pub mod contract;
 pub mod state;
 pub mod help_math;
-pub mod help_test_lib;
 #[cfg(test)] mod test;
 
 #[cfg(target_arch = "wasm32")]

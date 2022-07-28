@@ -453,7 +453,7 @@ pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {
-        QueryMsg::GetPairInfo => {
+        QueryMsg::GetPairInfo {} => {
             let config = load_config(deps)?;
             let balances = config.pair.query_balances(
                 &deps.querier,
@@ -471,7 +471,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 contract_version: AMM_PAIR_CONTRACT_VERSION,
             })
         }       
-        QueryMsg::GetTradeHistory { pagination } => {
+        QueryMsg::GetTradeHistory  { pagination } => {
             let data = load_trade_history_query(&deps, pagination)?;
             to_binary(&QueryMsgResponse::GetTradeHistory { data })
         },
@@ -481,17 +481,17 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 address: admin_address
             })
         },
-        QueryMsg::GetWhiteListAddress => {
+        QueryMsg::GetWhiteListAddress {} => {
             let stored_addr = load_whitelist_address(&deps.storage)?;
             to_binary(&QueryMsgResponse::GetWhiteListAddress {
                 addresses: stored_addr,
             })
         }
-        QueryMsg::GetTradeCount => {
+        QueryMsg::GetTradeCount{} => {
             let count = load_trade_counter(&deps.storage)?;
             to_binary(&QueryMsgResponse::GetTradeCount { count })
         },
-        QueryMsg::GetStakingContract => {
+        QueryMsg::GetStakingContract {} => {
             let staking_contract = load_staking_contract(&deps)?;
             to_binary(&QueryMsgResponse::StakingContractInfo{
                 staking_contract: staking_contract

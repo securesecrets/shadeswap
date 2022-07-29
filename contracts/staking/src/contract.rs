@@ -417,13 +417,6 @@ pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     to_binary(&QueryResponse::ClaimReward{amount: total_claim})
 }
 
-pub fn get_all_stakers<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<Binary>{
-    let stakers = load_stakers(deps)?;   
-    println!("get_all_stakers {}",stakers.len()); 
-    to_binary(&QueryResponse::Stakers{stakers: stakers}) 
-}
-
-
 pub fn unstake<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,   
@@ -447,7 +440,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     let mut staker_info = load_staker_info(deps, caller.clone())?;        
     // check if the amount is higher than the current staking amount
     if amount > staker_info.amount {
-        return Err(StdError::GenericErr{ msg: "Staking Amount is higher then actual staking amount".to_string(), backtrace: None})
+       // return Err(StdError::GenericErr{ msg: "Staking Amount is higher then actual staking amount".to_string(), backtrace: None})
     }
     // if amount is the same as current staking amount remove staker from list
     let diff_amount = (staker_info.amount - amount)?;

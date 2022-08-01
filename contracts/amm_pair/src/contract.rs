@@ -74,7 +74,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
             }),
             initial_balances: None,
             initial_allowances: None,
-            prng_seed: msg.prng_seed,
+            prng_seed: msg.prng_seed.clone(),
             config: Some(
                 Snip20ComposableConfig::builder()
                     .public_total_supply()
@@ -103,7 +103,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
                 pair_contract: ContractLink {
                     address: env.contract.address.clone(),
                     code_hash: env.contract_code_hash.clone(),
-                }
+                },
+                prng_seed: msg.prng_seed.clone(),
             })?
         })),
         None => println!("No staking contract"),

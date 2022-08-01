@@ -342,7 +342,8 @@ pub mod staking {
     pub struct InitMsg {
         pub staking_amount: Uint128,
         pub reward_token: TokenType<HumanAddr>, 
-        pub pair_contract: ContractLink<HumanAddr>
+        pub pair_contract: ContractLink<HumanAddr>,
+        pub prng_seed: Binary
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -362,7 +363,7 @@ pub mod staking {
             amount: Uint128,
         }, 
         SetVKForStaker{
-            prng_seed: String
+            key: String
         },
     }
 
@@ -378,11 +379,11 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {        
-        GetClaimReward {staker: HumanAddr, seed: String, time: Uint128},
+        GetClaimReward {staker: HumanAddr, key: String, time: Uint128},
         GetContractOwner {},
-        GetStakerLpTokenInfo{seed: String, staker: HumanAddr},
-        GetRewardTokenBalance {viewing_key: String, address: HumanAddr},
-        GetStakerRewardTokenBalance {viewing_key: String, staker: HumanAddr},
+        GetStakerLpTokenInfo{key: String, staker: HumanAddr},
+        GetRewardTokenBalance {key: String, address: HumanAddr},
+        GetStakerRewardTokenBalance {key: String, staker: HumanAddr},
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]

@@ -1340,7 +1340,7 @@ fn run_testnet() -> Result<()> {
                 print_header("\n\t Set Viewing Key for Staker - Staking Contract password");
                 handle(
                     &StakingMsgHandle::SetVKForStaker {
-                        prng_seed: "password".to_string()
+                        key: "password".to_string()
                     },
                     &NetContract {
                         label: "".to_string(),
@@ -1360,7 +1360,7 @@ fn run_testnet() -> Result<()> {
                 print_header("\n\tGet Claimamble Rewards ");                
                 let get_claims_reward_msg = StakingQueryMsg::GetClaimReward {
                     staker: HumanAddr::from(account.to_string()), 
-                    seed: "password".to_string(),
+                    key: "password".to_string(),
                     time: get_current_timestamp().unwrap(), 
                 };   
                 let claims_reward_response: StakingQueryMsgResponse = query( 
@@ -1417,7 +1417,7 @@ fn run_testnet() -> Result<()> {
 
                 print_header("\n\tGetStakeLpTokenInfo For Staker");
                 let get_stake_lp_token_info = StakingQueryMsg::GetStakerLpTokenInfo {
-                  seed: "password".to_string(),
+                  key: "password".to_string(),
                   staker: HumanAddr::from(account.to_string()),
                 };    
                 let stake_lp_token_info: StakingQueryMsgResponse = query( 
@@ -1445,7 +1445,7 @@ fn run_testnet() -> Result<()> {
 
                 print_header("\n\tGetRewardTokenBalance");
                 let get_balance_reward_token_msg = StakingQueryMsg::GetRewardTokenBalance {
-                  viewing_key: String::from(VIEW_KEY),
+                  key: String::from(VIEW_KEY),
                   address: HumanAddr::from(account.to_string())
                 };    
                 let balance_reward_token: StakingQueryMsgResponse = query( 
@@ -1469,7 +1469,7 @@ fn run_testnet() -> Result<()> {
 
                 print_header("\n\t GetStakerRewardTokenBalance");
                 let get_staker_reward_token_balance_msg = StakingQueryMsg::GetStakerRewardTokenBalance {
-                  viewing_key: String::from(VIEW_KEY),
+                  key: String::from(VIEW_KEY),
                   staker: HumanAddr::from(account.to_string())
                 };    
                 let staker_reward_token_balance: StakingQueryMsgResponse = query( 

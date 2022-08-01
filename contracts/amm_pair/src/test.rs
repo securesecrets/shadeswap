@@ -596,6 +596,13 @@ pub mod tests_calculation_price_and_fee{
         Ok(())
     }
 
+    #[test]
+    fn assert_calculate_price_sell() -> StdResult<()>{     
+        let price = calculate_price(Uint256::from(2000), Uint256::from(100000), Uint256::from(10000));
+        assert_eq!(Uint256::from(196), price?);
+        Ok(())
+    }
+
     
     #[test]
     fn assert_initial_swap_with_token_success_without_fee() -> StdResult<()>

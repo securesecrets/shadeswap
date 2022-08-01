@@ -1,7 +1,13 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
-use shadeswap_shared::custom_fee::{Fee, CustomFee};
-use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}};
+use cosmwasm_std::to_binary;
+use cosmwasm_std::{CosmosMsg, WasmMsg};
+use cosmwasm_std::{StdError, StdResult, InitResponse};
+use cosmwasm_std::Env;
+use cosmwasm_std::Extern;
+use cosmwasm_std::Api;
+use cosmwasm_std::Querier;
+use cosmwasm_std::Storage;
+use shadeswap_shared::fadroma::prelude::{Callback, ContractLink};
+use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}}, snip20_reference_impl};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
 use shadeswap_shared::msg::staking::InvokeMsg as StakingInvokeMsg;
 use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair}};
@@ -18,21 +24,12 @@ load_trade_counter, load_trade_history};
 use crate::help_math::{{substraction, multiply,calculate_and_print_price}};
 use crate::state::tradehistory::DirectionType;
 use crate::state::PAGINATION_LIMIT;
-use shadeswap_shared::fadroma::{
-    scrt::{
-        from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg,
-        Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier, QueryRequest,
-        QueryResult, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
-    },
-    scrt_callback::Callback,
-    scrt_link::ContractLink,
-    scrt_uint256::Uint256,
-    scrt_vk::ViewingKey,
-};
+use shadeswap_shared::msg::staking::QueryMsg as StakingQueryMsg;
+use shadeswap_shared::msg::staking::QueryResponse as StakingQueryResponse;
 use shadeswap_shared::msg::staking::HandleMsg as StakingHandleMsg;
 use shadeswap_shared::msg::router::HandleMsg as RouterHandleMsg;
 use shadeswap_shared::msg::staking::InitMsg as StakingInitMsg;
-use composable_snip20::msg::{
+use snip20_reference_impl::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
 

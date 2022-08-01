@@ -1,9 +1,22 @@
-use fadroma::{
-    scrt::{HumanAddr, StdResult, Api, CanonicalAddr},
-    scrt_addr::{Canonize, Humanize},
-    scrt_link::ContractLink,
+use fadroma::core::Humanize;
+use fadroma::core::Canonize;
+use cosmwasm_std::{
+    from_binary,
+    Api,
+    Binary,
+    Extern,
+    HumanAddr,
+    Querier,
+    StdError,
+    StdResult,
+    Storage, Env, HandleResponse, 
+    log,
+    CanonicalAddr
 };
-use crate::{token_pair::TokenPair, custom_fee::Fee};
+use fadroma::core::ContractLink;
+
+use crate::custom_fee::Fee;
+use crate::token_pair::TokenPair;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -14,24 +27,6 @@ pub struct AMMPair<A: Clone> {
     pub pair: TokenPair<A>,
     /// Address of the contract that manages the exchange.
     pub address: A,
-}
-
-impl Canonize<AMMPair<CanonicalAddr>> for AMMPair<HumanAddr> {
-    fn canonize(&self, api: &impl Api) -> StdResult<AMMPair<CanonicalAddr>> {
-        Ok(AMMPair {
-            pair: self.pair.canonize(api)?,
-            address: self.address.canonize(api)?,
-        })
-    }
-}
-
-impl Humanize<AMMPair<HumanAddr>> for AMMPair<CanonicalAddr> {
-    fn humanize(&self, api: &impl Api) -> StdResult<AMMPair<HumanAddr>> {
-        Ok(AMMPair {
-            pair: self.pair.humanize(api)?,
-            address: api.human_address(&self.address)?,
-        })
-    }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
@@ -46,7 +41,7 @@ impl AMMSettings<HumanAddr> {
         Ok(AMMSettings {
             lp_fee: self.lp_fee,
             shade_dao_fee: self.shade_dao_fee,
-            shade_dao_address: self.shade_dao_address.canonize(api)?
+            shade_dao_address: self.shade_dao_address.clone().canonize(api)?
         })
     }
 }

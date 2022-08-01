@@ -1,27 +1,24 @@
+use shadeswap_shared::fadroma::prelude::Env;
+use shadeswap_shared::viewing_keys::ViewingKey;
 use colored::*;
 use rand::{distributions::Alphanumeric, Rng};
 use secretcli::cli_types::StoredContract;
 use secretcli::secretcli::{init, handle, Report};
 use secretcli::{cli_types::NetContract, secretcli::query};
 use serde::Serialize;
-use shadeswap_shared::fadroma::ViewingKey;
 use std::fmt::Display;
 use std::fs;
+use cosmwasm_std::{
+    Binary
+};
 
-use composable_snip20::msg::{
+use shadeswap_shared::snip20_reference_impl::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
 
 use shadeswap_shared::{
-    amm_pair::{AMMPair, AMMSettings},
-    fadroma::{
-        scrt::{
-            from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin,
-            CosmosMsg, Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
-            QueryRequest, QueryResult, StdError, Storage, Uint128, WasmMsg, WasmQuery,
-        },
-        Callback, ContractInstantiationInfo, ContractLink, secret_toolkit::snip20::{Balance, BalanceResponse},
-    },
+    secret_toolkit::snip20::{Balance},
+    amm_pair::{AMMPair, AMMSettings}
 };
 
 use serde_json::Result;
@@ -109,9 +106,7 @@ pub fn init_snip20(
         decimals: decimals,
         initial_balances: None,
         prng_seed: Default::default(),
-        config: config,
-        initial_allowances: None,
-        callback: None,
+        config: config
     };
 
     let s_sToken = init(

@@ -1,8 +1,14 @@
+use shadeswap_shared::custom_fee::Fee;
+use cosmwasm_std::StdResult;
+use shadeswap_shared::viewing_keys::ViewingKey;
+use cosmwasm_std::HumanAddr;
+use cosmwasm_std::Uint128;
 use colored::Colorize;
-use network_integration::utils::{ generate_label, 
-    init_snip20, print_contract, print_header, print_vec, print_warning,
-    ACCOUNT_KEY, STAKER_KEY, SHADE_DAO_KEY, AMM_PAIR_FILE, STAKING_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, 
-    SNIP20_FILE, STORE_GAS, VIEW_KEY,
+use cosmwasm_std::to_binary;
+use network_integration::utils::{
+    generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
+    ACCOUNT_KEY, AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY,
+    SNIP20_FILE, STAKER_KEY, STAKING_FILE, STORE_GAS, VIEW_KEY,
 };
 use std::{time::{SystemTime, UNIX_EPOCH}};
 use secretcli::{
@@ -11,17 +17,8 @@ use secretcli::{
 };
 use serde_json::Result;
 use shadeswap_shared::{
+    secret_toolkit::snip20::{Balance},
     amm_pair::{AMMPair, AMMSettings},
-    fadroma::{
-        scrt::{
-            from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin,
-            CosmosMsg, Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
-            QueryRequest, QueryResult, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
-        },
-        secret_toolkit::snip20::{Balance, BalanceResponse},
-        Callback, ContractInstantiationInfo, ContractLink, ViewingKey,
-    },
-    stake_contract::StakingContractInit,
     msg::{
         amm_pair::{HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, QueryMsgResponse as AMMPairQueryMsgResponse ,
              QueryMsg as AMMPairQueryMsg, InvokeMsg},
@@ -34,21 +31,18 @@ use shadeswap_shared::{
             HandleMsg as RouterHandleMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg, QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse
         },
     },
-    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType, custom_fee::Fee,
+    stake_contract::StakingContractInit,
+    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType, fadroma::prelude::{ContractInstantiationInfo, ContractLink},
 };
-use std::env;
+use std::{
+    env
+};
 
-use composable_snip20::msg::{
+use snip20_reference_impl::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
 
-pub fn get_current_timestamp()-> StdResult<Uint128> {
-    let start = SystemTime::now();
-    let since_the_epoch = start
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
-    Ok(Uint128(since_the_epoch.as_millis()))
-}
+use snip20_reference_impl as snip20;
 
 #[test]
 fn run_testnet() -> Result<()> {
@@ -91,7 +85,7 @@ fn run_testnet() -> Result<()> {
     )?;
 
     {
-        let msg = snip20::HandleMsg::SetViewingKey {
+        let msg = snip20::msg::HandleMsg::SetViewingKey {
             key: String::from(VIEW_KEY),
             padding: None,
         };
@@ -130,7 +124,7 @@ fn run_testnet() -> Result<()> {
 
     print_contract(&s_sREWARDSNIP20);
     {
-        let msg = snip20::HandleMsg::SetViewingKey {
+        let msg = snip20::msg::HandleMsg::SetViewingKey {
             key: String::from(VIEW_KEY),
             padding: None,
         };
@@ -168,7 +162,7 @@ fn run_testnet() -> Result<()> {
     print_contract(&s_sSHD);
 
     {
-        let msg = snip20::HandleMsg::SetViewingKey {
+        let msg = snip20::msg::HandleMsg::SetViewingKey {
             key: String::from(VIEW_KEY),
             padding: None,
         };
@@ -188,7 +182,7 @@ fn run_testnet() -> Result<()> {
     println!("\n\tDepositing 1000000000000uscrt s_sREWARDSNIP20");
 
     {
-        let msg = snip20::HandleMsg::Deposit { padding: None };
+        let msg = snip20::msg::HandleMsg::Deposit { padding: None };
 
         handle(
             &msg,
@@ -211,7 +205,7 @@ fn run_testnet() -> Result<()> {
     println!("\n\tDepositing 1000000000000uscrt sSCRT");
 
     {
-        let msg = snip20::HandleMsg::Deposit { padding: None };
+        let msg = snip20::msg::HandleMsg::Deposit { padding: None };
 
         handle(
             &msg,
@@ -233,7 +227,7 @@ fn run_testnet() -> Result<()> {
     println!("\n\tDepositing 1000000000000uscrt sSHD");
 
     {
-        let msg = snip20::HandleMsg::Deposit { padding: None };
+        let msg = snip20::msg::HandleMsg::Deposit { padding: None };
 
         handle(
             &msg,
@@ -382,7 +376,7 @@ fn run_testnet() -> Result<()> {
 
             print_header("\n\tAdding Liquidity to Pair Contract");
             handle(
-                &snip20::HandleMsg::IncreaseAllowance {
+                &snip20::msg::HandleMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(ammPair.address.0.to_string())),
                     amount: Uint128(10000000000),
                     expiration: None,
@@ -404,7 +398,7 @@ fn run_testnet() -> Result<()> {
             .unwrap();
 
             handle(
-                &snip20::HandleMsg::IncreaseAllowance {
+                &snip20::msg::HandleMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(ammPair.address.0.to_string())),
                     amount: Uint128(10000000000),
                     expiration: None,
@@ -426,7 +420,7 @@ fn run_testnet() -> Result<()> {
             .unwrap();
 
             handle(
-                &snip20::HandleMsg::IncreaseAllowance {
+                &snip20::msg::HandleMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(amm_pair_2.address.0.to_string())),
                     amount: Uint128(10000000000),
                     expiration: None,
@@ -531,7 +525,7 @@ fn run_testnet() -> Result<()> {
                     code_hash: factory_contract.code_hash,
                 },
                 entropy: to_binary(&"".to_string()).unwrap(),
-                viewing_key: Some(ViewingKey::from(VIEW_KEY)),
+                viewing_key: Some(VIEW_KEY.to_string()),
             };
 
             let router_contract = init(
@@ -581,7 +575,7 @@ fn run_testnet() -> Result<()> {
             let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::HandleMsg::Send {
+                &snip20::msg::HandleMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(100),
                     msg: Some(
@@ -593,6 +587,8 @@ fn run_testnet() -> Result<()> {
                         .unwrap(),
                     ),
                     padding: None,
+                    recipient_code_hash: None,
+                    memo: None,
                 },
                 &s_sCRT,
                 ACCOUNT_KEY,
@@ -635,7 +631,7 @@ fn run_testnet() -> Result<()> {
             print_header("\n\t 2 - BUY 50 sSHD Initiating sSCRT to sSHD Swap ");
 
             handle(
-                &snip20::HandleMsg::Send {
+                &snip20::msg::HandleMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(50),
                     msg: Some(
@@ -647,6 +643,8 @@ fn run_testnet() -> Result<()> {
                         .unwrap(),
                     ),
                     padding: None,
+                    recipient_code_hash: None,
+                    memo: None
                 },
                 &s_sCRT,
                 ACCOUNT_KEY,
@@ -689,7 +687,7 @@ fn run_testnet() -> Result<()> {
             let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::HandleMsg::Send {
+                &snip20::msg::HandleMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(2500),
                     msg: Some(
@@ -701,6 +699,8 @@ fn run_testnet() -> Result<()> {
                         .unwrap(),
                     ),
                     padding: None,
+                    recipient_code_hash: None,
+                    memo: None
                 },
                 &s_sSHD,
                 ACCOUNT_KEY,
@@ -743,7 +743,7 @@ fn run_testnet() -> Result<()> {
             let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::HandleMsg::Send {
+                &snip20::msg::HandleMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(36500),
                     msg: Some(
@@ -755,6 +755,8 @@ fn run_testnet() -> Result<()> {
                         .unwrap(),
                     ),
                     padding: None,
+                    recipient_code_hash: None,
+                    memo: None
                 },
                 &s_sSHD,
                 ACCOUNT_KEY,
@@ -797,7 +799,7 @@ fn run_testnet() -> Result<()> {
             let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::HandleMsg::Send {
+                &snip20::msg::HandleMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(25000),
                     msg: Some(
@@ -809,6 +811,8 @@ fn run_testnet() -> Result<()> {
                         .unwrap(),
                     ),
                     padding: None,
+                    recipient_code_hash: None,
+                    memo: None,
                 },
                 &s_sCRT,
                 ACCOUNT_KEY,
@@ -919,7 +923,7 @@ fn run_testnet() -> Result<()> {
             old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
 
             handle(
-                &snip20::HandleMsg::Send {
+                &snip20::msg::HandleMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(100),
                     msg: Some(
@@ -931,6 +935,8 @@ fn run_testnet() -> Result<()> {
                         .unwrap(),
                     ),
                     padding: None,
+                    recipient_code_hash: None,
+                    memo: None,
                 },
                 &s_sSHD,
                 ACCOUNT_KEY,
@@ -1028,7 +1034,7 @@ fn run_testnet() -> Result<()> {
                 println!("\n\tAllowed IncreaseAllowance for reward token - staking contract");  
                 // increase allowance for reward token
                 handle(
-                    &snip20::HandleMsg::IncreaseAllowance {
+                    &snip20::msg::HandleMsg::IncreaseAllowance {
                         spender: staking_contract.address.clone(),
                         amount: Uint128(1000000000000),
                         expiration: None,
@@ -1051,11 +1057,13 @@ fn run_testnet() -> Result<()> {
 
                 // send Reward token to staking contract
                 handle(
-                    &snip20::HandleMsg::Send {
+                    &snip20::msg::HandleMsg::Send {
                         recipient: staking_contract.address.clone(),
                         amount: Uint128(100000000000),
                         msg: None,
                         padding: None,
+                        recipient_code_hash: None,
+                        memo: None,
                     },
                     &s_sREWARDSNIP20,
                     ACCOUNT_KEY,
@@ -1171,7 +1179,7 @@ fn run_testnet() -> Result<()> {
 
                 print_header("\n\tIncreaseAllowance - 500000000 for liqudity ");
                 handle(
-                    &snip20::HandleMsg::IncreaseAllowance {
+                    &snip20::msg::HandleMsg::IncreaseAllowance {
                         spender: HumanAddr(String::from(ammPair.address.0.to_string())),
                         amount: Uint128(500000000),
                         expiration: None,
@@ -1193,7 +1201,7 @@ fn run_testnet() -> Result<()> {
                 .unwrap();
     
                 handle(
-                    &snip20::HandleMsg::IncreaseAllowance {
+                    &snip20::msg::HandleMsg::IncreaseAllowance {
                         spender: HumanAddr(String::from(ammPair.address.0.to_string())),
                         amount: Uint128(500000000),
                         expiration: None,
@@ -1587,7 +1595,7 @@ fn run_test_deploy() -> Result<()> {
                     code_hash: factory_contract.code_hash,
                 },
                 entropy: to_binary(&"".to_string()).unwrap(),
-                viewing_key: Some(ViewingKey::from(VIEW_KEY)),
+                viewing_key: Some(VIEW_KEY.to_string()),
             };
 
             let router_contract = init(
@@ -1612,12 +1620,23 @@ fn run_test_deploy() -> Result<()> {
 }
 
 pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Uint128 {
-    let msg = snip20::QueryMsg::Balance {
+    let msg = snip20::msg::QueryMsg::Balance {
         address: HumanAddr::from(from),
         key: view_key,
     };
 
-    let balance: BalanceResponse = query(contract, &msg, None).unwrap();
+    let balance: snip20::msg::QueryAnswer = query(contract, &msg, None).unwrap();
 
-    balance.balance.amount
+    if let snip20::msg::QueryAnswer::Balance { amount } = balance {
+        return amount;
+    }
+    Uint128::zero()
+}
+
+pub fn get_current_timestamp()-> StdResult<Uint128> {
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+    Ok(Uint128(since_the_epoch.as_millis()))
 }

@@ -1,3 +1,6 @@
+use cosmwasm_std::Uint128;
+use cosmwasm_std::HumanAddr;
+use cosmwasm_std::to_binary;
 use colored::Colorize;
 use network_integration::utils::{
     generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
@@ -10,17 +13,10 @@ use secretcli::{
 };
 
 use serde_json::Result;
+use shadeswap_shared::fadroma::prelude::ContractInstantiationInfo;
 use shadeswap_shared::{
+    secret_toolkit::snip20::{Balance},
     amm_pair::{AMMPair, AMMSettings},
-    fadroma::{
-        scrt::{
-            from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin,
-            CosmosMsg, Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
-            QueryRequest, QueryResult, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
-        },
-        secret_toolkit::snip20::{Balance, BalanceResponse},
-        Callback, ContractInstantiationInfo, ContractLink, ViewingKey,
-    },
     msg::{
         amm_pair::{
             HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
@@ -35,11 +31,11 @@ use shadeswap_shared::{
         },
     },
     stake_contract::StakingContractInit,
-    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType, custom_fee::Fee,
+    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType, fadroma::prelude::ContractLink,
 };
 use std::env;
 
-use composable_snip20::msg::{
+use snip20_reference_impl::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
 

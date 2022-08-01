@@ -69,7 +69,7 @@ Get Claimable Reward for staker.
 |------------|-------------|------------------------------------------|----------|
 |   staker  | HumanAddr |  Address to calculate claimable amount      |   no |
 |   time  | u128 |  Time to use for calculation claimable amount      |   no |
-|   seed  | String |  Seed which user setup for viewing key      |   no |
+|   key  | String |  Key which user setup for viewing key      |   no |
 
 ##### Response
 ```json
@@ -85,7 +85,7 @@ Get  Staker Lp Token Information.
 | Name       | Type        | Description                              | optional |
 |------------|-------------|------------------------------------------|----------|
 |   staker  | HumanAddr |  Address to calculate claimable amount      |   no |
-|   viewing_key  | String |  Seed which user setup for viewing key      |   no |
+|   key  | String |  Key which user setup for viewing key      |   no |
 
 ##### Response
 ```json
@@ -102,7 +102,7 @@ Get Reward Token Balance for staker
 | Name       | Type        | Description                              | optional |
 |------------|-------------|------------------------------------------|----------|
 |   staker  | HumanAddr |  Address to calculate claimable amount      |   no |
-|   viewing_key  | String |  Seed which user setup for viewing key      |   no |
+|   key  | String |  Seed which user setup for viewing key      |   no |
 
 ##### Response
 ```json
@@ -118,7 +118,7 @@ Get Reward Token Balance for staker and total Reward Liquidity
 | Name       | Type        | Description                              | optional |
 |------------|-------------|------------------------------------------|----------|
 |   staker  | HumanAddr |  Address to calculate claimable amount      |   no |
-|   viewing_key  | String |  Seed which user setup for viewing key      |   no |
+|   key  | String |  Seed which user setup for viewing key      |   no |
 
 ##### Response
 ```json
@@ -171,7 +171,7 @@ Set viewing key for staker
 ##### Request
 | Name    | Type      | Description                                   | optional |
 |---------|-----------|-----------------------------------------------|----------|
-| prng_seed | String |  Seed for viewing key          | no       |
+| key | String |  Seed for viewing key          | no       |
 
 
 ##### Response

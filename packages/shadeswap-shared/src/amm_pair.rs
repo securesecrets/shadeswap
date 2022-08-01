@@ -15,6 +15,7 @@ use cosmwasm_std::{
 };
 use fadroma::core::ContractLink;
 
+use crate::custom_fee::Fee;
 use crate::token_pair::TokenPair;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

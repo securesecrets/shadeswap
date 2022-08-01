@@ -17,8 +17,8 @@ pub struct CountResponse {
 }
 
 pub mod router {
+    use super::{amm_pair::SwapResult, *};
     use crate::viewing_keys::ViewingKey;
-use super::*;
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub enum InvokeMsg {
@@ -66,7 +66,10 @@ use super::*;
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        SwapSimulation {offer: TokenAmount<HumanAddr>, path: Vec<HumanAddr>}, 
+        SwapSimulation {
+            offer: TokenAmount<HumanAddr>,
+            path: Vec<HumanAddr>,
+        },
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -77,16 +80,18 @@ use super::*;
             lp_fee_amount: Uint128,
             shade_dao_fee_amount: Uint128,
             result: SwapResult,
-            price: String
-        }
-    }   
-    
+            price: String,
+        },
+    }
 }
 
 pub mod amm_pair {
     use super::*;
     use crate::{
-        amm_pair::AMMSettings, stake_contract::StakingContractInit, Pagination, TokenPair,
+        amm_pair::AMMSettings,
+        custom_fee::{CustomFee, Fee},
+        stake_contract::StakingContractInit,
+        Pagination, TokenPair,
     };
     use cosmwasm_std::Decimal;
     use fadroma::prelude::{Callback, ContractInstantiationInfo};
@@ -101,12 +106,11 @@ pub mod amm_pair {
         pub result: SwapResult,
         pub price: String,
     }
-    
-    #[derive(Serialize, Deserialize,  PartialEq, Clone, Debug, JsonSchema)]
+
+    #[derive(Serialize, Deserialize, PartialEq, Clone, Debug, JsonSchema)]
     pub struct SwapResult {
         pub return_amount: Uint128,
-    } 
-    
+    }
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
     pub struct TradeHistory {
         pub price: String,
@@ -118,7 +122,7 @@ pub mod amm_pair {
         pub lp_fee_amount: Uint128,
         pub shade_dao_fee_amount: Uint128,
         pub height: u64,
-        pub trader: String
+        pub trader: String,
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
@@ -130,7 +134,7 @@ pub mod amm_pair {
         pub entropy: Binary,
         pub admin: Option<HumanAddr>,
         pub staking_contract: Option<StakingContractInit>,
-        pub custom_fee: Option<CustomFee>
+        pub custom_fee: Option<CustomFee>,
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -168,9 +172,10 @@ pub mod amm_pair {
         SetStakingContract {
             contract: ContractLink<HumanAddr>,
         },
-        SetStakingContract { contract: ContractLink<HumanAddr> },
-        SetCustomPairFee{ shade_dao_fee: Fee, lp_fee: Fee}        
-
+        SetCustomPairFee {
+            shade_dao_fee: Fee,
+            lp_fee: Fee,
+        },
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -187,16 +192,23 @@ pub mod amm_pair {
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
-    pub enum QueryMsg {       
+    pub enum QueryMsg {
         GetPairInfo {},
-        GetTradeHistory { pagination: Pagination },
+        GetTradeHistory {
+            pagination: Pagination,
+        },
         GetWhiteListAddress {},
         GetTradeCount {},
         GetAdmin {},
         GetStakingContract {},
-        GetEstimatedPrice { offer: TokenAmount<HumanAddr>, exclude_fee: Option<bool>},
-        SwapSimulation{ offer: TokenAmount<HumanAddr> },
-        GetShadeDaoInfo{},
+        GetEstimatedPrice {
+            offer: TokenAmount<HumanAddr>,
+            exclude_fee: Option<bool>,
+        },
+        SwapSimulation {
+            offer: TokenAmount<HumanAddr>,
+        },
+        GetShadeDaoInfo {},
         GetEstimatedLiquidity {
             deposit: TokenPairAmount<HumanAddr>,
             slippage: Option<Decimal>,
@@ -214,7 +226,7 @@ pub mod amm_pair {
             amount_1: Uint128,
             total_liquidity: Uint128,
             contract_version: u32,
-        },        
+        },
         GetTradeHistory {
             data: Vec<TradeHistory>,
         },
@@ -228,31 +240,31 @@ pub mod amm_pair {
             address: HumanAddr,
         },
         GetClaimReward {
-            amount: Uint128
+            amount: Uint128,
         },
         StakingContractInfo {
             staking_contract: ContractLink<HumanAddr>,
         },
         EstimatedPrice {
-            estimated_price: String
+            estimated_price: String,
         },
         SwapSimulation {
             total_fee_amount: Uint128,
             lp_fee_amount: Uint128,
             shade_dao_fee_amount: Uint128,
             result: SwapResult,
-            price: String
+            price: String,
         },
-        ShadeDAOInfo{
+        ShadeDAOInfo {
             shade_dao_address: HumanAddr,
             shade_dao_fee: Fee,
             lp_fee: Fee,
-            admin_address: HumanAddr
+            admin_address: HumanAddr,
         },
         EstimatedLiquidity {
             lp_token: Uint128,
             total_lp_token: Uint128,
-        }
+        },
     }
 }
 
@@ -264,9 +276,6 @@ pub mod factory {
     use fadroma::prelude::ContractInstantiationInfo;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
-    use crate::amm_pair::{{AMMPair}};
-    use crate::stake_contract::StakingContractInit;
-    use super::*;
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
@@ -297,11 +306,11 @@ pub mod factory {
             signature: Binary,
         },
         SetFactoryAdmin {
-            admin: HumanAddr
-        }, 
+            admin: HumanAddr,
+        },
         SetShadeDAOAddress {
-            shade_dao_address: ContractLink<HumanAddr>
-        }
+            shade_dao_address: ContractLink<HumanAddr>,
+        },
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -342,8 +351,6 @@ pub mod staking {
     use super::*;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
-    use fadroma::ViewingKey;
-    
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub staking_amount: Uint128,
@@ -377,33 +384,46 @@ pub mod staking {
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
-    pub enum QueryMsg {        
-        GetClaimReward {staker: HumanAddr, seed: String, time: Uint128},
+    pub enum QueryMsg {
+        GetClaimReward {
+            staker: HumanAddr,
+            seed: String,
+            time: Uint128,
+        },
         GetContractOwner {},
-        GetStakerLpTokenInfo{seed: String, staker: HumanAddr},
-        GetRewardTokenBalance {viewing_key: String, address: HumanAddr},
-        GetStakerRewardTokenBalance {viewing_key: String, staker: HumanAddr},
+        GetStakerLpTokenInfo {
+            seed: String,
+            staker: HumanAddr,
+        },
+        GetRewardTokenBalance {
+            viewing_key: String,
+            address: HumanAddr,
+        },
+        GetStakerRewardTokenBalance {
+            viewing_key: String,
+            staker: HumanAddr,
+        },
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
-    pub enum QueryResponse {     
+    pub enum QueryResponse {
         ClaimReward {
-            amount: Uint128
+            amount: Uint128,
         },
         ContractOwner {
-            address: HumanAddr
+            address: HumanAddr,
         },
-        StakerLpTokenInfo{
+        StakerLpTokenInfo {
             staked_lp_token: Uint128,
-            total_staked_lp_token: Uint128
+            total_staked_lp_token: Uint128,
         },
-        RewardTokenBalance{
+        RewardTokenBalance {
             amount: Uint128,
         },
         StakerRewardTokenBalance {
             reward_amount: Uint128,
-            total_reward_liquidity: Uint128
-        }
+            total_reward_liquidity: Uint128,
+        },
     }
 }

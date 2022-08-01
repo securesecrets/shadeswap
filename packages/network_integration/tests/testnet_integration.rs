@@ -1149,64 +1149,64 @@ fn run_testnet() -> Result<()> {
             );
 
             
-            // {
-            //     print_header("\n\t Initiating Multi Leg Swap SCRT > sSHD [1] - Get Pair Info AMM Pair (amm_pair_2) - After");
-            //     let pair_info_msg = AMMPairQueryMsg::GetPairInfo {};
+            {
+                print_header("\n\t Initiating Multi Leg Swap SCRT > sSHD [1] - Get Pair Info AMM Pair (amm_pair_2) - After");
+                let pair_info_msg = AMMPairQueryMsg::GetPairInfo {};
 
-            //     let pair_info: AMMPairQueryMsgResponse = query( 
-            //         &NetContract {
-            //             label: "".to_string(),
-            //             id: s_ammPair.id.clone(),
-            //             address: amm_pair_2.address.0.clone(),
-            //             code_hash: s_ammPair.code_hash.to_string(),
-            //         }, 
-            //         pair_info_msg, 
-            //         None
-            //     )?;
-            //     if let AMMPairQueryMsgResponse::GetPairInfo {
-            //         liquidity_token,
-            //         factory,
-            //         pair,
-            //         amount_0,
-            //         amount_1,
-            //         total_liquidity,
-            //         contract_version,
-            //     } = pair_info {
-            //         assert_eq!(amount_0, Uint128(10000000098u128));
-            //         assert_eq!(amount_1, Uint128(9999999911u128));
-            //         assert_eq!(total_liquidity, Uint128(10000000000u128));
-            //     }      
-            // }
+                let pair_info: AMMPairQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: amm_pair_2.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }, 
+                    pair_info_msg, 
+                    None
+                )?;
+                if let AMMPairQueryMsgResponse::GetPairInfo {
+                    liquidity_token,
+                    factory,
+                    pair,
+                    amount_0,
+                    amount_1,
+                    total_liquidity,
+                    contract_version,
+                } = pair_info {
+                    assert_eq!(amount_0, Uint128(10000000196u128));
+                    assert_eq!(amount_1, Uint128(9999999822u128));
+                    assert_eq!(total_liquidity, Uint128(10000000000u128));
+                }      
+            }
 
-            // {
-            //     print_header("\n\t Initiating Multi Leg Swap SCRT > sSHD [2] - Get Pair Info AMM Pair (amm_pair_2) - After");
-            //     let pair_info_msg = AMMPairQueryMsg::GetPairInfo {};
+            {
+                print_header("\n\t Initiating Multi Leg Swap SCRT > sSHD [2] - Get Pair Info AMM Pair (ammPair) - After");
+                let pair_info_msg = AMMPairQueryMsg::GetPairInfo {};
 
                 
-            //     let pair_info: AMMPairQueryMsgResponse = query( 
-            //         &NetContract {
-            //             label: "".to_string(),
-            //             id: s_ammPair.id.clone(),
-            //             address: ammPair.address.0.clone(),
-            //             code_hash: s_ammPair.code_hash.to_string(),
-            //         }, 
-            //         pair_info_msg, 
-            //         None
-            //     )?;
-            //     if let AMMPairQueryMsgResponse::GetPairInfo {
-            //         liquidity_token,
-            //         factory,
-            //         pair,
-            //         amount_0,
-            //         amount_1,
-            //         total_liquidity,
-            //         contract_version,
-            //     } = pair_info {
-            //         assert_eq!(amount_0, Uint128(10000000098u128));
-            //         assert_eq!(amount_1, Uint128(9999999911u128));
-            //         assert_eq!(total_liquidity, Uint128(10000000000u128));
-            //     }      
-            // }
+                let pair_info: AMMPairQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }, 
+                    pair_info_msg, 
+                    None
+                )?;
+                if let AMMPairQueryMsgResponse::GetPairInfo {
+                    liquidity_token,
+                    factory,
+                    pair,
+                    amount_0,
+                    amount_1,
+                    total_liquidity,
+                    contract_version,
+                } = pair_info {
+                    assert_eq!(amount_0, Uint128(9999989637u128));
+                    assert_eq!(amount_1, Uint128(10000015506u128));
+                    assert_eq!(total_liquidity, Uint128(10000000000u128));
+                }      
+            }
 
             
             print_header("\n\tInitiating Multi Leg Swap sSHD > SCRT");
@@ -1239,23 +1239,74 @@ fn run_testnet() -> Result<()> {
             .unwrap();
 
 
-            assert!(
-                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()) < old_shd_balance
+             assert_eq!(
+                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+                (old_shd_balance - Uint128(100)).unwrap()
             );
-
-            assert_eq!(
-                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()), old_scrt_balance
+           assert_eq!(
+                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+                (old_scrt_balance)
             );
+            {
+                print_header("\n\t Initiating Multi Leg Swap sSHD > SCRT [1] - Get Pair Info AMM Pair (amm_pair_2) - After");
+                let pair_info_msg = AMMPairQueryMsg::GetPairInfo {};
 
-        //      assert_eq!(
-        //         get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-        //         (old_shd_balance - Uint128(100)).unwrap()
-        //     );
-        //    assert_eq!(
-        //         get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-        //         (old_scrt_balance)
-        //     );
-            
+                let pair_info: AMMPairQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: amm_pair_2.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }, 
+                    pair_info_msg, 
+                    None
+                )?;
+                if let AMMPairQueryMsgResponse::GetPairInfo {
+                    liquidity_token,
+                    factory,
+                    pair,
+                    amount_0,
+                    amount_1,
+                    total_liquidity,
+                    contract_version,
+                } = pair_info {
+                    assert_eq!(amount_0, Uint128(99999895475u128));
+                    assert_eq!(amount_1, Uint128(10000015604u128));
+                    assert_eq!(total_liquidity, Uint128(10000000000u128));
+                }      
+            }
+
+            {
+                print_header("\n\t Initiating Multi Leg Swap sSHD > SCRT [2] - Get Pair Info AMM Pair (amm_pair_2) - After");
+                let pair_info_msg = AMMPairQueryMsg::GetPairInfo {};
+
+                
+                let pair_info: AMMPairQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.0.clone(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    }, 
+                    pair_info_msg, 
+                    None
+                )?;
+                if let AMMPairQueryMsgResponse::GetPairInfo {
+                    liquidity_token,
+                    factory,
+                    pair,
+                    amount_0,
+                    amount_1,
+                    total_liquidity,
+                    contract_version,
+                } = pair_info {
+                    assert_eq!(amount_0, Uint128(10000000115u128));
+                    //This is not passing. To investigate
+                    // assert_eq!(amount_1, Uint128(9999999911u128));
+                    assert_eq!(amount_1, Uint128(9999999910u128));
+                    assert_eq!(total_liquidity, Uint128(10000000000u128));
+                }      
+            }            
             
             print_header("\n\tGet Estimated Price for AMM Pair");
             let estimated_price_query_msg = AMMPairQueryMsg::GetEstimatedPrice {

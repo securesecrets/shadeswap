@@ -185,12 +185,12 @@ pub mod amm_pair {
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {       
-        GetPairInfo,
+        GetPairInfo {},
         GetTradeHistory { pagination: Pagination },
-        GetWhiteListAddress,
-        GetTradeCount,
-        GetAdmin,
-        GetStakingContract,
+        GetWhiteListAddress {},
+        GetTradeCount {},
+        GetAdmin {},
+        GetStakingContract {},
         GetEstimatedPrice { offer: TokenAmount<HumanAddr>, exclude_fee: Option<bool>},
         SwapSimulation{ offer: TokenAmount<HumanAddr> },
         GetShadeDaoInfo{},
@@ -199,12 +199,6 @@ pub mod amm_pair {
             slippage: Option<Decimal>,
         },
     }
-
-    /*
-    impl Query for QueryMsg {
-        const BLOCK_SIZE: usize = 256;
-    }
-    */
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
@@ -217,7 +211,7 @@ pub mod amm_pair {
             amount_1: Uint128,
             total_liquidity: Uint128,
             contract_version: u32,
-        },      
+        },        
         GetTradeHistory {
             data: Vec<TradeHistory>,
         },
@@ -332,9 +326,9 @@ pub mod factory {
         // GetCount returns the current count as a json-encoded number
         ListAMMPairs { pagination: Pagination },
         GetAMMPairAddress { pair: TokenPair<HumanAddr> },
-        GetAMMSettings,
-        GetConfig,
-        GetAdmin
+        GetAMMSettings {},
+        GetConfig {},
+        GetAdmin {}
     }
 }
 
@@ -383,8 +377,7 @@ pub mod staking {
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
-    pub enum QueryMsg {
-        // GetStakers {},
+    pub enum QueryMsg {        
         GetClaimReward {staker: HumanAddr, seed: String, time: Uint128},
         GetContractOwner {},
         GetStakerLpTokenInfo{seed: String, staker: HumanAddr},
@@ -394,10 +387,7 @@ pub mod staking {
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
-    pub enum QueryResponse {
-        Stakers {
-            stakers: Vec<HumanAddr>
-        },
+    pub enum QueryResponse {     
         ClaimReward {
             amount: Uint128
         },

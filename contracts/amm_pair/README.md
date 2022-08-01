@@ -6,7 +6,8 @@
         * Messages
             * [AddWhiteListAddress](#AddWhiteListAddress)
             * [RemoveWhitelistAddresses](#RemoveWhitelistAddresses)   
-            * [SetAMMPairAdmin](#SetAMMPairAdmin)                     
+            * [SetAMMPairAdmin](#SetAMMPairAdmin)     
+            * [SetCustomPairFee](#SetCustomPairFee)                
     * [User](#User)
         * Messages       
             * [SwapTokens](#SwapTokens)
@@ -16,16 +17,21 @@
             * [GetTradeHistory](#GetTradeHistory)   
             * [GetAdmin](#GetAdmin)  
             * [GetWhiteListAddress](#GetWhiteListAddress)  
-            * [GetTradeCount](#GetTradeCount)  
-            * [GetClaimReward](#GetClaimReward)  
+            * [GetTradeCount](#GetTradeCount)             
             * [GetStakingContract](#GetStakingContract)  
+            * [GetEstimatedPrice](#GetEstimatedPrice)
+            * [SwapSimulation](#SwapSimulation)
+            * [GetShadeDaoInfo] (#GetShadeDaoInfo)
+            * [GetEstimatedLiquidity](#GetEstimatedLiquidity)
     * [Hooks]
         * Messages
             * [Receive](#Receive)
             * [OnLpTokenInitAddr](#OnLpTokenInitAddr)
+            * [SetStakingContract](#SetStakingContract)
     * [Invoke]
         * Messages
             * [SwapTokens](#SwapTokens)
+            * [RemoveLiquidity](#RemoveLiquidity)
     * [Callback]
         * Messages
             * [Callback](#Callback)
@@ -79,6 +85,24 @@ Address to remove from whitelist.
 | Name    | Type      | Description                                   | optional |
 |---------|-----------|-----------------------------------------------|----------|
 | address | HumanAddr | The address to remove from whitelist          | no       |
+
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+
+#### SetCustomPairFee
+Set Custom Pair Fee to be used in SwapTokens.
+
+##### Request
+| Name    | Type      | Description                                   | optional |
+|---------|-----------|-----------------------------------------------|----------|
+| shade_dao_fee | Fee | Shade Dao Fee          | no       |
+| lp_fee | Fee | LP Fee | no |
 
 ##### Response
 ```json
@@ -200,20 +224,75 @@ Get Admin Address of AMMPair Contract.
 ```
 
 
-#### GetClaimReward
+#### GetEstimatedPrice
 Get Claimable Reward Amount for staking.
 
 ##### Request
 | Name       | Type        | Description                              | optional |
 |------------|-------------|------------------------------------------|----------|
-|  staker    | HumanAddr   | staker's address                         |    no    |
-|  time      | HumanAddr   | current utc time in miliseconds          |    no    |
+|  offer    | TokenAmount   | Token Amount                     |    no    |
+|  exclude_fee      | bool   | exclude fee from price         |    yes    |
 
 
 ##### Response
 ```json
 {
-  "amount": "Claimable Reward Amount",
+  "estimated_price": "String",
+}
+```
+
+#### SwapSimulation
+Swap simulation of token.
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+|  offer    | TokenAmount   | Token Amount                     |    no    |
+
+##### Response
+```json
+{
+  "total_fee_amount": "Uint128",
+  "lp_fee_amount": "Uint128",
+  "shade_dao_fee_amount": "Uint128",
+  "result": "SwapResult",
+  "price": "String"
+}
+```
+
+#### GetShadeDaoInfo
+Get Shade Dao Information.
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+|      |    |                       |        |
+
+##### Response
+```json
+{
+  "total_fee_amshade_dao_addressount": "HumanAddr",
+  "shade_dao_fee": "Fee",
+  "lp_fee": "Fee",
+  "lp_fee": "SwapResult",
+  "admin_address": "HumanAddr"
+}
+```
+
+#### GetEstimatedLiquidity
+Get Estimated Liquidity.
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+|  deposit    |  TokenPairAmount    |     Token Pair to deposit                  |     no   |
+|  slippage    |  Decimal    |     Slippage %                   |     yes   |
+
+##### Response
+```json
+{
+  "lp_token": "Uint128",
+  "total_lp_token": "Uint128",
 }
 ```
 
@@ -307,7 +386,8 @@ Remove liquidity for address and remove from staking if applicable.
 
 | Name      | Type        | Description                             | optional |
 |-----------|----------------|--------------------------------------|----------|
-| recipient | HumanAddr | address to remove liquidity             | no      |
+| from | HumanAddr | address to remove liquidity             | yes      |
+
 ##### Response
 ```json
 {

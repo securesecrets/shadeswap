@@ -4,6 +4,7 @@ use network_integration::utils::{ generate_label,
     ACCOUNT_KEY, STAKER_KEY, SHADE_DAO_KEY, AMM_PAIR_FILE, STAKING_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, 
     SNIP20_FILE, STORE_GAS, VIEW_KEY,
 };
+use std::{time::{SystemTime, UNIX_EPOCH}};
 use secretcli::{
     cli_types::NetContract,
     secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
@@ -40,6 +41,14 @@ use std::env;
 use composable_snip20::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
+
+pub fn get_current_timestamp()-> StdResult<Uint128> {
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+    Ok(Uint128(since_the_epoch.as_millis()))
+}
 
 #[test]
 fn run_testnet() -> Result<()> {
@@ -1655,31 +1664,31 @@ fn run_testnet() -> Result<()> {
                 )
                 .unwrap();  
                 
-                // print_header("\n\tGet Claimamble Rewards ");                
-                // let get_claims_reward_msg = StakingQueryMsg::GetClaimReward {
-                //     staker: HumanAddr::from(account.to_string()), 
-                //     seed: "password".to_string(),
-                //     time: Uint128(1658868582000 as u128), 
-                // };   
-                // let claims_reward_response: StakingQueryMsgResponse = query( 
-                //     &NetContract {
-                //         label: "".to_string(),
-                //         id: "".to_string(),
-                //         address: staking_contract.address.to_string(),
-                //         code_hash: staking_contract.code_hash.to_string(),
-                //     }, 
-                //     get_claims_reward_msg, 
-                //     None
-                // )?;
+                print_header("\n\tGet Claimamble Rewards ");                
+                let get_claims_reward_msg = StakingQueryMsg::GetClaimReward {
+                    staker: HumanAddr::from(account.to_string()), 
+                    seed: "password".to_string(),
+                    time: get_current_timestamp().unwrap(), 
+                };   
+                let claims_reward_response: StakingQueryMsgResponse = query( 
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    }, 
+                    get_claims_reward_msg, 
+                    None
+                )?;
                 
-                // if let StakingQueryMsgResponse::ClaimReward { 
-                //         amount
-                // } = claims_reward_response {                  
-                //     assert_ne!(
-                //         amount,
-                //         Uint128(0)
-                //     );
-                // }    
+                if let StakingQueryMsgResponse::ClaimReward { 
+                        amount
+                } = claims_reward_response {                  
+                    assert_ne!(
+                        amount,
+                        Uint128(0)
+                    );
+                }    
 
                 print_header("\n\tGet Estimated LP Token & Total LP Token Liquditiy");
                 let get_estimated_lp_token = AMMPairQueryMsg::GetEstimatedLiquidity {

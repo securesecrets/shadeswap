@@ -278,9 +278,7 @@ pub fn set_custom_fee<S: Storage, A: Api, Q: Querier>(
     lp_fee: Fee
 ) -> StdResult<HandleResponse> {
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
-
     let mut config = load_config(&deps)?;
-
     config.custom_fee = Some(CustomFee{ 
         shade_dao_fee: shade_dao_fee.clone(),
         lp_fee: lp_fee.clone()
@@ -455,7 +453,7 @@ pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {
-        QueryMsg::GetPairInfo => {
+        QueryMsg::GetPairInfo {} => {
             let config = load_config(deps)?;
             let balances = config.pair.query_balances(
                 &deps.querier,
@@ -473,7 +471,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 contract_version: AMM_PAIR_CONTRACT_VERSION,
             })
         }       
-        QueryMsg::GetTradeHistory { pagination } => {
+        QueryMsg::GetTradeHistory  { pagination } => {
             let data = load_trade_history_query(&deps, pagination)?;
             to_binary(&QueryMsgResponse::GetTradeHistory { data })
         },
@@ -483,17 +481,17 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
                 address: admin_address
             })
         },
-        QueryMsg::GetWhiteListAddress => {
+        QueryMsg::GetWhiteListAddress {} => {
             let stored_addr = load_whitelist_address(&deps.storage)?;
             to_binary(&QueryMsgResponse::GetWhiteListAddress {
                 addresses: stored_addr,
             })
         }
-        QueryMsg::GetTradeCount => {
+        QueryMsg::GetTradeCount{} => {
             let count = load_trade_counter(&deps.storage)?;
             to_binary(&QueryMsgResponse::GetTradeCount { count })
         },
-        QueryMsg::GetStakingContract => {
+        QueryMsg::GetStakingContract {} => {
             let staking_contract = load_staking_contract(&deps)?;
             to_binary(&QueryMsgResponse::StakingContractInfo{
                 staking_contract: staking_contract
@@ -673,9 +671,7 @@ pub fn calculate_swap_result(
         else{
             lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
             shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), shade_dao_fee)?;
-        }        
-        lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
-        shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), shade_dao_fee)?;
+        }      
     }
     // total fee
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
@@ -812,7 +808,7 @@ pub fn calculate_price(
     Ok(((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?)
 }
 
-fn add_liquidity<S: Storage, A: Api, Q: Querier>(
+pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     deposit: TokenPairAmount<HumanAddr>,
@@ -871,6 +867,7 @@ fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         &pool_balances,
     )?;
 
+    println!("{:?}", lp_token_info.address.clone());
     let pair_contract_pool_liquidity =
         query_liquidity_pair_contract(&deps.querier, &lp_token_info)?;
     let mut lp_tokens: u128 = u128::MIN;

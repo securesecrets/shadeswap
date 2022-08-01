@@ -371,11 +371,10 @@ fn get_staking_stake_lp_token_info<S: Storage, A: Api, Q: Querier>(
 
     let staker_info = load_staker_info(&deps, staker.clone())?;
     let staker_vk = load_staker_vk(&deps, staker.clone())?;   
-    let viewing_key = ViewingKey(key.clone());  
-    if viewing_key.check_viewing_key(staker_vk.as_slice()) {
+    let viewing_key = ViewingKey(key.clone()); 
+    if  viewing_key.check_viewing_key(&staker_vk) != true{
         return Err(StdError::unauthorized());
-    }
-
+    } 
     let response_msg = QueryResponse::StakerLpTokenInfo { 
         staked_lp_token: staker_info.amount, 
         total_staked_lp_token: get_total_staking_amount(deps)?,

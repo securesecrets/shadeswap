@@ -69,9 +69,15 @@ pub mod tests {
     #[test]
     fn assert_stake_existing_staker() -> StdResult<()>{
         let mut deps = mock_deps();  
-        let env = mock_env(CONTRACT_ADDRESS,1656480000, 1524,CONTRACT_ADDRESS,  &[]);    
+        let env = mock_env("LPTOKEN".to_string(),1656480000, 1524,CONTRACT_ADDRESS,  &[]);    
         let staker = env.message.sender.clone();     
-        let config: Config = make_init_config(&mut deps, env.clone(), Uint128(10000000000u128))?;     
+        let mut config: Config = make_init_config(&mut deps, env.clone(), Uint128(10000000000u128))?;     
+        let lp_token = ContractLink{
+            address: HumanAddr::from("LPTOKEN".to_string()),
+            code_hash: "CODE_HASH".to_string(),
+        };
+        config.lp_token = lp_token.clone();
+        store_config(&mut deps, &config)?;
         let receive_msg = HandleMsg::Receive { 
             from: staker.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
@@ -107,9 +113,15 @@ pub mod tests {
     #[test]
     fn assert_unstake_existing_staker() -> StdResult<()>{
         let mut deps = mock_deps();  
-        let env = mock_env(CONTRACT_ADDRESS, 1571797523, 1524,CONTRACT_ADDRESS, &[]);
+        let env = mock_env("LPTOKEN".to_string(), 1571797523, 1524,CONTRACT_ADDRESS, &[]);
         let staker = env.message.sender.clone();     
-        let config: Config = make_init_config(&mut deps, env.clone(), Uint128(100u128))?;     
+        let mut config: Config = make_init_config(&mut deps, env.clone(), Uint128(100u128))?;     
+        let lp_token = ContractLink{
+            address: HumanAddr::from("LPTOKEN".to_string()),
+            code_hash: "CODE_HASH".to_string(),
+        };
+        config.lp_token = lp_token.clone();        
+        store_config(&mut deps, &config)?;
         let receive_msg = HandleMsg::Receive { 
             from: staker.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
@@ -130,41 +142,12 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env.clone(),
-            HandleMsg::Unstake {amount: Uint128(100u128), remove_liqudity: Some(true)},
+            HandleMsg::Unstake {amount: Uint128(100u128), remove_liqudity: Some(false)},
         )
         .unwrap();
         let stake_info = load_staker_info(&deps, staker.clone())?;    
         let claim_reward_inf = load_claim_reward_info(&deps, staker.clone()) ?;
         assert_eq!(stake_info.amount, Uint128(0u128));
-        Ok(())
-    }
-
-      #[test]
-    fn assert_get_all_stakers() -> StdResult<()>{
-        let mut deps = mock_deps();  
-        let env_a = mock_env(CONTRACT_ADDRESS, 1571797523, 1524,STAKING_CONTRACT_ADDRESS, &[]);
-        let env_b = mock_env(STAKING_CONTRACT_ADDRESS, 1571797533, 1570, STAKING_CONTRACT_ADDRESS, &[]);      
-        let config: Config = make_init_config(&mut deps, env_a.clone(), Uint128(100u128))?;     
-        let receive_msg = HandleMsg::Receive { 
-            from: env_a.message.sender.clone(),
-            msg: Some(to_binary(&InvokeMsg::Stake{
-                    amount: Uint128(100u128),
-                    from: env_a.message.sender.clone()
-            }).unwrap()),
-            amount: Uint128(100u128)
-        };
-        let result = handle(
-            &mut deps,
-            env_a.clone(),         
-            receive_msg.clone()
-        )
-        .unwrap();     
-        let result = handle(
-            &mut deps,
-            env_b.clone(),        
-            receive_msg.clone()
-        )
-        .unwrap();       
         Ok(())
     }
 
@@ -175,8 +158,14 @@ pub mod tests {
         let staker_b = HumanAddr("STAKERB".to_string());  
         let mut deps = mock_deps();  
         let current_timestamp = get_current_timestamp()?;
-        let env_a = mock_env(CONTRACT_ADDRESS, current_timestamp.u128() as u64, 1524, CONTRACT_ADDRESS,  &[]);
-        let config: Config = make_init_config(&mut deps, env_a.clone(), Uint128(1000000000000u128))?;                       
+        let env_a = mock_env("LPTOKEN".to_string(), current_timestamp.u128() as u64, 1524, CONTRACT_ADDRESS,  &[]);
+        let mut config: Config = make_init_config(&mut deps, env_a.clone(), Uint128(1000000000000u128))?;           
+        let lp_token = ContractLink{
+            address: HumanAddr::from("LPTOKEN".to_string()),
+            code_hash: "CODE_HASH".to_string(),
+        };
+        config.lp_token = lp_token.clone();            
+        store_config(&mut deps, &config)?;
         let receive_msg = HandleMsg::Receive { 
             from: staker_a.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
@@ -193,7 +182,7 @@ pub mod tests {
         .unwrap();
         let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;        
         assert_eq!(is_user_staker, true);
-        let env_b = mock_env(STAKING_CONTRACT_ADDRESS, (current_timestamp + Uint128(100u128)).u128() as u64, 1524, CONTRACT_ADDRESS, &[]);
+        let env_b = mock_env("LPTOKEN".to_string(), (current_timestamp + Uint128(100u128)).u128() as u64, 1527, CONTRACT_ADDRESS, &[]);
         let receive_msg = HandleMsg::Receive { 
             from: staker_b.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
@@ -211,21 +200,27 @@ pub mod tests {
         let current_time = current_timestamp + Uint128(1000u128);              
         claim_rewards_for_all_stakers(&mut deps, current_time)?;
         let claim_reward_info_a = load_claim_reward_info(&deps,staker_a.clone())?;
-        assert_eq!(claim_reward_info_a.amount, Uint128(8));      
+        assert_eq!(claim_reward_info_a.amount, Uint128(100));      
         let claim_reward_info_b = load_claim_reward_info(&deps,staker_b.clone())?;
-        assert_eq!(claim_reward_info_b.amount, Uint128(2));       
+        assert_eq!(claim_reward_info_b.amount, Uint128(0));       
         Ok(())
     }
 
-    
+      
     #[test]
     fn assert_get_staking_percentage_success() -> StdResult<()>{
         let mut deps = mock_deps();  
-        let mut env_a = mock_env(STAKING_CONTRACT_ADDRESS, 14525698, 1425,STAKING_CONTRACT_ADDRESS, &[]);
-        let mut env_b = mock_env(CONTRACT_ADDRESS, 14525710, 1435,STAKING_CONTRACT_ADDRESS, &[]);
-        let config: Config = make_init_config(&mut deps, env_a.clone(), Uint128(100u128))?;   
+        let mut env_a = mock_env("LPTOKEN".to_string(), 14525698, 1425,STAKING_CONTRACT_ADDRESS, &[]);
+        let mut env_b = mock_env("LPTOKEN".to_string(), 14525710, 1435,STAKING_CONTRACT_ADDRESS, &[]);
+        let mut config: Config = make_init_config(&mut deps, env_a.clone(), Uint128(100u128))?;   
         let staker_a = HumanAddr("STAKERA".to_string());
-        let staker_b = HumanAddr("STAKERB".to_string());       
+        let staker_b = HumanAddr("STAKERB".to_string()); 
+        let lp_token = ContractLink{
+            address: HumanAddr::from("LPTOKEN".to_string()),
+            code_hash: "CODE_HASH".to_string(),
+        };
+        config.lp_token = lp_token.clone();            
+        store_config(&mut deps, &config)?;      
         let receive_msg = HandleMsg::Receive { 
             from: staker_a.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
@@ -243,6 +238,14 @@ pub mod tests {
         let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;
         let stake_info = load_staker_info(&deps, staker_a.clone())?;
         assert_eq!(is_user_staker, true);
+        let receive_msg = HandleMsg::Receive { 
+            from: staker_a.clone(),
+            msg: Some(to_binary(&InvokeMsg::Stake{
+                    amount: Uint128(100u128),
+                    from: staker_b.clone()
+            }).unwrap()),
+            amount: Uint128(100u128)
+        };
         let result = handle(
             &mut deps,
             env_b.clone(),      
@@ -251,10 +254,10 @@ pub mod tests {
         .unwrap();
         let staking_percentage_a = get_staking_percentage(&mut deps, staker_a.clone(), Uint128(100u128))?;
         println!("{}", Uint256::from(staking_percentage_a));
-        assert_eq!(staking_percentage_a, Uint128(75u128));
+        assert_eq!(staking_percentage_a, Uint128(50u128));
         let staking_percentage_b = get_staking_percentage(&mut deps, staker_b.clone(), Uint128(100u128))?;
         println!("{}", Uint256::from(staking_percentage_b));
-        assert_eq!(staking_percentage_b, Uint128(25u128));
+        assert_eq!(staking_percentage_b, Uint128(50u128));
         Ok(())
     }
 

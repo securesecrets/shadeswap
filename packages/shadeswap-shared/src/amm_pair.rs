@@ -55,14 +55,3 @@ impl AMMSettings<CanonicalAddr> {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, PartialEq, Clone, Copy, Debug)]
-pub struct Fee {
-    pub nom: u8,
-    pub denom: u16,
-}
-
-impl Fee {
-    pub fn new(nom: u8, denom: u16) -> Self {
-        Self { nom, denom }
-    }
-}

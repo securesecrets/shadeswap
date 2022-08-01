@@ -1,6 +1,4 @@
-
-use shadeswap_shared::amm_pair::Fee;
-use shadeswap_shared::amm_pair::AMMSettings;
+use shadeswap_shared::{amm_pair::AMMSettings, custom_fee::Fee};
 use shadeswap_shared::msg::factory::InitMsg;
 pub use shadeswap_shared::{
     fadroma::{
@@ -33,6 +31,7 @@ use super::*;
     use crate::contract::init;
     use crate::state::config_read;
     use crate::state::config_write;
+    use shadeswap_shared::admin::store_admin;
     use shadeswap_shared::amm_pair::AMMPair;
     use shadeswap_shared::msg::factory::HandleMsg;
     use shadeswap_shared::msg::factory::QueryMsg;
@@ -144,10 +143,7 @@ use super::*;
             },
         );
 
-        let result = create_pair(deps, mkenv("sender"), pair, to_binary(&"entropy").unwrap(), None);
-        //let error: StdError = result.unwrap_err();
-        print!("BOPOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
-        //print!("{}",error);
+        let result = create_pair(deps, mkenv("admin"), pair, to_binary(&"entropy").unwrap(), None);
         assert!(result.is_ok());
         Ok(())
     }

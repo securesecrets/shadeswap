@@ -1,3 +1,4 @@
+use shadeswap_shared::custom_fee::Fee;
 use cosmwasm_std::StdResult;
 use shadeswap_shared::viewing_keys::ViewingKey;
 use cosmwasm_std::HumanAddr;
@@ -17,7 +18,7 @@ use secretcli::{
 use serde_json::Result;
 use shadeswap_shared::{
     secret_toolkit::snip20::{Balance},
-    amm_pair::{AMMPair, AMMSettings, Fee},
+    amm_pair::{AMMPair, AMMSettings},
     msg::{
         amm_pair::{HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, QueryMsgResponse as AMMPairQueryMsgResponse ,
              QueryMsg as AMMPairQueryMsg, InvokeMsg},
@@ -34,10 +35,8 @@ use shadeswap_shared::{
     Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType, fadroma::prelude::{ContractInstantiationInfo, ContractLink},
 };
 use std::{
-    env,
-    time::{SystemTime, UNIX_EPOCH},
+    env
 };
-use std::env;
 
 use snip20_reference_impl::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
@@ -1632,4 +1631,12 @@ pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Ui
         return amount;
     }
     Uint128::zero()
+}
+
+pub fn get_current_timestamp()-> StdResult<Uint128> {
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+    Ok(Uint128(since_the_epoch.as_millis()))
 }

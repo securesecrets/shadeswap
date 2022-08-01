@@ -16,7 +16,7 @@ use serde_json::Result;
 use shadeswap_shared::fadroma::prelude::ContractInstantiationInfo;
 use shadeswap_shared::{
     secret_toolkit::snip20::{Balance},
-    amm_pair::{AMMPair, AMMSettings, Fee},
+    amm_pair::{AMMPair, AMMSettings},
     msg::{
         amm_pair::{
             HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,

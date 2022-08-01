@@ -18,7 +18,7 @@ use shadeswap_shared::snip20_reference_impl::msg::{
 
 use shadeswap_shared::{
     secret_toolkit::snip20::{Balance},
-    amm_pair::{AMMPair, AMMSettings, Fee}
+    amm_pair::{AMMPair, AMMSettings}
 };
 
 use serde_json::Result;

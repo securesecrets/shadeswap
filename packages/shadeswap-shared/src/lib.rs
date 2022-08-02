@@ -25,6 +25,7 @@ pub use snip20_reference_impl;
 pub mod viewing_keys;
 pub use sha2;
 pub use subtle;
+pub use cosmwasm_math_compat;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct Pagination {

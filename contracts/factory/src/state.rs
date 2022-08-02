@@ -1,15 +1,13 @@
+use cosmwasm_std::{
+    Api, Binary, CanonicalAddr, Extern, HumanAddr, Querier, StdError, StdResult, Storage,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use shadeswap_shared::fadroma::prelude::Humanize;
+use shadeswap_shared::scrt_storage::{load, ns_load, ns_save, save};
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings},
-    fadroma::{
-        scrt::{
-            Api, Binary, CanonicalAddr, Extern, HumanAddr, Querier, StdError, StdResult, Storage,
-        },
-        scrt_addr::{Canonize, Humanize},
-        scrt_link::{ContractInstantiationInfo, ContractLink},
-        scrt_storage::{load, ns_load, ns_remove, ns_save, save},
-    },
+    fadroma::prelude::{Canonize, ContractInstantiationInfo},
     msg::factory::InitMsg,
     Pagination, TokenPair, TokenType,
 };
@@ -39,23 +37,26 @@ impl Config<HumanAddr> {
         }
     }
 }
-impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
-    fn canonize(&self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
+impl Canonize for Config<HumanAddr> {
+    fn canonize(self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
         Ok(Config {
             pair_contract: self.pair_contract.clone(),
             amm_settings: self.amm_settings.canonize(api)?,
             lp_token_contract: self.lp_token_contract.clone(),
         })
     }
+    type Output = Config<CanonicalAddr>;
 }
-impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
-    fn humanize(&self, api: &impl Api) -> StdResult<Config<HumanAddr>> {
+
+impl Humanize for Config<CanonicalAddr> {
+    fn humanize(self, api: &impl Api) -> StdResult<Config<HumanAddr>> {
         Ok(Config {
             pair_contract: self.pair_contract.clone(),
             amm_settings: self.amm_settings.clone().humanize(api)?,
             lp_token_contract: self.lp_token_contract.clone(),
         })
     }
+    type Output = Config<HumanAddr>;
 }
 
 pub fn config_write<S: Storage, A: Api, Q: Querier>(
@@ -121,7 +122,6 @@ pub(crate) fn save_amm_pairs<S: Storage, A: Api, Q: Querier>(
 
     save_amm_pairs_count(&mut deps.storage, count)
 }
-
 
 pub(crate) fn get_address_for_pair<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,

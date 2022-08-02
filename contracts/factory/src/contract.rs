@@ -2,22 +2,19 @@ use crate::state::{
     config_read, config_write, get_address_for_pair, load_amm_pairs, load_prng_seed,
     save_amm_pairs, save_prng_seed, Config,
 };
+use cosmwasm_std::{
+    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
+    Querier, StdError, StdResult, Storage, WasmMsg,
+};
 use shadeswap_shared::{
     admin::{apply_admin_guard, load_admin, set_admin_guard, store_admin},
     amm_pair::AMMPair,
-    fadroma::{
-        scrt::{
-            log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr,
-            InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
-        },
-        scrt_callback::Callback,
-        scrt_link::ContractLink,
-        scrt_storage::{load, remove, save},
-    },
+    fadroma::prelude::{Callback, ContractLink},
     msg::{
         amm_pair::InitMsg as AMMPairInitMsg,
         factory::{HandleMsg, InitMsg, QueryMsg, QueryResponse},
     },
+    scrt_storage::{load, remove, save},
     stake_contract::StakingContractInit,
     Pagination, TokenPair,
 };

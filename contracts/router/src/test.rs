@@ -1,35 +1,55 @@
 #[cfg(test)]
 pub mod tests {
-    use crate::contract::init;
+    use cosmwasm_std::BalanceResponse;
+use cosmwasm_std::AllBalanceResponse;
+use cosmwasm_std::BankQuery;
+    use cosmwasm_std::from_binary;
+    use cosmwasm_std::to_vec;
+use cosmwasm_std::Empty;
+use cosmwasm_std::QueryRequest;
+use cosmwasm_std::WasmQuery;
+use cosmwasm_std::from_slice;
+use cosmwasm_std::QuerierResult;
+use cosmwasm_std::testing::MockApi;
+use cosmwasm_std::testing::MockStorage;
+use cosmwasm_std::InitResponse;
+use cosmwasm_std::testing::mock_env;
+use cosmwasm_std::testing::mock_dependencies;
+use cosmwasm_std::Querier;
+use cosmwasm_std::Api;
+use cosmwasm_std::Storage;
+use cosmwasm_std::Extern;
+use cosmwasm_std::Env;
+use secret_toolkit::snip20::Balance;
+use shadeswap_shared::fadroma::prelude::ContractInstantiationInfo;
+use crate::contract::init;
     use crate::contract::EPHEMERAL_STORAGE_KEY;
     use crate::state::config_read;
     use crate::state::Config;
     use crate::state::CurrentSwapInfo;
+    use cosmwasm_std::to_binary;
+    use cosmwasm_std::Coin;
+    use cosmwasm_std::CosmosMsg;
+    use cosmwasm_std::HumanAddr;
+    use cosmwasm_std::StdError;
+    use cosmwasm_std::Uint128;
+    use cosmwasm_std::WasmMsg;
+    use shadeswap_shared::fadroma::prelude::ContractLink;
+    use shadeswap_shared::scrt_storage::load;
+    use shadeswap_shared::scrt_storage::save;
 
     use crate::contract::handle;
+    use cosmwasm_std::StdResult;
     use serde::{de::DeserializeOwned, Deserialize, Serialize};
     use shadeswap_shared::custom_fee::Fee;
     use shadeswap_shared::{
-        fadroma::{
-            from_slice,
-            scrt::{
-                from_binary,
-                testing::{mock_dependencies, mock_env, MockApi, MockStorage},
-                to_binary, Api, Env, Extern, HumanAddr, Querier, StdError,
-                StdResult, Storage, Uint128,
-            },
-            scrt_link::{ContractInstantiationInfo, ContractLink},
-            scrt_storage::{load, save},
-            secret_toolkit::snip20::{self, Balance},
-            Coin, CosmosMsg, Empty, InitResponse, QuerierResult, QueryRequest, WasmMsg,
-            WasmQuery,
-        },
         msg::{
             amm_pair::QueryMsgResponse as AMMPairQueryMsgResponse,
             factory::QueryResponse as FactoryQueryResponse,
             router::{HandleMsg, InitMsg, InvokeMsg},
         },
-        TokenAmount, TokenPair, TokenType,
+        secret_toolkit::snip20::{self},
+        TokenAmount, TokenPair, TokenType
     };
 
     pub const FACTORY_ADDRESS: &str = "FACTORY_ADDRESS";
@@ -213,7 +233,7 @@ pub mod tests {
             }
             Err(err) => {
                 let test = err.to_string();
-                panic!("{}","Must not return error ".to_string() + &test)
+                panic!("{}", "Must not return error ".to_string() + &test)
             }
         }
 
@@ -381,6 +401,8 @@ pub mod tests {
                 amount: Uint128(10),
                 padding: None,
                 msg: None,
+                recipient_code_hash: None,
+                memo: None,
             })?,
             send: vec![],
         });
@@ -392,7 +414,9 @@ pub mod tests {
                 recipient: HumanAddr("recipient".into()),
                 amount: Uint128(10), //This is how much balance the address has
                 padding: None,
-                msg: None
+                msg: None,
+                recipient_code_hash: None,
+                memo: None,
             })?,
             send: vec![]
         })));
@@ -467,7 +491,7 @@ pub mod tests {
                 },
                 prng_seed: to_binary(&"prng").unwrap(),
                 entropy: to_binary(&"entropy").unwrap(),
-                viewing_key: None
+                viewing_key: None,
             },
         )
     }
@@ -484,7 +508,7 @@ pub mod tests {
                 factory_address: self.factory_address.clone(),
                 prng_seed: to_binary(&"prng").unwrap(),
                 entropy: to_binary(&"entropy").unwrap(),
-                viewing_key: None
+                viewing_key: None,
             }
         }
     }
@@ -505,7 +529,7 @@ pub mod tests {
             },
             prng_seed: to_binary(&"prng").unwrap(),
             entropy: to_binary(&"entropy").unwrap(),
-            viewing_key: None
+            viewing_key: None,
         };
 
         (init(&mut deps, env, init_msg), deps)
@@ -596,7 +620,7 @@ pub mod tests {
             &self,
             request: &QueryRequest<T>,
         ) -> StdResult<U> {
-            let raw = match shadeswap_shared::fadroma::to_vec(request) {
+            let raw = match to_vec(request) {
                 Ok(raw) => raw,
                 Err(e) => {
                     return Err(StdError::generic_err(format!(
@@ -617,21 +641,21 @@ pub mod tests {
         }
 
         fn query_balance<U: Into<HumanAddr>>(&self, address: U, denom: &str) -> StdResult<Coin> {
-            let request = shadeswap_shared::fadroma::BankQuery::Balance {
+            let request = BankQuery::Balance {
                 address: address.into(),
                 denom: denom.to_string(),
             }
             .into();
-            let res: shadeswap_shared::fadroma::BalanceResponse = self.query(&request)?;
+            let res:BalanceResponse = self.query(&request)?;
             Ok(res.amount)
         }
 
         fn query_all_balances<U: Into<HumanAddr>>(&self, address: U) -> StdResult<Vec<Coin>> {
-            let request = shadeswap_shared::fadroma::BankQuery::AllBalances {
+            let request = BankQuery::AllBalances {
                 address: address.into(),
             }
             .into();
-            let res: shadeswap_shared::fadroma::AllBalanceResponse = self.query(&request)?;
+            let res: AllBalanceResponse = self.query(&request)?;
             Ok(res.amount)
         }
     }

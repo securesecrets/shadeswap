@@ -45,6 +45,7 @@ fadroma = { commit="76867e0", git = "https://github.com/hackbg/fadroma.git", fea
 snip20-reference-impl = {path = "../../contracts/snip20", name="snip20-reference-impl"}
 sha2 = { version = "0.9.1", default-features = false }
 subtle = { version = "2.2.3", default-features = false }
+cosmwasm-math-compat = { path = "../cosmwasm_math_compat" }
 
 
 [dev-dependencies]

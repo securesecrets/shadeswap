@@ -1,36 +1,43 @@
+use cosmwasm_std::Coin;
+use shadeswap_shared::cosmwasm_math_compat::Uint256;
+use shadeswap_shared::router::InvokeMsg;
+use shadeswap_shared::router::QueryMsg;
+use shadeswap_shared::router::HandleMsg;
+use secret_toolkit::snip20;
+use shadeswap_shared::viewing_keys::ViewingKey;
+use cosmwasm_std::QueryRequest;
+use cosmwasm_std::HandleResult;
+use cosmwasm_std::WasmQuery;
+use cosmwasm_std::from_binary;
+use cosmwasm_std::Uint128;
+use shadeswap_shared::amm_pair::AMMSettings;
+use shadeswap_shared::fadroma::prelude::ContractInstantiationInfo;
 use std::ops::Add;
+use std::str::FromStr;
 
 use crate::state::{config_read, config_write, Config, CurrentSwapInfo};
 use shadeswap_shared::admin::{apply_admin_guard, store_admin};
-use shadeswap_shared::fadroma::scrt_uint256::Uint256;
 use shadeswap_shared::msg::amm_pair::{SwapInfo, SwapResult};
 use shadeswap_shared::token_amount::TokenAmount;
 use shadeswap_shared::token_pair::TokenPair;
 use shadeswap_shared::token_type::TokenType;
+use cosmwasm_std::{
+    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
+    Querier, StdError, StdResult, Storage, WasmMsg,
+};
 use shadeswap_shared::{
-    amm_pair::AMMSettings,
-    fadroma::{
-        from_binary,
-        scrt::{
-            secret_toolkit::snip20, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse,
-            HumanAddr, InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
-        },
-        scrt_link::ContractLink,
-        scrt_storage::{load, save},
-        BankMsg, Coin, ContractInstantiationInfo, HandleResult, QueryRequest, Uint128, ViewingKey,
-        WasmQuery,
-    },
+    admin::{load_admin, set_admin_guard},
+    amm_pair::AMMPair,
+    fadroma::prelude::{Callback, ContractLink},
     msg::{
         amm_pair::{
             HandleMsg as AMMPairHandleMsg, InvokeMsg as AMMPairInvokeMsg,
             QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryReponse,
         },
-        router::{HandleMsg, InvokeMsg, QueryMsg},
-    },
-    msg::{
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
         router::{InitMsg, QueryMsgResponse},
     },
+    scrt_storage::{load, remove, save}
 };
 
 /// Pad handle responses and log attributes to blocks
@@ -46,7 +53,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<InitResponse> {
     config_write(
         deps,
-        &Config {
+        Config {
             factory_address: msg.factory_address,
             viewing_key: msg.viewing_key.unwrap_or(create_viewing_key(
                 &env,
@@ -117,7 +124,7 @@ fn refresh_tokens<S: Storage, A: Api, Q: Querier>(
             contract_addr: token_address,
             token_code_hash: token_code_hash,
         },
-        &config.viewing_key,
+        config.viewing_key,
     )?;
 
     Ok(HandleResponse {
@@ -381,6 +388,8 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
                     .unwrap(),
                 ),
                 padding: None,
+                recipient_code_hash: None,
+                memo: None,
             })?;
 
             messages.push(
@@ -532,7 +541,7 @@ fn swap_simulation<S: Storage, A: Api, Q: Querier>(
         lp_fee_amount: sum_lp_fee_amount,
         shade_dao_fee_amount: sum_shade_dao_fee_amount,
         result: SwapResult{ return_amount: next_in.amount } ,
-        price: (Uint256::from(next_in.amount) / Uint256::from(offer.amount))?.to_string(),
+        price: (Uint256::from_str(&next_in.amount.to_string())? / Uint256::from_str(&offer.amount.to_string())?).to_string(),
     })
 }
 
@@ -566,7 +575,7 @@ fn register_pair_token(
     env: &Env,
     messages: &mut Vec<CosmosMsg>,
     token: &TokenType<HumanAddr>,
-    viewing_key: &ViewingKey,
+    viewing_key: String,
 ) -> StdResult<()> {
     if let TokenType::CustomToken {
         contract_addr,
@@ -575,7 +584,7 @@ fn register_pair_token(
     } = token
     {
         messages.push(snip20::set_viewing_key_msg(
-            viewing_key.0.clone(),
+            viewing_key.clone(),
             None,
             BLOCK_SIZE,
             token_code_hash.clone(),
@@ -593,6 +602,6 @@ fn register_pair_token(
     Ok(())
 }
 
-pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
-    ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
+pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> String {
+    ViewingKey::new(&env, seed.as_slice(), entroy.as_slice()).to_string()
 }

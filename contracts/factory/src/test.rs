@@ -1,19 +1,15 @@
+use cosmwasm_std::testing::mock_env;
+use cosmwasm_std::testing::mock_dependencies;
+use cosmwasm_std::to_binary;
+use shadeswap_shared::fadroma::prelude::{ContractInstantiationInfo, ContractLink};
 use shadeswap_shared::{amm_pair::AMMSettings, custom_fee::Fee};
 use shadeswap_shared::msg::factory::InitMsg;
 pub use shadeswap_shared::{
-    fadroma::{
-        scrt_addr::Canonize,
-        scrt_link::{ContractLink, ContractInstantiationInfo},
-        scrt::{
-            from_binary,
-            testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage},
-            to_binary, Api, Binary, Env, HandleResponse, HumanAddr, Querier, StdError,
-            StdResult, Storage, Uint128, Extern
-        },
-        scrt_storage::{load, save},
-    },
     msg::factory::{ QueryResponse},
     Pagination, TokenPair, TokenType,
+};
+use cosmwasm_std::{
+    Api, Binary, CanonicalAddr, Extern, HumanAddr, Querier, StdError, StdResult, Storage,
 };
 
 
@@ -21,7 +17,10 @@ use crate::state::Config;
 
 #[cfg(test)]
 pub mod test_contract {
-    use crate::contract::create_signature;
+    use cosmwasm_std::from_binary;
+use shadeswap_shared::scrt_storage::load;
+use shadeswap_shared::scrt_storage::save;
+use crate::contract::create_signature;
 use crate::contract::EPHEMERAL_STORAGE_KEY;
 use crate::contract::handle;
     use crate::contract::query;
@@ -36,17 +35,6 @@ use super::*;
     use shadeswap_shared::msg::factory::HandleMsg;
     use shadeswap_shared::msg::factory::QueryMsg;
     pub use shadeswap_shared::{
-        fadroma::{
-            scrt_addr::Canonize,
-            scrt_link::{ContractLink, ContractInstantiationInfo},
-            scrt::{
-                from_binary,
-                testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage},
-                to_binary, Api, Binary, Env, HandleResponse, HumanAddr, Querier, StdError,
-                StdResult, Storage, Uint128,
-            },
-            scrt_storage::{load, save},
-        },
         msg::factory::{ QueryResponse},
         Pagination, TokenPair, TokenType,
     };

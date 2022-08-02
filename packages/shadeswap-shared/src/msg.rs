@@ -1,8 +1,9 @@
 use crate::TokenType;
 use cosmwasm_std::{
     from_binary, log, Api, Binary, Env, Extern, HandleResponse, HumanAddr, Querier, StdError,
-    StdResult, Storage, Uint128,
+    StdResult, Storage,
 };
+use cosmwasm_std::{Decimal, Uint128};
 use fadroma::core::ContractLink;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -276,6 +277,7 @@ pub mod factory {
     use fadroma::prelude::ContractInstantiationInfo;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
+    
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {

@@ -1,42 +1,12 @@
-
-use shadeswap_shared::fadroma::secret_toolkit::snip20::Balance;
-use shadeswap_shared::{ 
-    fadroma::{
-        scrt::{
-            from_binary, log, to_binary, Api, BankMsg, Binary, MessageInfo, ContractInfo, Coin, CosmosMsg, Decimal, Env,
-            Extern, HandleResponse, HumanAddr, InitResponse, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
-            BankQuery, WasmQuery,  
-            secret_toolkit::snip20,  BlockInfo
-        },
-        scrt_uint256::Uint256,
-        scrt_callback::Callback,
-        scrt_link::{ContractLink, ContractInstantiationInfo},
-        scrt_vk::ViewingKey,
-    },
- 
-};
-
-use shadeswap_shared::{
-    fadroma::{
-        scrt::{
-            testing::{mock_dependencies, MockApi, MockStorage, MOCK_CONTRACT_ADDR},
-            
-        },
-    }
-};
 use serde::de::DeserializeOwned;
-use shadeswap_shared::fadroma::Empty;
-use shadeswap_shared::fadroma::from_slice;
-use shadeswap_shared::fadroma::QuerierResult;
-use shadeswap_shared::fadroma::QueryRequest;
-use shadeswap_shared::fadroma::QueryResult;
 use shadeswap_shared::msg::staking::InvokeMsg;
-use shadeswap_shared::fadroma::BalanceResponse;
 
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use shadeswap_shared::msg::staking::{{InitMsg,QueryMsg,QueryResponse,  HandleMsg}};
+    use cosmwasm_std::{BankQuery, AllBalanceResponse, to_vec, Coin, StdResult, HumanAddr, BalanceResponse, from_binary, StdError, QueryRequest, Empty, Uint128, to_binary, QuerierResult, from_slice, Querier, testing::{MockApi, MockStorage}, Extern, ContractInfo, MessageInfo, BlockInfo, Env, Api, Storage, WasmQuery};
+    use secret_toolkit::snip20::Balance;
+    use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  HandleMsg}}, fadroma::prelude::ContractLink};
     use crate::state::{{Config , store_config, load_stakers, get_total_staking_amount, load_claim_reward_timestamp,
         load_config, is_address_already_staker, load_claim_reward_info,
         load_staker_info}};    
@@ -253,10 +223,10 @@ pub mod tests {
         )
         .unwrap();
         let staking_percentage_a = get_staking_percentage(&mut deps, staker_a.clone(), Uint128(100u128))?;
-        println!("{}", Uint256::from(staking_percentage_a));
+        println!("{}", staking_percentage_a);
         assert_eq!(staking_percentage_a, Uint128(50u128));
         let staking_percentage_b = get_staking_percentage(&mut deps, staker_b.clone(), Uint128(100u128))?;
-        println!("{}", Uint256::from(staking_percentage_b));
+        println!("{}", staking_percentage_b);
         assert_eq!(staking_percentage_b, Uint128(50u128));
         Ok(())
     }
@@ -441,7 +411,7 @@ pub mod tests {
             &self,
             request: &QueryRequest<T>,
         ) -> StdResult<U> {
-            let raw = match shadeswap_shared::fadroma::to_vec(request) {
+            let raw = match to_vec(request) {
                 Ok(raw) => raw,
                 Err(e) => {
                     return Err(StdError::generic_err(format!(
@@ -462,21 +432,21 @@ pub mod tests {
         }
     
         fn query_balance<U: Into<HumanAddr>>(&self, address: U, denom: &str) -> StdResult<Coin> {
-            let request = shadeswap_shared::fadroma::BankQuery::Balance {
+            let request = BankQuery::Balance {
                 address: address.into(),
                 denom: denom.to_string(),
             }
             .into();
-            let res: shadeswap_shared::fadroma::BalanceResponse = self.query(&request)?;
+            let res: BalanceResponse = self.query(&request)?;
             Ok(res.amount)
         }
     
         fn query_all_balances<U: Into<HumanAddr>>(&self, address: U) -> StdResult<Vec<Coin>> {
-            let request = shadeswap_shared::fadroma::BankQuery::AllBalances {
+            let request = BankQuery::AllBalances {
                 address: address.into(),
             }
             .into();
-            let res: shadeswap_shared::fadroma::AllBalanceResponse = self.query(&request)?;
+            let res: AllBalanceResponse = self.query(&request)?;
             Ok(res.amount)
         }
     

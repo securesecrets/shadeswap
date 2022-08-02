@@ -1,17 +1,10 @@
+use std::fmt::Binary;
 use std::ops::RangeInclusive;
-use shadeswap_shared::fadroma::scrt::{
-    Api, Binary, Env, Extern, HandleResponse,
-    HumanAddr, InitResponse, Querier,
-    StdError, StdResult, Storage, Uint128,
-};
+use shadeswap_shared::fadroma::prelude::{Extern, Storage, Querier, HandleResponse, StdResult, Env, Api, InitResponse, StdError, Uint128, HumanAddr};
 
-use shadeswap_shared::snip20_impl as composable_snip20;
+use shadeswap_shared::secret_toolkit::snip20::{batch, HandleMsg, QueryMsg};
 
-use composable_snip20::msg::{HandleMsg, InitMsg, QueryMsg};
-use composable_snip20::{
-    snip20_handle, snip20_init, snip20_query,
-    Snip20, SymbolValidation, batch
-};
+use shadeswap_shared::snip20_reference_impl::msg::InitMsg;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -73,17 +66,16 @@ impl Snip20 for LpTokenImpl {
         Err(StdError::generic_err("This method has been disabled."))
     }
 }
-
 #[cfg(target_arch = "wasm32")]
-mod wasm {
-    use shadeswap_shared::fadroma::scrt::cosmwasm_std::{
+mod wasm {   
+    use cosmwasm_std::{
         do_handle, do_init, do_query, ExternalApi, ExternalQuerier, ExternalStorage,
     };
 
     #[no_mangle]
     extern "C" fn init(env_ptr: u32, msg_ptr: u32) -> u32 {
         do_init(
-            &super::init::<ExternalStorage, ExternalApi, ExternalQuerier>,
+            &contract::init::<ExternalStorage, ExternalApi, ExternalQuerier>,
             env_ptr,
             msg_ptr,
         )
@@ -92,7 +84,7 @@ mod wasm {
     #[no_mangle]
     extern "C" fn handle(env_ptr: u32, msg_ptr: u32) -> u32 {
         do_handle(
-            &super::handle::<ExternalStorage, ExternalApi, ExternalQuerier>,
+            &contract::handle::<ExternalStorage, ExternalApi, ExternalQuerier>,
             env_ptr,
             msg_ptr,
         )
@@ -101,7 +93,7 @@ mod wasm {
     #[no_mangle]
     extern "C" fn query(msg_ptr: u32) -> u32 {
         do_query(
-            &super::query::<ExternalStorage, ExternalApi, ExternalQuerier>,
+            &contract::query::<ExternalStorage, ExternalApi, ExternalQuerier>,
             msg_ptr,
         )
     }

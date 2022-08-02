@@ -15,6 +15,8 @@ use secretcli::{
 
 use serde_json::Result;
 use shadeswap_shared::fadroma::prelude::ContractInstantiationInfo;
+use shadeswap_shared::secret_toolkit::snip20::HandleMsg;
+use shadeswap_shared::secret_toolkit::snip20::QueryMsg;
 use shadeswap_shared::{
     secret_toolkit::snip20::{Balance},
     amm_pair::{AMMPair, AMMSettings},
@@ -44,14 +46,14 @@ pub const ACCOUNT_KEY: &str = "deployer";
 pub const STORE_GAS: &str = "10000000";
 
 pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Uint128 {
-    let msg = snip20::QueryMsg::Balance {
+    let msg = QueryMsg::Balance {
         address: HumanAddr::from(from),
         key: view_key,
     };
 
     let balance: BalanceResponse = query(contract, &msg, None).unwrap();
 
-    balance.balance.amount
+    balance.amount.amount
 }
 
 fn main() -> serde_json::Result<()> {
@@ -149,8 +151,9 @@ fn main() -> serde_json::Result<()> {
 
 
     handle(
-        &snip20::HandleMsg::Send {
+        &HandleMsg::Send {
             recipient: HumanAddr::from("secret1zawqm7wdrx55k4ezl3n86vzrzmnqqyj4avzm52".to_string()),
+            recipient_code_hash: None,
             amount: Uint128(25000),
             msg: Some(
                 to_binary(&RouterInvokeMsg::SwapTokensForExact {
@@ -160,6 +163,7 @@ fn main() -> serde_json::Result<()> {
                 })
                 .unwrap(),
             ),
+            memo: None,
             padding: None,
         },
         &s_sCRT,

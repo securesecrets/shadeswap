@@ -1,6 +1,6 @@
 use cosmwasm_std::{HumanAddr, StdResult, Api, CanonicalAddr};
 use shadeswap_shared::{   
-    token_pair::TokenPair, custom_fee::CustomFee, viewing_keys::ViewingKey, fadroma::prelude::{ContractLink, Humanize, Canonize}
+    token_pair::TokenPair, custom_fee::CustomFee, viewing_keys::ViewingKey, fadroma::prelude::{ContractLink, Humanize, Canonize}, TokenType
 };
 
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ pub static TRADE_HISTORY: &[u8] = b"trade_history";
 pub static WHITELIST: &[u8] = b"whitelist";
 pub const BLOCK_SIZE: usize = 256;
 
-#[derive(Serialize, Deserialize,  PartialEq, Debug)]
+#[derive(Serialize, Deserialize,  PartialEq, Debug, Clone)]
 pub struct Config<A: Clone> {
     pub factory_info:  ContractLink<A>,
     pub lp_token_info: ContractLink<A>,
@@ -25,8 +25,8 @@ pub struct Config<A: Clone> {
     pub custom_fee: Option<CustomFee>
 }
 
-impl Canonize for Config<HumanAddr> {
-    fn canonize (&self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
+impl Canonize for Config<HumanAddr> {  
+    fn canonize (self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
         Ok(Config {
             factory_info:  self.factory_info.canonize(api)?,
             lp_token_info: self.lp_token_info.canonize(api)?,
@@ -37,10 +37,10 @@ impl Canonize for Config<HumanAddr> {
         })
     }
 
-    type Output;
+    type Output = Config<CanonicalAddr>;
 }
 impl Humanize for Config<CanonicalAddr> {
-    fn humanize (&self, api: &impl Api) -> StdResult<Config<HumanAddr>> {        
+    fn humanize (self, api: &impl Api) -> StdResult<Config<HumanAddr>> {        
         Ok(Config {
             factory_info:  self.factory_info.humanize(api)?,
             lp_token_info: self.lp_token_info.humanize(api)?,
@@ -51,15 +51,14 @@ impl Humanize for Config<CanonicalAddr> {
         })
     }
 
-    type Output;
+    type Output = Config<HumanAddr>;
 }
 
 pub mod tradehistory{
     use super::*;
     use cosmwasm_std::{StdResult, HumanAddr, Extern, Querier, Api, Storage, StdError, CanonicalAddr};
     use shadeswap_shared::{scrt_storage::{ns_save, ns_load, save, load}, fadroma::prelude::Humanize};
-    use tradehistory::{DirectionType};
-
+   
     #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone)]
     pub enum DirectionType{
         Buy,
@@ -68,15 +67,15 @@ pub mod tradehistory{
     }
 
     impl Humanize for DirectionType {
-        fn humanize(&self, api: &impl Api) -> StdResult<String> {
-            match *self {
+        fn humanize(self, api: &impl Api) -> StdResult<String> {
+            match self {
                 DirectionType::Sell => Ok("Sell".to_string()),
                 DirectionType::Buy => Ok("Buy".to_string()),
                 DirectionType::Unknown => Ok("Unknown".to_string())
             }
         }
 
-        type Output;
+        type Output = String;
     }
 
 }
@@ -90,9 +89,10 @@ pub mod amm_pair_storage{
 
     pub fn store_config <S: Storage, A: Api, Q: Querier>(
         deps:   &mut Extern<S, A, Q>,
-        config: &Config<HumanAddr>
+        config: Config<HumanAddr>
     ) -> StdResult<()> {
-        save(&mut deps.storage, CONFIG_KEY, &config.canonize(&deps.api)?)
+        let value = config.canonize(&deps.api)?;
+        save(&mut deps.storage, CONFIG_KEY, &value)
     }
 
     pub fn store_staking_contract<S: Storage, A: Api, Q: Querier>(
@@ -108,7 +108,8 @@ pub mod amm_pair_storage{
         let result: Config<CanonicalAddr> = load(&deps.storage, CONFIG_KEY)?.ok_or(
             StdError::generic_err("Config doesn't exist in storage.")
         )?;
-        result.humanize(&deps.api)
+        let humanized_config = result.humanize(&deps.api)?;
+        Ok(humanized_config)
     }
     
     pub fn load_trade_counter(storage: &impl Storage) -> StdResult<u64> {

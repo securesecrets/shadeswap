@@ -1,5 +1,6 @@
-use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}};
+use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}, fadroma::prelude::ContractLink};
 use shadeswap_shared::msg::amm_pair::HandleMsg as AmmPairHandleMsg;
+use secret_toolkit::snip20::{token_info_query, mint_msg, transfer_from_msg, HandleMsg as Snip20HandleMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg};
 use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, token_type::{{TokenType}}};
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
     get_total_staking_amount, load_stakers, load_config, is_address_already_staker, store_claim_reward_info,
@@ -7,8 +8,8 @@ use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_ti
     load_claim_reward_info, load_prgn_seed, store_prgn_seed}};   
 use std::{time::{SystemTime, UNIX_EPOCH}, env};
 use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
-use cosmwasm_std::{{HandleResponse, Uint128, to_binary}};
-;;
+use cosmwasm_std::{HandleResponse, Uint128, to_binary, log, HumanAddr, StdResult, InitResponse, Storage, Api, Querier, Extern, Env, StdError, Binary, QueryResult, from_binary, CosmosMsg, WasmMsg};
+use shadeswap_shared::{scrt_storage::{ns_save, ns_load, save, load}, viewing_keys::{ViewingKey, VIEWING_KEY_SIZE}};
 
 use shadeswap_shared::{
     fadroma::prelude::ContractInfo
@@ -249,7 +250,7 @@ pub fn set_lp_token<S:Storage, A:Api, Q: Querier>(
     config.lp_token = lp_token.clone();   
     let mut messages = Vec::new();
     // register pair contract for LP receiver
-    messages.push(snip20::register_receive_msg(
+    messages.push(register_receive_msg(
         env.contract_code_hash.clone(),
         None,
         BLOCK_SIZE,
@@ -296,11 +297,11 @@ pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
     staker: HumanAddr,
     cons: Uint128
 ) -> StdResult<Uint128> {
-    let total_staking = Uint256::from(get_total_staking_amount(deps)?);
+    let total_staking = get_total_staking_amount(deps)?;
     let stake_info = load_staker_info(&deps, staker)?;
-    let stake_amount = Uint256::from(stake_info.amount);   
-    let percentage =((stake_amount * Uint256::from(cons))? / total_staking)?;    
-    Ok(Uint128(percentage.clamp_u128()?))
+    let stake_amount = stake_info.amount;   
+    let percentage = stake_amount.multiply_ratio(cons, total_staking);    
+    Ok(percentage)
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
@@ -470,10 +471,12 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
         let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity { 
             from: Some(caller.clone())}).unwrap();      
        
-        let msg = to_binary(&snip20::HandleMsg::Send {
+        let msg = to_binary(&Snip20HandleMsg::Send {
             recipient: config.contract_owner.clone(),
+            recipient_code_hash: None,
             amount: amount,
             msg: Some(remove_liquidity_msg.clone()),
+            memo: None,
             padding: None,
         })?;
     
@@ -489,10 +492,10 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     }
     else{
         // SEND LP Token back to Staker And User Will Manually Remove Liquidity
-        let msg = to_binary(&snip20::HandleMsg::Send {
+        let msg = to_binary(&Snip20HandleMsg::Transfer {
             recipient: caller.clone(),
             amount: amount,
-            msg: None,
+            memo: None,
             padding: None,
         })?;
     
@@ -526,7 +529,7 @@ fn query_total_reward_liquidity(
     querier: &impl Querier,
     reward_token_info: &ContractLink<HumanAddr>,
 ) -> StdResult<Uint128> {
-    let result = snip20::token_info_query(
+    let result = token_info_query(
         querier,
         BLOCK_SIZE,
         reward_token_info.code_hash.clone(),

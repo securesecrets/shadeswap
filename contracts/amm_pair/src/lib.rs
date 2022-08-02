@@ -10,7 +10,6 @@ mod wasm {
     use cosmwasm_std::ExternalApi;
     use cosmwasm_std::ExternalQuerier;
     use cosmwasm_std::do_query;
-    use cosmwasm_std::ExternalQuerier;
     use cosmwasm_std::do_init;
     use cosmwasm_std::do_handle;
     #[no_mangle]

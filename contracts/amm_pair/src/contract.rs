@@ -3,12 +3,12 @@ use cosmwasm_std::{CosmosMsg, WasmMsg};
 use cosmwasm_std::{StdError, StdResult, InitResponse};
 use cosmwasm_std::Env;
 use secret_toolkit::snip20::{token_info_query, mint_msg, transfer_from_msg, HandleMsg as Snip20HandleMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg};
+use std::convert::TryFrom;
 use std::hash::Hash;
-use std::ops::{Add, Sub, Mul, Div};
-use cosmwasm_std::BalanceResponse;
 use std::collections::hash_map::DefaultHasher;
+use std::str::FromStr;
 use shadeswap_shared::custom_fee::Fee;
-use cosmwasm_std::{Extern, Api, Binary, Querier, Storage, Uint128, from_binary, HumanAddr, QueryRequest, HandleResponse, Decimal,QueryResult, log};
+use cosmwasm_std::{Extern, Api, Binary, Querier, Storage,Decimal, Uint128, from_binary, HumanAddr, QueryRequest, HandleResponse, QueryResult, log};
 use shadeswap_shared::fadroma::prelude::{Callback, ContractLink};
 use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}}, snip20_reference_impl};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
@@ -37,12 +37,13 @@ use shadeswap_shared::msg::staking::InitMsg as StakingInitMsg;
 use snip20_reference_impl::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
+use shadeswap_shared::cosmwasm_math_compat::Decimal as MathDecimal;
+use shadeswap_shared::cosmwasm_math_compat::Uint128 as MathUint128;
 use shadeswap_shared::viewing_keys::ViewingKey;
 use cosmwasm_std::Coin;
 use shadeswap_shared::custom_fee::CustomFee;
 use std::hash::Hasher;
 use cosmwasm_std::BalanceResponse;
-use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}}, snip20_reference_impl};
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
 pub const BLOCK_SIZE: usize = 256;
@@ -61,35 +62,41 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     let mut messages = vec![];
     let viewing_key = create_viewing_key(&env, msg.prng_seed.clone(), msg.entropy.clone());
     register_pair_token(&env, &mut messages, &msg.pair.0, &viewing_key)?;
-    register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;   
+    register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?; 
+    
+    
+
+    let init_snip20_msg = Snip20ComposableMsg {
+        name: format!(
+            "SHADESWAP Liquidity Provider (LP) token for {}-{}",
+            &msg.pair.0, &msg.pair.1
+        ),
+        admin: Some(env.contract.address.clone()),
+        symbol: "SWAP-LP".to_string(),
+        decimals: 18,
+        // TODO need to find alternative
+        // callback: Some(Callback {
+        //     msg: to_binary(&HandleMsg::OnLpTokenInitAddr)?,
+        //     contract: ContractLink {
+        //         address: env.contract.address.clone(),
+        //         code_hash: env.contract_code_hash.clone(),
+        //     },
+        // }),
+        initial_balances: None,
+        prng_seed: msg.prng_seed.clone(),
+        config: None,
+    };
+
+    let config = Snip20ComposableMsg::config(&init_snip20_msg);
+    config.burn_enabled();
+    config.mint_enabled();
+    config.public_total_supply(); 
+
+    // snip_init_config_msg.ena
     // Create LP token and store it
     messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
-        msg: to_binary(&Snip20ComposableMsg {
-            name: format!(
-                "SHADESWAP Liquidity Provider (LP) token for {}-{}",
-                &msg.pair.0, &msg.pair.1
-            ),
-            admin: Some(env.contract.address.clone()),
-            symbol: "SWAP-LP".to_string(),
-            decimals: 18,
-            callback: Some(Callback {
-                msg: to_binary(&HandleMsg::OnLpTokenInitAddr)?,
-                contract: ContractLink {
-                    address: env.contract.address.clone(),
-                    code_hash: env.contract_code_hash.clone(),
-                },
-            }),
-            initial_balances: None,
-            prng_seed: msg.prng_seed.clone(),
-            config: Some(
-                Snip20ComposableConfig::builder()
-                    .public_total_supply()
-                    .enable_mint()
-                    .enable_burn()
-                    .build(),
-            ),
-        })?,
+        msg: to_binary(&init_snip20_msg)?,
         send: vec![],
         label: format!(
             "{}-{}-ShadeSwap-Pair-Token-{}",
@@ -140,7 +147,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         custom_fee: msg.custom_fee.clone()
     };
 
-    store_config(deps, &config)?;       
+    store_config(deps, config)?;       
 
     match msg.admin {
         Some(admin) =>  store_admin(deps, &admin)?,
@@ -169,7 +176,7 @@ fn register_lp_token<S: Storage, A: Api, Q: Querier>(
 
     config.lp_token_info.address = env.message.sender.clone();
     // store config against Smart contract address
-    store_config(deps, &config)?;
+    store_config(deps, config.clone())?;
 
     let mut messages = Vec::new();
     // register pair contract for LP receiver
@@ -292,7 +299,7 @@ pub fn set_custom_fee<S: Storage, A: Api, Q: Querier>(
         lp_fee: lp_fee.clone()
     });
 
-    store_config(deps, &config)?;
+    store_config(deps, config)?;
 
     Ok(HandleResponse {
         messages: vec![],
@@ -587,8 +594,12 @@ fn get_estimated_lp_token<S:Storage, A: Api, Q: Querier>(
         // x and y is amount of token0 and token1 provided
         let deposit_token0_amount = deposit.amount_0;
         let deposit_token1_amount = deposit.amount_1;
-        lp_tokens = deposit_token0_amount * convert_uint128_to_decimal(deposit_token1_amount)?
-            .sqrt()?
+        let mul_value_amount = deposit_token0_amount * convert_uint128_to_decimal(deposit_token1_amount)?;        
+        // let mul_val_string = &mul_value_amount.to_string();
+        let math_lp_tokens = MathUint128::from_str(&mul_value_amount.to_string()).unwrap();
+        let sqrt_result = MathDecimal::from_atomics(math_lp_tokens,0).unwrap().sqrt();
+        lp_tokens = Uint128(sqrt_result.atomics().u128());
+
     } else {
         // Total % of Pool
         let total_share = pair_contract_pool_liquidity;
@@ -883,9 +894,10 @@ pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         // x and y is amount of token0 and token1 provided
         let deposit_token0_amount = deposit.amount_0;
         let deposit_token1_amount = deposit.amount_1;
-        let temp_result = deposit_token0_amount * convert_uint128_to_decimal(deposit_token1_amount)?;
-        let sqrt_result = Uint256::from(temp_result).sqrt()?;
-        lp_tokens = sqrt_result.clamp_u128()?
+        let mul_value_amount = deposit_token0_amount * convert_uint128_to_decimal(deposit_token1_amount)?;
+        let math_lp_tokens = MathUint128::from_str(&mul_value_amount.to_string()).unwrap();
+        let sqrt_result = MathDecimal::from_atomics(math_lp_tokens,0).unwrap().sqrt();
+        lp_tokens = Uint128(sqrt_result.atomics().u128());   
             
     } else {
         // Total % of Pool

@@ -1,19 +1,7 @@
-use shadeswap_shared::{
-    fadroma::{
-        scrt_link::{ContractLink},    
-        scrt_addr::{Humanize, Canonize},
-        scrt::{
-            Api, CanonicalAddr, Extern, HumanAddr, Uint128,
-            Querier, StdResult, Storage, StdError
-        },
-        scrt_storage::{load, save, ns_save, ns_load},
-        scrt_vk::ViewingKey, VIEWING_KEY_SIZE,
-    },
-    token_pair::TokenPair
-};
 use std::any::type_name;
+use cosmwasm_std::{HumanAddr, Uint128, StdResult, Extern, Storage, Api, Querier, StdError};
 use serde::{Deserialize, Serialize};
-use shadeswap_shared::token_type::TokenType;
+use shadeswap_shared::{token_type::TokenType, fadroma::prelude::ContractLink, scrt_storage::{ns_save, ns_load, save, load}, viewing_keys::{ViewingKey, VIEWING_KEY_SIZE}};
 use serde::de::DeserializeOwned;
 use shadeswap_shared::msg::amm_pair::{{ HandleMsg,TradeHistory}};
 use std::fmt::{{Formatter, Display}};

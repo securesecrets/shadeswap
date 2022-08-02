@@ -1,6 +1,5 @@
 use cosmwasm_std::StdResult;
-use cosmwasm_std::Uint128;
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Decimal, Uint128};
 const DECIMAL_FRACTIONAL: Uint128 = Uint128(1_000_000_000u128);
 
 pub fn substraction(nominator: Decimal, denominator: Decimal) -> StdResult<Decimal> {

@@ -557,13 +557,7 @@ struct IntBalanceResponse {
 pub mod tests_calculation_price_and_fee{
     use super::*;
     use serde::de::DeserializeOwned;
-    use shadeswap_shared::custom_fee::{Fee, CustomFee};
-    use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-    use shadeswap_shared::fadroma::Empty;
-    use shadeswap_shared::fadroma::from_slice;
-    use shadeswap_shared::fadroma::QuerierResult;
-    use shadeswap_shared::fadroma::QueryRequest;
-    use shadeswap_shared::fadroma::QueryResult;
+    use shadeswap_shared::custom_fee::CustomFee;
     use crate::contract::set_staking_contract;
     use crate::test::help_test_lib::{{LP_TOKEN_ADDRESS, FACTORY_CONTRACT_ADDRESS, CUSTOM_TOKEN_1,
         CUSTOM_TOKEN_2, CONTRACT_ADDRESS}};

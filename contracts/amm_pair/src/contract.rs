@@ -1,11 +1,14 @@
-use cosmwasm_std::to_binary;
+use cosmwasm_std::{to_binary, WasmQuery, BankMsg};
 use cosmwasm_std::{CosmosMsg, WasmMsg};
 use cosmwasm_std::{StdError, StdResult, InitResponse};
 use cosmwasm_std::Env;
-use cosmwasm_std::Extern;
-use cosmwasm_std::Api;
-use cosmwasm_std::Querier;
-use cosmwasm_std::Storage;
+use secret_toolkit::snip20::{token_info_query, mint_msg, transfer_from_msg, HandleMsg as Snip20HandleMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg};
+use std::hash::Hash;
+use std::ops::{Add, Sub, Mul, Div};
+use cosmwasm_std::BalanceResponse;
+use std::collections::hash_map::DefaultHasher;
+use shadeswap_shared::custom_fee::Fee;
+use cosmwasm_std::{Extern, Api, Binary, Querier, Storage, Uint128, from_binary, HumanAddr, QueryRequest, HandleResponse, Decimal,QueryResult, log};
 use shadeswap_shared::fadroma::prelude::{Callback, ContractLink};
 use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}}, snip20_reference_impl};
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
@@ -17,7 +20,9 @@ use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::token_pair::{{TokenPair}};
 use shadeswap_shared::admin::{{apply_admin_guard, store_admin, load_admin, set_admin_guard}};
 use shadeswap_shared::Pagination;
+use crate::help_math::convert_uint128_to_decimal;
 use crate::state::{{Config}};
+use std::ops::Mul;
 use crate::state::amm_pair_storage::{store_config, is_address_in_whitelist, store_trade_counter,
      load_whitelist_address,add_whitelist_address,load_staking_contract, store_staking_contract, load_config, store_trade_history,remove_whitelist_address,
 load_trade_counter, load_trade_history};
@@ -32,6 +37,12 @@ use shadeswap_shared::msg::staking::InitMsg as StakingInitMsg;
 use snip20_reference_impl::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
+use shadeswap_shared::viewing_keys::ViewingKey;
+use cosmwasm_std::Coin;
+use shadeswap_shared::custom_fee::CustomFee;
+use std::hash::Hasher;
+use cosmwasm_std::BalanceResponse;
+use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}}, snip20_reference_impl};
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
 pub const BLOCK_SIZE: usize = 256;
@@ -70,7 +81,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
                 },
             }),
             initial_balances: None,
-            initial_allowances: None,
             prng_seed: msg.prng_seed.clone(),
             config: Some(
                 Snip20ComposableConfig::builder()
@@ -163,7 +173,7 @@ fn register_lp_token<S: Storage, A: Api, Q: Querier>(
 
     let mut messages = Vec::new();
     // register pair contract for LP receiver
-    messages.push(snip20::register_receive_msg(
+    messages.push(register_receive_msg(
         env.contract_code_hash.clone(),
         None,
         BLOCK_SIZE,
@@ -190,14 +200,14 @@ fn register_pair_token(
         ..
     } = token
     {
-        messages.push(snip20::set_viewing_key_msg(
+        messages.push(set_viewing_key_msg(
             viewing_key.0.clone(),
             None,
             BLOCK_SIZE,
             token_code_hash.clone(),
             contract_addr.clone(),
         )?);
-        messages.push(snip20::register_receive_msg(
+        messages.push(register_receive_msg(
             env.contract_code_hash.clone(),
             None,
             BLOCK_SIZE,
@@ -325,9 +335,10 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
                 contract_addr,
                 token_code_hash,
             } => {
-                messages.push(snip20::transfer_msg(
+                messages.push(transfer_msg(
                     amm_settings.shade_dao_address.address,
                     swap_result.shade_dao_fee_amount,
+                    None,
                     None,
                     BLOCK_SIZE,
                     token_code_hash.clone(),
@@ -570,32 +581,31 @@ fn get_estimated_lp_token<S:Storage, A: Api, Q: Querier>(
 
     let pair_contract_pool_liquidity =
         query_liquidity_pair_contract(&deps.querier, &lp_token_info)?;
-    let mut lp_tokens: u128 = u128::MIN;
+    let mut lp_tokens: Uint128 = Uint128::zero();
     if pair_contract_pool_liquidity == Uint128::zero() {
         // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
         // x and y is amount of token0 and token1 provided
-        let deposit_token0_amount = Uint256::from(deposit.amount_0);
-        let deposit_token1_amount = Uint256::from(deposit.amount_1);
-        lp_tokens = (deposit_token0_amount * deposit_token1_amount)?
+        let deposit_token0_amount = deposit.amount_0;
+        let deposit_token1_amount = deposit.amount_1;
+        lp_tokens = deposit_token0_amount * convert_uint128_to_decimal(deposit_token1_amount)?
             .sqrt()?
-            .clamp_u128()?
     } else {
         // Total % of Pool
-        let total_share = Uint256::from(pair_contract_pool_liquidity);
+        let total_share = pair_contract_pool_liquidity;
         // Deposit amounts of the tokens
-        let deposit_token0_amount = Uint256::from(deposit.amount_0);
-        let deposit_token1_amount = Uint256::from(deposit.amount_1);
+        let deposit_token0_amount = deposit.amount_0;
+        let deposit_token1_amount = deposit.amount_1;
 
         // get token pair balance
-        let token0_pool = Uint256::from(pool_balances[0]);
-        let token1_pool = Uint256::from(pool_balances[1]);
+        let token0_pool = pool_balances[0];
+        let token1_pool = pool_balances[1];
         // Calcualte new % of Pool
-        let percent_token0_pool = ((deposit_token0_amount * total_share)? / token0_pool)?;
-        let percent_token1_pool = ((deposit_token1_amount * total_share)? / token1_pool)?;
-        lp_tokens = std::cmp::min(percent_token0_pool, percent_token1_pool).clamp_u128()?
+        let percent_token0_pool = deposit_token0_amount.multiply_ratio(total_share, token0_pool);
+        let percent_token1_pool = deposit_token1_amount.multiply_ratio(total_share, token1_pool);
+        lp_tokens = std::cmp::min(percent_token0_pool, percent_token1_pool)
     };
 
-    let response_msg = QueryMsgResponse::EstimatedLiquidity { lp_token: Uint128(lp_tokens), total_lp_token: pair_contract_pool_liquidity };
+    let response_msg = QueryMsgResponse::EstimatedLiquidity { lp_token: lp_tokens, total_lp_token: pair_contract_pool_liquidity };
     to_binary(&response_msg)
 
 }
@@ -624,11 +634,9 @@ fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(
     Ok(result)
 }
 
-fn calculate_fee(amount: Uint256, fee: Fee) -> StdResult<Uint128> {
-    let nom = Uint256::from(fee.nom);
-    let denom = Uint256::from(fee.denom);
-    let amount = ((amount * nom)? / denom)?;   
-    Ok(amount.clamp_u128()?.into())
+fn calculate_fee(amount: Uint128, fee: Fee) -> StdResult<Uint128> {
+    let amount = amount.multiply_ratio(fee.nom, fee.denom);   
+    Ok(amount)
 }
 
 pub fn calculate_swap_result(
@@ -647,7 +655,7 @@ pub fn calculate_swap_result(
         )));
     }
 
-    let amount = Uint256::from(offer.amount);
+    let amount = Uint128::from(offer.amount);
     // conver tand get avialble balance
     let tokens_pool = get_token_pool_balance(querier, config, offer)?;
     let token0_pool = tokens_pool[0];
@@ -663,12 +671,12 @@ pub fn calculate_swap_result(
     let discount_fee = is_address_in_whitelist(storage, recipient)?;
     if discount_fee == false {        
         if  config.custom_fee.is_some() {
-            lp_fee_amount = calculate_fee(Uint256::from(offer.amount), config.custom_fee.clone().unwrap().lp_fee)?;
-            shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), config.custom_fee.clone().unwrap().shade_dao_fee)?;
+            lp_fee_amount = calculate_fee(offer.amount, config.custom_fee.clone().unwrap().lp_fee)?;
+            shade_dao_fee_amount = calculate_fee(offer.amount, config.custom_fee.clone().unwrap().shade_dao_fee)?;
         }
         else{
-            lp_fee_amount = calculate_fee(Uint256::from(offer.amount), lp_fee)?;
-            shade_dao_fee_amount = calculate_fee(Uint256::from(offer.amount), shade_dao_fee)?;
+            lp_fee_amount = calculate_fee(offer.amount, lp_fee)?;
+            shade_dao_fee_amount = calculate_fee(offer.amount, shade_dao_fee)?;
         }      
     }
     // total fee
@@ -680,9 +688,9 @@ pub fn calculate_swap_result(
         deducted_offer_amount = offer.amount;
     }
 
-    let swap_amount = calculate_price(Uint256::from(deducted_offer_amount), token0_pool, token1_pool)?;
+    let swap_amount = calculate_price(deducted_offer_amount, token0_pool, token1_pool)?;
     let result_swap = SwapResult {
-        return_amount: swap_amount.clamp_u128()?.into(),       
+        return_amount: swap_amount,       
     };
 
     let token_index = config.pair.get_token_index(&offer.token).unwrap();  
@@ -692,7 +700,7 @@ pub fn calculate_swap_result(
         shade_dao_fee_amount: shade_dao_fee_amount,
         total_fee_amount: total_fee_amount,
         result: result_swap,
-        price: calculate_and_print_price(swap_amount.clamp_u128()?.into(), amount.clamp_u128()?.into(), token_index)?,
+        price: calculate_and_print_price(swap_amount, amount, token_index)?,
     })
 }
 
@@ -724,7 +732,7 @@ fn get_token_pool_balance(
     querier: &impl Querier,  
     config: &Config<HumanAddr>,
     swap_offer: &TokenAmount<HumanAddr>,
-) -> StdResult<[Uint256; 2]> {
+) -> StdResult<[Uint128; 2]> {
     let tokens_balances = config.pair.query_balances(
         querier,
         config.contract_addr.clone(),
@@ -735,8 +743,8 @@ fn get_token_pool_balance(
     let token1_pool = tokens_balances[index ^ 1];
 
     // conver tand get avialble balance
-    let token0_pool = Uint256::from(token0_pool);
-    let token1_pool = Uint256::from(token1_pool);
+    let token0_pool = token0_pool;
+    let token1_pool = token1_pool;
     Ok([token0_pool, token1_pool])
 }
 
@@ -757,16 +765,14 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
 
     let liquidity_pair_contract = query_liquidity_pair_contract(&deps.querier, &lp_token_info)?;
     let pool_balances = pair.query_balances(&deps.querier, contract_addr, viewing_key.0)?;
-    let withdraw_amount = Uint256::from(amount);
-    let total_liquidity = Uint256::from(liquidity_pair_contract);
+    let withdraw_amount = amount;
+    let total_liquidity = liquidity_pair_contract;
 
     let mut pool_withdrawn: [Uint128; 2] = [Uint128::zero(), Uint128::zero()];
 
     for (i, pool_amount) in pool_balances.iter().enumerate() {
-        let pool_amount = Uint256::from(*pool_amount);
-        pool_withdrawn[i] = ((pool_amount * withdraw_amount)? / total_liquidity)?
-            .clamp_u128()?
-            .into();
+        let pool_amount = (*pool_amount);
+        pool_withdrawn[i] = pool_amount.multiply_ratio(withdraw_amount, total_liquidity)          
     }
 
     let mut pair_messages: Vec<CosmosMsg> = Vec::with_capacity(4);
@@ -779,8 +785,9 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
         )?);
     }
 
-    pair_messages.push(snip20::burn_msg(
+    pair_messages.push(burn_msg(
         amount,
+        None,
         None,
         BLOCK_SIZE,
         lp_token_info.code_hash,
@@ -799,11 +806,11 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn calculate_price(
-    amount: Uint256,
-    token0_pool_balance: Uint256,
-    token1_pool_balance: Uint256,
-) -> StdResult<Uint256> {
-    Ok(((token1_pool_balance * amount)? / (token0_pool_balance + amount)?)?)
+    amount: Uint128,
+    token0_pool_balance: Uint128,
+    token1_pool_balance: Uint128,
+) -> StdResult<Uint128> {
+    Ok(token1_pool_balance.multiply_ratio(amount, (token0_pool_balance + amount)))
 }
 
 pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
@@ -840,14 +847,16 @@ pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
                 contract_addr,
                 token_code_hash,
             } => {
-                pair_messages.push(snip20::transfer_from_msg(
+                pair_messages.push(transfer_from_msg(
                     env.message.sender.clone(),
                     env.contract.address.clone(),
                     amount,
                     None,
+                    None,
                     BLOCK_SIZE,
                     token_code_hash.clone(),
                     contract_addr.clone(),
+
                 )?);              
             }
             TokenType::NativeToken { .. } => {
@@ -868,29 +877,30 @@ pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     println!("{:?}", lp_token_info.address.clone());
     let pair_contract_pool_liquidity =
         query_liquidity_pair_contract(&deps.querier, &lp_token_info)?;
-    let mut lp_tokens: u128 = u128::MIN;
+    let mut lp_tokens: Uint128 = Uint128::zero();
     if pair_contract_pool_liquidity == Uint128::zero() {
         // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
         // x and y is amount of token0 and token1 provided
-        let deposit_token0_amount = Uint256::from(deposit.amount_0);
-        let deposit_token1_amount = Uint256::from(deposit.amount_1);
-        lp_tokens = (deposit_token0_amount * deposit_token1_amount)?
-            .sqrt()?
-            .clamp_u128()?
+        let deposit_token0_amount = deposit.amount_0;
+        let deposit_token1_amount = deposit.amount_1;
+        let temp_result = deposit_token0_amount * convert_uint128_to_decimal(deposit_token1_amount)?;
+        let sqrt_result = Uint256::from(temp_result).sqrt()?;
+        lp_tokens = sqrt_result.clamp_u128()?
+            
     } else {
         // Total % of Pool
-        let total_share = Uint256::from(pair_contract_pool_liquidity);
+        let total_share = pair_contract_pool_liquidity;
         // Deposit amounts of the tokens
-        let deposit_token0_amount = Uint256::from(deposit.amount_0);
-        let deposit_token1_amount = Uint256::from(deposit.amount_1);
+        let deposit_token0_amount = deposit.amount_0;
+        let deposit_token1_amount = deposit.amount_1;
 
         // get token pair balance
-        let token0_pool = Uint256::from(pool_balances[0]);
-        let token1_pool = Uint256::from(pool_balances[1]);
+        let token0_pool = pool_balances[0];
+        let token1_pool = pool_balances[1];
         // Calcualte new % of Pool
-        let percent_token0_pool = ((deposit_token0_amount * total_share)? / token0_pool)?;
-        let percent_token1_pool = ((deposit_token1_amount * total_share)? / token1_pool)?;
-        lp_tokens = std::cmp::min(percent_token0_pool, percent_token1_pool).clamp_u128()?
+        let percent_token0_pool =  deposit_token0_amount.multiply_ratio(total_share,token0_pool);
+        let percent_token1_pool = deposit_token1_amount.multiply_ratio(total_share, token1_pool);
+        lp_tokens = std::cmp::min(percent_token0_pool, percent_token1_pool)
     };
 
     let mut add_to_staking = false;
@@ -905,9 +915,10 @@ pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
             ));          
         } 
            
-        pair_messages.push(snip20::mint_msg(
+        pair_messages.push(mint_msg(
             env.contract.address.clone(),
-            Uint128(lp_tokens),
+            lp_tokens,
+            None,
             None,
             BLOCK_SIZE,
             lp_token_info.code_hash.clone(),
@@ -916,17 +927,19 @@ pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
       
         let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
             from: env.message.sender.clone(),  
-            amount: Uint128(lp_tokens)           
+            amount: lp_tokens           
         })
         .unwrap();
 
         let receive_msg = to_binary(&StakingHandleMsg::Receive { 
-            from:  env.message.sender.clone(), msg: Some(invoke_msg.clone()), amount: Uint128(lp_tokens) })?;
+            from:  env.message.sender.clone(), msg: Some(invoke_msg.clone()), amount: lp_tokens })?;
         // SEND LP Token to Staking Contract with Staking Message
-        let msg = to_binary(&snip20::HandleMsg::Send {
+        let msg = to_binary(&Snip20HandleMsg::Send {
             recipient: staking_contract.address.clone(),
-            amount: Uint128(lp_tokens),
+            recipient_code_hash: Some(staking_contract.code_hash.clone()),
+            amount: lp_tokens,
             msg: Some(invoke_msg.clone()),
+            memo: None,
             padding: None,
         })?;
         
@@ -942,9 +955,10 @@ pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     }
     else {
         add_to_staking = false;
-        pair_messages.push(snip20::mint_msg(
+        pair_messages.push(mint_msg(
             env.message.sender.clone(),
-            Uint128(lp_tokens),
+            lp_tokens,
+            None,
             None,
             BLOCK_SIZE,
             lp_token_info.code_hash.clone(),
@@ -998,7 +1012,7 @@ fn query_liquidity_pair_contract(
     querier: &impl Querier,
     lp_token_linke: &ContractLink<HumanAddr>,
 ) -> StdResult<Uint128> {
-    let result = snip20::token_info_query(
+    let result = token_info_query(
         querier,
         BLOCK_SIZE,
         lp_token_linke.code_hash.clone(),
@@ -1097,7 +1111,7 @@ fn query_liquidity(
     querier: &impl Querier,
     lp_token_info: &ContractLink<HumanAddr>,
 ) -> StdResult<Uint128> {
-    let result = snip20::token_info_query(
+    let result = token_info_query(
         querier,
         BLOCK_SIZE,
         lp_token_info.code_hash.clone(),

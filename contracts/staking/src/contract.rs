@@ -1,4 +1,4 @@
-use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}, fadroma::secret_toolkit::utils::Query};
+use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}};
 use shadeswap_shared::msg::amm_pair::HandleMsg as AmmPairHandleMsg;
 use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, token_type::{{TokenType}}};
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
@@ -7,19 +7,11 @@ use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_ti
     load_claim_reward_info, load_prgn_seed, store_prgn_seed}};   
 use std::{time::{SystemTime, UNIX_EPOCH}, env};
 use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
-use shadeswap_shared::{ 
-    fadroma::{
-        scrt::{
-            from_binary, log, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg, Decimal, Env,
-            Extern, HandleResponse, HumanAddr, InitResponse, Querier, QueryRequest, QueryResult,
-            StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery, 
-            secret_toolkit::snip20,        
-        },
-        scrt_uint256::Uint256,
-        scrt_callback::Callback,
-        scrt_link::ContractLink,
-        scrt_vk::{ViewingKey,create_hashed_password}
-    }
+use cosmwasm_std::{{HandleResponse, Uint128, to_binary}};
+;;
+
+use shadeswap_shared::{
+    fadroma::prelude::ContractInfo
 };
 
 pub const BLOCK_SIZE: usize = 256;

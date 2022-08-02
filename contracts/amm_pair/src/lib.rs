@@ -5,11 +5,14 @@ pub mod help_math;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm {
-    use super::contract;
-    use shadeswap_shared::fadroma::scrt::cosmwasm_std::{
-        do_handle, do_init, do_query, ExternalApi, ExternalQuerier, ExternalStorage,
-    };
-
+    use super::contract;  
+    use cosmwasm_std::ExternalStorage;
+    use cosmwasm_std::ExternalApi;
+    use cosmwasm_std::ExternalQuerier;
+    use cosmwasm_std::do_query;
+    use cosmwasm_std::ExternalQuerier;
+    use cosmwasm_std::do_init;
+    use cosmwasm_std::do_handle;
     #[no_mangle]
     extern "C" fn init(env_ptr: u32, msg_ptr: u32) -> u32 {
         do_init(

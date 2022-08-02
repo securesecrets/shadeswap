@@ -7,6 +7,7 @@ use network_integration::utils::{
     AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY, SNIP20_FILE,
     STAKING_FILE, VIEW_KEY,
 };
+use cosmwasm_std::BalanceResponse;
 use secretcli::{
     cli_types::NetContract,
     secretcli::{account_address, handle, init, query, store_and_return_contract, Report},

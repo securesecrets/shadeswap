@@ -1,15 +1,6 @@
-use shadeswap_shared::{
-    fadroma::{
-        scrt_link::{ContractLink},    
-        scrt_addr::{Humanize, Canonize},
-        scrt::{
-            Api, CanonicalAddr, Extern, HumanAddr, Uint128,
-            Querier, StdResult, Storage, StdError
-        },
-        scrt_storage::{load, save, ns_save, ns_load},
-        scrt_vk::ViewingKey,
-    },
-    token_pair::TokenPair, custom_fee::CustomFee
+use cosmwasm_std::{HumanAddr, StdResult, Api, CanonicalAddr};
+use shadeswap_shared::{   
+    token_pair::TokenPair, custom_fee::CustomFee, viewing_keys::ViewingKey, fadroma::prelude::{ContractLink, Humanize, Canonize}
 };
 
 use serde::{Deserialize, Serialize};
@@ -34,7 +25,7 @@ pub struct Config<A: Clone> {
     pub custom_fee: Option<CustomFee>
 }
 
-impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
+impl Canonize for Config<HumanAddr> {
     fn canonize (&self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
         Ok(Config {
             factory_info:  self.factory_info.canonize(api)?,
@@ -45,8 +36,10 @@ impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
             custom_fee: self.custom_fee.clone()
         })
     }
+
+    type Output;
 }
-impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
+impl Humanize for Config<CanonicalAddr> {
     fn humanize (&self, api: &impl Api) -> StdResult<Config<HumanAddr>> {        
         Ok(Config {
             factory_info:  self.factory_info.humanize(api)?,
@@ -57,11 +50,16 @@ impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
             custom_fee: self.custom_fee.clone()
         })
     }
+
+    type Output;
 }
 
 pub mod tradehistory{
     use super::*;
-    use shadeswap_shared::fadroma::Humanize;
+    use cosmwasm_std::{StdResult, HumanAddr, Extern, Querier, Api, Storage, StdError, CanonicalAddr};
+    use shadeswap_shared::{scrt_storage::{ns_save, ns_load, save, load}, fadroma::prelude::Humanize};
+    use tradehistory::{DirectionType};
+
     #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone)]
     pub enum DirectionType{
         Buy,
@@ -69,7 +67,7 @@ pub mod tradehistory{
         Unknown,
     }
 
-    impl Humanize<String> for DirectionType {
+    impl Humanize for DirectionType {
         fn humanize(&self, api: &impl Api) -> StdResult<String> {
             match *self {
                 DirectionType::Sell => Ok("Sell".to_string()),
@@ -77,6 +75,8 @@ pub mod tradehistory{
                 DirectionType::Unknown => Ok("Unknown".to_string())
             }
         }
+
+        type Output;
     }
 
 }
@@ -84,6 +84,8 @@ pub mod tradehistory{
 
 pub mod amm_pair_storage{
     use super::*;
+    use cosmwasm_std::{StdResult, HumanAddr, Extern, Querier, Api, Storage, StdError, CanonicalAddr};
+    use shadeswap_shared::scrt_storage::{ns_save, ns_load, save, load};
     use tradehistory::{DirectionType};
 
     pub fn store_config <S: Storage, A: Api, Q: Querier>(

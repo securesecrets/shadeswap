@@ -1,3 +1,4 @@
+use cosmwasm_std::Env;
 use cosmwasm_std::testing::mock_env;
 use cosmwasm_std::testing::mock_dependencies;
 use cosmwasm_std::to_binary;
@@ -80,7 +81,7 @@ use super::*;
         let env = mkenv("admin");
         let config = mkconfig(0);
 
-        config_write(deps, &config)?;
+        config_write(deps, config)?;
 
         let signature = create_signature(&env)?;
         save(&mut deps.storage, EPHEMERAL_STORAGE_KEY, &signature)?;
@@ -241,7 +242,7 @@ use super::*;
 
 pub mod test_state {
     use shadeswap_shared::amm_pair::AMMPair;
-
+    use shadeswap_shared::fadroma::core::Canonize;
     use crate::state::{save_amm_pairs_count, load_amm_pairs_count, save_amm_pairs, load_amm_pairs, generate_pair_key};
 
     use super::*;
@@ -256,10 +257,10 @@ pub mod test_state {
             deps: &Extern<S, A, Q>,
             pair: TokenPair<HumanAddr>,
         ) -> StdResult<()> {
-            let stored_pair = pair.canonize(&deps.api)?;
+            let stored_pair = pair.clone().canonize(&deps.api)?;
             let key = generate_pair_key(&stored_pair);
 
-            let pair = swap_pair(&pair);
+            let pair = swap_pair(&pair.clone());
 
             let stored_pair = pair.canonize(&deps.api)?;
             let swapped_key = generate_pair_key(&stored_pair);

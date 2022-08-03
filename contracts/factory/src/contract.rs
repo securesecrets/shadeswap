@@ -27,7 +27,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
     save_prng_seed(&mut deps.storage, &msg.prng_seed)?;
-    config_write(deps, &Config::from_init_msg(msg))?;
+    config_write(deps, Config::from_init_msg(msg))?;
     store_admin(deps, &env.message.sender.clone())?;
     Ok(InitResponse::default())
 }
@@ -81,7 +81,7 @@ fn set_shade_dao_address<S: Storage, A: Api, Q: Querier>(
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let mut config = config_read(deps)?;
     config.amm_settings.shade_dao_address = shade_dao_address.clone();
-    config_write(deps, &config)?;
+    config_write(deps, config)?;
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
@@ -154,7 +154,7 @@ pub fn query_amm_pair_address<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     pair: TokenPair<HumanAddr>,
 ) -> StdResult<Binary> {
-    let address = get_address_for_pair(deps, &pair)?;
+    let address = get_address_for_pair(deps, pair)?;
     to_binary(&QueryResponse::GetAMMPairAddress { address })
 }
 
@@ -182,7 +182,7 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
             config.amm_settings = new_value;
         }
 
-        config_write(deps, &config)?;
+        config_write(deps, config)?;
 
         Ok(HandleResponse {
             messages: vec![],

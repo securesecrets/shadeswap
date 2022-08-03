@@ -11,6 +11,7 @@ use cosmwasm_std::{
     StdResult,
     Storage, Env, HandleResponse, log,
 };
+use fadroma::prelude::{Humanize, Canonize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -22,6 +23,22 @@ pub struct TokenPair<A>(pub TokenType<A>, pub TokenType<A>);
 pub struct TokenPairIterator<'a, A> {
     pair: &'a TokenPair<A>,
     index: u8,
+}
+
+impl Canonize for TokenPair<HumanAddr> {
+    fn canonize(self, api: &impl Api) -> StdResult<TokenPair<CanonicalAddr>> {
+        Ok(TokenPair(self.0.canonize(api)?, self.1.canonize(api)?))
+    }
+
+    type Output = TokenPair<CanonicalAddr>;
+}
+
+impl Humanize for TokenPair<CanonicalAddr> {
+    fn humanize(self, api: &impl Api) -> StdResult<TokenPair<HumanAddr>> {
+        Ok(TokenPair(self.0.humanize(api)?, self.1.humanize(api)?))
+    }
+
+    type Output = TokenPair<HumanAddr>;
 }
 
 impl<A: Clone + PartialEq> TokenPair<A> {

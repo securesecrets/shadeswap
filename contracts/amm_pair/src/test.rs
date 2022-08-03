@@ -2,66 +2,42 @@ use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg,SwapInfo, Swa
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair::{{TokenPair}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
-use shadeswap_shared::token_type::{{TokenType}};
 use shadeswap_shared::amm_pair::{{AMMPair, AMMSettings}};
-use crate::state::{Config};
+use secret_toolkit::snip20::TokenInfo;
 use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
+use cosmwasm_std::testing::mock_dependencies;
 use crate::state::amm_pair_storage::{{ store_config, load_config,
     remove_whitelist_address,is_address_in_whitelist, add_whitelist_address,load_whitelist_address, }};
 use crate::contract::init;
-use shadeswap_shared::fadroma::secret_toolkit::snip20::Balance;
 use crate::contract::{{create_viewing_key, calculate_price, calculate_swap_result,swap, query, add_liquidity, handle}};
 use std::hash::Hash;
-use shadeswap_shared::{ 
-    fadroma::{
-        scrt::{
-            from_binary, log, to_binary, Api, BankMsg, Binary, MessageInfo, ContractInfo, Coin, CosmosMsg, Decimal, Env,
-            Extern, HandleResponse, HumanAddr, InitResponse,  Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
-            BankQuery, WasmQuery,  
-            secret_toolkit::snip20,  BlockInfo
-        },
-        scrt_uint256::Uint256,
-        scrt_callback::Callback,
-        scrt_link::{ContractLink, ContractInstantiationInfo},
-        scrt_vk::ViewingKey,
-    },
- 
-};
-
-use shadeswap_shared::{
-    fadroma::{
-        scrt::{
-            testing::{mock_dependencies, mock_env,MockApi, MockStorage, MOCK_CONTRACT_ADDR},
-            
-        },
-    }
-};
-use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip20ComposableConfig}};
+use cosmwasm_std::{BankQuery, AllBalanceResponse, to_vec,log,  Coin, StdResult, HumanAddr, BalanceResponse, from_binary, StdError, QueryRequest, Empty, Uint128, to_binary, QuerierResult, from_slice, Querier, testing::{MockApi, MockStorage}, Extern, ContractInfo, MessageInfo, BlockInfo, Env, Api, Storage, WasmQuery};
+use secret_toolkit::snip20::Balance;
+use shadeswap_shared::{fadroma::prelude::ContractLink};
+use crate::state::{{Config}};    
+use shadeswap_shared::token_type::TokenType;
+use serde::Deserialize;
+use serde::Serialize;
+use cosmwasm_std::testing::{mock_env, MOCK_CONTRACT_ADDR};
+pub const FACTORY_CONTRACT_ADDRESS: &str = "FACTORY_CONTRACT_ADDRESS";
+pub const CUSTOM_TOKEN_1: &str = "CUSTOM_TOKEN_1";
+pub const CUSTOM_TOKEN_2: &str = "CUSTOM_TOKEN_2";
+pub const CONTRACT_ADDRESS: &str = "CONTRACT_ADDRESS";
+pub const LP_TOKEN_ADDRESS: &str = "LP_TOKEN_ADDRESS";
+use crate::help_math::calculate_and_print_price;
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
+    use super::*;   
     use serde::de::DeserializeOwned;
     use shadeswap_shared::custom_fee::Fee;
-    use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-    use shadeswap_shared::fadroma::Empty;
-    use shadeswap_shared::fadroma::from_slice;
-    use shadeswap_shared::fadroma::QuerierResult;
-    use shadeswap_shared::fadroma::QueryRequest;
-    use shadeswap_shared::fadroma::QueryResult;
+    use shadeswap_shared::fadroma::prelude::{Callback, ContractInstantiationInfo};
+    use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };   
     use crate::state::amm_pair_storage::{{store_trade_history, load_trade_history, load_trade_counter}};
     use crate::state::tradehistory::{{ DirectionType}};
     use crate::test::help_test_lib::mkenv;  
     use serde::Deserialize;
     use serde::Serialize;
-    use shadeswap_shared::fadroma::BalanceResponse;
-    use crate::help_math::calculate_and_print_price;
-    pub const FACTORY_CONTRACT_ADDRESS: &str = "FACTORY_CONTRACT_ADDRESS";
-    pub const CUSTOM_TOKEN_1: &str = "CUSTOM_TOKEN_1";
-    pub const CUSTOM_TOKEN_2: &str = "CUSTOM_TOKEN_2";
-    pub const CONTRACT_ADDRESS: &str = "CONTRACT_ADDRESS";
-    
-
 
     #[test]
     fn assert_init_config() -> StdResult<()> {       
@@ -121,7 +97,7 @@ pub mod tests {
         let mut deps = mkdeps();
         let token_pair = mk_token_pair();
         let config = make_init_config(&mut deps,token_pair)?;   
-        store_config(&mut deps, &config)?;
+        store_config(&mut deps, config.clone())?;
         let stored_config = load_config(&mut deps)?;
         assert_eq!(config.pair.0, stored_config.pair.0);
         Ok(())
@@ -505,7 +481,7 @@ impl Querier for MockQuerier {
         &self,
         request: &QueryRequest<T>,
     ) -> StdResult<U> {
-        let raw = match shadeswap_shared::fadroma::to_vec(request) {
+        let raw = match to_vec(request) {
             Ok(raw) => raw,
             Err(e) => {
                 return Err(StdError::generic_err(format!(
@@ -526,21 +502,21 @@ impl Querier for MockQuerier {
     }
 
     fn query_balance<U: Into<HumanAddr>>(&self, address: U, denom: &str) -> StdResult<Coin> {
-        let request = shadeswap_shared::fadroma::BankQuery::Balance {
+        let request = BankQuery::Balance {
             address: address.into(),
             denom: denom.to_string(),
         }
         .into();
-        let res: shadeswap_shared::fadroma::BalanceResponse = self.query(&request)?;
+        let res: BalanceResponse = self.query(&request)?;
         Ok(res.amount)
     }
 
     fn query_all_balances<U: Into<HumanAddr>>(&self, address: U) -> StdResult<Vec<Coin>> {
-        let request = shadeswap_shared::fadroma::BankQuery::AllBalances {
+        let request = BankQuery::AllBalances {
             address: address.into(),
         }
         .into();
-        let res: shadeswap_shared::fadroma::AllBalanceResponse = self.query(&request)?;
+        let res: AllBalanceResponse = self.query(&request)?;
         Ok(res.amount)
     }
 }
@@ -556,33 +532,24 @@ struct IntBalanceResponse {
 #[cfg(test)]
 pub mod tests_calculation_price_and_fee{
     use super::*;
+    use cosmwasm_std::Decimal;
     use serde::de::DeserializeOwned;
-    use shadeswap_shared::custom_fee::{Fee, CustomFee};
-    use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-    use shadeswap_shared::fadroma::Empty;
-    use shadeswap_shared::fadroma::from_slice;
-    use shadeswap_shared::fadroma::QuerierResult;
-    use shadeswap_shared::fadroma::QueryRequest;
-    use shadeswap_shared::fadroma::QueryResult;
+    use shadeswap_shared::custom_fee::{CustomFee, Fee};
     use crate::contract::set_staking_contract;
-    use crate::test::help_test_lib::{{LP_TOKEN_ADDRESS, FACTORY_CONTRACT_ADDRESS, CUSTOM_TOKEN_1,
-        CUSTOM_TOKEN_2, CONTRACT_ADDRESS}};
     use crate::state::amm_pair_storage::{{store_trade_history, load_trade_history, load_trade_counter}};
     use crate::state::tradehistory::{{ DirectionType}};  
     use serde::Deserialize;
     use serde::Serialize;
-    use shadeswap_shared::fadroma::BalanceResponse;
-    use crate::help_math::calculate_and_print_price;    
     use crate::test::help_test_lib::{{mock_deps_with_expected_return_value, mk_amm_settings_a, mkenv, 
-        mock_config_test_calculation_price_fee, mk_custom_token_amount_test_calculation_price_fee,
+        mk_custom_token_amount_test_calculation_price_fee,
         mk_token_pair_test_calculation_price_fee, make_init_config_test_calculate_price_fee,
         mk_native_token_pair_test_calculation_price_fee,  mock_deps_for_slippage_test}};
     
     #[test]
     fn assert_calculate_and_print_price() -> StdResult<()>{
-        let result_a = calculate_and_print_price(99, 100,0)?;
-        let result_b = calculate_and_print_price(58, 124,1)?;
-        let result_c = calculate_and_print_price(158, 124,0)?;
+        let result_a = calculate_and_print_price(Uint128(99), Uint128(100),0)?;
+        let result_b = calculate_and_print_price(Uint128(58), Uint128(124),1)?;
+        let result_c = calculate_and_print_price(Uint128(158), Uint128(124),0)?;
         assert_eq!(result_a, "0.99".to_string());
         assert_eq!(result_b, "0.467741935".to_string());
         assert_eq!(result_c, "1.274193548387096774".to_string());
@@ -591,8 +558,15 @@ pub mod tests_calculation_price_and_fee{
 
     #[test]
     fn assert_calculate_price() -> StdResult<()>{     
-        let price = calculate_price(Uint256::from(2000), Uint256::from(10000), Uint256::from(100000));
-        assert_eq!(Uint256::from(16666), price?);
+        let price = calculate_price(Uint128(2000), Uint128(10000), Uint128(100000));
+        assert_eq!(Uint128(16666), price?);
+        Ok(())
+    }
+
+    #[test]
+    fn assert_calculate_price_sell() -> StdResult<()>{     
+        let price = calculate_price(Uint128(2000), Uint128(100000), Uint128(10000));
+        assert_eq!(Uint128(196), price?);
         Ok(())
     }
 
@@ -796,7 +770,7 @@ pub mod tests_calculation_price_and_fee{
             address: HumanAddr::from(LP_TOKEN_ADDRESS),
             code_hash: "CODE_HASH".to_string()
         };
-        store_config(&mut deps, &config)?;
+        store_config(&mut deps, config.clone())?;
         let offer_amount: u128 = 2000;          
         let address_a = HumanAddr::from("TESTA".to_string());
         let token = config.pair.clone();  
@@ -821,66 +795,28 @@ pub mod tests_calculation_price_and_fee{
 
 
 pub mod help_test_lib {
-
-    use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg,SwapInfo, SwapResult,  InvokeMsg, QueryMsgResponse}}, 
-    fadroma::secret_toolkit::snip20::TokenInfo, fadroma::secret_toolkit::snip20::TokenInfoResponse};
-    use shadeswap_shared::token_amount::{{TokenAmount}};
+    use super::*;       
+    use shadeswap_shared::{token_amount::{{TokenAmount}}, fadroma::prelude::{ContractInstantiationInfo, Callback}};
     use shadeswap_shared::token_pair::{{TokenPair}};
     use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
     use shadeswap_shared::token_type::{{TokenType}};
     use shadeswap_shared::amm_pair::{{AMMPair, AMMSettings}};
     use crate::{state::{Config}, contract::set_staking_contract};
-    use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
     use crate::state::amm_pair_storage::{{ store_config, load_config,
         remove_whitelist_address,is_address_in_whitelist, add_whitelist_address,load_whitelist_address, }};
     use crate::contract::init;
-    use shadeswap_shared::fadroma::secret_toolkit::snip20::Balance;
     use crate::contract::{{create_viewing_key, calculate_price, calculate_swap_result,swap, query, handle}};
     use std::hash::Hash;
     use serde::de::DeserializeOwned;
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-    use shadeswap_shared::fadroma::Empty;
-    use shadeswap_shared::fadroma::from_slice;
-    use shadeswap_shared::fadroma::QuerierResult;
-    use shadeswap_shared::fadroma::QueryRequest;
-    use shadeswap_shared::fadroma::QueryResult;
-    use crate::state::amm_pair_storage::{{store_trade_history, load_trade_history, load_trade_counter}};
+     use crate::state::amm_pair_storage::{{store_trade_history, load_trade_history, load_trade_counter}};
     use crate::state::tradehistory::{{ DirectionType}};  
     use serde::Deserialize;
     use serde::Serialize;
-    use shadeswap_shared::fadroma::BalanceResponse;
     use crate::help_math::calculate_and_print_price;
     use shadeswap_shared::custom_fee::{Fee, CustomFee};
-    use shadeswap_shared::{ 
-        fadroma::{
-            scrt::{
-                from_binary, log, to_binary, Api, BankMsg, Binary, MessageInfo, ContractInfo, Coin, CosmosMsg, Decimal, Env,
-                Extern, HandleResponse, HumanAddr, InitResponse,  Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
-                BankQuery, WasmQuery,  
-                secret_toolkit::snip20,  BlockInfo
-            },
-            scrt_uint256::Uint256,
-            scrt_callback::Callback,
-            scrt_link::{ContractLink, ContractInstantiationInfo},
-            scrt_vk::ViewingKey,
-        },
-     
-    };
-    
-    use shadeswap_shared::{
-        fadroma::{
-            scrt::{
-                testing::{mock_dependencies, mock_env,MockApi, MockStorage, MOCK_CONTRACT_ADDR},            
-            },
-        }
-    };
-    use composable_snip20::msg::{{InitMsg as Snip20ComposableMsg, InitConfig as Snip20ComposableConfig}};
-    
-    pub const FACTORY_CONTRACT_ADDRESS: &str = "FACTORY_CONTRACT_ADDRESS";
-    pub const CUSTOM_TOKEN_1: &str = "CUSTOM_TOKEN_1";
-    pub const CUSTOM_TOKEN_2: &str = "CUSTOM_TOKEN_2";
-    pub const CONTRACT_ADDRESS: &str = "CONTRACT_ADDRESS";
-    pub const LP_TOKEN_ADDRESS: &str = "LP_TOKEN_ADDRESS";
+
+ 
     pub fn mock_deps_with_expected_return_value() -> Extern<MockStorage, MockApi, MockQuerierExpectedValue> {
         Extern {
             storage: MockStorage::default(),
@@ -963,7 +899,7 @@ pub mod help_test_lib {
             &self,
             request: &QueryRequest<T>,
         ) -> StdResult<U> {
-            let raw = match shadeswap_shared::fadroma::to_vec(request) {
+            let raw = match to_vec(request) {
                 Ok(raw) => raw,
                 Err(e) => {
                     return Err(StdError::generic_err(format!(
@@ -1058,13 +994,13 @@ pub mod help_test_lib {
                                 },
                                 P_TOKEN_ADDRESS => {
                                     QuerierResult::Ok(to_binary(&TokenInfoResponseMock{
-                                        token_info: TokenInfo {
-                                        name: "LPTOKEN".to_string(),
-                                        decimals: 18,
-                                        symbol: "LP".to_string(),
-                                        total_supply: Some(Uint128(10000))
-                                    }
-                                }))
+                                            token_info: TokenInfo {
+                                            name: "LPTOKEN".to_string(),
+                                            decimals: 18,
+                                            symbol: "LP".to_string(),
+                                            total_supply: Some(Uint128(10000))
+                                        }
+                                    }))
                                 },
                                 _ => {
                                     println!("{}", contract_addr.as_str()); 
@@ -1116,7 +1052,7 @@ pub mod help_test_lib {
             &self,
             request: &QueryRequest<T>,
         ) -> StdResult<U> {
-            let raw = match shadeswap_shared::fadroma::to_vec(request) {
+            let raw = match to_vec(request) {
                 Ok(raw) => raw,
                 Err(e) => {
                     return Err(StdError::generic_err(format!(
@@ -1163,20 +1099,21 @@ pub mod help_test_lib {
         pair
     }
     
-    pub fn mock_config_test_calculation_price_fee(env: Env) -> StdResult<Config<HumanAddr>>
-    {    
-        let seed = to_binary(&"SEED".to_string())?;
-        let entropy = to_binary(&"ENTROPY".to_string())?;
+    // pub fn mock_config_test_calculation_price_fee(env: Env) -> StdResult<Config<HumanAddr>> {
+    // {    
+    //     let seed = to_binary(&"SEED".to_string())?;
+    //     let entropy = to_binary(&"ENTROPY".to_string())?;
     
-        Ok(Config {       
-            factory_info: mock_contract_link(FACTORY_CONTRACT_ADDRESS.to_string()),
-            lp_token_info: mock_contract_link("LPTOKEN".to_string()),
-            pair:      mk_token_pair_test_calculation_price_fee(),
-            contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
-            viewing_key:  create_viewing_key(&env, seed.clone(), entropy.clone()),
-            custom_fee: None
-        })
-    }
+    //     let config = Config {       
+    //         factory_info: mock_contract_link(FACTORY_CONTRACT_ADDRESS.to_string()),
+    //         lp_token_info: mock_contract_link("LPTOKEN".to_string()),
+    //         pair:      mk_token_pair_test_calculation_price_fee(),
+    //         contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
+    //         viewing_key:  create_viewing_key(&env, seed.clone(), entropy.clone()),
+    //         custom_fee: None
+    //     };
+    //     Ok(config)
+    // }
     
     pub fn make_init_config_test_calculate_price_fee<S: Storage, A: Api, Q: Querier>(
         deps: &mut Extern<S, A, Q>, 

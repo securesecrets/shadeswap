@@ -1,8 +1,9 @@
 use crate::TokenType;
 use cosmwasm_std::{
     from_binary, log, Api, Binary, Env, Extern, HandleResponse, HumanAddr, Querier, StdError,
-    StdResult, Storage, Uint128,
+    StdResult, Storage,
 };
+use cosmwasm_std::{Decimal, Uint128};
 use fadroma::core::ContractLink;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -276,6 +277,7 @@ pub mod factory {
     use fadroma::prelude::ContractInstantiationInfo;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
+    
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
@@ -354,8 +356,9 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub staking_amount: Uint128,
-        pub reward_token: TokenType<HumanAddr>,
+        pub reward_token: TokenType<HumanAddr>, 
         pub pair_contract: ContractLink<HumanAddr>,
+        pub prng_seed: Binary
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -373,6 +376,9 @@ pub mod staking {
             from: HumanAddr,
             msg: Option<Binary>,
             amount: Uint128,
+        }, 
+        SetVKForStaker{
+            key: String
         },
     }
 
@@ -384,25 +390,12 @@ pub mod staking {
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
-    pub enum QueryMsg {
-        GetClaimReward {
-            staker: HumanAddr,
-            seed: String,
-            time: Uint128,
-        },
+    pub enum QueryMsg {        
+        GetClaimReward {staker: HumanAddr, key: String, time: Uint128},
         GetContractOwner {},
-        GetStakerLpTokenInfo {
-            seed: String,
-            staker: HumanAddr,
-        },
-        GetRewardTokenBalance {
-            viewing_key: String,
-            address: HumanAddr,
-        },
-        GetStakerRewardTokenBalance {
-            viewing_key: String,
-            staker: HumanAddr,
-        },
+        GetStakerLpTokenInfo{key: String, staker: HumanAddr},
+        GetRewardTokenBalance {key: String, address: HumanAddr},
+        GetStakerRewardTokenBalance {key: String, staker: HumanAddr},
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]

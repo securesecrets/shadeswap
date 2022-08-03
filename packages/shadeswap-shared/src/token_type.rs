@@ -9,6 +9,7 @@ use cosmwasm_std::{
     StdResult,
     Storage, Env, HandleResponse, log, CanonicalAddr, Uint128, CosmosMsg, WasmMsg, to_binary, BankMsg, Coin,
 };
+use fadroma::prelude::{Canonize, Humanize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use secret_toolkit::snip20::{balance_query};
@@ -31,6 +32,44 @@ pub enum TokenType<A> {
 
 #[deprecated(note = "please use TokenType<CanonicalAddr> instead")]
 pub type TokenTypeStored = TokenType<CanonicalAddr>;
+
+
+impl Canonize for TokenType<HumanAddr> {
+    fn canonize(self, api: &impl Api) -> StdResult<TokenType<CanonicalAddr>> {
+        Ok(match self {
+            Self::CustomToken {
+                contract_addr,
+                token_code_hash,
+            } => TokenType::CustomToken {
+                contract_addr: contract_addr.canonize(api)?,
+                token_code_hash: token_code_hash.clone(),
+            },
+            Self::NativeToken { denom } => TokenType::NativeToken {
+                denom: denom.clone(),
+            },
+        })
+    }
+
+    type Output = TokenType<CanonicalAddr>;
+}
+impl Humanize for TokenType<CanonicalAddr> {
+    fn humanize(self, api: &impl Api) -> StdResult<TokenType<HumanAddr>> {
+        Ok(match self {
+            Self::CustomToken {
+                contract_addr,
+                token_code_hash,
+            } => TokenType::CustomToken {
+                contract_addr: contract_addr.humanize(api)?,
+                token_code_hash: token_code_hash.clone(),
+            },
+            Self::NativeToken { denom } => TokenType::NativeToken {
+                denom: denom.clone(),
+            },
+        })
+    }
+
+    type Output = TokenType<HumanAddr>;
+}
 
 impl<A: Clone> TokenType<A> {
     pub fn is_native_token(&self) -> bool {

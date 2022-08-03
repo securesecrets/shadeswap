@@ -61,7 +61,7 @@ impl Humanize for Config<CanonicalAddr> {
 
 pub fn config_write<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    config: &Config<HumanAddr>,
+    config: Config<HumanAddr>,
 ) -> StdResult<()> {
     save(&mut deps.storage, CONFIG_KEY, &config.canonize(&deps.api)?)
 }
@@ -125,7 +125,7 @@ pub(crate) fn save_amm_pairs<S: Storage, A: Api, Q: Querier>(
 
 pub(crate) fn get_address_for_pair<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    pair: &TokenPair<HumanAddr>,
+    pair: TokenPair<HumanAddr>,
 ) -> StdResult<HumanAddr> {
     let key = generate_pair_key(&pair.canonize(&deps.api)?);
 

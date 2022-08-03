@@ -1,39 +1,39 @@
 #[cfg(test)]
 pub mod tests {
-    use cosmwasm_std::BalanceResponse;
-use cosmwasm_std::AllBalanceResponse;
-use cosmwasm_std::BankQuery;
-    use cosmwasm_std::from_binary;
-    use cosmwasm_std::to_vec;
-use cosmwasm_std::Empty;
-use cosmwasm_std::QueryRequest;
-use cosmwasm_std::WasmQuery;
-use cosmwasm_std::from_slice;
-use cosmwasm_std::QuerierResult;
-use cosmwasm_std::testing::MockApi;
-use cosmwasm_std::testing::MockStorage;
-use cosmwasm_std::InitResponse;
-use cosmwasm_std::testing::mock_env;
-use cosmwasm_std::testing::mock_dependencies;
-use cosmwasm_std::Querier;
-use cosmwasm_std::Api;
-use cosmwasm_std::Storage;
-use cosmwasm_std::Extern;
-use cosmwasm_std::Env;
-use secret_toolkit::snip20::Balance;
-use shadeswap_shared::fadroma::prelude::ContractInstantiationInfo;
-use crate::contract::init;
+    use crate::contract::init;
     use crate::contract::EPHEMERAL_STORAGE_KEY;
     use crate::state::config_read;
     use crate::state::Config;
     use crate::state::CurrentSwapInfo;
+    use cosmwasm_std::from_binary;
+    use cosmwasm_std::from_slice;
+    use cosmwasm_std::testing::mock_dependencies;
+    use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::testing::MockApi;
+    use cosmwasm_std::testing::MockStorage;
     use cosmwasm_std::to_binary;
+    use cosmwasm_std::to_vec;
+    use cosmwasm_std::AllBalanceResponse;
+    use cosmwasm_std::Api;
+    use cosmwasm_std::BalanceResponse;
+    use cosmwasm_std::BankQuery;
     use cosmwasm_std::Coin;
     use cosmwasm_std::CosmosMsg;
+    use cosmwasm_std::Empty;
+    use cosmwasm_std::Env;
+    use cosmwasm_std::Extern;
     use cosmwasm_std::HumanAddr;
+    use cosmwasm_std::InitResponse;
+    use cosmwasm_std::Querier;
+    use cosmwasm_std::QuerierResult;
+    use cosmwasm_std::QueryRequest;
     use cosmwasm_std::StdError;
+    use cosmwasm_std::Storage;
     use cosmwasm_std::Uint128;
     use cosmwasm_std::WasmMsg;
+    use cosmwasm_std::WasmQuery;
+    use secret_toolkit::snip20::Balance;
+    use shadeswap_shared::fadroma::prelude::ContractInstantiationInfo;
     use shadeswap_shared::fadroma::prelude::ContractLink;
     use shadeswap_shared::scrt_storage::load;
     use shadeswap_shared::scrt_storage::save;
@@ -49,7 +49,7 @@ use crate::contract::init;
             router::{HandleMsg, InitMsg, InvokeMsg},
         },
         secret_toolkit::snip20::{self},
-        TokenAmount, TokenPair, TokenType
+        TokenAmount, TokenPair, TokenType,
     };
 
     pub const FACTORY_ADDRESS: &str = "FACTORY_ADDRESS";
@@ -646,7 +646,7 @@ use crate::contract::init;
                 denom: denom.to_string(),
             }
             .into();
-            let res:BalanceResponse = self.query(&request)?;
+            let res: BalanceResponse = self.query(&request)?;
             Ok(res.amount)
         }
 

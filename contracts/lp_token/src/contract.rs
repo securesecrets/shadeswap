@@ -216,8 +216,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             amount,
             memo,
             ..
-        } => try_burn_from(deps, &env, &owner, amount, memo),
-        HandleMsg::BatchBurnFrom { actions, .. } => try_batch_burn_from(deps, &env, actions),
+        } => Err(StdError::generic_err("This method has been disabled.")),
+        HandleMsg::BatchBurnFrom { actions, .. } => Err(StdError::generic_err("This method has been disabled.")),
 
         // Mint
         HandleMsg::Mint {
@@ -1728,12 +1728,12 @@ fn check_if_admin<S: Storage>(config: &Config<S>, account: &HumanAddr) -> StdRes
 
 fn is_valid_name(name: &str) -> bool {
     let len = name.len();
-    (3..=30).contains(&len)
+    (3..=200).contains(&len)
 }
 
 fn is_valid_symbol(symbol: &str) -> bool {
     let len = symbol.len();
-    let len_is_valid = (3..=6).contains(&len);
+    let len_is_valid = (3..=18).contains(&len);
 
     len_is_valid && symbol.bytes().all(|byte| (b'A'..=b'Z').contains(&byte))
 }

@@ -105,7 +105,7 @@ pub fn remove_staker<S: Storage, A: Api, Q: Querier>(
     save(&mut deps.storage, LIST_STAKERS, &addresses)
 }
 
-pub fn store_prgn_seed<S: Storage, A: Api, Q: Querier>(
+pub fn store_prng_seed<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     pgrn_seed: &Vec<u8>
 ) -> StdResult<()> {

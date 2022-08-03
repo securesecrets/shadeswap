@@ -24,7 +24,11 @@ test: unit-test unit-test-receiver integration-test
 
 .PHONY: unit-test
 unit-test:
-	cargo test
+	RUST_BACKTRACE=1 cargo test
+
+.PHONY: unit-test-nocapture
+unit-test-nocapture:
+	RUST_BACKTRACE=1 cargo test -- --nocapture
 
 .PHONY: unit-test-receiver
 unit-test-receiver:
@@ -32,7 +36,7 @@ unit-test-receiver:
 
 .PHONY: integration-test
 integration-test: compile-optimized compile-optimized-receiver
-	tests/integration.sh
+	if tests/integration.sh; then echo -n '\a'; else echo -n '\a'; sleep 0.125; echo -n '\a'; fi
 
 compile-optimized-receiver:
 	$(MAKE) -C tests/example-receiver compile-optimized
@@ -52,14 +56,14 @@ compile-optimized: _compile-optimized contract.wasm.gz
 _compile-optimized:
 	RUSTFLAGS='-C link-arg=-s' cargo build --release --target wasm32-unknown-unknown --locked
 	@# The following line is not necessary, may work only on linux (extra size optimization)
-	wasm-opt -Os ./target/wasm32-unknown-unknown/release/*.wasm -o ./contract.wasm
+	wasm-opt -Oz ./target/wasm32-unknown-unknown/release/*.wasm -o ./contract.wasm
 
 .PHONY: compile-optimized-reproducible
 compile-optimized-reproducible:
 	docker run --rm -v "$$(pwd)":/contract \
 		--mount type=volume,source="$$(basename "$$(pwd)")_cache",target=/code/target \
 		--mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-		enigmampc/secret-contract-optimizer:1.0.3
+		enigmampc/secret-contract-optimizer:1.0.5
 
 contract.wasm.gz: contract.wasm
 	cat ./contract.wasm | gzip -9 > ./contract.wasm.gz
@@ -69,7 +73,7 @@ start-server: # CTRL+C to stop
 	docker run -it --rm \
 		-p 26657:26657 -p 26656:26656 -p 1317:1317 \
 		-v $$(pwd):/root/code \
-		--name secretdev enigmampc/secret-network-sw-dev:v1.0.2
+		--name secretdev enigmampc/secret-network-sw-dev:v1.2.2-1
 
 .PHONY: schema
 schema:

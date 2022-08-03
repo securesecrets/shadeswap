@@ -5,7 +5,7 @@ use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, token_type:
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
     get_total_staking_amount, load_stakers, load_config, is_address_already_staker, store_claim_reward_info,
     store_staker, load_staker_info, store_staker_info, store_staker_vk, load_staker_vk, remove_staker, StakingInfo, 
-    load_claim_reward_info, load_prgn_seed, store_prgn_seed}};   
+    load_claim_reward_info, load_prgn_seed, store_prng_seed}};   
 use std::{time::{SystemTime, UNIX_EPOCH}, env};
 use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
 use cosmwasm_std::{HandleResponse, Uint128, to_binary, log, HumanAddr, StdResult, InitResponse, Storage, Api, Querier, Extern, Env, StdError, Binary, QueryResult, from_binary, CosmosMsg, WasmMsg};
@@ -38,7 +38,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     };
     store_config(deps, &config)?;
     store_admin(deps, &env.message.sender.clone())?;
-    store_prgn_seed(deps, &msg.prng_seed.as_slice().to_vec())?;
+    store_prng_seed(deps, &msg.prng_seed.as_slice().to_vec())?;
     let mut messages = vec![];
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: msg.pair_contract.address.clone(),

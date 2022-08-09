@@ -5,15 +5,15 @@ use rand::{distributions::Alphanumeric, Rng};
 use secretcli::cli_types::StoredContract;
 use secretcli::secretcli::{init, handle, Report};
 use secretcli::{cli_types::NetContract, secretcli::query};
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::fmt::Display;
 use std::fs;
 use cosmwasm_std::{
     Binary
 };
-
+use schemars::JsonSchema;
 use shadeswap_shared::snip20_reference_impl::msg::{
-    InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
+    InitConfig as Snip20ComposableConfig,InitMsg as Snip20ComposableMsg,
 };
 
 use shadeswap_shared::{
@@ -89,12 +89,57 @@ pub fn store_struct<T: serde::Serialize>(path: &str, data: &T) {
     .expect(&format!("Could not store {}", path));
 }
 
+/// This type represents optional configuration values which can be overridden.
+/// All values are optional and have defaults which are more private by default,
+/// but can be overridden if necessary
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Default, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct InitConfig {
+    /// Indicates whether the total supply is public or should be kept secret.
+    /// default: False
+    pub public_total_supply: Option<bool>,
+    /// Indicates whether deposit functionality should be enabled
+    /// default: False
+    pub enable_deposit: Option<bool>,
+    /// Indicates whether redeem functionality should be enabled
+    /// default: False
+    pub enable_redeem: Option<bool>,
+    /// Indicates whether mint functionality should be enabled
+    /// default: False
+    pub enable_mint: Option<bool>,
+    /// Indicates whether burn functionality should be enabled
+    /// default: False
+    pub enable_burn: Option<bool>,
+}
+
+impl InitConfig {
+    pub fn public_total_supply(&self) -> bool {
+        self.public_total_supply.unwrap_or(false)
+    }
+
+    pub fn deposit_enabled(&self) -> bool {
+        self.enable_deposit.unwrap_or(false)
+    }
+
+    pub fn redeem_enabled(&self) -> bool {
+        self.enable_redeem.unwrap_or(false)
+    }
+
+    pub fn mint_enabled(&self) -> bool {
+        self.enable_mint.unwrap_or(false)
+    }
+
+    pub fn burn_enabled(&self) -> bool {
+        self.enable_burn.unwrap_or(false)
+    }
+}
+
 
 pub fn init_snip20(
     name: String,
     symbol: String, 
     decimals: u8,
-    config: Option<Snip20ComposableConfig>,
+    config: Option<InitConfig>,
     reports: &mut Vec<Report>,
     account_key: &str,
     customizedSnip20File: Option<&str>
@@ -106,8 +151,11 @@ pub fn init_snip20(
         decimals: decimals,
         initial_balances: None,
         prng_seed: Default::default(),
-        config: config
+        // This is dirty
+        config: None
     };
+
+    init_msg.config().burn_enabled();
 
     let s_sToken = init(
         &init_msg,

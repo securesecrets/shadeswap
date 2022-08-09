@@ -3,7 +3,7 @@
 use cosmwasm_std::{
     log, to_binary, Api, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Extern,
     HandleResponse, HumanAddr, InitResponse, Querier, QueryResult, ReadonlyStorage, StdError,
-    StdResult, Storage, Uint128, WasmMsg,
+    StdResult, Storage, Uint128,
 };
 
 use crate::batch;
@@ -93,7 +93,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         redeem_is_enabled: init_config.redeem_enabled(),
         mint_is_enabled: init_config.mint_enabled(),
         burn_is_enabled: init_config.burn_enabled(),
-        contract_address: env.contract.address.clone(),
+        contract_address: env.contract.address,
     })?;
     config.set_total_supply(total_supply);
     config.set_contract_status(ContractStatusLevel::NormalRun);
@@ -104,26 +104,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     };
     config.set_minters(minters)?;
 
-    let mut messages = vec![];
-
-    if let Some(callback) = msg.callback {
-        messages.push(
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: callback.contract.address,
-                callback_code_hash: callback.contract.code_hash,
-                msg: callback.msg,
-                send: vec![],
-            })
-        )
-    }
-    
-    Ok(InitResponse {
-        messages,
-        log: vec![
-            log("token_address", env.contract.address),
-            log("token_code_hash", env.contract_code_hash)
-        ]
-    })
+    Ok(InitResponse::default())
 }
 
 fn pad_response(response: StdResult<HandleResponse>) -> StdResult<HandleResponse> {
@@ -235,8 +216,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             amount,
             memo,
             ..
-        } => Err(StdError::generic_err("This method has been disabled.")),
-        HandleMsg::BatchBurnFrom { actions, .. } => Err(StdError::generic_err("This method has been disabled.")),
+        } => try_burn_from(deps, &env, &owner, amount, memo),
+        HandleMsg::BatchBurnFrom { actions, .. } => try_batch_burn_from(deps, &env, actions),
 
         // Mint
         HandleMsg::Mint {
@@ -1740,12 +1721,12 @@ fn check_if_admin<S: Storage>(config: &Config<S>, account: &HumanAddr) -> StdRes
 
 fn is_valid_name(name: &str) -> bool {
     let len = name.len();
-    (3..=200).contains(&len)
+    (3..=30).contains(&len)
 }
 
 fn is_valid_symbol(symbol: &str) -> bool {
     let len = symbol.len();
-    let len_is_valid = (3..=18).contains(&len);
+    let len_is_valid = (3..=6).contains(&len);
 
     len_is_valid && symbol.bytes().all(|byte| (b'A'..=b'Z').contains(&byte))
 }
@@ -1786,7 +1767,6 @@ mod tests {
             initial_balances: Some(initial_balances),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: None,
-            callback: None,
         };
 
         (init(&mut deps, env, init_msg), deps)
@@ -1832,7 +1812,6 @@ mod tests {
             initial_balances: Some(initial_balances),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
-            callback: None,
         };
 
         (init(&mut deps, env, init_msg), deps)
@@ -3697,7 +3676,6 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
-            callback: None,
         };
         let init_result = init(&mut deps, env, init_msg);
         assert!(
@@ -3764,7 +3742,6 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
-            callback: None,
         };
         let init_result = init(&mut deps, env, init_msg);
         assert!(
@@ -3834,7 +3811,6 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
-            callback: None,
         };
         let init_result = init(&mut deps, env, init_msg);
         assert!(
@@ -3892,7 +3868,6 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
-            callback: None,
         };
         let init_result = init(&mut deps, env, init_msg);
         assert!(
@@ -3950,7 +3925,6 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
-            callback: None,
         };
         let init_result = init(&mut deps, env, init_msg);
         assert!(
@@ -3996,7 +3970,6 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: None,
-            callback: None,
         };
         let init_result = init(&mut deps, env, init_msg);
         assert!(

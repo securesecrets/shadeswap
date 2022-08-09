@@ -38,7 +38,7 @@ use shadeswap_shared::{
 };
 use std::env;
 
-use snip20_reference_impl::msg::{
+use shadeswap_shared::snip20_reference_impl::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
 

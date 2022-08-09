@@ -41,7 +41,7 @@ cosmwasm-std = { version = "0.10", package = "secret-cosmwasm-std" }
 cosmwasm-storage = { version = "0.10", package = "secret-cosmwasm-storage" }
 # secret-toolkit = "0.2.0" # Uncomment this for extra tools
 secret-toolkit = { version = "0.2" }
-fadroma = { commit="76867e0", git = "https://github.com/hackbg/fadroma.git", features=[] }
+fadroma = { commit="76867e0", git = "https://github.com/hackbg/fadroma.git", features=[ ] }
 snip20-reference-impl = {path = "../../contracts/snip20", name="snip20-reference-impl"}
 sha2 = { version = "0.9.1", default-features = false }
 subtle = { version = "2.2.3", default-features = false }

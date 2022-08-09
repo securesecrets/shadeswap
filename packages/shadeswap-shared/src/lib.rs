@@ -14,6 +14,7 @@ pub mod amm_pair;
 pub mod admin;
 pub mod stake_contract;
 pub mod custom_fee;
+pub mod callback;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod querier;

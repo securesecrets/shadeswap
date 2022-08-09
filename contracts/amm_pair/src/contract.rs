@@ -1,3 +1,5 @@
+use lp_token::msg::InitConfig;
+use shadeswap_shared::callback::Callback;
 use cosmwasm_std::{to_binary, WasmQuery, BankMsg};
 use cosmwasm_std::{CosmosMsg, WasmMsg};
 use cosmwasm_std::{StdError, StdResult, InitResponse};
@@ -9,8 +11,9 @@ use std::collections::hash_map::DefaultHasher;
 use std::str::FromStr;
 use shadeswap_shared::custom_fee::Fee;
 use cosmwasm_std::{Extern, Api, Binary, Querier, Storage,Decimal, Uint128, from_binary, HumanAddr, QueryRequest, HandleResponse, QueryResult, log};
-use shadeswap_shared::fadroma::prelude::{Callback, ContractLink};
-use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}}, snip20_reference_impl};
+use shadeswap_shared::fadroma::prelude::{ContractLink};
+use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}}};
+use lp_token as lp_token;
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
 use shadeswap_shared::msg::staking::InvokeMsg as StakingInvokeMsg;
 use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair}};
@@ -34,9 +37,6 @@ use shadeswap_shared::msg::staking::QueryResponse as StakingQueryResponse;
 use shadeswap_shared::msg::staking::HandleMsg as StakingHandleMsg;
 use shadeswap_shared::msg::router::HandleMsg as RouterHandleMsg;
 use shadeswap_shared::msg::staking::InitMsg as StakingInitMsg;
-use snip20_reference_impl::msg::{
-    InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
-};
 use shadeswap_shared::cosmwasm_math_compat::Decimal as MathDecimal;
 use shadeswap_shared::cosmwasm_math_compat::Uint128 as MathUint128;
 use shadeswap_shared::viewing_keys::ViewingKey;
@@ -66,7 +66,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     
     
 
-    let init_snip20_msg = Snip20ComposableMsg {
+    let init_snip20_msg = lp_token::msg::InitMsg {
         name: format!(
             "SHADESWAP Liquidity Provider (LP) token for {}-{}",
             &msg.pair.0, &msg.pair.1
@@ -75,22 +75,29 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         symbol: "SWAP-LP".to_string(),
         decimals: 18,
         // TODO need to find alternative
-        // callback: Some(Callback {
-        //     msg: to_binary(&HandleMsg::OnLpTokenInitAddr)?,
-        //     contract: ContractLink {
-        //         address: env.contract.address.clone(),
-        //         code_hash: env.contract_code_hash.clone(),
-        //     },
-        // }),
+        callback: Some(Callback {
+            msg: to_binary(&HandleMsg::OnLpTokenInitAddr)?,
+            contract: ContractLink {
+                address: env.contract.address.clone(),
+                code_hash: env.contract_code_hash.clone(),
+            },
+        }),
         initial_balances: None,
         prng_seed: msg.prng_seed.clone(),
-        config: None,
+        config: Some(lp_token::msg::InitConfig {
+            public_total_supply: Some(true),
+            enable_deposit: Some(false),
+            enable_redeem: Some(false),
+            enable_mint: Some(true),
+            enable_burn: Some(true)
+        }),
     };
-
-    let config = Snip20ComposableMsg::config(&init_snip20_msg);
+/*
+    let config = lp_token::msg::InitMsg::config(&init_snip20_msg);
     config.burn_enabled();
     config.mint_enabled();
     config.public_total_supply(); 
+    */
 
     // snip_init_config_msg.ena
     // Create LP token and store it

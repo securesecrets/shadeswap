@@ -42,6 +42,7 @@ cosmwasm-std = { version = "0.10", package = "secret-cosmwasm-std" }
 cosmwasm-storage = { version = "0.10", package = "secret-cosmwasm-storage" }
 secret-toolkit = { version = "0.2" }
 shadeswap-shared = {path = "../../packages/shadeswap-shared"}
+lp-token = {path="../lp_token"}
 
 [dev-dependencies]
 cosmwasm-schema = "0.10.1"

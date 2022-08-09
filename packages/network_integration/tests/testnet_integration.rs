@@ -38,11 +38,11 @@ use std::{
     env
 };
 
-use snip20_reference_impl::msg::{
+use shadeswap_shared::snip20_reference_impl::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
 };
 
-use snip20_reference_impl as snip20;
+use shadeswap_shared::snip20_reference_impl as snip20;
 
 #[test]
 fn run_testnet() -> Result<()> {

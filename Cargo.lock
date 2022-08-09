@@ -22,10 +22,11 @@ name = "amm_pair"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 0.10.1",
+ "lp-token",
  "schemars",
  "secret-cosmwasm-std",
  "secret-cosmwasm-storage",
- "secret-toolkit",
+ "secret-toolkit 0.2.0",
  "serde",
  "shadeswap-shared",
  "snafu",
@@ -269,7 +270,7 @@ dependencies = [
  "schemars",
  "secret-cosmwasm-std",
  "secret-cosmwasm-storage",
- "secret-toolkit",
+ "secret-toolkit 0.2.0",
  "serde",
  "shadeswap-shared",
  "snafu",
@@ -453,7 +454,20 @@ dependencies = [
 name = "lp-token"
 version = "0.1.0"
 dependencies = [
+ "base64 0.12.3",
+ "bincode2",
+ "cosmwasm-schema 0.9.4",
+ "rand_chacha 0.2.2",
+ "rand_core 0.5.1",
+ "schemars",
+ "secret-cosmwasm-std",
+ "secret-cosmwasm-storage",
+ "secret-toolkit 0.3.0",
+ "serde",
+ "sha2 0.9.9",
  "shadeswap-shared",
+ "snafu",
+ "subtle 2.4.1",
 ]
 
 [[package]]
@@ -486,7 +500,6 @@ dependencies = [
  "serde",
  "serde_json",
  "shadeswap-shared",
- "snip20-reference-impl",
 ]
 
 [[package]]
@@ -563,7 +576,7 @@ dependencies = [
  "secp256k1",
  "secret-cosmwasm-std",
  "secret-cosmwasm-storage",
- "secret-toolkit",
+ "secret-toolkit 0.2.0",
  "serde",
  "sha2 0.9.9",
  "snafu",
@@ -674,7 +687,7 @@ dependencies = [
  "schemars",
  "secret-cosmwasm-std",
  "secret-cosmwasm-storage",
- "secret-toolkit",
+ "secret-toolkit 0.2.0",
  "serde",
  "shadeswap-shared",
  "snafu",
@@ -770,13 +783,28 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ea907911beefdfa8357c39d20116d15c5f745f62087193677f7b5323851f8dc"
 dependencies = [
- "secret-toolkit-crypto",
- "secret-toolkit-permit",
- "secret-toolkit-serialization",
- "secret-toolkit-snip20",
- "secret-toolkit-snip721",
- "secret-toolkit-storage",
- "secret-toolkit-utils",
+ "secret-toolkit-crypto 0.2.0",
+ "secret-toolkit-permit 0.2.0",
+ "secret-toolkit-serialization 0.2.0",
+ "secret-toolkit-snip20 0.2.0",
+ "secret-toolkit-snip721 0.2.0",
+ "secret-toolkit-storage 0.2.0",
+ "secret-toolkit-utils 0.2.0",
+]
+
+[[package]]
+name = "secret-toolkit"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a117a6fadadd1d2692df73f19fc3319ec4db59c76f364ce1e1a0f3bd0bbead8"
+dependencies = [
+ "secret-toolkit-crypto 0.3.0",
+ "secret-toolkit-permit 0.3.1",
+ "secret-toolkit-serialization 0.3.0",
+ "secret-toolkit-snip20 0.3.0",
+ "secret-toolkit-snip721 0.3.0",
+ "secret-toolkit-storage 0.3.0",
+ "secret-toolkit-utils 0.3.1",
 ]
 
 [[package]]
@@ -793,6 +821,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "secret-toolkit-crypto"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "020d3ef7f595e37fed1684d3f97b546a412138da88ea26f2e50e5309f2a0c2be"
+dependencies = [
+ "secret-cosmwasm-std",
+ "sha2 0.9.9",
+]
+
+[[package]]
 name = "secret-toolkit-permit"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -803,8 +841,23 @@ dependencies = [
  "schemars",
  "secp256k1",
  "secret-cosmwasm-std",
- "secret-toolkit-crypto",
- "secret-toolkit-utils",
+ "secret-toolkit-crypto 0.2.0",
+ "secret-toolkit-utils 0.2.0",
+ "serde",
+]
+
+[[package]]
+name = "secret-toolkit-permit"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eee202f480f09638c53d6ae06ac7de0ae5c85357b3318cd9f202d0d5873197ee"
+dependencies = [
+ "bech32",
+ "remain",
+ "ripemd160",
+ "schemars",
+ "secret-cosmwasm-std",
+ "secret-toolkit-crypto 0.3.0",
  "serde",
 ]
 
@@ -821,6 +874,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "secret-toolkit-serialization"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46dbe2e79d6f912a87895e3c83cfda65470f05f7927ab58e398d1e67fb1f4f6a"
+dependencies = [
+ "bincode2",
+ "schemars",
+ "secret-cosmwasm-std",
+ "serde",
+]
+
+[[package]]
 name = "secret-toolkit-snip20"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -828,7 +893,19 @@ checksum = "2c111abe86e9ca5e0826ecf34a8a3941c0f55fa784b925604db0525627f75353"
 dependencies = [
  "schemars",
  "secret-cosmwasm-std",
- "secret-toolkit-utils",
+ "secret-toolkit-utils 0.2.0",
+ "serde",
+]
+
+[[package]]
+name = "secret-toolkit-snip20"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f3f125ba8f44970075d3d6246d715296a223fd055895e136c63f490a4adc472"
+dependencies = [
+ "schemars",
+ "secret-cosmwasm-std",
+ "secret-toolkit-utils 0.3.1",
  "serde",
 ]
 
@@ -840,7 +917,19 @@ checksum = "8193e1576aa8c95a165ff2cd8bee50220beddd01800ea97ee701b25fb88e6213"
 dependencies = [
  "schemars",
  "secret-cosmwasm-std",
- "secret-toolkit-utils",
+ "secret-toolkit-utils 0.2.0",
+ "serde",
+]
+
+[[package]]
+name = "secret-toolkit-snip721"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1447820a01e6f908739c78448f82ddde805c8daff20329209cd6789f9f0e9f36"
+dependencies = [
+ "schemars",
+ "secret-cosmwasm-std",
+ "secret-toolkit-utils 0.3.1",
  "serde",
 ]
 
@@ -852,7 +941,19 @@ checksum = "77901c296be19a46b8c6f9806c688e9c8d225c36b51dbabeb49c1f2618b68f65"
 dependencies = [
  "secret-cosmwasm-std",
  "secret-cosmwasm-storage",
- "secret-toolkit-serialization",
+ "secret-toolkit-serialization 0.2.0",
+ "serde",
+]
+
+[[package]]
+name = "secret-toolkit-storage"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb688dc8c8b882bcca2176005e5c3344ba0229f7b200c12d06202163b0e13773"
+dependencies = [
+ "secret-cosmwasm-std",
+ "secret-cosmwasm-storage",
+ "secret-toolkit-serialization 0.3.0",
  "serde",
 ]
 
@@ -864,6 +965,18 @@ checksum = "38fcd7c28522f7eb2e70c8911d2e91e60879d56d59258335e605df569e0039f9"
 dependencies = [
  "schemars",
  "secret-cosmwasm-std",
+ "serde",
+]
+
+[[package]]
+name = "secret-toolkit-utils"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31d4c330c5aaff6e9c32a0aab082c9dacbd659953b09b16a0419bd120ac32ee3"
+dependencies = [
+ "schemars",
+ "secret-cosmwasm-std",
+ "secret-cosmwasm-storage",
  "serde",
 ]
 
@@ -961,7 +1074,7 @@ dependencies = [
  "schemars",
  "secret-cosmwasm-std",
  "secret-cosmwasm-storage",
- "secret-toolkit",
+ "secret-toolkit 0.2.0",
  "serde",
  "sha2 0.9.9",
  "snafu",
@@ -1003,7 +1116,7 @@ dependencies = [
  "schemars",
  "secret-cosmwasm-std",
  "secret-cosmwasm-storage",
- "secret-toolkit",
+ "secret-toolkit 0.2.0",
  "serde",
  "sha2 0.9.9",
  "snafu",
@@ -1018,7 +1131,7 @@ dependencies = [
  "schemars",
  "secret-cosmwasm-std",
  "secret-cosmwasm-storage",
- "secret-toolkit",
+ "secret-toolkit 0.2.0",
  "serde",
  "shadeswap-shared",
  "snafu",

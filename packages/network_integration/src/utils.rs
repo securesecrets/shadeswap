@@ -1,3 +1,4 @@
+use shadeswap_shared::callback::Callback;
 use shadeswap_shared::fadroma::prelude::Env;
 use shadeswap_shared::viewing_keys::ViewingKey;
 use colored::*;
@@ -9,11 +10,11 @@ use serde::{Serialize, Deserialize};
 use std::fmt::Display;
 use std::fs;
 use cosmwasm_std::{
-    Binary
+    Binary, HumanAddr, Uint128
 };
 use schemars::JsonSchema;
 use shadeswap_shared::snip20_reference_impl::msg::{
-    InitConfig as Snip20ComposableConfig,InitMsg as Snip20ComposableMsg,
+    InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg, InitialBalance,
 };
 
 use shadeswap_shared::{
@@ -23,7 +24,7 @@ use shadeswap_shared::{
 
 use serde_json::Result;
 // Smart contracts
-pub const SNIP20_FILE: &str = "../../compiled/snip20.wasm.gz";
+pub const SNIP20_FILE: &str = "../../dependencies/snip20.wasm.gz";
 pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
 pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
 pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
@@ -134,6 +135,27 @@ impl InitConfig {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+pub struct InitialAllowance {
+    pub owner: HumanAddr,
+    pub spender: HumanAddr,
+    pub amount: Uint128,
+    pub expiration: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+pub struct InitMsg {
+    pub name: String,
+    pub admin: Option<HumanAddr>,
+    pub symbol: String,
+    pub decimals: u8,
+    pub initial_balances: Option<Vec<InitialBalance>>,
+    pub initial_allowances: Option<Vec<InitialAllowance>>,
+    pub prng_seed: Binary,
+    pub config: Option<InitConfig>,
+    pub callback: Option<Callback<HumanAddr>>
+}
+
 
 pub fn init_snip20(
     name: String,
@@ -143,19 +165,18 @@ pub fn init_snip20(
     reports: &mut Vec<Report>,
     account_key: &str,
     customizedSnip20File: Option<&str>
-) -> Result<(Snip20ComposableMsg, NetContract)> {
-    let init_msg = Snip20ComposableMsg {
+) -> Result<(InitMsg, NetContract)> {
+    let init_msg = InitMsg {
         name: name.to_string(),
         admin: None,
         symbol: symbol.to_string(),
         decimals: decimals,
         initial_balances: None,
         prng_seed: Default::default(),
-        // This is dirty
-        config: None
+        config: config,
+        initial_allowances: None,
+        callback: None,
     };
-
-    init_msg.config().burn_enabled();
 
     let s_sToken = init(
         &init_msg,

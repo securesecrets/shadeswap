@@ -13,7 +13,7 @@ use fadroma::prelude::{Canonize, Humanize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use secret_toolkit::snip20::{balance_query};
-use snip20_reference_impl::msg::HandleMsg::Send;
+use secret_toolkit::snip20::HandleMsg::Send;
 
 const BLOCK_SIZE: usize = 256;
 

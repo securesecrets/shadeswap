@@ -1,9 +1,10 @@
 
 
 use cosmwasm_std::{Binary, CosmosMsg, WasmMsg, HumanAddr};
-use fadroma::prelude::{Canonize, ContractLink};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use super::{ContractLink, Canonize};
 
 #[derive(Serialize, Deserialize, Canonize, Clone, Debug, PartialEq, JsonSchema)]
 /// Info needed to have the other contract respond.

@@ -24,7 +24,7 @@ use shadeswap_shared::{
 
 use serde_json::Result;
 // Smart contracts
-pub const SNIP20_FILE: &str = "../../dependencies/snip20.wasm.gz";
+pub const SNIP20_FILE: &str = "../../compiled/snip20.wasm.gz";
 pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
 pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
 pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";

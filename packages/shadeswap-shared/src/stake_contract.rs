@@ -9,10 +9,9 @@ use cosmwasm_std::{
     StdResult,
     Storage, Env, HandleResponse, log, Uint128,
 };
-use fadroma::prelude::ContractInstantiationInfo;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use crate::TokenType;
+use crate::{TokenType, core::ContractInstantiationInfo};
 
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]

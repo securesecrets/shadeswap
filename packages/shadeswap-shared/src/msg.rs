@@ -4,12 +4,13 @@ use cosmwasm_std::{
     StdResult, Storage,
 };
 use cosmwasm_std::{Decimal, Uint128};
-use fadroma::core::ContractLink;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::token_amount::TokenAmount;
 use crate::token_pair_amount::TokenPairAmount;
+use crate::core::ContractInstantiationInfo;
+use crate::core::ContractLink;
 
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -19,7 +20,7 @@ pub struct CountResponse {
 
 pub mod router {
     use super::{amm_pair::SwapResult, *};
-    use crate::viewing_keys::ViewingKey;
+    use crate::{viewing_keys::ViewingKey, core::ContractLink};
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub enum InvokeMsg {
@@ -92,10 +93,9 @@ pub mod amm_pair {
         amm_pair::AMMSettings,
         custom_fee::{CustomFee, Fee},
         stake_contract::StakingContractInit,
-        Pagination, TokenPair,
+        Pagination, TokenPair, core::{ContractLink, ContractInstantiationInfo, Callback},
     };
     use cosmwasm_std::Decimal;
-    use fadroma::prelude::{Callback, ContractInstantiationInfo};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
@@ -274,7 +274,6 @@ pub mod factory {
     use crate::amm_pair::AMMPair;
     use crate::stake_contract::StakingContractInit;
     use crate::{amm_pair::AMMSettings, Pagination, TokenPair};
-    use fadroma::prelude::ContractInstantiationInfo;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
     

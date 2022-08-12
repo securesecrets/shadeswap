@@ -11,10 +11,10 @@ use cosmwasm_std::{
     StdResult,
     Storage, Env, HandleResponse, log,
 };
-use fadroma::prelude::{Humanize, Canonize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::core::{Canonize, Humanize};
 use crate::token_type::TokenType;
 
 #[derive(Clone, Debug, JsonSchema)]

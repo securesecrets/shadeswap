@@ -11,11 +11,11 @@ use cosmwasm_std::{
     log,
     CanonicalAddr
 };
-use fadroma::prelude::{ContractLink, Humanize, Canonize};
-use crate::custom_fee::Fee;
+use crate::{custom_fee::Fee, core::Humanize};
 use crate::token_pair::TokenPair;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use crate::core::{Canonize, ContractLink};
 
 /// Represents the address of an exchange and the pair that it manages
 #[derive(Serialize, Deserialize, JsonSchema, Clone, PartialEq, Debug)]

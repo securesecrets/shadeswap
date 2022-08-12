@@ -9,11 +9,12 @@ use cosmwasm_std::{
     StdResult,
     Storage, Env, HandleResponse, log, CanonicalAddr, Uint128, CosmosMsg, WasmMsg, to_binary, BankMsg, Coin,
 };
-use fadroma::prelude::{Canonize, Humanize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use secret_toolkit::snip20::{balance_query};
 use secret_toolkit::snip20::HandleMsg::Send;
+
+use crate::core::{Canonize, Humanize};
 
 const BLOCK_SIZE: usize = 256;
 

@@ -274,7 +274,6 @@ pub fn calculate_staking_reward<S:Storage, A:Api, Q: Querier>(
 ) -> StdResult<Uint128>{
     let cons = Uint128(100u128);
     let percentage = get_staking_percentage(deps,staker, cons)?;
-    let percentage = Uint128(50);
     let config = load_config(deps)?;
     let seconds = Uint128(24u128 * 60u128 *60u128 *1000u128); 
     if last_timestamp < current_timestamp {

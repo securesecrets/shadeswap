@@ -1,5 +1,5 @@
 use lp_token::msg::InitConfig;
-use shadeswap_shared::callback::Callback;
+use shadeswap_shared::core::Callback;
 use cosmwasm_std::{to_binary, WasmQuery, BankMsg};
 use cosmwasm_std::{CosmosMsg, WasmMsg};
 use cosmwasm_std::{StdError, StdResult, InitResponse};
@@ -11,9 +11,9 @@ use std::collections::hash_map::DefaultHasher;
 use std::str::FromStr;
 use shadeswap_shared::custom_fee::Fee;
 use cosmwasm_std::{Extern, Api, Binary, Querier, Storage,Decimal, Uint128, from_binary, HumanAddr, QueryRequest, HandleResponse, QueryResult, log};
-use shadeswap_shared::fadroma::prelude::{ContractLink};
+use shadeswap_shared::core::{ContractLink};
 use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}}};
-use lp_token as lp_token;
+use lp_token;
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
 use shadeswap_shared::msg::staking::InvokeMsg as StakingInvokeMsg;
 use shadeswap_shared::amm_pair::{{AMMSettings, AMMPair}};

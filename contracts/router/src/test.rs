@@ -33,8 +33,8 @@ pub mod tests {
     use cosmwasm_std::WasmMsg;
     use cosmwasm_std::WasmQuery;
     use secret_toolkit::snip20::Balance;
-    use shadeswap_shared::fadroma::prelude::ContractInstantiationInfo;
-    use shadeswap_shared::fadroma::prelude::ContractLink;
+    use shadeswap_shared::core::ContractInstantiationInfo;
+    use shadeswap_shared::core::ContractLink;
     use shadeswap_shared::scrt_storage::load;
     use shadeswap_shared::scrt_storage::save;
 

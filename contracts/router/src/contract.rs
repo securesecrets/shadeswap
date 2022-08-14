@@ -11,7 +11,7 @@ use cosmwasm_std::WasmQuery;
 use cosmwasm_std::from_binary;
 use cosmwasm_std::Uint128;
 use shadeswap_shared::amm_pair::AMMSettings;
-use shadeswap_shared::fadroma::prelude::ContractInstantiationInfo;
+use shadeswap_shared::core::ContractInstantiationInfo;
 use std::ops::Add;
 use std::str::FromStr;
 
@@ -28,7 +28,7 @@ use cosmwasm_std::{
 use shadeswap_shared::{
     admin::{load_admin, set_admin_guard},
     amm_pair::AMMPair,
-    fadroma::prelude::{Callback, ContractLink},
+    core::{Callback, ContractLink},
     msg::{
         amm_pair::{
             HandleMsg as AMMPairHandleMsg, InvokeMsg as AMMPairInvokeMsg,

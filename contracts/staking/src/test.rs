@@ -6,7 +6,7 @@ pub mod tests {
     use super::*;
     use cosmwasm_std::{BankQuery, AllBalanceResponse, to_vec, Coin, StdResult, HumanAddr, BalanceResponse, from_binary, StdError, QueryRequest, Empty, Uint128, to_binary, QuerierResult, from_slice, Querier, testing::{MockApi, MockStorage}, Extern, ContractInfo, MessageInfo, BlockInfo, Env, Api, Storage, WasmQuery};
     use secret_toolkit::snip20::Balance;
-    use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  HandleMsg}}, fadroma::prelude::ContractLink};
+    use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  HandleMsg}}, core::ContractLink};
     use crate::state::{{Config , store_config, load_stakers, get_total_staking_amount, load_claim_reward_timestamp,
         load_config, is_address_already_staker, load_claim_reward_info,
         load_staker_info}};    

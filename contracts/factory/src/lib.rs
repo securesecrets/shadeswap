@@ -5,10 +5,15 @@ pub mod state;
 #[cfg(target_arch = "wasm32")]
 mod wasm {
     use super::contract;
-    use shadeswap_shared::fadroma::scrt::cosmwasm_std::{
-        do_handle, do_init, do_query, ExternalApi, ExternalQuerier, ExternalStorage,
+    use cosmwasm_std::{
+        do_handle,
+        do_init,
+        do_query,
+        ExternalApi,
+        ExternalQuerier,
+        ExternalStorage,
     };
-
+    
     #[no_mangle]
     extern "C" fn init(env_ptr: u32, msg_ptr: u32) -> u32 {
         do_init(

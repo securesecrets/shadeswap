@@ -14,13 +14,13 @@ use cosmwasm_storage::PrefixedStorage;
 use cosmwasm_storage::ReadonlyPrefixedStorage;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use shadeswap_shared::fadroma::prelude::Humanize;
+use shadeswap_shared::core::Humanize;
 use shadeswap_shared::scrt_storage::load;
 use shadeswap_shared::scrt_storage::save;
-use shadeswap_shared::{fadroma::prelude::Canonize, viewing_keys::ViewingKey};
+use shadeswap_shared::{core::Canonize, viewing_keys::ViewingKey};
 
 use shadeswap_shared::{
-    amm_pair::AMMPair, fadroma::prelude::ContractLink, msg::router::InitMsg, TokenAmount,
+    amm_pair::AMMPair, core::ContractLink, msg::router::InitMsg, TokenAmount,
     TokenPair, TokenType,
 };
 

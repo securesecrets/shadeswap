@@ -3,11 +3,11 @@ use cosmwasm_std::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use shadeswap_shared::fadroma::prelude::Humanize;
+use shadeswap_shared::core::Humanize;
 use shadeswap_shared::scrt_storage::{load, ns_load, ns_save, save};
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings},
-    fadroma::prelude::{Canonize, ContractInstantiationInfo},
+    core::{Canonize, ContractInstantiationInfo},
     msg::factory::InitMsg,
     Pagination, TokenPair, TokenType,
 };

@@ -41,7 +41,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     }
     if !is_valid_symbol(&msg.symbol) {
         return Err(StdError::generic_err(
-            "Ticker symbol is not in expected format [A-Z]{3,6}",
+            "Ticker symbol is not in expected format [A-Z]{3,18}",
         ));
     }
     if msg.decimals > 18 {
@@ -1746,8 +1746,16 @@ fn is_valid_name(name: &str) -> bool {
 fn is_valid_symbol(symbol: &str) -> bool {
     let len = symbol.len();
     let len_is_valid = (3..=18).contains(&len);
+    let mut cond = Vec::new();
+    cond.push(b'A'..=b'Z');
+    cond.push(b'a'..=b'z');
+    let special = vec![b'-'];
 
-    len_is_valid && symbol.bytes().all(|byte| (b'A'..=b'Z').contains(&byte))
+    len_is_valid && symbol.bytes().all(|x|
+        cond.iter().any(|c|
+            c.contains(&x) || special.contains(&x)
+        )
+    )
 }
 
 // pub fn migrate<S: Storage, A: Api, Q: Querier>(

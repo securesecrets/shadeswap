@@ -51,5 +51,3 @@ cosmwasm-math-compat = { path = "../cosmwasm_math_compat" }
 
 [dev-dependencies]
 cosmwasm-schema = "0.10.1"
-fadroma = { branch = "v100", commit = 76867e0, git = "https://github.com/hackbg/fadroma.git", features = ["scrt"] }
-# fadroma-platform-scrt = { branch = "v100",  git = "https://github.com/hackbg/fadroma.git" }

@@ -1,4 +1,4 @@
-use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}, fadroma::prelude::ContractLink};
+use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}, core::ContractLink};
 use shadeswap_shared::msg::amm_pair::HandleMsg as AmmPairHandleMsg;
 use secret_toolkit::snip20::{token_info_query, mint_msg, transfer_from_msg, HandleMsg as Snip20HandleMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg};
 use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, token_type::{{TokenType}}};
@@ -8,12 +8,9 @@ use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_ti
     load_claim_reward_info, load_prgn_seed, store_prng_seed}};   
 use std::{time::{SystemTime, UNIX_EPOCH}, env};
 use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
-use cosmwasm_std::{HandleResponse, Uint128, to_binary, log, HumanAddr, StdResult, InitResponse, Storage, Api, Querier, Extern, Env, StdError, Binary, QueryResult, from_binary, CosmosMsg, WasmMsg};
+use cosmwasm_std::{HandleResponse, Uint128, to_binary, log, HumanAddr, StdResult, InitResponse, Storage, Api, Querier, Extern, Env, StdError, Binary, QueryResult, from_binary, CosmosMsg, WasmMsg, ContractInfo};
 use shadeswap_shared::{scrt_storage::{ns_save, ns_load, save, load}, viewing_keys::{ViewingKey, VIEWING_KEY_SIZE}};
 
-use shadeswap_shared::{
-    fadroma::prelude::ContractInfo
-};
 
 pub const BLOCK_SIZE: usize = 256;
 

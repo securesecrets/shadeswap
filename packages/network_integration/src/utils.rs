@@ -1,5 +1,4 @@
-use shadeswap_shared::callback::Callback;
-use shadeswap_shared::fadroma::prelude::Env;
+use shadeswap_shared::core::Callback;
 use shadeswap_shared::viewing_keys::ViewingKey;
 use colored::*;
 use rand::{distributions::Alphanumeric, Rng};
@@ -10,7 +9,7 @@ use serde::{Serialize, Deserialize};
 use std::fmt::Display;
 use std::fs;
 use cosmwasm_std::{
-    Binary, HumanAddr, Uint128
+    Binary, HumanAddr, Uint128, Env
 };
 use schemars::JsonSchema;
 use shadeswap_shared::snip20_reference_impl::msg::{

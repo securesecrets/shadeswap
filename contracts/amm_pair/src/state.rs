@@ -1,6 +1,6 @@
 use cosmwasm_std::{HumanAddr, StdResult, Api, CanonicalAddr};
 use shadeswap_shared::{   
-    token_pair::TokenPair, custom_fee::CustomFee, viewing_keys::ViewingKey, fadroma::prelude::{ContractLink, Humanize, Canonize}, TokenType
+    token_pair::TokenPair, custom_fee::CustomFee, viewing_keys::ViewingKey, core::{ContractLink, Humanize, Canonize}, TokenType
 };
 
 use serde::{Deserialize, Serialize};
@@ -57,7 +57,7 @@ impl Humanize for Config<CanonicalAddr> {
 pub mod tradehistory{
     use super::*;
     use cosmwasm_std::{StdResult, HumanAddr, Extern, Querier, Api, Storage, StdError, CanonicalAddr};
-    use shadeswap_shared::{scrt_storage::{ns_save, ns_load, save, load}, fadroma::prelude::Humanize};
+    use shadeswap_shared::{scrt_storage::{ns_save, ns_load, save, load}, core::Humanize};
    
     #[derive(Serialize, Deserialize,  PartialEq, Debug, Clone)]
     pub enum DirectionType{

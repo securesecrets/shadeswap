@@ -1,12 +1,12 @@
 
 
-use cosmwasm_std::{HumanAddr, Env, CanonicalAddr};
+use cosmwasm_std::{HumanAddr, Env};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::impl_canonize_default;
 
-use super::{Canonize, Humanize, addr::{canonize_maybe_empty, humanize_maybe_empty}};
+use super::Canonize;
 
 pub type CodeId   = u64;
 pub type CodeHash = String;
@@ -31,28 +31,10 @@ impl PartialEq for ContractInstantiationInfo {
 }
 
 /// Info needed to talk to a contract instance.
-#[derive(Default, Serialize, Deserialize, JsonSchema, Clone, Debug)]
+#[derive(Default, Serialize, Canonize, Deserialize, JsonSchema, Clone, Debug)]
 pub struct ContractLink<A> {
     pub address:   A,
     pub code_hash: CodeHash
-}
-
-impl Canonize for ContractLink<HumanAddr>
-{
-    type Output = ContractLink<CanonicalAddr>;
-
-    fn canonize(self, api: &impl cosmwasm_std::Api) -> cosmwasm_std::StdResult<Self::Output> {
-        Ok(ContractLink{ address: canonize_maybe_empty(api, &self.address)?, code_hash: self.code_hash })
-    }
-}
-
-impl Humanize for ContractLink<CanonicalAddr>
-{
-    type Output = ContractLink<HumanAddr>;
-
-    fn humanize(self, api: &impl cosmwasm_std::Api) -> cosmwasm_std::StdResult<Self::Output> {
-        Ok(ContractLink{ address: humanize_maybe_empty(api, &self.address)?, code_hash: self.code_hash })
-    }
 }
 
 // Disregard code hash because it is case insensitive.

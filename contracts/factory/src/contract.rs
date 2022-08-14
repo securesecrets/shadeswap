@@ -9,7 +9,7 @@ use cosmwasm_std::{
 use shadeswap_shared::{
     admin::{apply_admin_guard, load_admin, set_admin_guard, store_admin},
     amm_pair::AMMPair,
-    fadroma::prelude::{Callback, ContractLink},
+    core::{Callback, ContractLink},
     msg::{
         amm_pair::InitMsg as AMMPairInitMsg,
         factory::{HandleMsg, InitMsg, QueryMsg, QueryResponse},

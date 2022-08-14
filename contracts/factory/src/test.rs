@@ -2,7 +2,7 @@ use cosmwasm_std::Env;
 use cosmwasm_std::testing::mock_env;
 use cosmwasm_std::testing::mock_dependencies;
 use cosmwasm_std::to_binary;
-use shadeswap_shared::fadroma::prelude::{ContractInstantiationInfo, ContractLink};
+use shadeswap_shared::core::{ContractInstantiationInfo, ContractLink};
 use shadeswap_shared::{amm_pair::AMMSettings, custom_fee::Fee};
 use shadeswap_shared::msg::factory::InitMsg;
 pub use shadeswap_shared::{
@@ -241,8 +241,7 @@ use super::*;
 }
 
 pub mod test_state {
-    use shadeswap_shared::amm_pair::AMMPair;
-    use shadeswap_shared::fadroma::core::Canonize;
+    use shadeswap_shared::{amm_pair::AMMPair, core::Canonize};
     use crate::state::{save_amm_pairs_count, load_amm_pairs_count, save_amm_pairs, load_amm_pairs, generate_pair_key};
 
     use super::*;

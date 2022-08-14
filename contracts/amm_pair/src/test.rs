@@ -13,7 +13,7 @@ use crate::contract::{{create_viewing_key, calculate_price, calculate_swap_resul
 use std::hash::Hash;
 use cosmwasm_std::{BankQuery, AllBalanceResponse, to_vec,log,  Coin, StdResult, HumanAddr, BalanceResponse, from_binary, StdError, QueryRequest, Empty, Uint128, to_binary, QuerierResult, from_slice, Querier, testing::{MockApi, MockStorage}, Extern, ContractInfo, MessageInfo, BlockInfo, Env, Api, Storage, WasmQuery};
 use secret_toolkit::snip20::Balance;
-use shadeswap_shared::{fadroma::prelude::ContractLink};
+use shadeswap_shared::{core::ContractLink};
 use crate::state::{{Config}};    
 use shadeswap_shared::token_type::TokenType;
 use serde::Deserialize;
@@ -31,7 +31,7 @@ pub mod tests {
     use super::*;   
     use serde::de::DeserializeOwned;
     use shadeswap_shared::custom_fee::Fee;
-    use shadeswap_shared::fadroma::prelude::{Callback, ContractInstantiationInfo};
+    use shadeswap_shared::core::{Callback, ContractInstantiationInfo};
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };   
     use crate::state::amm_pair_storage::{{store_trade_history, load_trade_history, load_trade_counter}};
     use crate::state::tradehistory::{{ DirectionType}};
@@ -796,7 +796,7 @@ pub mod tests_calculation_price_and_fee{
 
 pub mod help_test_lib {
     use super::*;       
-    use shadeswap_shared::{token_amount::{{TokenAmount}}, fadroma::prelude::{ContractInstantiationInfo, Callback}};
+    use shadeswap_shared::{token_amount::{{TokenAmount}}, core::{ContractInstantiationInfo, Callback}};
     use shadeswap_shared::token_pair::{{TokenPair}};
     use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
     use shadeswap_shared::token_type::{{TokenType}};

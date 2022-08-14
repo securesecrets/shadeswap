@@ -14,7 +14,7 @@ use secretcli::{
 };
 
 use serde_json::Result;
-use shadeswap_shared::fadroma::prelude::ContractInstantiationInfo;
+use shadeswap_shared::core::ContractInstantiationInfo;
 use shadeswap_shared::secret_toolkit::snip20::HandleMsg;
 use shadeswap_shared::secret_toolkit::snip20::QueryMsg;
 use shadeswap_shared::{
@@ -34,7 +34,7 @@ use shadeswap_shared::{
         },
     },
     stake_contract::StakingContractInit,
-    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType, fadroma::prelude::ContractLink,
+    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType, core::ContractLink,
 };
 use std::env;
 

@@ -1,3 +1,4 @@
+use cosmwasm_std::StdResult;
 use schemars::JsonSchema;
 use serde::{de, ser, Deserialize, Deserializer, Serialize};
 use std::{
@@ -9,15 +10,9 @@ use std::{
 
 use crate::{
     errors::{
-        ConversionOverflowError,
-        DivideByZeroError,
-        OverflowError,
-        OverflowOperation,
-        StdError,
+        ConversionOverflowError, DivideByZeroError, OverflowError, OverflowOperation, StdError,
     },
-    Uint128,
-    Uint512,
-    Uint64,
+    Uint128, Uint512, Uint64,
 };
 
 /// This module is purely a workaround that lets us ignore lints for all the code
@@ -65,6 +60,37 @@ impl Uint256 {
     /// This method is less flexible than `from` but can be called in a const context.
     pub const fn new(value: [u8; 32]) -> Self {
         Self::from_be_bytes(value)
+    }
+
+    pub fn clamp_u128(self) -> StdResult<u128> {
+        if self.0.0[3] > 0 {
+            return Err(StdError::generic_err("u128 overflow"));
+        }
+
+        Ok(self.0.low_u128())
+    }
+
+    pub fn sqrt(self) -> StdResult<Self> {
+        let mut z = Self::from(0 as i32);
+
+        if self.gt(&Self::from(3 as i32)) {
+            z = self.clone();
+            let mut x = self
+                .checked_div(Self::from(2 as i32))?
+                .checked_add(Self::from(1 as i32))?;
+
+            while x.lt(&z) {
+                z = x.clone();
+                x = self
+                    .checked_div(x)?
+                    .checked_add(x)?
+                    .checked_div(Self::from(2 as i32))?;
+            }
+        } else if !self.is_zero() {
+            z = Self::from(1 as i32);
+        }
+
+        return Ok(z);
     }
 
     /// Creates a Uint256(0)
@@ -331,6 +357,12 @@ impl From<u16> for Uint256 {
 impl From<u8> for Uint256 {
     fn from(val: u8) -> Self {
         Uint256(val.into())
+    }
+}
+
+impl From<i32> for Uint256 {
+    fn from(value: i32) -> Self {
+        Uint256(U256::from(value))
     }
 }
 
@@ -1056,19 +1088,28 @@ mod tests {
 
     #[test]
     fn uint256_to_be_bytes_works() {
-        assert_eq!(Uint256::zero().to_be_bytes(), [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0,
-        ]);
-        assert_eq!(Uint256::MAX.to_be_bytes(), [
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff,
-        ]);
-        assert_eq!(Uint256::from(1u128).to_be_bytes(), [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 1
-        ]);
+        assert_eq!(
+            Uint256::zero().to_be_bytes(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0,
+            ]
+        );
+        assert_eq!(
+            Uint256::MAX.to_be_bytes(),
+            [
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff,
+            ]
+        );
+        assert_eq!(
+            Uint256::from(1u128).to_be_bytes(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 1
+            ]
+        );
         // Python: `[b for b in (240282366920938463463374607431768124608).to_bytes(32, "big")]`
         assert_eq!(
             Uint256::from(240282366920938463463374607431768124608u128).to_be_bytes(),
@@ -1092,19 +1133,28 @@ mod tests {
 
     #[test]
     fn uint256_to_le_bytes_works() {
-        assert_eq!(Uint256::zero().to_le_bytes(), [
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0
-        ]);
-        assert_eq!(Uint256::MAX.to_le_bytes(), [
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff
-        ]);
-        assert_eq!(Uint256::from(1u128).to_le_bytes(), [
-            1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0
-        ]);
+        assert_eq!(
+            Uint256::zero().to_le_bytes(),
+            [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0
+            ]
+        );
+        assert_eq!(
+            Uint256::MAX.to_le_bytes(),
+            [
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff
+            ]
+        );
+        assert_eq!(
+            Uint256::from(1u128).to_le_bytes(),
+            [
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0
+            ]
+        );
         // Python: `[b for b in (240282366920938463463374607431768124608).to_bytes(32, "little")]`
         assert_eq!(
             Uint256::from(240282366920938463463374607431768124608u128).to_le_bytes(),

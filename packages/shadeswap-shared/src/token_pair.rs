@@ -1,34 +1,44 @@
 
-use fadroma::{
-    scrt::{
-        Api, StdResult, Querier,
-        HumanAddr, Uint128, CanonicalAddr
-    },
-    scrt_addr::{Canonize, Humanize}
+use cosmwasm_std::{CanonicalAddr, Uint128};
+use cosmwasm_std::{
+    from_binary,
+    Api,
+    Binary,
+    Extern,
+    HumanAddr,
+    Querier,
+    StdError,
+    StdResult,
+    Storage, Env, HandleResponse, log,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::core::{Canonize, Humanize};
 use crate::token_type::TokenType;
 
 #[derive(Clone, Debug, JsonSchema)]
 pub struct TokenPair<A>(pub TokenType<A>, pub TokenType<A>);
 
-impl Canonize<TokenPair<CanonicalAddr>> for TokenPair<HumanAddr> {
-    fn canonize(&self, api: &impl Api) -> StdResult<TokenPair<CanonicalAddr>> {
-        Ok(TokenPair(self.0.canonize(api)?, self.1.canonize(api)?))
-    }
-}
-
-impl Humanize<TokenPair<HumanAddr>> for TokenPair<CanonicalAddr> {
-    fn humanize(&self, api: &impl Api) -> StdResult<TokenPair<HumanAddr>> {
-        Ok(TokenPair(self.0.humanize(api)?, self.1.humanize(api)?))
-    }
-}
-
 pub struct TokenPairIterator<'a, A> {
     pair: &'a TokenPair<A>,
     index: u8,
+}
+
+impl Canonize for TokenPair<HumanAddr> {
+    fn canonize(self, api: &impl Api) -> StdResult<TokenPair<CanonicalAddr>> {
+        Ok(TokenPair(self.0.canonize(api)?, self.1.canonize(api)?))
+    }
+
+    type Output = TokenPair<CanonicalAddr>;
+}
+
+impl Humanize for TokenPair<CanonicalAddr> {
+    fn humanize(self, api: &impl Api) -> StdResult<TokenPair<HumanAddr>> {
+        Ok(TokenPair(self.0.humanize(api)?, self.1.humanize(api)?))
+    }
+
+    type Output = TokenPair<HumanAddr>;
 }
 
 impl<A: Clone + PartialEq> TokenPair<A> {

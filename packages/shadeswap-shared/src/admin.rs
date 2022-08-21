@@ -1,20 +1,16 @@
-use crate::fadroma::{
-    scrt::{
-        from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg,
-        Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier, QueryRequest,
-        QueryResult, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
-    },
-    scrt_storage::{load, save, ns_save, ns_load},
-    scrt_callback::Callback,
-    scrt_link::ContractLink,
-    scrt_uint256::Uint256,
-    scrt_vk::ViewingKey,
+use cosmwasm_std::{
+    from_binary,
+    Api,
+    Binary,
+    Extern,
+    HumanAddr,
+    Querier,
+    StdError,
+    StdResult,
+    Storage, Env, HandleResponse, log,
 };
 
-
-use composable_snip20::msg::{
-    InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
-};
+use crate::scrt_storage::{load, save, ns_save, ns_load};
 
 pub static ADMIN: &[u8] =b"contract_pair_admin";
 

@@ -1,27 +1,24 @@
+use shadeswap_shared::core::Callback;
+use shadeswap_shared::viewing_keys::ViewingKey;
 use colored::*;
 use rand::{distributions::Alphanumeric, Rng};
 use secretcli::cli_types::StoredContract;
 use secretcli::secretcli::{init, handle, Report};
 use secretcli::{cli_types::NetContract, secretcli::query};
-use serde::Serialize;
-use shadeswap_shared::fadroma::ViewingKey;
+use serde::{Serialize, Deserialize};
 use std::fmt::Display;
 use std::fs;
-
-use composable_snip20::msg::{
-    InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg,
+use cosmwasm_std::{
+    Binary, HumanAddr, Uint128, Env
+};
+use schemars::JsonSchema;
+use shadeswap_shared::snip20_reference_impl::msg::{
+    InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg, InitialBalance,
 };
 
 use shadeswap_shared::{
-    amm_pair::{AMMPair, AMMSettings},
-    fadroma::{
-        scrt::{
-            from_binary, log, secret_toolkit::snip20, to_binary, Api, BankMsg, Binary, Coin,
-            CosmosMsg, Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
-            QueryRequest, QueryResult, StdError, Storage, Uint128, WasmMsg, WasmQuery,
-        },
-        Callback, ContractInstantiationInfo, ContractLink, secret_toolkit::snip20::{Balance, BalanceResponse},
-    },
+    secret_toolkit::snip20::{Balance},
+    amm_pair::{AMMPair, AMMSettings}
 };
 
 use serde_json::Result;
@@ -92,17 +89,83 @@ pub fn store_struct<T: serde::Serialize>(path: &str, data: &T) {
     .expect(&format!("Could not store {}", path));
 }
 
+/// This type represents optional configuration values which can be overridden.
+/// All values are optional and have defaults which are more private by default,
+/// but can be overridden if necessary
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Default, Debug)]
+#[serde(rename_all = "snake_case")]
+pub struct InitConfig {
+    /// Indicates whether the total supply is public or should be kept secret.
+    /// default: False
+    pub public_total_supply: Option<bool>,
+    /// Indicates whether deposit functionality should be enabled
+    /// default: False
+    pub enable_deposit: Option<bool>,
+    /// Indicates whether redeem functionality should be enabled
+    /// default: False
+    pub enable_redeem: Option<bool>,
+    /// Indicates whether mint functionality should be enabled
+    /// default: False
+    pub enable_mint: Option<bool>,
+    /// Indicates whether burn functionality should be enabled
+    /// default: False
+    pub enable_burn: Option<bool>,
+}
+
+impl InitConfig {
+    pub fn public_total_supply(&self) -> bool {
+        self.public_total_supply.unwrap_or(false)
+    }
+
+    pub fn deposit_enabled(&self) -> bool {
+        self.enable_deposit.unwrap_or(false)
+    }
+
+    pub fn redeem_enabled(&self) -> bool {
+        self.enable_redeem.unwrap_or(false)
+    }
+
+    pub fn mint_enabled(&self) -> bool {
+        self.enable_mint.unwrap_or(false)
+    }
+
+    pub fn burn_enabled(&self) -> bool {
+        self.enable_burn.unwrap_or(false)
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
+pub struct InitialAllowance {
+    pub owner: HumanAddr,
+    pub spender: HumanAddr,
+    pub amount: Uint128,
+    pub expiration: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+pub struct InitMsg {
+    pub name: String,
+    pub admin: Option<HumanAddr>,
+    pub symbol: String,
+    pub decimals: u8,
+    pub initial_balances: Option<Vec<InitialBalance>>,
+    pub initial_allowances: Option<Vec<InitialAllowance>>,
+    pub prng_seed: Binary,
+    pub config: Option<InitConfig>,
+    pub callback: Option<Callback<HumanAddr>>
+}
+
 
 pub fn init_snip20(
     name: String,
     symbol: String, 
     decimals: u8,
-    config: Option<Snip20ComposableConfig>,
+    config: Option<InitConfig>,
     reports: &mut Vec<Report>,
     account_key: &str,
     customizedSnip20File: Option<&str>
-) -> Result<(Snip20ComposableMsg, NetContract)> {
-    let init_msg = Snip20ComposableMsg {
+) -> Result<(InitMsg, NetContract)> {
+    let init_msg = InitMsg {
         name: name.to_string(),
         admin: None,
         symbol: symbol.to_string(),

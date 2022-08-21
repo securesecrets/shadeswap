@@ -28,6 +28,7 @@ overflow-checks = true
 
 [features]
 default = []
+utils = []
 # for quicker tests, cargo test --lib
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
@@ -37,21 +38,15 @@ debug-print = ["cosmwasm-std/debug-print"]
 snafu = { version = "0.6.3" }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 schemars = "0.7"
-cosmwasm-std = { version = "0.10", package = "secret-cosmwasm-std" }
+cosmwasm-std = { version = "0.10.1", package = "secret-cosmwasm-std" }
 cosmwasm-storage = { version = "0.10", package = "secret-cosmwasm-storage" }
 # secret-toolkit = "0.2.0" # Uncomment this for extra tools
 secret-toolkit = { version = "0.2" }
-fadroma = { path = "../../packages/fadroma-next/lib", features = [
-  "scrt",
-  "scrt-addr",
-  "scrt-icc",
-  "scrt-migrate",
-  "scrt-storage",
-  "scrt-admin",
-  "scrt-vk"
-] }
-composable-snip20 = { path = "../fadroma-next/lib/composable-snip20" }
-
+snip20-reference-impl = { path = "../../contracts/snip20"}
+sha2 = { version = "0.9.1", default-features = false }
+subtle = { version = "2.2.3", default-features = false }
+cosmwasm-math-compat = { path = "../cosmwasm_math_compat" }
+# shadeswap-derive-canonize = { path = "../shadeswap_derive_canonize" }
 
 
 [dev-dependencies]

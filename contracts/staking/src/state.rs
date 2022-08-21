@@ -1,19 +1,7 @@
-use shadeswap_shared::{
-    fadroma::{
-        scrt_link::{ContractLink},    
-        scrt_addr::{Humanize, Canonize},
-        scrt::{
-            Api, CanonicalAddr, Extern, HumanAddr, Uint128,
-            Querier, StdResult, Storage, StdError
-        },
-        scrt_storage::{load, save, ns_save, ns_load},
-        scrt_vk::ViewingKey,
-    },
-    token_pair::TokenPair
-};
 use std::any::type_name;
+use cosmwasm_std::{HumanAddr, Uint128, StdResult, Extern, Storage, Api, Querier, StdError};
 use serde::{Deserialize, Serialize};
-use shadeswap_shared::token_type::TokenType;
+use shadeswap_shared::{token_type::TokenType, core::ContractLink, scrt_storage::{ns_save, ns_load, save, load}, viewing_keys::{ViewingKey, VIEWING_KEY_SIZE}};
 use serde::de::DeserializeOwned;
 use shadeswap_shared::msg::amm_pair::{{ HandleMsg,TradeHistory}};
 use std::fmt::{{Formatter, Display}};
@@ -23,6 +11,8 @@ pub static LIST_STAKERS: &[u8] = b"LIST_STAKERS";
 pub static STAKING_INFO: &[u8] = b"STAKING_INFO";
 pub static CLAIM_REWARDS: &[u8] = b"CLAIM_REWARDS";
 pub static LAST_REWARD_TIME_CLAIMED: &[u8] = b"LAST_REWARD_TIME_CLAIMED";
+pub static PGRN_SEED: &[u8] = b"PGRN_SEED";
+pub static STAKER_VK: &[u8] = b"STAKER_VK";
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct Config {
@@ -37,8 +27,7 @@ pub struct Config {
 pub struct StakingInfo{
     pub staker: HumanAddr,
     pub amount: Uint128,
-    pub last_time_updated: Uint128,
-    pub viewing_key: ViewingKey
+    pub last_time_updated: Uint128   
 }
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
@@ -116,6 +105,20 @@ pub fn remove_staker<S: Storage, A: Api, Q: Querier>(
     save(&mut deps.storage, LIST_STAKERS, &addresses)
 }
 
+pub fn store_prng_seed<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    pgrn_seed: &Vec<u8>
+) -> StdResult<()> {
+    save(&mut deps.storage, PGRN_SEED, &pgrn_seed)
+}
+
+pub fn load_prgn_seed<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<Vec<u8>> {
+    let result = load(&deps.storage, PGRN_SEED)?
+        .ok_or(StdError::generic_err( "No PGRN Seed has been setup"))?;    
+    Ok(result)
+}
 
 pub fn is_address_already_staker<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
@@ -144,6 +147,24 @@ pub fn store_staker_info<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<()> {       
     ns_save(&mut deps.storage, STAKING_INFO, staker_info.staker.clone().as_str().as_bytes(), &staker_info)
 }   
+
+pub fn store_staker_vk<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>, 
+    staker: HumanAddr,
+    viewing_key: ViewingKey
+) -> StdResult<()> {
+    ns_save(&mut deps.storage, STAKER_VK, staker.clone().as_str().as_bytes(), &viewing_key.to_hashed())
+}
+
+pub fn load_staker_vk<S: Storage, A: Api, Q: Querier>(
+    deps:   &Extern<S, A, Q>,
+    staker: HumanAddr
+) -> StdResult<[u8; VIEWING_KEY_SIZE]> {
+    let staker_vk = ns_load(&deps.storage,STAKER_VK, staker.clone().as_str().as_bytes())?
+        .ok_or(StdError::generic_err("Viewing key not setup for Query"))?;
+    Ok(staker_vk)
+}
+
 
 pub fn load_claim_reward_info<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,

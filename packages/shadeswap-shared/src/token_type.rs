@@ -1,14 +1,21 @@
-use fadroma::{
-    scrt::{
-        HumanAddr, CanonicalAddr, Api, StdResult,
-        Querier, Uint128, StdError, Env, CosmosMsg,
-        WasmMsg, BankMsg, Coin, to_binary,
-        secret_toolkit::snip20
-    },
-    scrt_addr::{Canonize, Humanize}
+use cosmwasm_std::{
+    from_binary,
+    Api,
+    Binary,
+    Extern,
+    HumanAddr,
+    Querier,
+    StdError,
+    StdResult,
+    Storage, Env, HandleResponse, log, CanonicalAddr, Uint128, CosmosMsg, WasmMsg, to_binary, BankMsg, Coin,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use secret_toolkit::snip20::{balance_query};
+use secret_toolkit::snip20::HandleMsg::Send;
+
+use crate::core::{Canonize, Humanize};
+
 const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -23,8 +30,13 @@ pub enum TokenType<A> {
         denom: String,
     },
 }
-impl Canonize<TokenType<CanonicalAddr>> for TokenType<HumanAddr> {
-    fn canonize(&self, api: &impl Api) -> StdResult<TokenType<CanonicalAddr>> {
+
+#[deprecated(note = "please use TokenType<CanonicalAddr> instead")]
+pub type TokenTypeStored = TokenType<CanonicalAddr>;
+
+
+impl Canonize for TokenType<HumanAddr> {
+    fn canonize(self, api: &impl Api) -> StdResult<TokenType<CanonicalAddr>> {
         Ok(match self {
             Self::CustomToken {
                 contract_addr,
@@ -38,9 +50,11 @@ impl Canonize<TokenType<CanonicalAddr>> for TokenType<HumanAddr> {
             },
         })
     }
+
+    type Output = TokenType<CanonicalAddr>;
 }
-impl Humanize<TokenType<HumanAddr>> for TokenType<CanonicalAddr> {
-    fn humanize(&self, api: &impl Api) -> StdResult<TokenType<HumanAddr>> {
+impl Humanize for TokenType<CanonicalAddr> {
+    fn humanize(self, api: &impl Api) -> StdResult<TokenType<HumanAddr>> {
         Ok(match self {
             Self::CustomToken {
                 contract_addr,
@@ -54,10 +68,9 @@ impl Humanize<TokenType<HumanAddr>> for TokenType<CanonicalAddr> {
             },
         })
     }
-}
 
-#[deprecated(note = "please use TokenType<CanonicalAddr> instead")]
-pub type TokenTypeStored = TokenType<CanonicalAddr>;
+    type Output = TokenType<HumanAddr>;
+}
 
 impl<A: Clone> TokenType<A> {
     pub fn is_native_token(&self) -> bool {
@@ -112,7 +125,7 @@ impl TokenType<HumanAddr> {
                 contract_addr,
                 token_code_hash,
             } => {
-                let result = snip20::balance_query(
+                let result = balance_query(
                     querier,
                     exchange_addr,
                     viewing_key,
@@ -136,11 +149,13 @@ impl TokenType<HumanAddr> {
                 CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_addr.clone(),
                     callback_code_hash: token_code_hash.to_string(),
-                    msg: to_binary(&snip20::HandleMsg::Send {  
+                    msg: to_binary(&Send {  
                         recipient,
                         amount,
                         padding: None,
                         msg: None,
+                        recipient_code_hash: None,
+                        memo: None,
                     })?,
                     send: vec![]
                 })

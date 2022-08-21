@@ -83,8 +83,55 @@ pub mod tests {
         Ok(())
     }
 
- 
     #[test]
+    fn assert_calculate_price() -> StdResult<()>{     
+        let price = calculate_price(Uint256::from(2000), Uint256::from(10000), Uint256::from(100000));
+        //(100000 * 2000)/(10000 + 2000) = 16666.66667 (rounding down)
+        assert_eq!(Uint256::from(16666), price?);
+        Ok(())
+    }
+
+    #[test]
+    #[should_panic]
+    fn assert_initial_swap_with_wrong_token_exception() -> (){
+        let token_pair = mk_token_pair();
+        let amm_settings = mk_amm_settings();
+        let offer_amount: u128 = 34028236692093846346337460;
+        let expected_return_amount: u128 = 34028236692093846346337460;
+        let expected_amount: u128 = 34028236692093846346337460;
+        let mut deps = mkdeps();
+        let env = mkenv("sender");
+        let swap_result = calculate_swap_result(
+            &deps.querier, 
+            &amm_settings, 
+            &mock_config(env).unwrap(),
+            &mk_custom_token_amount(Uint128::from(offer_amount),token_pair), 
+            & mut deps.storage,
+            HumanAddr("Test".to_string().clone()),
+            None
+        );
+
+        assert_eq!(Uint128::from(expected_amount), swap_result.unwrap().result.return_amount);
+        ()
+    }
+
+    //#[test]
+    fn assert_initial_swap_with_token_success() -> StdResult<()>
+    {     
+        let mut deps = mkdeps();
+        let amm_settings = mk_amm_settings();
+        let token_pair = mk_token_pair();
+        let config = make_init_config(&mut deps, token_pair)?;           
+        let offer_amount: u128 = 34028236692093846346337460;
+        let expected_amount: u128 = 34028236692093846346337460;
+        let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, 
+            &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
+            &mut deps.storage, HumanAddr("Test".to_string().clone()), None);
+        assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
+        Ok(())
+    }
+
+   #[test]
     fn assert_load_trade_history_first_time() -> StdResult<()>{
         let deps = mkdeps();
         let initial_value = load_trade_counter(&deps.storage)?;
@@ -147,7 +194,7 @@ pub mod tests {
         Ok(())
     }
 
-    //#[test]
+    #[test]
     fn assert_remove_address_from_whitelist_success()-> StdResult<()>{
         let mut deps = mkdeps();
         let env = mkenv("sender");       
@@ -189,6 +236,50 @@ pub mod tests {
         Ok(())
     }
 
+      
+    //#[test]
+    fn assert_initial_swap_with_zero_fee_for_whitelist_address()-> StdResult<()>{
+        let mut deps = mkdeps();
+        let amm_settings = mk_amm_settings();
+        let token_pair = mk_token_pair();
+        let config = make_init_config(&mut deps, token_pair)?;         
+        let offer_amount: u128 = 34028236692093846346337460;
+        let expected_amount: u128 = 34028236692093846346337460;           
+        let address_a = HumanAddr::from("TESTA".to_string());
+        add_whitelist_address(&mut deps.storage, address_a.clone())?;    
+        let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, 
+            &mk_custom_token_amount(Uint128::from(offer_amount), config.pair.clone()), 
+            &mut deps.storage, HumanAddr("TESTA".to_string().clone()), None)?;
+        assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
+        assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
+        Ok(())
+    }
+
+    #[test]
+    fn assert_calculate_swap_result() -> StdResult<()>{
+        let mut deps = mock_deps();
+        let token_pair = mk_native_token_pair();
+        let config = make_init_config(&mut deps, token_pair.clone())?;       
+        let address_a = HumanAddr("TESTA".to_string());
+        let token_amount = mk_custom_token_amount(Uint128(1000), config.pair.clone());   
+        let amm_settings = shadeswap_shared::amm_pair::AMMSettings {
+            lp_fee: Fee::new(28, 10000),
+            shade_dao_fee: Fee::new(2, 10000),
+            shade_dao_address: ContractLink {
+                address: HumanAddr(String::from("DAO")),
+                code_hash: "".to_string(),
+            }
+        };
+        assert_eq!(config.factory_info.address.as_str(), FACTORY_CONTRACT_ADDRESS.clone());
+        let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, &token_amount,
+            &mut deps.storage, address_a, None)?;
+        assert_eq!(swap_result.result.return_amount, Uint128(997u128));
+        assert_eq!(swap_result.lp_fee_amount, Uint128(2u128));
+        assert_eq!(swap_result.shade_dao_fee_amount, Uint128(0u128));
+        assert_eq!(swap_result.price, "0.997".to_string());
+        Ok(())
+    }
+
     #[test]
     fn assert_swap_native_snip20()-> StdResult<()>{
         let mut deps = mock_deps();
@@ -204,6 +295,44 @@ pub mod tests {
         assert_eq!(native_swap.log[3].value, "997".to_string());
         assert_eq!(native_swap.messages.len(), 1);
         Ok(())
+    }
+
+    
+    #[test]
+    #[should_panic]
+    fn assert_query_get_amm_pairs_non_admin_expected_panic()-> (){
+        let mut deps = mkdeps();
+        let env = mkenv("sender");
+        let amm_settings = mk_amm_settings();
+        let token_pair = mk_token_pair();
+        let config = make_init_config(&mut deps, token_pair);         
+        let offer_amount: u128 = 34028236692093846346337460;
+        let expected_amount: u128 = 34028236692093846346337460;           
+        let address_a = HumanAddr::from("TESTA".to_string());
+        handle(
+            &mut deps,
+            env,
+            HandleMsg::AddWhiteListAddress {
+                address: address_a.clone()
+            },
+        )
+        .unwrap();
+
+        let result = query(
+            &deps,
+            QueryMsg::GetWhiteListAddress {
+            },
+        )
+        .unwrap();
+
+        let response: QueryMsgResponse = from_binary(&result).unwrap();
+
+        match response {
+            QueryMsgResponse::GetWhiteListAddress { addresses: stored } => {
+                assert_eq!(1, stored.len())
+            }
+            _ => panic!("QueryResponse::ListExchanges"),
+        }
     }
 
     #[test]

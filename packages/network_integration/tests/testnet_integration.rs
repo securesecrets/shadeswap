@@ -1610,10 +1610,10 @@ fn run_testnet() -> Result<()> {
                     price
                 } = swap_result_response {  
                     // Investigate issue not getting correct amount
-                    // assert_eq!(
-                    //     result.return_amount,
-                    //     Uint128(485977u128)
-                    // );
+                    assert_eq!(
+                        result.return_amount,
+                        Uint128(485977u128)
+                    );
                     assert_ne!(
                         result.return_amount,
                         Uint128(0u128)

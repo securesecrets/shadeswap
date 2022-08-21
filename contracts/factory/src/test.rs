@@ -1,19 +1,16 @@
+use cosmwasm_std::Env;
+use cosmwasm_std::testing::mock_env;
+use cosmwasm_std::testing::mock_dependencies;
+use cosmwasm_std::to_binary;
+use shadeswap_shared::core::{ContractInstantiationInfo, ContractLink};
 use shadeswap_shared::{amm_pair::AMMSettings, custom_fee::Fee};
 use shadeswap_shared::msg::factory::InitMsg;
 pub use shadeswap_shared::{
-    fadroma::{
-        scrt_addr::Canonize,
-        scrt_link::{ContractLink, ContractInstantiationInfo},
-        scrt::{
-            from_binary,
-            testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage},
-            to_binary, Api, Binary, Env, HandleResponse, HumanAddr, Querier, StdError,
-            StdResult, Storage, Uint128, Extern
-        },
-        scrt_storage::{load, save},
-    },
     msg::factory::{ QueryResponse},
     Pagination, TokenPair, TokenType,
+};
+use cosmwasm_std::{
+    Api, Binary, CanonicalAddr, Extern, HumanAddr, Querier, StdError, StdResult, Storage,
 };
 
 
@@ -21,7 +18,10 @@ use crate::state::Config;
 
 #[cfg(test)]
 pub mod test_contract {
-    use crate::contract::create_signature;
+    use cosmwasm_std::from_binary;
+use shadeswap_shared::scrt_storage::load;
+use shadeswap_shared::scrt_storage::save;
+use crate::contract::create_signature;
 use crate::contract::EPHEMERAL_STORAGE_KEY;
 use crate::contract::handle;
     use crate::contract::query;
@@ -36,17 +36,6 @@ use super::*;
     use shadeswap_shared::msg::factory::HandleMsg;
     use shadeswap_shared::msg::factory::QueryMsg;
     pub use shadeswap_shared::{
-        fadroma::{
-            scrt_addr::Canonize,
-            scrt_link::{ContractLink, ContractInstantiationInfo},
-            scrt::{
-                from_binary,
-                testing::{mock_dependencies, mock_env, MockApi, MockQuerier, MockStorage},
-                to_binary, Api, Binary, Env, HandleResponse, HumanAddr, Querier, StdError,
-                StdResult, Storage, Uint128,
-            },
-            scrt_storage::{load, save},
-        },
         msg::factory::{ QueryResponse},
         Pagination, TokenPair, TokenType,
     };
@@ -92,7 +81,7 @@ use super::*;
         let env = mkenv("admin");
         let config = mkconfig(0);
 
-        config_write(deps, &config)?;
+        config_write(deps, config)?;
 
         let signature = create_signature(&env)?;
         save(&mut deps.storage, EPHEMERAL_STORAGE_KEY, &signature)?;
@@ -252,8 +241,7 @@ use super::*;
 }
 
 pub mod test_state {
-    use shadeswap_shared::amm_pair::AMMPair;
-
+    use shadeswap_shared::{amm_pair::AMMPair, core::Canonize};
     use crate::state::{save_amm_pairs_count, load_amm_pairs_count, save_amm_pairs, load_amm_pairs, generate_pair_key};
 
     use super::*;
@@ -268,10 +256,10 @@ pub mod test_state {
             deps: &Extern<S, A, Q>,
             pair: TokenPair<HumanAddr>,
         ) -> StdResult<()> {
-            let stored_pair = pair.canonize(&deps.api)?;
+            let stored_pair = pair.clone().canonize(&deps.api)?;
             let key = generate_pair_key(&stored_pair);
 
-            let pair = swap_pair(&pair);
+            let pair = swap_pair(&pair.clone());
 
             let stored_pair = pair.canonize(&deps.api)?;
             let swapped_key = generate_pair_key(&stored_pair);

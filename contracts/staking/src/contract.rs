@@ -1,25 +1,16 @@
-use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}, fadroma::secret_toolkit::utils::Query};
+use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}, core::ContractLink};
 use shadeswap_shared::msg::amm_pair::HandleMsg as AmmPairHandleMsg;
+use secret_toolkit::snip20::{token_info_query, mint_msg, transfer_from_msg, HandleMsg as Snip20HandleMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg};
 use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, token_type::{{TokenType}}};
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
     get_total_staking_amount, load_stakers, load_config, is_address_already_staker, store_claim_reward_info,
-    store_staker, load_staker_info, store_staker_info, remove_staker, StakingInfo, load_claim_reward_info}};   
+    store_staker, load_staker_info, store_staker_info, store_staker_vk, load_staker_vk, remove_staker, StakingInfo, 
+    load_claim_reward_info, load_prgn_seed, store_prng_seed}};   
 use std::{time::{SystemTime, UNIX_EPOCH}, env};
 use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
-use shadeswap_shared::{ 
-    fadroma::{
-        scrt::{
-            from_binary, log, to_binary, Api, BankMsg, Binary, Coin, CosmosMsg, Decimal, Env,
-            Extern, HandleResponse, HumanAddr, InitResponse, Querier, QueryRequest, QueryResult,
-            StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery, 
-            secret_toolkit::snip20,        
-        },
-        scrt_uint256::Uint256,
-        scrt_callback::Callback,
-        scrt_link::ContractLink,
-        scrt_vk::ViewingKey,
-    }
-};
+use cosmwasm_std::{HandleResponse, Uint128, to_binary, log, HumanAddr, StdResult, InitResponse, Storage, Api, Querier, Extern, Env, StdError, Binary, QueryResult, from_binary, CosmosMsg, WasmMsg, ContractInfo};
+use shadeswap_shared::{scrt_storage::{ns_save, ns_load, save, load}, viewing_keys::{ViewingKey, VIEWING_KEY_SIZE}};
+
 
 pub const BLOCK_SIZE: usize = 256;
 
@@ -44,6 +35,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     };
     store_config(deps, &config)?;
     store_admin(deps, &env.message.sender.clone())?;
+    store_prng_seed(deps, &msg.prng_seed.as_slice().to_vec())?;
     let mut messages = vec![];
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: msg.pair_contract.address.clone(),
@@ -79,7 +71,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         }
         HandleMsg::SetLPToken {lp_token} => set_lp_token(deps, env, lp_token),
         HandleMsg::Unstake {amount, remove_liqudity} => unstake(deps,env, amount, remove_liqudity),
-        HandleMsg::SetVKForStaker { prng_seed} => set_view_key(deps, env, prng_seed),
+        HandleMsg::SetVKForStaker { key} => set_view_key(deps, env, key),
     }    
 }
 
@@ -111,7 +103,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
 pub fn set_view_key<S: Storage, A: Api, Q: Querier>(
   deps: &mut Extern<S, A, Q>,
   env: Env,
-  prng_seed: String,
+  key: String,
 ) -> StdResult<HandleResponse>{    
     let caller =  env.message.sender.clone();
     let is_staker = is_address_already_staker(&deps, caller.clone())?;  
@@ -119,10 +111,10 @@ pub fn set_view_key<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
     let mut staker_info = load_staker_info(&deps, caller.clone())?;
-    let viewing_key = create_viewing_key(prng_seed.clone());
-    staker_info.viewing_key = viewing_key.clone();
-    store_staker_info(deps, &staker_info);
-    // return response
+    let prgn_seed = load_prgn_seed(&deps)?;
+    let staker_vk = ViewingKey(key);
+    store_staker_vk(deps, env.message.sender.clone() ,staker_vk)?;    
+    store_staker_info(deps, &staker_info); 
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
@@ -160,8 +152,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
         store_staker_info(deps, &StakingInfo{
             staker: caller.clone(),
             amount: amount,
-            last_time_updated: current_timestamp,
-            viewing_key: create_viewing_key("".to_string()),
+            last_time_updated: current_timestamp
         })?;
     }
 
@@ -238,7 +229,7 @@ pub fn claim_rewards_for_all_stakers<S:Storage, A:Api, Q: Querier>(
         claim_info.last_time_claimed = current_timestamp;
         store_claim_reward_info(deps, &claim_info)?;
     }
-    store_claim_reward_timestamp(deps, current_timestamp )?;
+    store_claim_reward_timestamp(deps, current_timestamp)?;
     Ok(())
 }
 
@@ -256,7 +247,7 @@ pub fn set_lp_token<S:Storage, A:Api, Q: Querier>(
     config.lp_token = lp_token.clone();   
     let mut messages = Vec::new();
     // register pair contract for LP receiver
-    messages.push(snip20::register_receive_msg(
+    messages.push(register_receive_msg(
         env.contract_code_hash.clone(),
         None,
         BLOCK_SIZE,
@@ -283,14 +274,13 @@ pub fn calculate_staking_reward<S:Storage, A:Api, Q: Querier>(
 ) -> StdResult<Uint128>{
     let cons = Uint128(100u128);
     let percentage = get_staking_percentage(deps,staker, cons)?;
-    let percentage = Uint128(50);
     let config = load_config(deps)?;
     let seconds = Uint128(24u128 * 60u128 *60u128 *1000u128); 
     if last_timestamp < current_timestamp {
         let time_dif = (current_timestamp - last_timestamp)?;
         let total_available_reward = config.daily_reward_amount.multiply_ratio(time_dif, seconds);
         let result = total_available_reward.multiply_ratio(percentage, cons);
-        Ok(Uint128(100))
+        Ok(result)
     }
     else{
         Ok(Uint128(0u128))
@@ -303,20 +293,20 @@ pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
     staker: HumanAddr,
     cons: Uint128
 ) -> StdResult<Uint128> {
-    let total_staking = Uint256::from(get_total_staking_amount(deps)?);
+    let total_staking = get_total_staking_amount(deps)?;
     let stake_info = load_staker_info(&deps, staker)?;
-    let stake_amount = Uint256::from(stake_info.amount);   
-    let percentage =((stake_amount * Uint256::from(cons))? / total_staking)?;    
-    Ok(Uint128(percentage.clamp_u128()?))
+    let stake_amount = stake_info.amount;   
+    let percentage = stake_amount.multiply_ratio(cons, total_staking);    
+    Ok(percentage)
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {    
-        QueryMsg::GetClaimReward{ staker, time, seed  } =>{get_claim_reward_for_user(deps, staker, seed,time)},
+        QueryMsg::GetClaimReward{ staker, time, key  } =>{get_claim_reward_for_user(deps, staker, key,time)},
         QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps)},
-        QueryMsg::GetStakerLpTokenInfo { seed, staker } => {get_staking_stake_lp_token_info(deps, staker, seed)},
-        QueryMsg::GetRewardTokenBalance {viewing_key, address} => {get_staking_reward_token_balance(deps, viewing_key, address)},
-        QueryMsg::GetStakerRewardTokenBalance { viewing_key, staker } => {get_staker_reward_info(deps, viewing_key, staker)},
+        QueryMsg::GetStakerLpTokenInfo { key, staker } => {get_staking_stake_lp_token_info(deps, staker, key)},
+        QueryMsg::GetRewardTokenBalance {key, address} => {get_staking_reward_token_balance(deps, key, address)},
+        QueryMsg::GetStakerRewardTokenBalance { key, staker } => {get_staker_reward_info(deps, key, staker)},
     }
 }
 
@@ -361,7 +351,7 @@ fn get_staking_reward_token_balance<S: Storage, A: Api, Q: Querier>(
 fn get_staking_stake_lp_token_info<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     staker: HumanAddr,
-    seed: String
+    key: String
 ) -> StdResult<Binary>{
     let is_staker = is_address_already_staker(&deps, staker.clone())?;  
     if is_staker == false {
@@ -369,12 +359,11 @@ fn get_staking_stake_lp_token_info<S: Storage, A: Api, Q: Querier>(
     }
 
     let staker_info = load_staker_info(&deps, staker.clone())?;
-    let viewing_key = create_viewing_key(seed.clone());
-    // If view keys are not matching
-    if staker_info.viewing_key.to_string() != viewing_key.to_string() {
+    let staker_vk = load_staker_vk(&deps, staker.clone())?;   
+    let viewing_key = ViewingKey(key.clone()); 
+    if  viewing_key.check_viewing_key(&staker_vk) != true{
         return Err(StdError::unauthorized());
-    }
-
+    } 
     let response_msg = QueryResponse::StakerLpTokenInfo { 
         staked_lp_token: staker_info.amount, 
         total_staked_lp_token: get_total_staking_amount(deps)?,
@@ -392,7 +381,7 @@ pub fn get_staking_contract_owner<S: Storage, A: Api, Q: Querier>(
 pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>, 
     staker: HumanAddr,   
-    seed: String,
+    key: String,
     time: Uint128
 )-> StdResult<Binary> {
     // load stakers    
@@ -400,20 +389,19 @@ pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     if is_staker == false {
         return Err(StdError::unauthorized());
     }
-
     let staker_info = load_staker_info(&deps, staker.clone())?;
-    let viewing_key = create_viewing_key(seed.clone());
-    // If view keys are not matching
-    if staker_info.viewing_key.to_string() != viewing_key.to_string() {
+    let staker_vk = load_staker_vk(&deps, staker.clone())?;   
+    let viewing_key = ViewingKey(key.clone()); 
+    if  viewing_key.check_viewing_key(&staker_vk) != true{
         return Err(StdError::unauthorized());
-    }
-
+    } 
     let unpaid_claim = load_claim_reward_info(deps, staker.clone())?;
     let last_claim_timestamp = load_claim_reward_timestamp(deps)?;     
     let current_timestamp = time; 
     let current_claim = calculate_staking_reward(deps,
          staker.clone(), last_claim_timestamp, current_timestamp)?;
     let total_claim = unpaid_claim.amount + current_claim;
+    println!("{:?}", total_claim);
     to_binary(&QueryResponse::ClaimReward{amount: total_claim})
 }
 
@@ -479,10 +467,12 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
         let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity { 
             from: Some(caller.clone())}).unwrap();      
        
-        let msg = to_binary(&snip20::HandleMsg::Send {
+        let msg = to_binary(&Snip20HandleMsg::Send {
             recipient: config.contract_owner.clone(),
+            recipient_code_hash: None,
             amount: amount,
             msg: Some(remove_liquidity_msg.clone()),
+            memo: None,
             padding: None,
         })?;
     
@@ -498,10 +488,10 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     }
     else{
         // SEND LP Token back to Staker And User Will Manually Remove Liquidity
-        let msg = to_binary(&snip20::HandleMsg::Send {
+        let msg = to_binary(&Snip20HandleMsg::Transfer {
             recipient: caller.clone(),
             amount: amount,
-            msg: None,
+            memo: None,
             padding: None,
         })?;
     
@@ -535,7 +525,7 @@ fn query_total_reward_liquidity(
     querier: &impl Querier,
     reward_token_info: &ContractLink<HumanAddr>,
 ) -> StdResult<Uint128> {
-    let result = snip20::token_info_query(
+    let result = token_info_query(
         querier,
         BLOCK_SIZE,
         reward_token_info.code_hash.clone(),

@@ -1,5 +1,5 @@
 pub mod msg;
-pub use fadroma;
+pub use secret_toolkit;
 pub use token_pair::*;
 pub use token_type::*;
 pub use token_amount::*;
@@ -19,7 +19,13 @@ pub mod querier;
 mod display;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-pub use composable_snip20 as snip20_impl;
+pub mod scrt_storage;
+pub use snip20_reference_impl;
+pub mod viewing_keys;
+pub use sha2;
+pub use subtle;
+pub use cosmwasm_math_compat;
+pub mod core;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct Pagination {

@@ -1,4 +1,15 @@
-use fadroma::scrt::{Uint128, Env, StdResult};
+use cosmwasm_std::Uint128;
+use cosmwasm_std::{
+    from_binary,
+    Api,
+    Binary,
+    Extern,
+    HumanAddr,
+    Querier,
+    StdError,
+    StdResult,
+    Storage, Env, HandleResponse, log,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

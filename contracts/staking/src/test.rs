@@ -1,48 +1,18 @@
-
-use shadeswap_shared::fadroma::secret_toolkit::snip20::Balance;
-use shadeswap_shared::{ 
-    fadroma::{
-        scrt::{
-            from_binary, log, to_binary, Api, BankMsg, Binary, MessageInfo, ContractInfo, Coin, CosmosMsg, Decimal, Env,
-            Extern, HandleResponse, HumanAddr, InitResponse, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
-            BankQuery, WasmQuery,  
-            secret_toolkit::snip20,  BlockInfo
-        },
-        scrt_uint256::Uint256,
-        scrt_callback::Callback,
-        scrt_link::{ContractLink, ContractInstantiationInfo},
-        scrt_vk::ViewingKey,
-    },
- 
-};
-
-use shadeswap_shared::{
-    fadroma::{
-        scrt::{
-            testing::{mock_dependencies, MockApi, MockStorage, MOCK_CONTRACT_ADDR},
-            
-        },
-    }
-};
 use serde::de::DeserializeOwned;
-use shadeswap_shared::fadroma::Empty;
-use shadeswap_shared::fadroma::from_slice;
-use shadeswap_shared::fadroma::QuerierResult;
-use shadeswap_shared::fadroma::QueryRequest;
-use shadeswap_shared::fadroma::QueryResult;
 use shadeswap_shared::msg::staking::InvokeMsg;
-use shadeswap_shared::fadroma::BalanceResponse;
 
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use shadeswap_shared::msg::staking::{{InitMsg,QueryMsg,QueryResponse,  HandleMsg}};
+    use cosmwasm_std::{BankQuery, AllBalanceResponse, to_vec, Coin, StdResult, HumanAddr, BalanceResponse, from_binary, StdError, QueryRequest, Empty, Uint128, to_binary, QuerierResult, from_slice, Querier, testing::{MockApi, MockStorage}, Extern, ContractInfo, MessageInfo, BlockInfo, Env, Api, Storage, WasmQuery};
+    use secret_toolkit::snip20::Balance;
+    use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  HandleMsg}}, core::ContractLink};
     use crate::state::{{Config , store_config, load_stakers, get_total_staking_amount, load_claim_reward_timestamp,
         load_config, is_address_already_staker, load_claim_reward_info,
         load_staker_info}};    
     use crate::contract::{{init, get_current_timestamp,claim_rewards_for_all_stakers, query, handle, get_staking_percentage}};
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-   
+    use crate::contract::{{get_claim_reward_for_user}};
     use shadeswap_shared::token_type::TokenType;
     use serde::Deserialize;
     use serde::Serialize;
@@ -200,7 +170,7 @@ pub mod tests {
         let current_time = current_timestamp + Uint128(1000u128);              
         claim_rewards_for_all_stakers(&mut deps, current_time)?;
         let claim_reward_info_a = load_claim_reward_info(&deps,staker_a.clone())?;
-        assert_eq!(claim_reward_info_a.amount, Uint128(100));      
+        assert_eq!(claim_reward_info_a.amount, Uint128(578703703));      
         let claim_reward_info_b = load_claim_reward_info(&deps,staker_b.clone())?;
         assert_eq!(claim_reward_info_b.amount, Uint128(0));       
         Ok(())
@@ -253,11 +223,62 @@ pub mod tests {
         )
         .unwrap();
         let staking_percentage_a = get_staking_percentage(&mut deps, staker_a.clone(), Uint128(100u128))?;
-        println!("{}", Uint256::from(staking_percentage_a));
+        println!("{}", staking_percentage_a);
         assert_eq!(staking_percentage_a, Uint128(50u128));
         let staking_percentage_b = get_staking_percentage(&mut deps, staker_b.clone(), Uint128(100u128))?;
-        println!("{}", Uint256::from(staking_percentage_b));
+        println!("{}", staking_percentage_b);
         assert_eq!(staking_percentage_b, Uint128(50u128));
+        Ok(())
+    }
+
+    #[test]
+    fn assert_set_and_check_viewing_key_for_query_success() -> StdResult<()>{
+        let mut deps = mock_deps();  
+        let staker_a = HumanAddr("STAKERA".to_string());     
+        let mut env_a = mock_env("LPTOKEN".to_string(), 14525698, 1425,STAKING_CONTRACT_ADDRESS, &[]);       
+        let mut env_b = mock_env( "STAKERA".to_string(),14528698, 1465,STAKING_CONTRACT_ADDRESS, &[]);       
+        let mut config: Config = make_init_config(&mut deps, env_a.clone(), Uint128(100u128))?;   
+        let staker_a = HumanAddr("STAKERA".to_string());       
+        let lp_token = ContractLink{
+            address: HumanAddr::from("LPTOKEN".to_string()),
+            code_hash: "CODE_HASH".to_string(),
+        };
+        config.lp_token = lp_token.clone();            
+        store_config(&mut deps, &config)?;    
+        // set staker_a   
+        let receive_msg = HandleMsg::Receive { 
+            from: staker_a.clone(),
+            msg: Some(to_binary(&InvokeMsg::Stake{
+                    amount: Uint128(100u128),
+                    from: staker_a.clone()
+            }).unwrap()),
+            amount: Uint128(100u128)
+        };
+        let result = handle(
+            &mut deps,
+            env_a.clone(),        
+            receive_msg.clone()
+        )
+        .unwrap();
+
+        let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;
+        let stake_info = load_staker_info(&deps, staker_a.clone())?;
+        assert_eq!(is_user_staker, true);
+        let set_vk_msg = HandleMsg::SetVKForStaker { key: "password".to_string()};
+        let result = handle(
+            &mut deps,
+            env_b.clone(),      
+            set_vk_msg.clone()
+        )
+        .unwrap();
+     
+        // get query of staker
+        let binary_msg = get_claim_reward_for_user(&deps, HumanAddr::from("STAKERA".to_string()), "password".to_string(), Uint128(14528698000))?;
+        let claimable_reward_for_staker: QueryResponse = from_binary(&binary_msg)?;
+        if let QueryResponse::ClaimReward { amount} = claimable_reward_for_staker{
+            assert_ne!(amount, Uint128(0));
+        }       
+        
         Ok(())
     }
 
@@ -275,7 +296,8 @@ pub mod tests {
             pair_contract: ContractLink {
                 address: HumanAddr::from(CONTRACT_ADDRESS),
                 code_hash: "".to_string().clone(),
-            }           
+            },
+            prng_seed: to_binary(&"prng")?
         };         
         assert!(init(deps, env.clone(), msg).is_ok());
         let config = load_config(deps)?;
@@ -301,8 +323,6 @@ pub mod tests {
         }
     }
 
-
-
     fn mock_deps() -> Extern<MockStorage, MockApi, MockQuerier> {
         Extern {
             storage: MockStorage::default(),
@@ -310,7 +330,6 @@ pub mod tests {
             querier: MockQuerier { portion: 2500 },
         }
     }
-
 
     #[derive(Serialize, Deserialize)]
     struct IntBalanceResponse {
@@ -392,7 +411,7 @@ pub mod tests {
             &self,
             request: &QueryRequest<T>,
         ) -> StdResult<U> {
-            let raw = match shadeswap_shared::fadroma::to_vec(request) {
+            let raw = match to_vec(request) {
                 Ok(raw) => raw,
                 Err(e) => {
                     return Err(StdError::generic_err(format!(
@@ -413,21 +432,21 @@ pub mod tests {
         }
     
         fn query_balance<U: Into<HumanAddr>>(&self, address: U, denom: &str) -> StdResult<Coin> {
-            let request = shadeswap_shared::fadroma::BankQuery::Balance {
+            let request = BankQuery::Balance {
                 address: address.into(),
                 denom: denom.to_string(),
             }
             .into();
-            let res: shadeswap_shared::fadroma::BalanceResponse = self.query(&request)?;
+            let res: BalanceResponse = self.query(&request)?;
             Ok(res.amount)
         }
     
         fn query_all_balances<U: Into<HumanAddr>>(&self, address: U) -> StdResult<Vec<Coin>> {
-            let request = shadeswap_shared::fadroma::BankQuery::AllBalances {
+            let request = BankQuery::AllBalances {
                 address: address.into(),
             }
             .into();
-            let res: shadeswap_shared::fadroma::AllBalanceResponse = self.query(&request)?;
+            let res: AllBalanceResponse = self.query(&request)?;
             Ok(res.amount)
         }
     

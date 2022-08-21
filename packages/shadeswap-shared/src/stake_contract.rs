@@ -1,15 +1,18 @@
-use fadroma::{
-    scrt::{Binary, Decimal, HumanAddr, Uint128},
-    scrt_callback::Callback,
-    scrt_link::{ContractInstantiationInfo, ContractLink},
+use cosmwasm_std::{
+    from_binary,
+    Api,
+    Binary,
+    Extern,
+    HumanAddr,
+    Querier,
+    StdError,
+    StdResult,
+    Storage, Env, HandleResponse, log, Uint128,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use crate::TokenType;
+use crate::{TokenType, core::ContractInstantiationInfo};
 
-pub use crate::snip20_impl::msg as snip20;
-use crate::token_amount::TokenAmount;
-use crate::token_pair_amount::TokenPairAmount;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
 pub struct StakingContractInit{

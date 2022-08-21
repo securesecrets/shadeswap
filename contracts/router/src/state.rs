@@ -1,51 +1,74 @@
+use cosmwasm_std::Api;
+use cosmwasm_std::Binary;
+use cosmwasm_std::CanonicalAddr;
+use cosmwasm_std::Env;
+use cosmwasm_std::Extern;
+use cosmwasm_std::HumanAddr;
+use cosmwasm_std::Querier;
+use cosmwasm_std::ReadonlyStorage;
+use cosmwasm_std::StdError;
+use cosmwasm_std::StdResult;
+use cosmwasm_std::Storage;
+use cosmwasm_std::Uint128;
+use cosmwasm_storage::PrefixedStorage;
+use cosmwasm_storage::ReadonlyPrefixedStorage;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use shadeswap_shared::core::Humanize;
+use shadeswap_shared::scrt_storage::load;
+use shadeswap_shared::scrt_storage::save;
+use shadeswap_shared::{core::Canonize, viewing_keys::ViewingKey};
 
 use shadeswap_shared::{
-    fadroma::{
-        scrt_link::{ContractLink},    
-        scrt_addr::{Humanize, Canonize},
-        scrt::{
-            Api, CanonicalAddr, Extern, HumanAddr, Uint128,
-            Querier, StdResult, Storage, StdError
-        },
-        scrt_storage::{load, save},
-        scrt_vk::ViewingKey, Env, PrefixedStorage, ReadonlyPrefixedStorage, ReadonlyStorage, Binary,
-    },
-    amm_pair::AMMPair, TokenPair, TokenAmount, TokenType,
-    msg::router::InitMsg
+    amm_pair::AMMPair, core::ContractLink, msg::router::InitMsg, TokenAmount,
+    TokenPair, TokenType,
 };
 
 pub static CONFIG_KEY: &[u8] = b"config";
 pub static ADDED_TOKEN_LIST: &[u8] = b"added_token_list";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Config<A: Clone> {
+pub struct Config<A> {
     pub factory_address: ContractLink<A>,
-    pub viewing_key: ViewingKey
+    pub viewing_key: String,
 }
 
-impl Canonize<Config<CanonicalAddr>> for Config<HumanAddr> {
-    fn canonize (&self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
+impl Config<HumanAddr> {
+    pub fn from_init_msg(env: Env, msg: InitMsg) -> Self {
+        let viewing_key =
+            ViewingKey::new(&env, msg.prng_seed.as_slice(), msg.entropy.as_slice()).to_string();
+        Self {
+            factory_address: msg.factory_address,
+            viewing_key: viewing_key,
+        }
+    }
+}
+
+impl Canonize for Config<HumanAddr> {
+    fn canonize(self, api: &impl Api) -> StdResult<Config<CanonicalAddr>> {
         Ok(Config {
             factory_address: self.factory_address.canonize(api)?,
-            viewing_key: self.viewing_key.clone()
+            viewing_key: self.viewing_key.clone(),
         })
     }
+
+    type Output = Config<CanonicalAddr>;
 }
 
-impl Humanize<Config<HumanAddr>> for Config<CanonicalAddr> {
-    fn humanize (&self, api: &impl Api) -> StdResult<Config<HumanAddr>> {
+impl Humanize for Config<CanonicalAddr> {
+    fn humanize(self, api: &impl Api) -> StdResult<Config<HumanAddr>> {
         Ok(Config {
             factory_address: self.factory_address.humanize(api)?,
-            viewing_key: self.viewing_key.clone()
+            viewing_key: self.viewing_key.clone(),
         })
     }
+
+    type Output = Config<HumanAddr>;
 }
 
 pub fn config_write<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    config: &Config<HumanAddr>,
+    config: Config<HumanAddr>,
 ) -> StdResult<()> {
     save(&mut deps.storage, CONFIG_KEY, &config.canonize(&deps.api)?)
 }
@@ -69,16 +92,6 @@ pub fn read_token<S: Storage>(store: &S, token_address: &CanonicalAddr) -> Optio
     balance_store.get(token_address.as_slice())
 }
 
-impl Config<HumanAddr> {
-    pub fn from_init_msg(env:Env,msg: InitMsg) -> Self {
-        let viewing_key = ViewingKey::new(&env, msg.prng_seed.as_slice(), msg.entropy.as_slice());
-        Self {
-            factory_address: msg.factory_address,
-            viewing_key: viewing_key
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct CurrentSwapInfo {
     pub(crate) amount: TokenAmount<HumanAddr>,
@@ -86,5 +99,5 @@ pub struct CurrentSwapInfo {
     pub paths: Vec<HumanAddr>,
     pub signature: Binary,
     pub recipient: HumanAddr,
-    pub current_index: u32
+    pub current_index: u32,
 }

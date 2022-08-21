@@ -489,6 +489,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shadeswap-shared",
+ "snip20-reference-impl",
 ]
 
 [[package]]

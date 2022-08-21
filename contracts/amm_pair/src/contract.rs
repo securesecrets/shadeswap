@@ -599,14 +599,9 @@ fn get_estimated_lp_token<S:Storage, A: Api, Q: Querier>(
     if pair_contract_pool_liquidity == Uint128::zero() {
         // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
         // x and y is amount of token0 and token1 provided
-        let deposit_token0_amount = deposit.amount_0;
-        let deposit_token1_amount = deposit.amount_1;
-        let mul_value_amount = deposit_token0_amount * convert_uint128_to_decimal(deposit_token1_amount)?;        
-        // let mul_val_string = &mul_value_amount.to_string();
-        let math_lp_tokens = MathUint128::from_str(&mul_value_amount.to_string()).unwrap();
-        let sqrt_result = MathDecimal::from_atomics(math_lp_tokens,0).unwrap().sqrt();
-        lp_tokens = Uint128(sqrt_result.atomics().u128());
-
+        let deposit_token0_amount = Uint256::from( deposit.amount_0.0);
+        let deposit_token1_amount =  Uint256::from(deposit.amount_1.0);
+        lp_tokens = (deposit_token0_amount.mul(deposit_token1_amount)).sqrt()?.clamp_u128()?.into()     
     } else {
         // Total % of Pool
         let total_share = pair_contract_pool_liquidity;
@@ -901,10 +896,9 @@ pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         // x and y is amount of token0 and token1 provided
         let deposit_token0_amount = Uint256::from( deposit.amount_0.0);
         let deposit_token1_amount =  Uint256::from(deposit.amount_1.0);
-        lp_tokens = (deposit_token0_amount.mul(deposit_token1_amount)).sqrt()?.clamp_u128()?.into() 
-            
+        lp_tokens = (deposit_token0_amount.mul(deposit_token1_amount)).sqrt()?.clamp_u128()?.into()    
     } else {
-        // Total % of Pool
+        // Total % of Pool       
         let total_share = pair_contract_pool_liquidity;
         // Deposit amounts of the tokens
         let deposit_token0_amount = deposit.amount_0;

@@ -24,6 +24,7 @@ pub const CUSTOM_TOKEN_1: &str = "CUSTOM_TOKEN_1";
 pub const CUSTOM_TOKEN_2: &str = "CUSTOM_TOKEN_2";
 pub const CONTRACT_ADDRESS: &str = "CONTRACT_ADDRESS";
 pub const LP_TOKEN_ADDRESS: &str = "LP_TOKEN_ADDRESS";
+pub const LP_TOKEN_ADDRESS_WITH_AMOUNT: &str = "LP_TOKEN_ADDRESS_WITH_AMOUNT";
 use crate::help_math::calculate_and_print_price;
 
 #[cfg(test)]
@@ -551,7 +552,7 @@ pub mod tests_calculation_price_and_fee{
         let result_b = calculate_and_print_price(Uint128(58), Uint128(124),1)?;
         let result_c = calculate_and_print_price(Uint128(158), Uint128(124),0)?;
         assert_eq!(result_a, "0.99".to_string());
-        assert_eq!(result_b, "0.467741935".to_string());
+        assert_eq!(result_b, "0.467741935483870967".to_string());
         assert_eq!(result_c, "1.274193548387096774".to_string());
         Ok(())
     }
@@ -788,9 +789,118 @@ pub mod tests_calculation_price_and_fee{
 
         assert_eq!(
             add_liquidity_with_success.unwrap().log[3], 
-            log("share_pool", Uint128(10000)));    
+            log("share_pool", Uint128(31622)));    
         Ok(())
     }
+
+    /// V2(1000000 * 1000000) => 1000000
+    #[test]
+    fn assert_add_liqudity_first_time_with_same_token_amount_lp_success() -> StdResult<()>{
+        let mut deps = mock_deps_for_slippage_test();
+        let amm_settings = mk_amm_settings_a();
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        let mut config = make_init_config_test_calculate_price_fee(&mut deps, token_pair.clone(), None)?;         
+        let offer_amount: u128 = 2000;          
+        let address_a = HumanAddr::from("TESTA".to_string());
+        let token = config.pair.clone(); 
+        config.lp_token_info = ContractLink{ 
+            address: HumanAddr::from(LP_TOKEN_ADDRESS),
+            code_hash: "CODE_HASH".to_string()
+        };
+        store_config(&mut deps, config.clone())?; 
+        let add_liquidity_with_success = add_liquidity(
+            &mut deps,
+            mkenv(address_a.clone()),
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128(1000000),
+                amount_1: Uint128(1000000)
+            },
+            None,
+            None
+        );       
+
+        assert_eq!(
+            add_liquidity_with_success.unwrap().log[3], 
+            log("share_pool", Uint128(1000000)));    
+        Ok(())
+    }
+     
+    /// V2(1000000 * 100000) => 316227
+    #[test]
+    fn assert_add_liqudity_first_time_diff_token_amount_lp_success() -> StdResult<()>{
+        let mut deps = mock_deps_for_slippage_test();
+        let amm_settings = mk_amm_settings_a();
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        let mut config = make_init_config_test_calculate_price_fee(&mut deps, token_pair.clone(), None)?;         
+        let offer_amount: u128 = 2000;          
+        let address_a = HumanAddr::from("TESTA".to_string());
+        let token = config.pair.clone();
+        config.lp_token_info = ContractLink{ 
+            address: HumanAddr::from(LP_TOKEN_ADDRESS),
+            code_hash: "CODE_HASH".to_string()
+        };
+        store_config(&mut deps, config.clone())?;   
+        let add_liquidity_with_success = add_liquidity(
+            &mut deps,
+            mkenv(address_a.clone()),
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128(1000000),
+                amount_1: Uint128(100000)
+            },
+            None,
+            None
+        );       
+
+        assert_eq!(
+            add_liquidity_with_success.unwrap().log[3], 
+            log("share_pool", Uint128(316227)));    
+        Ok(())
+    }
+
+    ///  existing LP -> 1000000
+    ///  Token 0 Pool = 10000
+    ///  Token 1 Pool = 100000
+    ///  Deposit Token 0 = 100000
+    ///  Deposit Token 1 = 100000
+    ///  % Token 0 = 1000000 * 1000000 / 10000 = 100000000
+    ///  % Token 1 = 100000 * 1000000 / 100000 = 1000000
+    ///  Min Value = (1000000, 100000000) -> 1000000
+    #[test]
+    fn assert_add_liqudity_with_already_added_lp_diff_token_amount_lp_success() -> StdResult<()>{
+        let mut deps = mock_deps_for_slippage_test();
+        let amm_settings = mk_amm_settings_a();
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        let mut config = make_init_config_test_calculate_price_fee(&mut deps, token_pair.clone(), None)?;         
+        let offer_amount: u128 = 2000;          
+        let address_a = HumanAddr::from("TESTA".to_string());
+        let token = config.pair.clone();
+        config.lp_token_info = ContractLink{ 
+            address: HumanAddr::from(LP_TOKEN_ADDRESS_WITH_AMOUNT),
+            code_hash: "CODE_HASH".to_string()
+        };
+        store_config(&mut deps, config.clone())?;   
+        let add_liquidity_with_success = add_liquidity(
+            &mut deps,
+            mkenv(address_a.clone()),
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128(1000000),
+                amount_1: Uint128(100000)
+            },
+            None,
+            None
+        );       
+
+        assert_eq!(
+            add_liquidity_with_success.unwrap().log[3], 
+            log("share_pool", Uint128(1000000)));    
+        Ok(())
+    }
+
+
+    
 }
 
 
@@ -992,16 +1102,26 @@ pub mod help_test_lib {
                                         }
                                     }))
                                 },
-                                P_TOKEN_ADDRESS => {
+                                LP_TOKEN_ADDRESS => {
                                     QuerierResult::Ok(to_binary(&TokenInfoResponseMock{
                                             token_info: TokenInfo {
                                             name: "LPTOKEN".to_string(),
                                             decimals: 18,
                                             symbol: "LP".to_string(),
-                                            total_supply: Some(Uint128(10000))
+                                            total_supply: Some(Uint128(0))
                                         }
                                     }))
                                 },
+                                LP_TOKEN_ADDRESS_WITH_AMOUNT => {
+                                    QuerierResult::Ok(to_binary(&TokenInfoResponseMock{
+                                            token_info: TokenInfo {
+                                            name: "LPTOKEN".to_string(),
+                                            decimals: 18,
+                                            symbol: "LP".to_string(),
+                                            total_supply: Some(Uint128(1000000))
+                                        }
+                                    }))
+                                },                                
                                 _ => {
                                     println!("{}", contract_addr.as_str()); 
                                     return unimplemented!() 
@@ -1097,23 +1217,7 @@ pub mod help_test_lib {
             }
         );
         pair
-    }
-    
-    // pub fn mock_config_test_calculation_price_fee(env: Env) -> StdResult<Config<HumanAddr>> {
-    // {    
-    //     let seed = to_binary(&"SEED".to_string())?;
-    //     let entropy = to_binary(&"ENTROPY".to_string())?;
-    
-    //     let config = Config {       
-    //         factory_info: mock_contract_link(FACTORY_CONTRACT_ADDRESS.to_string()),
-    //         lp_token_info: mock_contract_link("LPTOKEN".to_string()),
-    //         pair:      mk_token_pair_test_calculation_price_fee(),
-    //         contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
-    //         viewing_key:  create_viewing_key(&env, seed.clone(), entropy.clone()),
-    //         custom_fee: None
-    //     };
-    //     Ok(config)
-    // }
+    }  
     
     pub fn make_init_config_test_calculate_price_fee<S: Storage, A: Api, Q: Querier>(
         deps: &mut Extern<S, A, Q>, 

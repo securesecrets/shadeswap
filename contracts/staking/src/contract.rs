@@ -106,15 +106,8 @@ pub fn set_view_key<S: Storage, A: Api, Q: Querier>(
   key: String,
 ) -> StdResult<HandleResponse>{    
     let caller =  env.message.sender.clone();
-    let is_staker = is_address_already_staker(&deps, caller.clone())?;  
-    if is_staker == false {
-        return Err(StdError::unauthorized());
-    }
-    let mut staker_info = load_staker_info(&deps, caller.clone())?;
-    let prgn_seed = load_prgn_seed(&deps)?;
     let staker_vk = ViewingKey(key);
-    store_staker_vk(deps, env.message.sender.clone() ,staker_vk)?;    
-    store_staker_info(deps, &staker_info); 
+    store_staker_vk(deps, env.message.sender.clone() ,staker_vk)?;      
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
@@ -325,8 +318,7 @@ fn get_staker_reward_info<S: Storage, A: Api, Q: Querier>(
         let reward_token_info = ContractLink{
             address: contract_addr.clone(),
             code_hash: token_code_hash.clone(), 
-        };
-        let staking_contract_address = config.staking_contract;
+        };       
         let reward_token_balance =  config.reward_token.query_balance(&deps.querier,staker.clone() , viewing_key.to_string())?;
         let total_reward_token_balance = query_total_reward_liquidity(&deps.querier, &reward_token_info)?;
         let response_msg = QueryResponse::StakerRewardTokenBalance { reward_amount: reward_token_balance, total_reward_liquidity: total_reward_token_balance };

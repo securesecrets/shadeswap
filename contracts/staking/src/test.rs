@@ -152,7 +152,7 @@ pub mod tests {
         .unwrap();
         let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;        
         assert_eq!(is_user_staker, true);
-        let env_b = mock_env("LPTOKEN".to_string(), (current_timestamp + Uint128(100u128)).u128() as u64, 1527, CONTRACT_ADDRESS, &[]);
+        let env_b = mock_env("LPTOKEN".to_string(), (current_timestamp + Uint128(1000u128)).u128() as u64, 1527, CONTRACT_ADDRESS, &[]);
         let receive_msg = HandleMsg::Receive { 
             from: staker_b.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
@@ -170,7 +170,7 @@ pub mod tests {
         let current_time = current_timestamp + Uint128(1000u128);              
         claim_rewards_for_all_stakers(&mut deps, current_time)?;
         let claim_reward_info_a = load_claim_reward_info(&deps,staker_a.clone())?;
-        assert_eq!(claim_reward_info_a.amount, Uint128(578703703));      
+        assert_eq!(claim_reward_info_a.amount, Uint128(11574074074));      
         let claim_reward_info_b = load_claim_reward_info(&deps,staker_b.clone())?;
         assert_eq!(claim_reward_info_b.amount, Uint128(0));       
         Ok(())

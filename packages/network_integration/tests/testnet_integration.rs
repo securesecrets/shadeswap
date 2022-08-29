@@ -1482,6 +1482,50 @@ fn run_testnet() -> Result<()> {
                 {
                     assert_ne!(amount, Uint128(0));
                 }
+                print_header("\n\tSet VK for non Staker");
+                handle(
+                    &StakingMsgHandle::SetVKForStaker { key: "password".to_string() },
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    },
+                    STAKER_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+                
+                // print_header("\n\t GetStakerRewardTokenBalance for Non Staker");
+                // let get_staker_reward_token_balance_msg =
+                //     StakingQueryMsg::GetStakerRewardTokenBalance {
+                //         key: String::from(VIEW_KEY),
+                //         staker: HumanAddr::from(account.to_string()),
+                //     };
+                // let staker_reward_token_balance: StakingQueryMsgResponse = query(
+                //     &NetContract {
+                //         label: "".to_string(),
+                //         id: "".to_string(),
+                //         address: staking_contract.address.to_string(),
+                //         code_hash: staking_contract.code_hash.to_string(),
+                //     },
+                //     get_staker_reward_token_balance_msg,
+                //     None,
+                // )?;
+
+                // if let StakingQueryMsgResponse::StakerRewardTokenBalance {
+                //     reward_amount,
+                //     total_reward_liquidity,
+                // } = staker_reward_token_balance
+                // {
+                //     assert_ne!(reward_amount, Uint128(0));
+                //     assert_ne!(total_reward_liquidity, Uint128(0));
+                // }
+
                 print_header("\n\t GetStakerRewardTokenBalance");
                 let get_staker_reward_token_balance_msg =
                     StakingQueryMsg::GetStakerRewardTokenBalance {

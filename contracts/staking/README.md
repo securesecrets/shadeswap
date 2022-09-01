@@ -92,6 +92,7 @@ Get  Staker Lp Token Information.
 {
   "staked_lp_token": "Uint128",
   "total_staked_lp_token": "Uint128",
+  "reward_token" : "ContractLink"
 }
 ```
 
@@ -107,7 +108,8 @@ Get Reward Token Balance for staker
 ##### Response
 ```json
 {
-  "amount": "Uint128"
+  "amount": "Uint128",
+  "reward_token" : "ContractLink"
 }
 ```
 

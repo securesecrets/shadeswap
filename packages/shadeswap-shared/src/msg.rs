@@ -412,10 +412,12 @@ pub mod staking {
         },
         RewardTokenBalance {
             amount: Uint128,
+            reward_token: ContractLink<HumanAddr>
         },
         StakerRewardTokenBalance {
             reward_amount: Uint128,
             total_reward_liquidity: Uint128,
+            reward_token: ContractLink<HumanAddr>
         },
     }
 }

@@ -321,7 +321,14 @@ fn get_staker_reward_info<S: Storage, A: Api, Q: Querier>(
         };       
         let reward_token_balance =  config.reward_token.query_balance(&deps.querier,staker.clone() , viewing_key.to_string())?;
         let total_reward_token_balance = query_total_reward_liquidity(&deps.querier, &reward_token_info)?;
-        let response_msg = QueryResponse::StakerRewardTokenBalance { reward_amount: reward_token_balance, total_reward_liquidity: total_reward_token_balance };
+        let response_msg = QueryResponse::StakerRewardTokenBalance { 
+            reward_amount: reward_token_balance, 
+            total_reward_liquidity: total_reward_token_balance,
+            reward_token: ContractLink { 
+                address: contract_addr.clone(), 
+                code_hash: token_code_hash.clone()
+            } 
+        };
         return to_binary(&response_msg)
     }else{
         return Err(StdError::generic_err("Invalid reward token"))
@@ -334,10 +341,26 @@ fn get_staking_reward_token_balance<S: Storage, A: Api, Q: Querier>(
     address: HumanAddr,
 ) -> StdResult<Binary>{
     let config = load_config(deps)?;
-    let staking_contract_address = config.staking_contract;
-    let reward_token_balance = config.reward_token.query_balance(&deps.querier,  address.clone(), viewing_key.to_string())?;
-    let response_msg = QueryResponse::RewardTokenBalance { amount: reward_token_balance };
-    to_binary(&response_msg)
+    if let TokenType::CustomToken {
+        contract_addr,
+        token_code_hash,
+        ..
+    } = config.reward_token.clone()
+    {
+        let staking_contract_address = config.staking_contract;
+        let reward_token_balance = config.reward_token.query_balance(&deps.querier,  address.clone(), viewing_key.to_string())?;
+        let response_msg = QueryResponse::RewardTokenBalance { 
+            amount: reward_token_balance,
+            reward_token: ContractLink {
+                address: contract_addr.clone(),
+                code_hash: token_code_hash.clone(),
+            }
+        };
+        to_binary(&response_msg)
+    }
+    else{
+        return Err(StdError::generic_err("Invalid reward token"))
+    }   
 }
 
 fn get_staking_stake_lp_token_info<S: Storage, A: Api, Q: Querier>(

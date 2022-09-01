@@ -136,7 +136,6 @@ fn run_testnet() -> Result<()> {
     }
 
     print_contract(&s_sCRT);
-
     print_header("Initializing s_sREWARDSNIP20");
 
     let (s_sREWARDSNIP20INIT, s_sREWARDSNIP20) = init_snip20(
@@ -1478,8 +1477,12 @@ fn run_testnet() -> Result<()> {
                     None,
                 )?;
 
-                if let StakingQueryMsgResponse::RewardTokenBalance { amount } = balance_reward_token
+                if let StakingQueryMsgResponse::RewardTokenBalance { 
+                    amount, 
+                    reward_token} = balance_reward_token
                 {
+                    assert_eq!(reward_token.address.to_string().clone(),s_sREWARDSNIP20.address.clone());
+                    assert_eq!(reward_token.code_hash.clone(),s_sREWARDSNIP20.code_hash.to_string());
                     assert_ne!(amount, Uint128(0));
                 }
                 print_header("\n\tSet VK for non Staker");
@@ -1501,32 +1504,32 @@ fn run_testnet() -> Result<()> {
                 .unwrap();
                 
                 print_header("\n\t GetStakerRewardTokenBalance for Non Staker");
-                let get_staker_reward_token_balance_msg =
-                    StakingQueryMsg::GetStakerRewardTokenBalance {
-                        key: String::from("password"),
-                        staker: HumanAddr::from(staker_account.to_string()),
-                    };
-                let staker_reward_token_balance: StakingQueryMsgResponse = query(
-                    &NetContract {
-                        label: "".to_string(),
-                        id: "".to_string(),
-                        address: staking_contract.address.to_string(),
-                        code_hash: staking_contract.code_hash.to_string(),
-                    },
-                    get_staker_reward_token_balance_msg,
-                    None,
-                )?;
+                // let get_staker_reward_token_balance_msg =
+                //     StakingQueryMsg::GetStakerRewardTokenBalance {
+                //         key: String::from(VIEW_KEY),
+                //         staker: HumanAddr::from(staker_account.to_string()),
+                //     };
+                // let staker_reward_token_balance: StakingQueryMsgResponse = query(
+                //     &NetContract {
+                //         label: "".to_string(),
+                //         id: "".to_string(),
+                //         address: staking_contract.address.to_string(),
+                //         code_hash: staking_contract.code_hash.to_string(),
+                //     },
+                //     get_staker_reward_token_balance_msg,
+                //     None,
+                // )?;
 
-                if let StakingQueryMsgResponse::StakerRewardTokenBalance {
-                    reward_amount,
-                    total_reward_liquidity,
-                } = staker_reward_token_balance
-                {
-                    assert_ne!(reward_amount, Uint128(0));
-                    assert_ne!(total_reward_liquidity, Uint128(0));
-                }
+                // if let StakingQueryMsgResponse::StakerRewardTokenBalance {
+                //     reward_amount,
+                //     total_reward_liquidity,
+                // } = staker_reward_token_balance
+                // {
+                //     assert_ne!(reward_amount, Uint128(0));
+                //     assert_ne!(total_reward_liquidity, Uint128(0));
+                // }
 
-                print_header("\n\t GetStakerRewardTokenBalance");
+                print_header("\n\t GetStakerRewardTokenBalance for Staker");
                 let get_staker_reward_token_balance_msg =
                     StakingQueryMsg::GetStakerRewardTokenBalance {
                         key: String::from(VIEW_KEY),
@@ -1546,10 +1549,13 @@ fn run_testnet() -> Result<()> {
                 if let StakingQueryMsgResponse::StakerRewardTokenBalance {
                     reward_amount,
                     total_reward_liquidity,
+                    reward_token
                 } = staker_reward_token_balance
                 {
-                    assert_eq!(reward_amount, Uint128(0));
-                    //assert_ne!(total_reward_liquidity, Uint128(0));
+                    assert_ne!(reward_amount, Uint128(0));
+                    assert_ne!(total_reward_liquidity, Uint128(0));
+                    assert_eq!(reward_token.address.to_string(), s_sREWARDSNIP20.address.clone());
+                    assert_eq!(reward_token.code_hash.clone(), s_sREWARDSNIP20.code_hash.to_string());
                 }
             }
         } else {

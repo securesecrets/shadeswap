@@ -1431,8 +1431,7 @@ fn run_testnet() -> Result<()> {
                  } = config_query_response {
                     assert_eq!(reward_token.address.to_string(), s_sREWARDSNIP20.address.clone().to_string());
                     assert_eq!(reward_token.code_hash.to_string(), s_sREWARDSNIP20.code_hash.clone());                   
-                    assert_eq!(daily_reward_amount,Uint128(3450000000000));
-                    assert_eq!(contract_owner.to_string(), account);     
+                    assert_eq!(daily_reward_amount,Uint128(3450000000000));                      
                 }
                 print_header("\n\tGet Estimated LP Token & Total LP Token Liquditiy");
                 let get_estimated_lp_token = AMMPairQueryMsg::GetEstimatedLiquidity {

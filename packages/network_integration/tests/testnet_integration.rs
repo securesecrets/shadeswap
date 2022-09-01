@@ -63,7 +63,7 @@ pub fn get_current_timestamp() -> StdResult<Uint128> {
 fn run_testnet() -> Result<()> {
     let account = account_address(ACCOUNT_KEY)?;
     let shade_dao = account_address(SHADE_DAO_KEY)?;
-
+    let staker_account = account_address(STAKER_KEY)?;
     println!("Using Account: {}", account.blue());
 
     let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
@@ -1500,31 +1500,31 @@ fn run_testnet() -> Result<()> {
                 )
                 .unwrap();
                 
-                // print_header("\n\t GetStakerRewardTokenBalance for Non Staker");
-                // let get_staker_reward_token_balance_msg =
-                //     StakingQueryMsg::GetStakerRewardTokenBalance {
-                //         key: String::from(VIEW_KEY),
-                //         staker: HumanAddr::from(account.to_string()),
-                //     };
-                // let staker_reward_token_balance: StakingQueryMsgResponse = query(
-                //     &NetContract {
-                //         label: "".to_string(),
-                //         id: "".to_string(),
-                //         address: staking_contract.address.to_string(),
-                //         code_hash: staking_contract.code_hash.to_string(),
-                //     },
-                //     get_staker_reward_token_balance_msg,
-                //     None,
-                // )?;
+                print_header("\n\t GetStakerRewardTokenBalance for Non Staker");
+                let get_staker_reward_token_balance_msg =
+                    StakingQueryMsg::GetStakerRewardTokenBalance {
+                        key: String::from("password"),
+                        staker: HumanAddr::from(staker_account.to_string()),
+                    };
+                let staker_reward_token_balance: StakingQueryMsgResponse = query(
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    },
+                    get_staker_reward_token_balance_msg,
+                    None,
+                )?;
 
-                // if let StakingQueryMsgResponse::StakerRewardTokenBalance {
-                //     reward_amount,
-                //     total_reward_liquidity,
-                // } = staker_reward_token_balance
-                // {
-                //     assert_ne!(reward_amount, Uint128(0));
-                //     assert_ne!(total_reward_liquidity, Uint128(0));
-                // }
+                if let StakingQueryMsgResponse::StakerRewardTokenBalance {
+                    reward_amount,
+                    total_reward_liquidity,
+                } = staker_reward_token_balance
+                {
+                    assert_ne!(reward_amount, Uint128(0));
+                    assert_ne!(total_reward_liquidity, Uint128(0));
+                }
 
                 print_header("\n\t GetStakerRewardTokenBalance");
                 let get_staker_reward_token_balance_msg =
@@ -1548,8 +1548,8 @@ fn run_testnet() -> Result<()> {
                     total_reward_liquidity,
                 } = staker_reward_token_balance
                 {
-                    assert_ne!(reward_amount, Uint128(0));
-                    assert_ne!(total_reward_liquidity, Uint128(0));
+                    assert_eq!(reward_amount, Uint128(0));
+                    //assert_ne!(total_reward_liquidity, Uint128(0));
                 }
             }
         } else {

@@ -1409,6 +1409,31 @@ fn run_testnet() -> Result<()> {
                 if let StakingQueryMsgResponse::ClaimReward { amount } = claims_reward_response {
                     assert_ne!(amount, Uint128(0));
                 }
+
+                print_header("\n\tGet Staking Contract Config Info");
+                let get_config_msg = StakingQueryMsg::GetConfig {  };
+                let config_query_response: StakingQueryMsgResponse = query(
+                    &NetContract {
+                        label: "".to_string(),
+                        id: "".to_string(),
+                        address: staking_contract.address.to_string(),
+                        code_hash: staking_contract.code_hash.to_string(),
+                    },
+                    get_config_msg,
+                    None,
+                )?;
+
+                if let StakingQueryMsgResponse::Config { 
+                    reward_token,
+                    lp_token,
+                    contract_owner,
+                    daily_reward_amount
+                 } = config_query_response {
+                    assert_eq!(reward_token.address.to_string(), s_sREWARDSNIP20.address.clone().to_string());
+                    assert_eq!(reward_token.code_hash.to_string(), s_sREWARDSNIP20.code_hash.clone());                   
+                    assert_eq!(daily_reward_amount,Uint128(3450000000000));
+                    assert_eq!(contract_owner.to_string(), account);     
+                }
                 print_header("\n\tGet Estimated LP Token & Total LP Token Liquditiy");
                 let get_estimated_lp_token = AMMPairQueryMsg::GetEstimatedLiquidity {
                     deposit: TokenPairAmount {

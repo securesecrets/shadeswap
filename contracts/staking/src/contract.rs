@@ -1,6 +1,6 @@
 use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}, core::ContractLink};
 use shadeswap_shared::msg::amm_pair::HandleMsg as AmmPairHandleMsg;
-use secret_toolkit::snip20::{token_info_query, mint_msg, transfer_from_msg, HandleMsg as Snip20HandleMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg};
+use secret_toolkit::{snip20::{token_info_query, mint_msg, transfer_from_msg, HandleMsg as Snip20HandleMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg}, utils::Query};
 use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, token_type::{{TokenType}}};
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
     get_total_staking_amount, load_stakers, load_config, is_address_already_staker, store_claim_reward_info,
@@ -295,6 +295,7 @@ pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {    
+        QueryMsg::GetConfig {  } => {get_config(deps)},
         QueryMsg::GetClaimReward{ staker, time, key  } =>{get_claim_reward_for_user(deps, staker, key,time)},
         QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps)},
         QueryMsg::GetStakerLpTokenInfo { key, staker } => {get_staking_stake_lp_token_info(deps, staker, key)},
@@ -330,6 +331,32 @@ fn get_staker_reward_info<S: Storage, A: Api, Q: Querier>(
             } 
         };
         return to_binary(&response_msg)
+    }else{
+        return Err(StdError::generic_err("Invalid reward token"))
+    }   
+}
+
+
+fn get_config<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>
+) -> StdResult<Binary>{    
+    let config = load_config(deps)?;    
+    if let TokenType::CustomToken {
+        contract_addr,
+        token_code_hash,
+        ..
+    } = config.reward_token.clone()
+    {
+        let response = QueryResponse::Config { 
+            reward_token: ContractLink { 
+                address: contract_addr.clone(), 
+                code_hash: token_code_hash.clone() 
+            }, 
+            lp_token: config.lp_token.clone(), 
+            daily_reward_amount: config.daily_reward_amount.clone(), 
+            contract_owner: config.contract_owner.clone() 
+        };
+        return to_binary(&response)
     }else{
         return Err(StdError::generic_err("Invalid reward token"))
     }   

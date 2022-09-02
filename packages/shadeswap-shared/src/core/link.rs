@@ -1,6 +1,6 @@
 
 
-use cosmwasm_std::{HumanAddr, Env, CanonicalAddr};
+use cosmwasm_std::{Env, CanonicalAddr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +37,7 @@ pub struct ContractLink<A> {
     pub code_hash: CodeHash
 }
 
-impl Canonize for ContractLink<HumanAddr>
+impl Canonize for ContractLink<String>
 {
     type Output = ContractLink<CanonicalAddr>;
 
@@ -48,7 +48,7 @@ impl Canonize for ContractLink<HumanAddr>
 
 impl Humanize for ContractLink<CanonicalAddr>
 {
-    type Output = ContractLink<HumanAddr>;
+    type Output = ContractLink<String>;
 
     fn humanize(self, api: &impl cosmwasm_std::Api) -> cosmwasm_std::StdResult<Self::Output> {
         Ok(ContractLink{ address: humanize_maybe_empty(api, &self.address)?, code_hash: self.code_hash })
@@ -65,11 +65,11 @@ impl<A: PartialEq> PartialEq for ContractLink<A> {
     }
 }
 
-impl From<Env> for ContractLink<HumanAddr> {
-    fn from (env: Env) -> ContractLink<HumanAddr> {
+impl From<Env> for ContractLink<String> {
+    fn from (env: Env) -> ContractLink<String> {
         ContractLink {
-            address:   env.contract.address,
-            code_hash: env.contract_code_hash,
+            address:   env.contract.address.to_string(),
+            code_hash: env.contract.code_hash,
         }
     }
 }
@@ -115,33 +115,33 @@ mod tests {
 
         assert_eq!(
             ContractLink {
-                address: HumanAddr::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
+                address: String::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
                 code_hash: "c1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084".into()
             },
             ContractLink {
-                address: HumanAddr::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
+                address: String::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
                 code_hash: "c1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084".into()
             }
         );
 
         assert_eq!(
             ContractLink {
-                address: HumanAddr::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
+                address: String::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
                 code_hash: "c1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084".into()
             },
             ContractLink {
-                address: HumanAddr::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
+                address: String::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
                 code_hash: "C1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084".into()
             }
         );
 
         assert_ne!(
             ContractLink {
-                address: HumanAddr::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
+                address: String::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
                 code_hash: "c1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084".into()
             },
             ContractLink {
-                address: HumanAddr::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml5"),
+                address: String::from("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml5"),
                 code_hash: "C1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084".into()
             }
         );

@@ -8,14 +8,14 @@ use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_ti
     load_claim_reward_info, load_prgn_seed, store_prng_seed}};   
 use std::{time::{SystemTime, UNIX_EPOCH}, env};
 use shadeswap_shared::admin::{{store_admin, apply_admin_guard}};
-use cosmwasm_std::{HandleResponse, Uint128, to_binary, log, HumanAddr, StdResult, InitResponse, Storage, Api, Querier, Extern, Env, StdError, Binary, QueryResult, from_binary, CosmosMsg, WasmMsg, ContractInfo};
+use cosmwasm_std::{Response, Uint128, to_binary, log, HumanAddr, StdResult, InitResponse, Storage, Api, Querier, Extern, Env, StdError, Binary, QueryResult, from_binary, CosmosMsg, WasmMsg, ContractInfo};
 use shadeswap_shared::{scrt_storage::{ns_save, ns_load, save, load}, viewing_keys::{ViewingKey, VIEWING_KEY_SIZE}};
 
 
 pub const BLOCK_SIZE: usize = 256;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -58,10 +58,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     match msg {
         HandleMsg::Receive {
             from, amount, msg, ..
@@ -76,12 +76,12 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 }
 
 fn receiver_callback<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     from: HumanAddr,
     amount: Uint128,
     msg: Option<Binary>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let msg = msg.ok_or_else(|| {
         StdError::generic_err("Receiver callback \"msg\" parameter cannot be empty.")
     })?;
@@ -101,10 +101,10 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
 // needs to check for the amount
 
 pub fn set_view_key<S: Storage, A: Api, Q: Querier>(
-  deps: &mut Extern<S, A, Q>,
+  deps: &mut Deps<S, A, Q>,
   env: Env,
   key: String,
-) -> StdResult<HandleResponse>{    
+) -> StdResult<Response>{    
     let caller =  env.message.sender.clone();
     let is_staker = is_address_already_staker(&deps, caller.clone())?;  
     if is_staker == false {
@@ -115,7 +115,7 @@ pub fn set_view_key<S: Storage, A: Api, Q: Querier>(
     let staker_vk = ViewingKey(key);
     store_staker_vk(deps, env.message.sender.clone() ,staker_vk)?;    
     store_staker_info(deps, &staker_info); 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![
                 log("action", "set_view_key"),
@@ -126,11 +126,11 @@ pub fn set_view_key<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn stake<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     amount: Uint128,
     from: HumanAddr
-) -> StdResult<HandleResponse>{
+) -> StdResult<Response>{
     // this is receiver for LP Token send to staking contract -> 
     let config = load_config(deps)?;
     if config.lp_token.address != env.message.sender {
@@ -164,7 +164,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
     })?;
 
     // return response
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![
                 log("action", "stake"),
@@ -176,9 +176,9 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn claim_rewards<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env
-) -> StdResult<HandleResponse>{
+) -> StdResult<Response>{
 
     let receiver = env.message.sender.clone();
     let is_user_staker = is_address_already_staker(deps, receiver.clone())?;
@@ -202,7 +202,7 @@ pub fn claim_rewards<S: Storage, A: Api, Q: Querier>(
         claim_amount,
     )?);    
    
-    Ok(HandleResponse {
+    Ok(Response {
         messages: messages,
         log: vec![
                 log("action", "claim_rewards"),
@@ -217,7 +217,7 @@ pub fn claim_rewards<S: Storage, A: Api, Q: Querier>(
 // User Incremental Rewards = Total Available Rewards * Staked Percentage
 // User Total Rewards = User Owed Rewards + (User Incremental Rewards)
 pub fn claim_rewards_for_all_stakers<S:Storage, A:Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     current_timestamp: Uint128
 ) -> StdResult<()> {
     let stakers = load_stakers(deps)?;
@@ -234,10 +234,10 @@ pub fn claim_rewards_for_all_stakers<S:Storage, A:Api, Q: Querier>(
 }
 
 pub fn set_lp_token<S:Storage, A:Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     lp_token: ContractLink<HumanAddr>
-) -> StdResult<HandleResponse>{
+) -> StdResult<Response>{
     let mut config = load_config(deps)?;
 
     if config.lp_token.address != HumanAddr::default()
@@ -257,7 +257,7 @@ pub fn set_lp_token<S:Storage, A:Api, Q: Querier>(
   
     //store lp_token
     store_config(deps, &config)?;
-    Ok(HandleResponse {
+    Ok(Response {
         messages: messages,
         log: vec![
                 log("action", "set_lp_token"),               
@@ -267,7 +267,7 @@ pub fn set_lp_token<S:Storage, A:Api, Q: Querier>(
 }
 
 pub fn calculate_staking_reward<S:Storage, A:Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     staker: HumanAddr,
     last_timestamp: Uint128,
     current_timestamp: Uint128
@@ -289,7 +289,7 @@ pub fn calculate_staking_reward<S:Storage, A:Api, Q: Querier>(
 }
 
 pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     staker: HumanAddr,
     cons: Uint128
 ) -> StdResult<Uint128> {
@@ -300,7 +300,7 @@ pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
     Ok(percentage)
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
+pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Deps<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {    
         QueryMsg::GetClaimReward{ staker, time, key  } =>{get_claim_reward_for_user(deps, staker, key,time)},
         QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps)},
@@ -311,7 +311,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
 }
 
 fn get_staker_reward_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     viewing_key: String,
     staker: HumanAddr
 ) -> StdResult<Binary>{
@@ -337,7 +337,7 @@ fn get_staker_reward_info<S: Storage, A: Api, Q: Querier>(
 }
 
 fn get_staking_reward_token_balance<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     viewing_key: String,
     address: HumanAddr,
 ) -> StdResult<Binary>{
@@ -349,7 +349,7 @@ fn get_staking_reward_token_balance<S: Storage, A: Api, Q: Querier>(
 }
 
 fn get_staking_stake_lp_token_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     staker: HumanAddr,
     key: String
 ) -> StdResult<Binary>{
@@ -372,14 +372,14 @@ fn get_staking_stake_lp_token_info<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn get_staking_contract_owner<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>
+    deps: &Deps<S, A, Q>
 )-> StdResult<Binary> {
     let config = load_config(&deps)?;
     to_binary(&QueryResponse::ContractOwner { address: config.contract_owner})
 }
 
 pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>, 
+    deps: &Deps<S, A, Q>, 
     staker: HumanAddr,   
     key: String,
     time: Uint128
@@ -406,11 +406,11 @@ pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn unstake<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,   
     amount: Uint128,
     remove_liqudity: Option<bool>
-) -> StdResult<HandleResponse>{
+) -> StdResult<Response>{
     let caller = env.message.sender.clone();
     let current_timestamp = Uint128((env.block.time * 1000) as u128);
     let is_user_staker = is_address_already_staker(deps, caller.clone())?;
@@ -506,7 +506,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
         );
     }        
   
-    Ok(HandleResponse {
+    Ok(Response {
         messages: messages,
         log: vec![
                 log("action", "unstake"),

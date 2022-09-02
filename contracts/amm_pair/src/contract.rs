@@ -10,7 +10,7 @@ use std::hash::Hash;
 use std::collections::hash_map::DefaultHasher;
 use std::str::FromStr;
 use shadeswap_shared::custom_fee::Fee;
-use cosmwasm_std::{Extern, Api, Binary, Querier, Storage,Decimal, Uint128, from_binary, HumanAddr, QueryRequest, HandleResponse, QueryResult, log};
+use cosmwasm_std::{Extern, Api, Binary, Querier, Storage,Decimal, Uint128, from_binary, HumanAddr, QueryRequest, Response, QueryResult, log};
 use shadeswap_shared::core::{ContractLink};
 use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}}};
 use lp_token;
@@ -49,7 +49,7 @@ const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
 pub const BLOCK_SIZE: usize = 256;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -172,9 +172,9 @@ pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey
 }
 
 fn register_lp_token<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env   
-) -> StdResult<HandleResponse> {    
+) -> StdResult<Response> {    
     let mut config = load_config(&deps)?;
     // address must be default otherwise it has been initialized.
     if config.lp_token_info.address != HumanAddr::default() {
@@ -195,7 +195,7 @@ fn register_lp_token<S: Storage, A: Api, Q: Querier>(
         env.message.sender.clone(),
     )?);  
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: messages,
         log: vec![log("liquidity_token_addr", env.message.sender)],
         data: None,
@@ -234,10 +234,10 @@ fn register_pair_token(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     match msg {
         HandleMsg::Receive {
             from, amount, msg, ..
@@ -282,7 +282,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn query_calculate_price<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     offer: TokenAmount<HumanAddr>,
     exclude_fee: Option<bool>
 ) -> StdResult<SwapInfo>{
@@ -294,11 +294,11 @@ pub fn query_calculate_price<S: Storage, A: Api, Q: Querier>(
 
 
 pub fn set_custom_fee<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     shade_dao_fee: Fee,
     lp_fee: Fee
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let mut config = load_config(&deps)?;
     config.custom_fee = Some(CustomFee{ 
@@ -308,7 +308,7 @@ pub fn set_custom_fee<S: Storage, A: Api, Q: Querier>(
 
     store_config(deps, config)?;
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![
             log("action", "set_custom_fee"),
@@ -318,7 +318,7 @@ pub fn set_custom_fee<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn swap<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     config: Config<HumanAddr>,
     sender: HumanAddr,
@@ -327,7 +327,7 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
     expected_return: Option<Uint128>,
     router_link: Option<ContractLink<HumanAddr>>,
     callback_signature: Option<Binary>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let swaper_receiver = recipient.unwrap_or(sender);
     let amm_settings = query_factory_amm_settings(&deps.querier,config.factory_info.clone())?;
     let swap_result = calculate_swap_result(&deps.querier, &amm_settings, &config, &offer,&mut deps.storage, swaper_receiver.clone(), None)?;
@@ -424,7 +424,7 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
         }));
     }
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages,
         log: vec![
             log("action", "swap"),
@@ -440,10 +440,10 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>, 
+    deps: &mut Deps<S, A, Q>, 
     env: Env,
     contract: ContractLink<HumanAddr>
-)-> StdResult<HandleResponse>{      
+)-> StdResult<Response>{      
     // only callback can call this method
     let contract_info = load_staking_contract(&deps)?;    
     if contract_info.address != HumanAddr::default(){
@@ -463,7 +463,7 @@ pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
     }));
 
     // send lp contractLink to staking contract 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: messages,
         log: vec![
             log("action", "set_staking_contract"),
@@ -474,7 +474,7 @@ pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
+pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Deps<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {
         QueryMsg::GetPairInfo {} => {
             let config = load_config(deps)?;
@@ -531,7 +531,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
 }
 
 fn get_shade_dao_info<S:Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>
+    deps: &Deps<S, A, Q>
 ) -> StdResult<Binary>{
     let config_settings = load_config(deps)?;
     let admin = load_admin(&deps.storage)?;
@@ -546,7 +546,7 @@ fn get_shade_dao_info<S:Storage, A: Api, Q: Querier>(
 }
 
 fn swap_simulation<S:Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,  
+    deps: &Deps<S, A, Q>,  
     offer: TokenAmount<HumanAddr>
 ) -> StdResult<Binary>{
     let config_settings = load_config(deps)?;
@@ -563,7 +563,7 @@ fn swap_simulation<S:Storage, A: Api, Q: Querier>(
 }
 
 fn get_estimated_lp_token<S:Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     deposit: TokenPairAmount<HumanAddr>,
     slippage: Option<Decimal>
 ) -> StdResult<Binary>{
@@ -629,7 +629,7 @@ fn get_estimated_lp_token<S:Storage, A: Api, Q: Querier>(
 }
 
 fn load_trade_history_query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     pagination: Pagination,
 ) -> StdResult<Vec<TradeHistory>> {
     let count = load_trade_counter(&deps.storage)?;
@@ -722,10 +722,10 @@ pub fn calculate_swap_result(
     })
 }
 
-pub fn add_address_to_whitelist(storage: &mut impl Storage, address: HumanAddr, env :Env) -> StdResult<HandleResponse>{
+pub fn add_address_to_whitelist(storage: &mut impl Storage, address: HumanAddr, env :Env) -> StdResult<Response>{
     apply_admin_guard(env.message.sender.clone(), storage)?;
     add_whitelist_address(storage, address.clone())?;  
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![
             log("action", "save_address_to_whitelist"),
@@ -736,10 +736,10 @@ pub fn add_address_to_whitelist(storage: &mut impl Storage, address: HumanAddr, 
 }
 
 pub fn remove_address_from_whitelist(storage: &mut impl Storage, list: Vec<HumanAddr>,
-    env :Env) -> StdResult<HandleResponse>{
+    env :Env) -> StdResult<Response>{
     apply_admin_guard(env.message.sender.clone(), storage)?;
     remove_whitelist_address(storage, list.clone())?;
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![log("action", "remove_address_from_whitelist")],
         data: None,
@@ -767,11 +767,11 @@ fn get_token_pool_balance(
 }
 
 fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     amount: Uint128,
     from: HumanAddr,
-) -> StdResult<HandleResponse> {    
+) -> StdResult<Response> {    
     let config = load_config(&deps)?;
     let Config {
         pair,
@@ -812,7 +812,7 @@ fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
         lp_token_info.address,
     )?);
     
-    Ok(HandleResponse {
+    Ok(Response {
         messages: pair_messages,
         log: vec![
             log("action", "remove_liquidity"),
@@ -832,12 +832,12 @@ pub fn calculate_price(
 }
 
 pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     deposit: TokenPairAmount<HumanAddr>,
     slippage: Option<Decimal>,
     staking: Option<bool>
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let config = load_config(&deps)?;
     let Config {
         pair,
@@ -983,7 +983,7 @@ pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
     }  
    
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: pair_messages,
         log: vec![
             log("staking", format!("{}", add_to_staking)),
@@ -1064,12 +1064,12 @@ fn query_factory_amm_settings(
 
 
 fn receiver_callback<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     from: HumanAddr,
     amount: Uint128,
     msg: Option<Binary>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let msg = msg.ok_or_else(|| {
         StdError::generic_err("Receiver callback \"msg\" parameter cannot be empty.")
     })?;

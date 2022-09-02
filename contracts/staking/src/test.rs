@@ -284,7 +284,7 @@ pub mod tests {
 
     
     fn make_init_config<S: Storage, A: Api, Q: Querier>(
-        deps: &mut Extern<S, A, Q>, 
+        deps: &mut Deps<S, A, Q>, 
         env: Env,
         amount: Uint128) -> StdResult<Config> {    
         let msg = InitMsg {
@@ -323,7 +323,7 @@ pub mod tests {
         }
     }
 
-    fn mock_deps() -> Extern<MockStorage, MockApi, MockQuerier> {
+    fn mock_deps() -> Deps<MockStorage, MockApi, MockQuerier> {
         Extern {
             storage: MockStorage::default(),
             api: MockApi::new(123),

@@ -38,14 +38,14 @@ pub struct ClaimRewardsInfo{
 }
 
 pub fn store_config <S: Storage, A: Api, Q: Querier>(
-    deps:   &mut Extern<S, A, Q>,
+    deps:   &mut Deps<S, A, Q>,
     config: &Config
 ) -> StdResult<()> {
     save(&mut deps.storage, STAKING_CONFIG, &config)
 }
 
 pub fn load_config<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>
+    deps: &Deps<S, A, Q>
 ) -> StdResult<Config> {
     let result: Config = load(&deps.storage, STAKING_CONFIG)?.ok_or(
         StdError::generic_err("Config doesn't exist in storage.")
@@ -54,28 +54,28 @@ pub fn load_config<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn load_stakers<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>
+    deps: &Deps<S, A, Q>
 ) -> StdResult<Vec<HumanAddr>> {
    let stakers = load(&deps.storage, LIST_STAKERS)?.unwrap_or(Vec::new());    
    Ok(stakers)
 }
 
 pub fn load_claim_reward_timestamp<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>
+    deps: &Deps<S, A, Q>
 ) -> StdResult<Uint128> {
    let timestamp = load(&deps.storage, LAST_REWARD_TIME_CLAIMED)?.unwrap_or(Uint128(0u128));    
    Ok(timestamp)
 }
 
 pub fn store_claim_reward_timestamp<S: Storage, A: Api, Q: Querier>(
-    deps:   &mut Extern<S, A, Q>,
+    deps:   &mut Deps<S, A, Q>,
     timestamp: Uint128
 ) -> StdResult<()> {
     save(&mut deps.storage, LAST_REWARD_TIME_CLAIMED, &timestamp)
 }
 
 pub fn store_staker<S: Storage, A: Api, Q: Querier>(
-    deps:   &mut Extern<S, A, Q>,
+    deps:   &mut Deps<S, A, Q>,
     staker: HumanAddr
 ) -> StdResult<()> {
     let mut unwrap_data = load_stakers(deps)?;
@@ -84,7 +84,7 @@ pub fn store_staker<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn get_total_staking_amount<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>
+    deps: &Deps<S, A, Q>
 ) -> StdResult<Uint128> {
     let stakers = load_stakers(&deps)?;
     let mut amount = Uint128(0u128);
@@ -97,7 +97,7 @@ pub fn get_total_staking_amount<S: Storage, A: Api, Q: Querier>(
 
     
 pub fn remove_staker<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>, 
+    deps: &mut Deps<S, A, Q>, 
     staker: HumanAddr
 ) -> StdResult<()> {
     let mut addresses = load_stakers(deps)?;
@@ -106,14 +106,14 @@ pub fn remove_staker<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn store_prng_seed<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     pgrn_seed: &Vec<u8>
 ) -> StdResult<()> {
     save(&mut deps.storage, PGRN_SEED, &pgrn_seed)
 }
 
 pub fn load_prgn_seed<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
 ) -> StdResult<Vec<u8>> {
     let result = load(&deps.storage, PGRN_SEED)?
         .ok_or(StdError::generic_err( "No PGRN Seed has been setup"))?;    
@@ -121,7 +121,7 @@ pub fn load_prgn_seed<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn is_address_already_staker<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     address: HumanAddr
 ) -> StdResult<bool>{
     let addrs = load_stakers(&deps)?;
@@ -133,7 +133,7 @@ pub fn is_address_already_staker<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn load_staker_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     staker: HumanAddr) -> StdResult<StakingInfo> {
     let staking_info: StakingInfo =
     ns_load(&deps.storage, STAKING_INFO, staker.as_str().as_bytes())?
@@ -142,14 +142,14 @@ pub fn load_staker_info<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn store_staker_info<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>, 
+    deps: &mut Deps<S, A, Q>, 
     staker_info: &StakingInfo
 ) -> StdResult<()> {       
     ns_save(&mut deps.storage, STAKING_INFO, staker_info.staker.clone().as_str().as_bytes(), &staker_info)
 }   
 
 pub fn store_staker_vk<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>, 
+    deps: &mut Deps<S, A, Q>, 
     staker: HumanAddr,
     viewing_key: ViewingKey
 ) -> StdResult<()> {
@@ -157,7 +157,7 @@ pub fn store_staker_vk<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn load_staker_vk<S: Storage, A: Api, Q: Querier>(
-    deps:   &Extern<S, A, Q>,
+    deps:   &Deps<S, A, Q>,
     staker: HumanAddr
 ) -> StdResult<[u8; VIEWING_KEY_SIZE]> {
     let staker_vk = ns_load(&deps.storage,STAKER_VK, staker.clone().as_str().as_bytes())?
@@ -167,7 +167,7 @@ pub fn load_staker_vk<S: Storage, A: Api, Q: Querier>(
 
 
 pub fn load_claim_reward_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     staker: HumanAddr
 ) -> StdResult<ClaimRewardsInfo> {
     let staking_info: ClaimRewardsInfo =
@@ -178,7 +178,7 @@ pub fn load_claim_reward_info<S: Storage, A: Api, Q: Querier>(
 
 
 pub fn store_claim_reward_info<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>, 
+    deps: &mut Deps<S, A, Q>, 
     claim_reward: &ClaimRewardsInfo
 ) -> StdResult<()> {       
     ns_save(&mut deps.storage, CLAIM_REWARDS, claim_reward.staker.clone().as_str().as_bytes(), 

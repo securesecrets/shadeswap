@@ -22,7 +22,7 @@ use shadeswap_shared::token_amount::TokenAmount;
 use shadeswap_shared::token_pair::TokenPair;
 use shadeswap_shared::token_type::TokenType;
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
+    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, Response, HumanAddr, InitResponse,
     Querier, StdError, StdResult, Storage, WasmMsg,
 };
 use shadeswap_shared::{
@@ -47,7 +47,7 @@ const BLOCK_SIZE: usize = 256;
 pub const EPHEMERAL_STORAGE_KEY: &[u8] = b"ephemeral_storage";
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -68,10 +68,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     match msg {
         HandleMsg::Receive {
             from, amount, msg, ..
@@ -109,11 +109,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 }
 
 fn refresh_tokens<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     token_address: HumanAddr,
     token_code_hash: String,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut msg = vec![];
     let config = config_read(deps)?;
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
@@ -127,7 +127,7 @@ fn refresh_tokens<S: Storage, A: Api, Q: Querier>(
         config.viewing_key,
     )?;
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: msg,
         log: vec![],
         data: None,
@@ -135,12 +135,12 @@ fn refresh_tokens<S: Storage, A: Api, Q: Querier>(
 }
 
 fn receiver_callback<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     from: HumanAddr,
     amount: Uint128,
     msg: Option<Binary>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     match msg {
         Some(content) => match from_binary(&content)? {
             InvokeMsg::SwapTokensForExact {
@@ -184,7 +184,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
                 Err(StdError::unauthorized())
             }
         },
-        None => Ok(HandleResponse {
+        None => Ok(Response {
             messages: vec![],
             log: vec![],
             data: None,
@@ -193,7 +193,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
@@ -202,7 +202,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn next_swap<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     last_token_out: TokenAmount<HumanAddr>,
     signature: Binary,
@@ -247,7 +247,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                         amount_out_min: info.amount_out_min,
                     },
                 )?;
-                Ok(HandleResponse {
+                Ok(Response {
                     messages: get_trade_with_callback(
                         deps,
                         env,
@@ -274,7 +274,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
                 let clear_storage: Option<CurrentSwapInfo> = None;
 
                 save(&mut deps.storage, EPHEMERAL_STORAGE_KEY, &clear_storage)?;
-                Ok(HandleResponse {
+                Ok(Response {
                     messages: vec![token_in.token.create_send_msg(
                         env.contract.address,
                         info.recipient,
@@ -292,7 +292,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     amount_in: TokenAmount<HumanAddr>,
     amount_out_min: Option<Uint128>,
@@ -318,7 +318,7 @@ pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
         },
     )?;
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: get_trade_with_callback(
             deps,
             env,
@@ -333,7 +333,7 @@ pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
 }
 
 fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     token_in: TokenAmount<HumanAddr>,
     path: HumanAddr,
@@ -466,7 +466,7 @@ fn query_pair_contract_config(
 }
 
 fn swap_simulation<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     path: Vec<HumanAddr>,
     offer: TokenAmount<HumanAddr>,
 ) -> StdResult<Binary> {

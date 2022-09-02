@@ -2,12 +2,10 @@ use cosmwasm_std::{
     from_binary,
     Api,
     Binary,
-    Extern,
-    HumanAddr,
     Querier,
     StdError,
     StdResult,
-    Storage, Env, HandleResponse, log,
+    Storage, Env, Response
 };
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};

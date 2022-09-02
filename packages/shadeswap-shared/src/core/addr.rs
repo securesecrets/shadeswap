@@ -1,9 +1,9 @@
-//! `HumanAddr`<->`CanonicalAddr` conversion
+//! `String`<->`CanonicalAddr` conversion
 
 use cosmwasm_std::{
     self,
-    StdResult, HumanAddr, CanonicalAddr, Api, Uint128, Coin, Binary, Decimal,
-    ContractInfo, BlockInfo, MessageInfo, Validator, Delegation, FullDelegation,
+    StdResult, CanonicalAddr, Api, Uint128, Coin, Binary, Decimal,
+    ContractInfo, BlockInfo, MessageInfo,
     Empty
 };
 
@@ -22,23 +22,23 @@ pub trait Humanize {
 /// Attempting to canonicalize an empty address will fail. 
 /// This function skips calling `canonical_address` if the input is empty
 /// and returns `CanonicalAddr::default()` instead.
-pub fn canonize_maybe_empty(api: &impl Api, addr: &HumanAddr) -> StdResult<CanonicalAddr> {
+pub fn canonize_maybe_empty(api: &impl Api, addr: &String) -> StdResult<CanonicalAddr> {
     Ok(
-        if *addr == HumanAddr::default() {
+        if *addr == String::default() {
             CanonicalAddr::default()
         } else {
-            api.canonical_address(addr)?
+            api.addr_canonicalize(addr)?
         }
     )
 }
 
 /// Attempting to humanize an empty address will fail. 
 /// This function skips calling `human_address` if the input is empty
-/// and returns `HumanAddr::default()` instead.
-pub fn humanize_maybe_empty(api: &impl Api, addr: &CanonicalAddr) -> StdResult<HumanAddr> {
+/// and returns `String::default()` instead.
+pub fn humanize_maybe_empty(api: &impl Api, addr: &CanonicalAddr) -> StdResult<String> {
     Ok(
         if *addr == CanonicalAddr::default() {
-            HumanAddr::default()
+            String::default()
         } else {
             api.human_address(addr)?
         }
@@ -46,14 +46,14 @@ pub fn humanize_maybe_empty(api: &impl Api, addr: &CanonicalAddr) -> StdResult<H
 }
 
 impl Humanize for CanonicalAddr {
-    type Output = HumanAddr;
+    type Output = String;
 
     fn humanize(self, api: &impl Api) -> StdResult<Self::Output> {
         humanize_maybe_empty(api, &self)
     }
 }
 
-impl Canonize for HumanAddr {
+impl Canonize for String {
     type Output = CanonicalAddr;
 
     fn canonize(self, api: &impl Api) -> StdResult<Self::Output> {
@@ -62,14 +62,14 @@ impl Canonize for HumanAddr {
 }
 
 impl Humanize for &CanonicalAddr {
-    type Output = HumanAddr;
+    type Output = String;
 
     fn humanize(self, api: &impl Api) -> StdResult<Self::Output> {
         humanize_maybe_empty(api, self)
     }
 }
 
-impl Canonize for &HumanAddr {
+impl Canonize for &String {
     type Output = CanonicalAddr;
 
     fn canonize(self, api: &impl Api) -> StdResult<Self::Output> {
@@ -164,7 +164,4 @@ impl_canonize_default!(Coin);
 impl_canonize_default!(BlockInfo);
 impl_canonize_default!(ContractInfo);
 impl_canonize_default!(MessageInfo);
-impl_canonize_default!(Validator);
-impl_canonize_default!(Delegation);
-impl_canonize_default!(FullDelegation);
 impl_canonize_default!(Empty);

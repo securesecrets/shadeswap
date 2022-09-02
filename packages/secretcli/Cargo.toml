@@ -11,5 +11,8 @@ crate-type = ["cdylib", "rlib"]
 default = []
 
 [dependencies]
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+serde = { version = "1.0.114", default-features = false, features = [
+  "derive",
+  "alloc"
+] }
 serde_json = { version = "1.0.67"}

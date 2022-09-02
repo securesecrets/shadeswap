@@ -245,7 +245,7 @@ pub mod tests {
 
     
 fn make_init_config<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>, 
+    deps: &mut Deps<S, A, Q>, 
     token_pair: TokenPair<HumanAddr>) -> StdResult<Config<HumanAddr>> {    
     let seed = to_binary(&"SEED".to_string())?;
     let entropy = to_binary(&"ENTROPY".to_string())?;
@@ -278,7 +278,7 @@ fn make_init_config<S: Storage, A: Api, Q: Querier>(
     Ok(config)
 }
 
-fn mkdeps() -> Extern<impl Storage, impl Api, impl Querier> {
+fn mkdeps() -> Deps<impl Storage, impl Api, impl Querier> {
     mock_dependencies(30, &[])
 }
 
@@ -377,7 +377,7 @@ fn mock_contract_info(address: &str) -> ContractInfo{
 }
 
 
-fn mock_deps() -> Extern<MockStorage, MockApi, MockQuerier> {
+fn mock_deps() -> Deps<MockStorage, MockApi, MockQuerier> {
     Extern {
         storage: MockStorage::default(),
         api: MockApi::new(123),
@@ -817,7 +817,7 @@ pub mod help_test_lib {
     use shadeswap_shared::custom_fee::{Fee, CustomFee};
 
  
-    pub fn mock_deps_with_expected_return_value() -> Extern<MockStorage, MockApi, MockQuerierExpectedValue> {
+    pub fn mock_deps_with_expected_return_value() -> Deps<MockStorage, MockApi, MockQuerierExpectedValue> {
         Extern {
             storage: MockStorage::default(),
             api: MockApi::new(123),
@@ -922,7 +922,7 @@ pub mod help_test_lib {
     }
     
     
-    pub fn mock_deps_for_slippage_test() -> Extern<MockStorage, MockApi, MockQuerierSlippageValue> {
+    pub fn mock_deps_for_slippage_test() -> Deps<MockStorage, MockApi, MockQuerierSlippageValue> {
         Extern {
             storage: MockStorage::default(),
             api: MockApi::new(123),
@@ -1116,7 +1116,7 @@ pub mod help_test_lib {
     // }
     
     pub fn make_init_config_test_calculate_price_fee<S: Storage, A: Api, Q: Querier>(
-        deps: &mut Extern<S, A, Q>, 
+        deps: &mut Deps<S, A, Q>, 
         token_pair: TokenPair<HumanAddr>,
         custom_fee: Option<CustomFee>,
     ) 

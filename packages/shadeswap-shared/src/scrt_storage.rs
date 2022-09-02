@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use cosmwasm_std::{StdResult, Storage, ReadonlyStorage, to_vec, from_slice};
+use cosmwasm_std::{StdResult, Storage, to_vec, from_slice};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -19,7 +19,7 @@ pub fn remove<S: Storage>(storage: &mut S, key: &[u8]) {
 
 /// Load something from the storage.
 #[inline]
-pub fn load<T: DeserializeOwned, S: ReadonlyStorage>(
+pub fn load<T: DeserializeOwned, S: Storage>(
     storage: &S,
     key: &[u8],
 ) -> StdResult<Option<T>> {
@@ -50,7 +50,7 @@ pub fn ns_remove<S: Storage>(storage: &mut S, namespace: &[u8], key: &[u8]) {
 
 /// Load the value of a namespaced key.
 #[inline]
-pub fn ns_load<T: DeserializeOwned, S: ReadonlyStorage>(
+pub fn ns_load<T: DeserializeOwned, S: Storage>(
     storage: &S,
     namespace: &[u8],
     key: &[u8],

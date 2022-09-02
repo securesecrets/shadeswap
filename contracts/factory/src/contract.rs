@@ -3,7 +3,7 @@ use crate::state::{
     save_amm_pairs, save_prng_seed, Config,
 };
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
+    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, Response, HumanAddr, InitResponse,
     Querier, StdError, StdResult, Storage, WasmMsg,
 };
 use shadeswap_shared::{
@@ -22,7 +22,7 @@ use shadeswap_shared::{
 pub const EPHEMERAL_STORAGE_KEY: &[u8] = b"ephemeral_storage";
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -33,10 +33,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     return match msg {
         HandleMsg::CreateAMMPair {
             pair,
@@ -56,7 +56,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
@@ -74,15 +74,15 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 }
 
 fn set_shade_dao_address<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     shade_dao_address: ContractLink<HumanAddr>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     let mut config = config_read(deps)?;
     config.amm_settings.shade_dao_address = shade_dao_address.clone();
     config_write(deps, config)?;
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![
             log("action", "register_amm_pair"),
@@ -93,11 +93,11 @@ fn set_shade_dao_address<S: Storage, A: Api, Q: Querier>(
 }
 
 fn register_amm_pair<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     pair: TokenPair<HumanAddr>,
     signature: Binary,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     ensure_correct_signature(&mut deps.storage, signature)?;
     let amm_pair = AMMPair {
         pair,
@@ -106,7 +106,7 @@ fn register_amm_pair<S: Storage, A: Api, Q: Querier>(
     save_amm_pairs(deps, vec![amm_pair])?;
     // create staking contract
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![
             log("action", "register_amm_pair"),
@@ -117,14 +117,14 @@ fn register_amm_pair<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn add_amm_pairs<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     amm_pairs: Vec<AMMPair<HumanAddr>>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     save_amm_pairs(deps, amm_pairs)?;
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![],
         data: None,
@@ -132,7 +132,7 @@ pub fn add_amm_pairs<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn list_pairs<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     pagination: Pagination,
 ) -> StdResult<Binary> {
     let amm_pairs = load_amm_pairs(deps, pagination)?;
@@ -141,7 +141,7 @@ pub fn list_pairs<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn query_amm_settings<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
 ) -> StdResult<Binary> {
     let config = config_read(deps)?;
 
@@ -151,7 +151,7 @@ pub fn query_amm_settings<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn query_amm_pair_address<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     pair: TokenPair<HumanAddr>,
 ) -> StdResult<Binary> {
     let address = get_address_for_pair(deps, pair)?;
@@ -159,10 +159,10 @@ pub fn query_amm_pair_address<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn set_config<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     if let HandleMsg::SetConfig {
         pair_contract,
         lp_token_contract,
@@ -184,7 +184,7 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
 
         config_write(deps, config)?;
 
-        Ok(HandleResponse {
+        Ok(Response {
             messages: vec![],
             log: vec![],
             data: None,
@@ -194,7 +194,7 @@ pub fn set_config<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn get_config<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<Binary> {
+pub fn get_config<S: Storage, A: Api, Q: Querier>(deps: &Deps<S, A, Q>) -> StdResult<Binary> {
     let Config {
         pair_contract,
         amm_settings,
@@ -209,19 +209,19 @@ pub fn get_config<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> Std
 }
 
 pub fn create_pair<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     pair: TokenPair<HumanAddr>,
     entropy: Binary,
     staking_contract: Option<StakingContractInit>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut config = config_read(&deps)?;
     println!("create_pair caller {}", env.message.sender.clone());
     apply_admin_guard(env.message.sender.clone(), &deps.storage)?;
     //Used for verifying callback
     let signature = create_signature(&env)?;
     save(&mut deps.storage, EPHEMERAL_STORAGE_KEY, &signature)?;
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![CosmosMsg::Wasm(WasmMsg::Instantiate {
             code_id: config.pair_contract.id,
             callback_code_hash: config.pair_contract.code_hash,

@@ -5,7 +5,7 @@ use cosmwasm_std::Env;
 use cosmwasm_std::Extern;
 use cosmwasm_std::HumanAddr;
 use cosmwasm_std::Querier;
-use cosmwasm_std::ReadonlyStorage;
+use cosmwasm_std::Storage;
 use cosmwasm_std::StdError;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Storage;
@@ -67,14 +67,14 @@ impl Humanize for Config<CanonicalAddr> {
 }
 
 pub fn config_write<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     config: Config<HumanAddr>,
 ) -> StdResult<()> {
     save(&mut deps.storage, CONFIG_KEY, &config.canonize(&deps.api)?)
 }
 
 pub fn config_read<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
 ) -> StdResult<Config<HumanAddr>> {
     let config: Option<Config<CanonicalAddr>> = load(&deps.storage, CONFIG_KEY)?;
     config

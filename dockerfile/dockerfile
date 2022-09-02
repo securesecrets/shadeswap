@@ -1,0 +1,5 @@
+FROM ghcr.io/scrtlabs/localsecret:v1.4.0-cw-v1-beta.2
+
+RUN curl https://sh.rustup.rs -sSf |  sh -s -- -y
+
+ENTRYPOINT ["./bootstrap_init.sh"]

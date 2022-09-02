@@ -2,7 +2,7 @@
 /// https://github.com/SecretFoundation/SNIPs/blob/master/SNIP-20.md
 use cosmwasm_std::{
     log, to_binary, Api, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Extern,
-    HandleResponse, HumanAddr, InitResponse, Querier, QueryResult, ReadonlyStorage, StdError,
+    Response, HumanAddr, InitResponse, Querier, QueryResult, Storage, StdError,
     StdResult, Storage, Uint128,
 };
 
@@ -29,7 +29,7 @@ pub const RESPONSE_BLOCK_SIZE: usize = 256;
 pub const PREFIX_REVOKED_PERMITS: &str = "revoked_permits";
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -107,7 +107,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     Ok(InitResponse::default())
 }
 
-fn pad_response(response: StdResult<HandleResponse>) -> StdResult<HandleResponse> {
+fn pad_response(response: StdResult<Response>) -> StdResult<Response> {
     response.map(|mut response| {
         response.data = response.data.map(|mut data| {
             space_pad(RESPONSE_BLOCK_SIZE, &mut data.0);
@@ -118,10 +118,10 @@ fn pad_response(response: StdResult<HandleResponse>) -> StdResult<HandleResponse
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let contract_status = ReadonlyConfig::from_storage(&deps.storage).contract_status();
 
     match contract_status {
@@ -240,7 +240,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     pad_response(response)
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
+pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Deps<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {
         QueryMsg::TokenInfo {} => query_token_info(&deps.storage),
         QueryMsg::TokenConfig {} => query_token_config(&deps.storage),
@@ -253,7 +253,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryM
 }
 
 fn permit_queries<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     permit: Permit,
     query: QueryWithPermit,
 ) -> Result<Binary, StdError> {
@@ -317,7 +317,7 @@ fn permit_queries<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn viewing_keys_queries<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     msg: QueryMsg,
 ) -> QueryResult {
     let (addresses, key) = msg.get_validation_params();
@@ -358,7 +358,7 @@ pub fn viewing_keys_queries<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-fn query_exchange_rate<S: ReadonlyStorage>(storage: &S) -> QueryResult {
+fn query_exchange_rate<S: Storage>(storage: &S) -> QueryResult {
     let config = ReadonlyConfig::from_storage(storage);
     let constants = config.constants()?;
 
@@ -382,7 +382,7 @@ fn query_exchange_rate<S: ReadonlyStorage>(storage: &S) -> QueryResult {
     })
 }
 
-fn query_token_info<S: ReadonlyStorage>(storage: &S) -> QueryResult {
+fn query_token_info<S: Storage>(storage: &S) -> QueryResult {
     let config = ReadonlyConfig::from_storage(storage);
     let constants = config.constants()?;
 
@@ -400,7 +400,7 @@ fn query_token_info<S: ReadonlyStorage>(storage: &S) -> QueryResult {
     })
 }
 
-fn query_token_config<S: ReadonlyStorage>(storage: &S) -> QueryResult {
+fn query_token_config<S: Storage>(storage: &S) -> QueryResult {
     let config = ReadonlyConfig::from_storage(storage);
     let constants = config.constants()?;
 
@@ -413,7 +413,7 @@ fn query_token_config<S: ReadonlyStorage>(storage: &S) -> QueryResult {
     })
 }
 
-fn query_contract_status<S: ReadonlyStorage>(storage: &S) -> QueryResult {
+fn query_contract_status<S: Storage>(storage: &S) -> QueryResult {
     let config = ReadonlyConfig::from_storage(storage);
 
     to_binary(&QueryAnswer::ContractStatus {
@@ -422,7 +422,7 @@ fn query_contract_status<S: ReadonlyStorage>(storage: &S) -> QueryResult {
 }
 
 pub fn query_transfers<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     account: &HumanAddr,
     page: u32,
     page_size: u32,
@@ -438,7 +438,7 @@ pub fn query_transfers<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn query_transactions<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     account: &HumanAddr,
     page: u32,
     page_size: u32,
@@ -454,7 +454,7 @@ pub fn query_transactions<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn query_balance<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     account: &HumanAddr,
 ) -> StdResult<Binary> {
     let address = deps.api.canonical_address(account)?;
@@ -464,7 +464,7 @@ pub fn query_balance<S: Storage, A: Api, Q: Querier>(
     to_binary(&response)
 }
 
-fn query_minters<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<Binary> {
+fn query_minters<S: Storage, A: Api, Q: Querier>(deps: &Deps<S, A, Q>) -> StdResult<Binary> {
     let minters = ReadonlyConfig::from_storage(&deps.storage).minters();
 
     let response = QueryAnswer::Minters { minters };
@@ -472,10 +472,10 @@ fn query_minters<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdR
 }
 
 fn change_admin<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     address: HumanAddr,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut config = Config::from_storage(&mut deps.storage);
 
     check_if_admin(&config, &env.message.sender)?;
@@ -484,7 +484,7 @@ fn change_admin<S: Storage, A: Api, Q: Querier>(
     consts.admin = address;
     config.set_constants(&consts)?;
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::ChangeAdmin { status: Success })?),
@@ -526,12 +526,12 @@ fn try_mint_impl<S: Storage>(
 }
 
 fn try_mint<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     recipient: HumanAddr,
     amount: Uint128,
     memo: Option<String>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut config = Config::from_storage(&mut deps.storage);
     let constants = config.constants()?;
     if !constants.mint_is_enabled {
@@ -569,7 +569,7 @@ fn try_mint<S: Storage, A: Api, Q: Querier>(
         &env.block,
     )?;
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::Mint { status: Success })?),
@@ -579,10 +579,10 @@ fn try_mint<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_mint<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     actions: Vec<batch::MintAction>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut config = Config::from_storage(&mut deps.storage);
     let constants = config.constants()?;
     if !constants.mint_is_enabled {
@@ -626,7 +626,7 @@ fn try_batch_mint<S: Storage, A: Api, Q: Querier>(
         )?;
     }
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::BatchMint { status: Success })?),
@@ -636,16 +636,16 @@ fn try_batch_mint<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_set_key<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     key: String,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let vk = ViewingKey(key);
 
     let message_sender = deps.api.canonical_address(&env.message.sender)?;
     write_viewing_key(&mut deps.storage, &message_sender, &vk);
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::SetViewingKey { status: Success })?),
@@ -653,10 +653,10 @@ pub fn try_set_key<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_create_key<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     entropy: String,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let constants = ReadonlyConfig::from_storage(&deps.storage).constants()?;
     let prng_seed = constants.prng_seed;
 
@@ -665,7 +665,7 @@ pub fn try_create_key<S: Storage, A: Api, Q: Querier>(
     let message_sender = deps.api.canonical_address(&env.message.sender)?;
     write_viewing_key(&mut deps.storage, &message_sender, &key);
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::CreateViewingKey { key })?),
@@ -673,17 +673,17 @@ pub fn try_create_key<S: Storage, A: Api, Q: Querier>(
 }
 
 fn set_contract_status<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     status_level: ContractStatusLevel,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut config = Config::from_storage(&mut deps.storage);
 
     check_if_admin(&config, &env.message.sender)?;
 
     config.set_contract_status(status_level);
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::SetContractStatus {
@@ -693,7 +693,7 @@ fn set_contract_status<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn query_allowance<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     owner: HumanAddr,
     spender: HumanAddr,
 ) -> StdResult<Binary> {
@@ -712,9 +712,9 @@ pub fn query_allowance<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_deposit<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut amount = Uint128::zero();
 
     for coin in &env.message.sent_funds {
@@ -769,7 +769,7 @@ fn try_deposit<S: Storage, A: Api, Q: Querier>(
         &env.block,
     )?;
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::Deposit { status: Success })?),
@@ -779,10 +779,10 @@ fn try_deposit<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_redeem<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     amount: Uint128,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let config = ReadonlyConfig::from_storage(&deps.storage);
     let constants = config.constants()?;
     if !constants.redeem_is_enabled {
@@ -839,7 +839,7 @@ fn try_redeem<S: Storage, A: Api, Q: Querier>(
         &env.block,
     )?;
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![CosmosMsg::Bank(BankMsg::Send {
             from_address: env.contract.address,
             to_address: env.message.sender,
@@ -853,7 +853,7 @@ fn try_redeem<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_transfer_impl<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     sender: &CanonicalAddr,
     recipient: &CanonicalAddr,
     amount: Uint128,
@@ -879,17 +879,17 @@ fn try_transfer_impl<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_transfer<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     recipient: HumanAddr,
     amount: Uint128,
     memo: Option<String>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let sender = deps.api.canonical_address(&env.message.sender)?;
     let recipient = deps.api.canonical_address(&recipient)?;
     try_transfer_impl(deps, &sender, &recipient, amount, memo, &env.block)?;
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::Transfer { status: Success })?),
@@ -898,10 +898,10 @@ fn try_transfer<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_transfer<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     actions: Vec<batch::TransferAction>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let sender = deps.api.canonical_address(&env.message.sender)?;
     for action in actions {
         let recipient = deps.api.canonical_address(&action.recipient)?;
@@ -915,7 +915,7 @@ fn try_batch_transfer<S: Storage, A: Api, Q: Querier>(
         )?;
     }
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::BatchTransfer { status: Success })?),
@@ -924,7 +924,7 @@ fn try_batch_transfer<S: Storage, A: Api, Q: Querier>(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn try_add_receiver_api_callback<S: ReadonlyStorage>(
+fn try_add_receiver_api_callback<S: Storage>(
     storage: &S,
     messages: &mut Vec<CosmosMsg>,
     recipient: HumanAddr,
@@ -956,7 +956,7 @@ fn try_add_receiver_api_callback<S: ReadonlyStorage>(
 
 #[allow(clippy::too_many_arguments)]
 fn try_send_impl<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     messages: &mut Vec<CosmosMsg>,
     sender: HumanAddr,
     sender_canon: &CanonicalAddr, // redundant but more efficient
@@ -993,14 +993,14 @@ fn try_send_impl<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_send<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     recipient: HumanAddr,
     recipient_code_hash: Option<String>,
     amount: Uint128,
     memo: Option<String>,
     msg: Option<Binary>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut messages = vec![];
     let sender = env.message.sender;
     let sender_canon = deps.api.canonical_address(&sender)?;
@@ -1017,7 +1017,7 @@ fn try_send<S: Storage, A: Api, Q: Querier>(
         &env.block,
     )?;
 
-    let res = HandleResponse {
+    let res = Response {
         messages,
         log: vec![],
         data: Some(to_binary(&HandleAnswer::Send { status: Success })?),
@@ -1026,10 +1026,10 @@ fn try_send<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_send<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     actions: Vec<batch::SendAction>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut messages = vec![];
     let sender = env.message.sender;
     let sender_canon = deps.api.canonical_address(&sender)?;
@@ -1048,7 +1048,7 @@ fn try_batch_send<S: Storage, A: Api, Q: Querier>(
         )?;
     }
 
-    let res = HandleResponse {
+    let res = Response {
         messages,
         log: vec![],
         data: Some(to_binary(&HandleAnswer::BatchSend { status: Success })?),
@@ -1057,12 +1057,12 @@ fn try_batch_send<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_register_receive<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     code_hash: String,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     set_receiver_hash(&mut deps.storage, &env.message.sender, code_hash);
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![log("register_status", "success")],
         data: Some(to_binary(&HandleAnswer::RegisterReceive {
@@ -1103,7 +1103,7 @@ fn use_allowance<S: Storage>(
 }
 
 fn try_transfer_from_impl<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: &Env,
     spender: &CanonicalAddr,
     owner: &CanonicalAddr,
@@ -1134,19 +1134,19 @@ fn try_transfer_from_impl<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_transfer_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: &Env,
     owner: &HumanAddr,
     recipient: &HumanAddr,
     amount: Uint128,
     memo: Option<String>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let spender = deps.api.canonical_address(&env.message.sender)?;
     let owner = deps.api.canonical_address(owner)?;
     let recipient = deps.api.canonical_address(recipient)?;
     try_transfer_from_impl(deps, env, &spender, &owner, &recipient, amount, memo)?;
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::TransferFrom { status: Success })?),
@@ -1155,10 +1155,10 @@ fn try_transfer_from<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_transfer_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: &Env,
     actions: Vec<batch::TransferFromAction>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let spender = deps.api.canonical_address(&env.message.sender)?;
     for action in actions {
         let owner = deps.api.canonical_address(&action.owner)?;
@@ -1174,7 +1174,7 @@ fn try_batch_transfer_from<S: Storage, A: Api, Q: Querier>(
         )?;
     }
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::BatchTransferFrom {
@@ -1186,7 +1186,7 @@ fn try_batch_transfer_from<S: Storage, A: Api, Q: Querier>(
 
 #[allow(clippy::too_many_arguments)]
 fn try_send_from_impl<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     messages: &mut Vec<CosmosMsg>,
     spender_canon: &CanonicalAddr, // redundant but more efficient
@@ -1225,7 +1225,7 @@ fn try_send_from_impl<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_send_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     owner: HumanAddr,
     recipient: HumanAddr,
@@ -1233,7 +1233,7 @@ fn try_send_from<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
     memo: Option<String>,
     msg: Option<Binary>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let spender = &env.message.sender;
     let spender_canon = deps.api.canonical_address(spender)?;
 
@@ -1251,7 +1251,7 @@ fn try_send_from<S: Storage, A: Api, Q: Querier>(
         msg,
     )?;
 
-    let res = HandleResponse {
+    let res = Response {
         messages,
         log: vec![],
         data: Some(to_binary(&HandleAnswer::SendFrom { status: Success })?),
@@ -1260,10 +1260,10 @@ fn try_send_from<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_send_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     actions: Vec<batch::SendFromAction>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let spender = &env.message.sender;
     let spender_canon = deps.api.canonical_address(spender)?;
     let mut messages = vec![];
@@ -1283,7 +1283,7 @@ fn try_batch_send_from<S: Storage, A: Api, Q: Querier>(
         )?;
     }
 
-    let res = HandleResponse {
+    let res = Response {
         messages,
         log: vec![],
         data: Some(to_binary(&HandleAnswer::BatchSendFrom { status: Success })?),
@@ -1292,12 +1292,12 @@ fn try_batch_send_from<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_burn_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: &Env,
     owner: &HumanAddr,
     amount: Uint128,
     memo: Option<String>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let config = ReadonlyConfig::from_storage(&deps.storage);
     let constants = config.constants()?;
     if !constants.burn_is_enabled {
@@ -1347,7 +1347,7 @@ fn try_burn_from<S: Storage, A: Api, Q: Querier>(
         &env.block,
     )?;
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::BurnFrom { status: Success })?),
@@ -1357,10 +1357,10 @@ fn try_burn_from<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_burn_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: &Env,
     actions: Vec<batch::BurnFromAction>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let config = ReadonlyConfig::from_storage(&deps.storage);
     let constants = config.constants()?;
     if !constants.burn_is_enabled {
@@ -1416,7 +1416,7 @@ fn try_batch_burn_from<S: Storage, A: Api, Q: Querier>(
     let mut config = Config::from_storage(&mut deps.storage);
     config.set_total_supply(total_supply);
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::BatchBurnFrom { status: Success })?),
@@ -1426,12 +1426,12 @@ fn try_batch_burn_from<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_increase_allowance<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     spender: HumanAddr,
     amount: Uint128,
     expiration: Option<u64>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let owner_address = deps.api.canonical_address(&env.message.sender)?;
     let spender_address = deps.api.canonical_address(&spender)?;
 
@@ -1458,7 +1458,7 @@ fn try_increase_allowance<S: Storage, A: Api, Q: Querier>(
         allowance,
     )?;
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::IncreaseAllowance {
@@ -1471,12 +1471,12 @@ fn try_increase_allowance<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_decrease_allowance<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     spender: HumanAddr,
     amount: Uint128,
     expiration: Option<u64>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let owner_address = deps.api.canonical_address(&env.message.sender)?;
     let spender_address = deps.api.canonical_address(&spender)?;
 
@@ -1503,7 +1503,7 @@ fn try_decrease_allowance<S: Storage, A: Api, Q: Querier>(
         allowance,
     )?;
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::DecreaseAllowance {
@@ -1516,10 +1516,10 @@ fn try_decrease_allowance<S: Storage, A: Api, Q: Querier>(
 }
 
 fn add_minters<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     minters_to_add: Vec<HumanAddr>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut config = Config::from_storage(&mut deps.storage);
     let constants = config.constants()?;
     if !constants.mint_is_enabled {
@@ -1532,7 +1532,7 @@ fn add_minters<S: Storage, A: Api, Q: Querier>(
 
     config.add_minters(minters_to_add)?;
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::AddMinters { status: Success })?),
@@ -1540,10 +1540,10 @@ fn add_minters<S: Storage, A: Api, Q: Querier>(
 }
 
 fn remove_minters<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     minters_to_remove: Vec<HumanAddr>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut config = Config::from_storage(&mut deps.storage);
     let constants = config.constants()?;
     if !constants.mint_is_enabled {
@@ -1556,7 +1556,7 @@ fn remove_minters<S: Storage, A: Api, Q: Querier>(
 
     config.remove_minters(minters_to_remove)?;
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::RemoveMinters { status: Success })?),
@@ -1564,10 +1564,10 @@ fn remove_minters<S: Storage, A: Api, Q: Querier>(
 }
 
 fn set_minters<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     minters_to_set: Vec<HumanAddr>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let mut config = Config::from_storage(&mut deps.storage);
     let constants = config.constants()?;
     if !constants.mint_is_enabled {
@@ -1580,7 +1580,7 @@ fn set_minters<S: Storage, A: Api, Q: Querier>(
 
     config.set_minters(minters_to_set)?;
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::SetMinters { status: Success })?),
@@ -1593,11 +1593,11 @@ fn set_minters<S: Storage, A: Api, Q: Querier>(
 ///
 /// @param amount the amount of money to burn
 fn try_burn<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     amount: Uint128,
     memo: Option<String>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let config = ReadonlyConfig::from_storage(&deps.storage);
     let constants = config.constants()?;
     if !constants.burn_is_enabled {
@@ -1644,7 +1644,7 @@ fn try_burn<S: Storage, A: Api, Q: Querier>(
         &env.block,
     )?;
 
-    let res = HandleResponse {
+    let res = Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::Burn { status: Success })?),
@@ -1682,10 +1682,10 @@ fn perform_transfer<T: Storage>(
 }
 
 fn revoke_permit<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     env: Env,
     permit_name: String,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     RevokedPermits::revoke_permit(
         &mut deps.storage,
         PREFIX_REVOKED_PERMITS,
@@ -1693,7 +1693,7 @@ fn revoke_permit<S: Storage, A: Api, Q: Querier>(
         &permit_name,
     );
 
-    Ok(HandleResponse {
+    Ok(Response {
         messages: vec![],
         log: vec![],
         data: Some(to_binary(&HandleAnswer::RevokePermit { status: Success })?),
@@ -1732,7 +1732,7 @@ fn is_valid_symbol(symbol: &str) -> bool {
 }
 
 // pub fn migrate<S: Storage, A: Api, Q: Querier>(
-//     _deps: &mut Extern<S, A, Q>,
+//     _deps: &mut Deps<S, A, Q>,
 //     _env: Env,
 //     _msg: MigrateMsg,
 // ) -> StdResult<MigrateResponse> {
@@ -1754,7 +1754,7 @@ mod tests {
         initial_balances: Vec<InitialBalance>,
     ) -> (
         StdResult<InitResponse>,
-        Extern<MockStorage, MockApi, MockQuerier>,
+        Deps<MockStorage, MockApi, MockQuerier>,
     ) {
         let mut deps = mock_dependencies(20, &[]);
         let env = mock_env("instantiator", &[]);
@@ -1781,7 +1781,7 @@ mod tests {
         contract_bal: u128,
     ) -> (
         StdResult<InitResponse>,
-        Extern<MockStorage, MockApi, MockQuerier>,
+        Deps<MockStorage, MockApi, MockQuerier>,
     ) {
         let mut deps = mock_dependencies(
             20,
@@ -1820,7 +1820,7 @@ mod tests {
     /// Will return a ViewingKey only for the first account in `initial_balances`
     fn _auth_query_helper(
         initial_balances: Vec<InitialBalance>,
-    ) -> (ViewingKey, Extern<MockStorage, MockApi, MockQuerier>) {
+    ) -> (ViewingKey, Deps<MockStorage, MockApi, MockQuerier>) {
         let (init_result, mut deps) = init_helper(initial_balances.clone());
         assert!(
             init_result.is_ok(),
@@ -1860,7 +1860,7 @@ mod tests {
         }
     }
 
-    fn ensure_success(handle_result: HandleResponse) -> bool {
+    fn ensure_success(handle_result: Response) -> bool {
         let handle_result: HandleAnswer = from_binary(&handle_result.data.unwrap()).unwrap();
 
         match handle_result {

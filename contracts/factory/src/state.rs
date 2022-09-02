@@ -60,14 +60,14 @@ impl Humanize for Config<CanonicalAddr> {
 }
 
 pub fn config_write<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     config: Config<HumanAddr>,
 ) -> StdResult<()> {
     save(&mut deps.storage, CONFIG_KEY, &config.canonize(&deps.api)?)
 }
 
 pub fn config_read<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
 ) -> StdResult<Config<HumanAddr>> {
     let config: Option<Config<CanonicalAddr>> = load(&deps.storage, CONFIG_KEY)?;
     config
@@ -94,7 +94,7 @@ pub(crate) fn generate_pair_key(pair: &TokenPair<CanonicalAddr>) -> Vec<u8> {
 }
 
 pub(crate) fn save_amm_pairs<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    deps: &mut Deps<S, A, Q>,
     exchanges: Vec<AMMPair<HumanAddr>>,
 ) -> StdResult<()> {
     let mut count = load_amm_pairs_count(&deps.storage)?;
@@ -124,7 +124,7 @@ pub(crate) fn save_amm_pairs<S: Storage, A: Api, Q: Querier>(
 }
 
 pub(crate) fn get_address_for_pair<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     pair: TokenPair<HumanAddr>,
 ) -> StdResult<HumanAddr> {
     let key = generate_pair_key(&pair.canonize(&deps.api)?);
@@ -136,7 +136,7 @@ pub(crate) fn get_address_for_pair<S: Storage, A: Api, Q: Querier>(
 }
 
 pub(crate) fn load_amm_pairs<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &Deps<S, A, Q>,
     pagination: Pagination,
 ) -> StdResult<Vec<AMMPair<HumanAddr>>> {
     let count = load_amm_pairs_count(&deps.storage)?;

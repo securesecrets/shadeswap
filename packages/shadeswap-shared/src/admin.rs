@@ -2,12 +2,11 @@ use cosmwasm_std::{
     from_binary,
     Api,
     Binary,
-    Extern,
-    HumanAddr,
     Querier,
     StdError,
     StdResult,
-    Storage, Env, HandleResponse, log,
+    Storage, Env, Response,
+    Deps 
 };
 
 use crate::scrt_storage::{load, save, ns_save, ns_load};
@@ -15,7 +14,7 @@ use crate::scrt_storage::{load, save, ns_save, ns_load};
 pub static ADMIN: &[u8] =b"contract_pair_admin";
 
 pub fn apply_admin_guard(
-    caller: HumanAddr,
+    caller: String,
     storage: &impl Storage,
 ) -> StdResult<bool> {    
     let admin_address = load_admin(storage)?;
@@ -26,33 +25,27 @@ pub fn apply_admin_guard(
 }
 
 pub fn store_admin <S: Storage, A: Api, Q: Querier>(
-    deps:  &mut Extern<S, A, Q>,
-    admin: &HumanAddr
+    deps:  &mut Deps<S, A, Q>,
+    admin: &String
 ) -> StdResult<()> {
     save(&mut deps.storage, ADMIN, &admin)
 }
 
-pub fn load_admin(storage: &impl Storage) -> StdResult<HumanAddr> {
-    let admin = load(storage, ADMIN)?.unwrap_or(HumanAddr("".to_string()));
+pub fn load_admin(storage: &impl Storage) -> StdResult<String> {
+    let admin = load(storage, ADMIN)?.unwrap_or("".to_string());
     Ok(admin)
 }
 
 pub fn set_admin_guard<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>, 
+    deps: &mut Deps<S, A, Q>, 
     env: Env,
-    admin: HumanAddr
-) -> StdResult<HandleResponse>{
+    admin: String
+) -> StdResult<Response>{
     let sender = env.message.sender.clone();
     apply_admin_guard(sender.clone(), &deps.storage)?;
     store_admin(deps,&admin)?;
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-                log("action", "set_admin_guard"),
-                log("caller", sender.clone()),
-                log("admin", admin),
-        ],
-        data: None,
-    })
-
+    Ok(Response::new()
+    .add_attribute("action", "set_admin_guard")
+    .add_attribute("caller", sender.clone())
+    .add_attribute("admin", admin))
 }

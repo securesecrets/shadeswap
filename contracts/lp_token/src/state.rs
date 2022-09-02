@@ -1,7 +1,7 @@
 use std::any::type_name;
 use std::convert::TryFrom;
 
-use cosmwasm_std::{CanonicalAddr, HumanAddr, ReadonlyStorage, StdError, StdResult, Storage};
+use cosmwasm_std::{CanonicalAddr, HumanAddr, Storage, StdError, StdResult, Storage};
 use cosmwasm_storage::{PrefixedStorage, ReadonlyPrefixedStorage};
 
 use secret_toolkit::storage::{TypedStore, TypedStoreMut};
@@ -51,11 +51,11 @@ pub struct Constants {
     pub contract_address: HumanAddr,
 }
 
-pub struct ReadonlyConfig<'a, S: ReadonlyStorage> {
+pub struct ReadonlyConfig<'a, S: Storage> {
     storage: ReadonlyPrefixedStorage<'a, S>,
 }
 
-impl<'a, S: ReadonlyStorage> ReadonlyConfig<'a, S> {
+impl<'a, S: Storage> ReadonlyConfig<'a, S> {
     pub fn from_storage(storage: &'a S) -> Self {
         Self {
             storage: ReadonlyPrefixedStorage::new(PREFIX_CONFIG, storage),
@@ -102,7 +102,7 @@ fn set_bin_data<T: Serialize, S: Storage>(storage: &mut S, key: &[u8], data: &T)
     Ok(())
 }
 
-fn get_bin_data<T: DeserializeOwned, S: ReadonlyStorage>(storage: &S, key: &[u8]) -> StdResult<T> {
+fn get_bin_data<T: DeserializeOwned, S: Storage>(storage: &S, key: &[u8]) -> StdResult<T> {
     let bin_data = storage.get(key);
 
     match bin_data {
@@ -191,9 +191,9 @@ impl<'a, S: Storage> Config<'a, S> {
 ///
 /// This was the only way to prevent code duplication of these methods because of the way
 /// that `ReadonlyPrefixedStorage` and `PrefixedStorage` are implemented in `cosmwasm-std`
-struct ReadonlyConfigImpl<'a, S: ReadonlyStorage>(&'a S);
+struct ReadonlyConfigImpl<'a, S: Storage>(&'a S);
 
-impl<'a, S: ReadonlyStorage> ReadonlyConfigImpl<'a, S> {
+impl<'a, S: Storage> ReadonlyConfigImpl<'a, S> {
     fn constants(&self) -> StdResult<Constants> {
         let consts_bytes = self
             .0
@@ -234,11 +234,11 @@ impl<'a, S: ReadonlyStorage> ReadonlyConfigImpl<'a, S> {
 
 // Balances
 
-pub struct ReadonlyBalances<'a, S: ReadonlyStorage> {
+pub struct ReadonlyBalances<'a, S: Storage> {
     storage: ReadonlyPrefixedStorage<'a, S>,
 }
 
-impl<'a, S: ReadonlyStorage> ReadonlyBalances<'a, S> {
+impl<'a, S: Storage> ReadonlyBalances<'a, S> {
     pub fn from_storage(storage: &'a S) -> Self {
         Self {
             storage: ReadonlyPrefixedStorage::new(PREFIX_BALANCES, storage),
@@ -283,9 +283,9 @@ impl<'a, S: Storage> Balances<'a, S> {
 ///
 /// This was the only way to prevent code duplication of these methods because of the way
 /// that `ReadonlyPrefixedStorage` and `PrefixedStorage` are implemented in `cosmwasm-std`
-struct ReadonlyBalancesImpl<'a, S: ReadonlyStorage>(&'a S);
+struct ReadonlyBalancesImpl<'a, S: Storage>(&'a S);
 
-impl<'a, S: ReadonlyStorage> ReadonlyBalancesImpl<'a, S> {
+impl<'a, S: Storage> ReadonlyBalancesImpl<'a, S> {
     pub fn account_amount(&self, account: &CanonicalAddr) -> u128 {
         let account_bytes = account.as_slice();
         let result = self.0.get(account_bytes);
@@ -353,7 +353,7 @@ pub fn read_viewing_key<S: Storage>(store: &S, owner: &CanonicalAddr) -> Option<
 
 // Receiver Interface
 
-pub fn get_receiver_hash<S: ReadonlyStorage>(
+pub fn get_receiver_hash<S: Storage>(
     store: &S,
     account: &HumanAddr,
 ) -> Option<StdResult<String>> {

@@ -253,7 +253,7 @@ pub mod test_state {
     #[test]
     fn generate_pair_key_ok() -> StdResult<()> {
         fn cmp_pair<S: Storage, A: Api, Q: Querier>(
-            deps: &Extern<S, A, Q>,
+            deps: &Deps<S, A, Q>,
             pair: TokenPair<HumanAddr>,
         ) -> StdResult<()> {
             let stored_pair = pair.clone().canonize(&deps.api)?;
@@ -374,7 +374,7 @@ fn mkconfig(id: u64) -> Config<HumanAddr> {
     })
 }
 
-fn mkdeps() -> Extern<impl Storage, impl Api, impl Querier> {
+fn mkdeps() -> Deps<impl Storage, impl Api, impl Querier> {
     mock_dependencies(30, &[])
 }
 

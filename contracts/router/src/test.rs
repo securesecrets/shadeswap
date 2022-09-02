@@ -495,7 +495,7 @@ pub mod tests {
             },
         )
     }
-    fn mkdeps() -> Extern<impl Storage, impl Api, impl Querier> {
+    fn mkdeps() -> Deps<impl Storage, impl Api, impl Querier> {
         mock_dependencies(30, &[])
     }
     fn mkenv(sender: impl Into<HumanAddr>) -> Env {
@@ -517,7 +517,7 @@ pub mod tests {
         contract_bal: u128,
     ) -> (
         StdResult<InitResponse>,
-        Extern<MockStorage, MockApi, MockQuerier>,
+        Deps<MockStorage, MockApi, MockQuerier>,
     ) {
         let mut deps = mock_deps();
         let env = mock_env("admin", &[]);
@@ -535,7 +535,7 @@ pub mod tests {
         (init(&mut deps, env, init_msg), deps)
     }
 
-    fn mock_deps() -> Extern<MockStorage, MockApi, MockQuerier> {
+    fn mock_deps() -> Deps<MockStorage, MockApi, MockQuerier> {
         Extern {
             storage: MockStorage::default(),
             api: MockApi::new(123),

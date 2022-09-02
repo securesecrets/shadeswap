@@ -1,6 +1,6 @@
 use crate::TokenType;
 use cosmwasm_std::{
-    from_binary, log, Api, Binary, Env, Extern, HandleResponse, HumanAddr, Querier, StdError,
+    from_binary, Api, Binary, Env, Response, Querier, StdError,
     StdResult, Storage,
 };
 use cosmwasm_std::{Decimal, Uint128};
@@ -25,15 +25,15 @@ pub mod router {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub enum InvokeMsg {
         SwapTokensForExact {
-            paths: Vec<HumanAddr>,
+            paths: Vec<String>,
             expected_return: Option<Uint128>,
-            recipient: Option<HumanAddr>,
+            recipient: Option<String>,
         },
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
-        pub factory_address: ContractLink<HumanAddr>,
+        pub factory_address: ContractLink<String>,
         pub prng_seed: Binary,
         pub entropy: Binary,
         pub viewing_key: Option<String>,
@@ -44,23 +44,23 @@ pub mod router {
     pub enum HandleMsg {
         // SNIP20 receiver interface
         Receive {
-            from: HumanAddr,
+            from: String,
             msg: Option<Binary>,
             amount: Uint128,
         },
         SwapTokensForExact {
             /// The token type to swap from.
-            offer: TokenAmount<HumanAddr>,
+            offer: TokenAmount<String>,
             expected_return: Option<Uint128>,
-            path: Vec<HumanAddr>,
-            recipient: Option<HumanAddr>,
+            path: Vec<String>,
+            recipient: Option<String>,
         },
         SwapCallBack {
-            last_token_out: TokenAmount<HumanAddr>,
+            last_token_out: TokenAmount<String>,
             signature: Binary,
         },
         RegisterSNIP20Token {
-            token: HumanAddr,
+            token: String,
             token_code_hash: String,
         },
     }
@@ -69,8 +69,8 @@ pub mod router {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         SwapSimulation {
-            offer: TokenAmount<HumanAddr>,
-            path: Vec<HumanAddr>,
+            offer: TokenAmount<String>,
+            path: Vec<String>,
         },
     }
 
@@ -127,13 +127,13 @@ pub mod amm_pair {
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
-        pub pair: TokenPair<HumanAddr>,
+        pub pair: TokenPair<String>,
         pub lp_token_contract: ContractInstantiationInfo,
-        pub factory_info: ContractLink<HumanAddr>,
+        pub factory_info: ContractLink<String>,
         pub prng_seed: Binary,
-        pub callback: Option<Callback<HumanAddr>>,
+        pub callback: Option<Callback<String>>,
         pub entropy: Binary,
-        pub admin: Option<HumanAddr>,
+        pub admin: Option<String>,
         pub staking_contract: Option<StakingContractInit>,
         pub custom_fee: Option<CustomFee>,
     }
@@ -141,37 +141,37 @@ pub mod amm_pair {
     #[serde(rename_all = "snake_case")]
     pub enum HandleMsg {
         AddLiquidityToAMMContract {
-            deposit: TokenPairAmount<HumanAddr>,
+            deposit: TokenPairAmount<String>,
             slippage: Option<Decimal>,
             staking: Option<bool>,
         },
         SwapTokens {
             /// The token type to swap from.
-            offer: TokenAmount<HumanAddr>,
+            offer: TokenAmount<String>,
             expected_return: Option<Uint128>,
-            to: Option<HumanAddr>,
-            router_link: Option<ContractLink<HumanAddr>>,
+            to: Option<String>,
+            router_link: Option<ContractLink<String>>,
             callback_signature: Option<Binary>,
         },
         // SNIP20 receiver interface
         Receive {
-            from: HumanAddr,
+            from: String,
             msg: Option<Binary>,
             amount: Uint128,
         },
         // Sent by the LP token contract so that we can record its address.
         OnLpTokenInitAddr,
         AddWhiteListAddress {
-            address: HumanAddr,
+            address: String,
         },
         RemoveWhitelistAddresses {
-            addresses: Vec<HumanAddr>,
+            addresses: Vec<String>,
         },
         SetAMMPairAdmin {
-            admin: HumanAddr,
+            admin: String,
         },
         SetStakingContract {
-            contract: ContractLink<HumanAddr>,
+            contract: ContractLink<String>,
         },
         SetCustomPairFee {
             shade_dao_fee: Fee,
@@ -183,12 +183,12 @@ pub mod amm_pair {
     pub enum InvokeMsg {
         SwapTokens {
             expected_return: Option<Uint128>,
-            to: Option<HumanAddr>,
-            router_link: Option<ContractLink<HumanAddr>>,
+            to: Option<String>,
+            router_link: Option<ContractLink<String>>,
             callback_signature: Option<Binary>,
         },
         RemoveLiquidity {
-            from: Option<HumanAddr>,
+            from: Option<String>,
         },
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
@@ -203,15 +203,15 @@ pub mod amm_pair {
         GetAdmin {},
         GetStakingContract {},
         GetEstimatedPrice {
-            offer: TokenAmount<HumanAddr>,
+            offer: TokenAmount<String>,
             exclude_fee: Option<bool>,
         },
         SwapSimulation {
-            offer: TokenAmount<HumanAddr>,
+            offer: TokenAmount<String>,
         },
         GetShadeDaoInfo {},
         GetEstimatedLiquidity {
-            deposit: TokenPairAmount<HumanAddr>,
+            deposit: TokenPairAmount<String>,
             slippage: Option<Decimal>,
         },
     }
@@ -220,9 +220,9 @@ pub mod amm_pair {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsgResponse {
         GetPairInfo {
-            liquidity_token: ContractLink<HumanAddr>,
-            factory: ContractLink<HumanAddr>,
-            pair: TokenPair<HumanAddr>,
+            liquidity_token: ContractLink<String>,
+            factory: ContractLink<String>,
+            pair: TokenPair<String>,
             amount_0: Uint128,
             amount_1: Uint128,
             total_liquidity: Uint128,
@@ -232,19 +232,19 @@ pub mod amm_pair {
             data: Vec<TradeHistory>,
         },
         GetWhiteListAddress {
-            addresses: Vec<HumanAddr>,
+            addresses: Vec<String>,
         },
         GetTradeCount {
             count: u64,
         },
         GetAdminAddress {
-            address: HumanAddr,
+            address: String,
         },
         GetClaimReward {
             amount: Uint128,
         },
         StakingContractInfo {
-            staking_contract: ContractLink<HumanAddr>,
+            staking_contract: ContractLink<String>,
         },
         EstimatedPrice {
             estimated_price: String,
@@ -257,10 +257,10 @@ pub mod amm_pair {
             price: String,
         },
         ShadeDAOInfo {
-            shade_dao_address: HumanAddr,
+            shade_dao_address: String,
             shade_dao_fee: Fee,
             lp_fee: Fee,
-            admin_address: HumanAddr,
+            admin_address: String,
         },
         EstimatedLiquidity {
             lp_token: Uint128,
@@ -281,7 +281,7 @@ pub mod factory {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub pair_contract: ContractInstantiationInfo,
-        pub amm_settings: AMMSettings<HumanAddr>,
+        pub amm_settings: AMMSettings<String>,
         pub lp_token_contract: ContractInstantiationInfo,
         pub prng_seed: Binary,
     }
@@ -292,25 +292,25 @@ pub mod factory {
         SetConfig {
             pair_contract: Option<ContractInstantiationInfo>,
             lp_token_contract: Option<ContractInstantiationInfo>,
-            amm_settings: Option<AMMSettings<HumanAddr>>,
+            amm_settings: Option<AMMSettings<String>>,
         },
         CreateAMMPair {
-            pair: TokenPair<HumanAddr>,
+            pair: TokenPair<String>,
             entropy: Binary,
             staking_contract: Option<StakingContractInit>,
         },
         AddAMMPairs {
-            amm_pairs: Vec<AMMPair<HumanAddr>>,
+            amm_pairs: Vec<AMMPair<String>>,
         },
         RegisterAMMPair {
-            pair: TokenPair<HumanAddr>,
+            pair: TokenPair<String>,
             signature: Binary,
         },
         SetFactoryAdmin {
-            admin: HumanAddr,
+            admin: String,
         },
         SetShadeDAOAddress {
-            shade_dao_address: ContractLink<HumanAddr>,
+            shade_dao_address: ContractLink<String>,
         },
     }
 
@@ -318,21 +318,21 @@ pub mod factory {
     #[serde(rename_all = "snake_case")]
     pub enum QueryResponse {
         ListAMMPairs {
-            amm_pairs: Vec<AMMPair<HumanAddr>>,
+            amm_pairs: Vec<AMMPair<String>>,
         },
         GetConfig {
             pair_contract: ContractInstantiationInfo,
-            amm_settings: AMMSettings<HumanAddr>,
+            amm_settings: AMMSettings<String>,
             lp_token_contract: ContractInstantiationInfo,
         },
         GetAMMPairAddress {
-            address: HumanAddr,
+            address: String,
         },
         GetAMMSettings {
-            settings: AMMSettings<HumanAddr>,
+            settings: AMMSettings<String>,
         },
         GetAdminAddress {
-            address: HumanAddr,
+            address: String,
         },
     }
 
@@ -341,7 +341,7 @@ pub mod factory {
     pub enum QueryMsg {
         // GetCount returns the current count as a json-encoded number
         ListAMMPairs { pagination: Pagination },
-        GetAMMPairAddress { pair: TokenPair<HumanAddr> },
+        GetAMMPairAddress { pair: TokenPair<String> },
         GetAMMSettings,
         GetConfig,
         GetAdmin,
@@ -355,8 +355,8 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub staking_amount: Uint128,
-        pub reward_token: TokenType<HumanAddr>, 
-        pub pair_contract: ContractLink<HumanAddr>,
+        pub reward_token: TokenType<String>, 
+        pub pair_contract: ContractLink<String>,
         pub prng_seed: Binary
     }
 
@@ -369,10 +369,10 @@ pub mod staking {
             remove_liqudity: Option<bool>,
         },
         SetLPToken {
-            lp_token: ContractLink<HumanAddr>,
+            lp_token: ContractLink<String>,
         },
         Receive {
-            from: HumanAddr,
+            from: String,
             msg: Option<Binary>,
             amount: Uint128,
         }, 
@@ -384,17 +384,17 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
-        Stake { from: HumanAddr, amount: Uint128 },
+        Stake { from: String, amount: Uint128 },
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {        
-        GetClaimReward {staker: HumanAddr, key: String, time: Uint128},
+        GetClaimReward {staker: String, key: String, time: Uint128},
         GetContractOwner {},
-        GetStakerLpTokenInfo{key: String, staker: HumanAddr},
-        GetRewardTokenBalance {key: String, address: HumanAddr},
-        GetStakerRewardTokenBalance {key: String, staker: HumanAddr},
+        GetStakerLpTokenInfo{key: String, staker: String},
+        GetRewardTokenBalance {key: String, address: String},
+        GetStakerRewardTokenBalance {key: String, staker: String},
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -404,7 +404,7 @@ pub mod staking {
             amount: Uint128,
         },
         ContractOwner {
-            address: HumanAddr,
+            address: String,
         },
         StakerLpTokenInfo {
             staked_lp_token: Uint128,

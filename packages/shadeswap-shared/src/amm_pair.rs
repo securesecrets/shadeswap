@@ -2,13 +2,10 @@ use cosmwasm_std::{
     from_binary,
     Api,
     Binary,
-    Extern,
-    HumanAddr,
     Querier,
     StdError,
     StdResult,
-    Storage, Env, HandleResponse, 
-    log,
+    Storage, Env, Response, 
     CanonicalAddr
 };
 use crate::{custom_fee::Fee, core::Humanize};
@@ -26,7 +23,7 @@ pub struct AMMPair<A: Clone> {
     pub address: A,
 }
 
-impl Canonize for AMMPair<HumanAddr> {
+impl Canonize for AMMPair<String> {
     fn canonize(self, api: &impl Api) -> StdResult<AMMPair<CanonicalAddr>> {
         Ok(AMMPair {
             pair: self.pair.canonize(api)?,
@@ -38,14 +35,14 @@ impl Canonize for AMMPair<HumanAddr> {
 }
 
 impl Humanize for AMMPair<CanonicalAddr> {
-    fn humanize(self, api: &impl Api) -> StdResult<AMMPair<HumanAddr>> {
+    fn humanize(self, api: &impl Api) -> StdResult<AMMPair<String>> {
         Ok(AMMPair {
             pair: self.pair.humanize(api)?,
             address: self.address.humanize(api)?,
         })
     }
 
-    type Output = AMMPair<HumanAddr>;
+    type Output = AMMPair<String>;
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug,Clone)]
@@ -55,7 +52,7 @@ pub struct AMMSettings<A> {
     pub shade_dao_address: ContractLink<A>
 }
 
-impl Canonize for AMMSettings<HumanAddr> {
+impl Canonize for AMMSettings<String> {
     fn canonize(self, api: &impl Api) -> StdResult<AMMSettings<CanonicalAddr>> {
         Ok(AMMSettings {
             lp_fee: self.lp_fee,
@@ -68,7 +65,7 @@ impl Canonize for AMMSettings<HumanAddr> {
 }
 
 impl Humanize for AMMSettings<CanonicalAddr> {
-    fn humanize(self, api: &impl Api) -> StdResult<AMMSettings<HumanAddr>> {
+    fn humanize(self, api: &impl Api) -> StdResult<AMMSettings<String>> {
         Ok(AMMSettings {
             lp_fee: self.lp_fee,
             shade_dao_fee: self.shade_dao_fee,
@@ -76,6 +73,6 @@ impl Humanize for AMMSettings<CanonicalAddr> {
         })
     }
 
-    type Output = AMMSettings<HumanAddr>;
+    type Output = AMMSettings<String>;
 }
 

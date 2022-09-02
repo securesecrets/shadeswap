@@ -58,38 +58,38 @@ pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Ui
 }
 
 fn main() -> serde_json::Result<()> {
-    let mut reports = vec![];
-    let s_sCRT = NetContract {
-        label: "iAKBCfPG".to_string(),
-        id: "10367".to_string(),
-        address: "secret15nc5yhefuwun9wxghzmhq0fzrswcyksz9zqvs5".to_string(),
-        code_hash: "A3AB7A262D42D9FD4F67ABD507DB7E1237A68AE9EF57B746AA74AD52F922583B".to_string(),
-    };
-
-    let s_sSHD = NetContract {
-        label: "iAKBCfPG".to_string(),
-        id: "10368".to_string(),
-        address: "secret1dcxn4nqexw5d6gq2fksvnevynxaeu7nmlu4ejl".to_string(),
-        code_hash: "A3AB7A262D42D9FD4F67ABD507DB7E1237A68AE9EF57B746AA74AD52F922583B".to_string(),
-    };
-
-    // let s_sREWARDSNIP20 = NetContract {
-    //     label: "TNZElupy".to_string(),
-    //     id: "10369".to_string(),
-    //     address: "secret156jue4d0qpfnl6klpw7xgz6h3dv52lcthnpl82".to_string(),
+    // let mut reports = vec![];
+    // let s_sCRT = NetContract {
+    //     label: "iAKBCfPG".to_string(),
+    //     id: "10367".to_string(),
+    //     address: "secret15nc5yhefuwun9wxghzmhq0fzrswcyksz9zqvs5".to_string(),
     //     code_hash: "A3AB7A262D42D9FD4F67ABD507DB7E1237A68AE9EF57B746AA74AD52F922583B".to_string(),
     // };
 
-    let test_pair = TokenPair::<HumanAddr>(
-        TokenType::CustomToken {
-            contract_addr: s_sCRT.address.clone().into(),
-            token_code_hash: s_sCRT.code_hash.to_string(),
-        },
-        TokenType::CustomToken {
-            contract_addr: s_sSHD.address.clone().into(),
-            token_code_hash: s_sSHD.code_hash.to_string(),
-        },
-    );
+    // let s_sSHD = NetContract {
+    //     label: "iAKBCfPG".to_string(),
+    //     id: "10368".to_string(),
+    //     address: "secret1dcxn4nqexw5d6gq2fksvnevynxaeu7nmlu4ejl".to_string(),
+    //     code_hash: "A3AB7A262D42D9FD4F67ABD507DB7E1237A68AE9EF57B746AA74AD52F922583B".to_string(),
+    // };
+
+    // // let s_sREWARDSNIP20 = NetContract {
+    // //     label: "TNZElupy".to_string(),
+    // //     id: "10369".to_string(),
+    // //     address: "secret156jue4d0qpfnl6klpw7xgz6h3dv52lcthnpl82".to_string(),
+    // //     code_hash: "A3AB7A262D42D9FD4F67ABD507DB7E1237A68AE9EF57B746AA74AD52F922583B".to_string(),
+    // // };
+
+    // let test_pair = TokenPair::<HumanAddr>(
+    //     TokenType::CustomToken {
+    //         contract_addr: s_sCRT.address.clone().into(),
+    //         token_code_hash: s_sCRT.code_hash.to_string(),
+    //     },
+    //     TokenType::CustomToken {
+    //         contract_addr: s_sSHD.address.clone().into(),
+    //         token_code_hash: s_sSHD.code_hash.to_string(),
+    //     },
+    // );
 
     // let msg = FactoryHandleMsg::SetConfig {
     //     pair_contract: None,

@@ -1,18 +1,11 @@
 use cosmwasm_std::{
-    from_binary,
-    Api,
-    Binary,
-    Extern,
-    HumanAddr,
-    Querier,
-    StdError,
-    StdResult,
-    Storage, Env, HandleResponse, log, CanonicalAddr, Uint128, CosmosMsg, WasmMsg, to_binary, BankMsg, Coin,
+    from_binary, to_binary, Api, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Querier,
+    Response, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use secret_toolkit::snip20::{balance_query};
+use secret_toolkit::snip20::balance_query;
 use secret_toolkit::snip20::HandleMsg::Send;
+use serde::{Deserialize, Serialize};
 
 use crate::core::{Canonize, Humanize};
 
@@ -34,8 +27,7 @@ pub enum TokenType<A> {
 #[deprecated(note = "please use TokenType<CanonicalAddr> instead")]
 pub type TokenTypeStored = TokenType<CanonicalAddr>;
 
-
-impl Canonize for TokenType<HumanAddr> {
+impl Canonize for TokenType<String> {
     fn canonize(self, api: &impl Api) -> StdResult<TokenType<CanonicalAddr>> {
         Ok(match self {
             Self::CustomToken {
@@ -54,7 +46,7 @@ impl Canonize for TokenType<HumanAddr> {
     type Output = TokenType<CanonicalAddr>;
 }
 impl Humanize for TokenType<CanonicalAddr> {
-    fn humanize(self, api: &impl Api) -> StdResult<TokenType<HumanAddr>> {
+    fn humanize(self, api: &impl Api) -> StdResult<TokenType<String>> {
         Ok(match self {
             Self::CustomToken {
                 contract_addr,
@@ -69,7 +61,7 @@ impl Humanize for TokenType<CanonicalAddr> {
         })
     }
 
-    type Output = TokenType<HumanAddr>;
+    type Output = TokenType<String>;
 }
 
 impl<A: Clone> TokenType<A> {
@@ -109,11 +101,11 @@ impl<A: Clone> TokenType<A> {
     }
 }
 
-impl TokenType<HumanAddr> {
+impl TokenType<String> {
     pub fn query_balance(
         &self,
         querier: &impl Querier,
-        exchange_addr: HumanAddr,
+        exchange_addr: String,
         viewing_key: String,
     ) -> StdResult<Uint128> {
         match self {
@@ -138,40 +130,37 @@ impl TokenType<HumanAddr> {
         }
     }
 
-    pub fn create_send_msg (
+    pub fn create_send_msg(
         &self,
-        sender: HumanAddr,
-        recipient: HumanAddr,
-        amount: Uint128
+        sender: String,
+        recipient: String,
+        amount: Uint128,
     ) -> StdResult<CosmosMsg> {
         let msg = match self {
-            TokenType::CustomToken { contract_addr, token_code_hash } => {
-                CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: contract_addr.clone(),
-                    callback_code_hash: token_code_hash.to_string(),
-                    msg: to_binary(&Send {  
-                        recipient,
-                        amount,
-                        padding: None,
-                        msg: None,
-                        recipient_code_hash: None,
-                        memo: None,
-                    })?,
-                    send: vec![]
-                })
-            },
-            TokenType::NativeToken { denom } => {            
-                CosmosMsg::Bank(BankMsg::Send {
-                    from_address: sender,
-                    to_address: recipient,
-                    amount: vec![Coin {
-                        denom: denom.clone(),
-                        amount
-                    }],
-                })
-            }
+            TokenType::CustomToken {
+                contract_addr,
+                token_code_hash,
+            } => CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: contract_addr.clone(),
+                code_hash: token_code_hash.to_string(),
+                msg: to_binary(&Send {
+                    recipient,
+                    amount,
+                    padding: None,
+                    msg: None,
+                    recipient_code_hash: None,
+                    memo: None,
+                })?,
+                funds: None,
+            }),
+            TokenType::NativeToken { denom } => CosmosMsg::Bank(BankMsg::Send {
+                to_address: recipient,
+                amount: vec![Coin {
+                    denom: denom.clone(),
+                    amount,
+                }],
+            }),
         };
-    
         Ok(msg)
     }
 }

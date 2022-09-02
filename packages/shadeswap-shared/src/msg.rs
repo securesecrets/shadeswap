@@ -403,6 +403,7 @@ pub mod staking {
     pub enum QueryResponse {
         ClaimReward {
             amount: Uint128,
+            reward_token: ContractLink<HumanAddr>
         },
         ContractOwner {
             address: HumanAddr,

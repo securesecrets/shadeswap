@@ -1406,8 +1406,12 @@ fn run_testnet() -> Result<()> {
                     None,
                 )?;
 
-                if let StakingQueryMsgResponse::ClaimReward { amount } = claims_reward_response {
+                if let StakingQueryMsgResponse::ClaimReward { 
+                    amount,
+                    reward_token 
+                } = claims_reward_response {
                     assert_ne!(amount, Uint128(0));
+                    assert_eq!(reward_token.address.to_string(),s_sREWARDSNIP20.address.clone().to_string())
                 }
 
                 print_header("\n\tGet Staking Contract Config Info");

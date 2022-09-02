@@ -275,8 +275,12 @@ pub mod tests {
         // get query of staker
         let binary_msg = get_claim_reward_for_user(&deps, HumanAddr::from("STAKERA".to_string()), "password".to_string(), Uint128(14528698000))?;
         let claimable_reward_for_staker: QueryResponse = from_binary(&binary_msg)?;
-        if let QueryResponse::ClaimReward { amount} = claimable_reward_for_staker{
+        if let QueryResponse::ClaimReward { 
+            amount,
+            reward_token
+        } = claimable_reward_for_staker{
             assert_ne!(amount, Uint128(0));
+            assert_eq!(reward_token.address.to_string(), HumanAddr::from(CONTRACT_ADDRESS).to_string())
         }       
         
         Ok(())

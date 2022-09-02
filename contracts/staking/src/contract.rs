@@ -427,6 +427,18 @@ pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     time: Uint128
 )-> StdResult<Binary> {
     // load stakers    
+    let config = load_config(deps)?;    
+    let reward_token_info = match config.reward_token.clone(){
+        TokenType::CustomToken { contract_addr, token_code_hash } => ContractLink{
+            address: contract_addr.clone(), 
+            code_hash: token_code_hash
+        },
+        TokenType::NativeToken { denom } => ContractLink { 
+            address: HumanAddr::default(), 
+            code_hash: "".to_string() 
+        }
+    };
+
     let is_staker = is_address_already_staker(&deps, staker.clone())?;  
     if is_staker == false {
         return Err(StdError::unauthorized());
@@ -444,7 +456,10 @@ pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
          staker.clone(), last_claim_timestamp, current_timestamp)?;
     let total_claim = unpaid_claim.amount + current_claim;
     println!("{:?}", total_claim);
-    to_binary(&QueryResponse::ClaimReward{amount: total_claim})
+    to_binary(&QueryResponse::ClaimReward{
+        amount: total_claim,
+        reward_token: reward_token_info
+    })
 }
 
 pub fn unstake<S: Storage, A: Api, Q: Querier>(

@@ -378,7 +378,7 @@ pub mod staking {
         }, 
         SetVKForStaker{
             key: String
-        },
+        }
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -395,6 +395,7 @@ pub mod staking {
         GetStakerLpTokenInfo{key: String, staker: HumanAddr},
         GetRewardTokenBalance {key: String, address: HumanAddr},
         GetStakerRewardTokenBalance {key: String, staker: HumanAddr},
+        GetConfig{}
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -402,6 +403,7 @@ pub mod staking {
     pub enum QueryResponse {
         ClaimReward {
             amount: Uint128,
+            reward_token: ContractLink<HumanAddr>
         },
         ContractOwner {
             address: HumanAddr,
@@ -412,10 +414,18 @@ pub mod staking {
         },
         RewardTokenBalance {
             amount: Uint128,
+            reward_token: ContractLink<HumanAddr>
         },
         StakerRewardTokenBalance {
             reward_amount: Uint128,
             total_reward_liquidity: Uint128,
+            reward_token: ContractLink<HumanAddr>
         },
+        Config{
+            reward_token: ContractLink<HumanAddr>,
+            lp_token: ContractLink<HumanAddr>,
+            daily_reward_amount: Uint128,
+            contract_owner: HumanAddr
+        }
     }
 }

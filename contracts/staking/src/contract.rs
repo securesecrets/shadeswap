@@ -1,6 +1,6 @@
 use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}, core::ContractLink};
 use shadeswap_shared::msg::amm_pair::HandleMsg as AmmPairHandleMsg;
-use secret_toolkit::snip20::{token_info_query, mint_msg, transfer_from_msg, HandleMsg as Snip20HandleMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg};
+use secret_toolkit::{snip20::{token_info_query, mint_msg, transfer_from_msg, HandleMsg as Snip20HandleMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg}, utils::Query};
 use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, token_type::{{TokenType}}};
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
     get_total_staking_amount, load_stakers, load_config, is_address_already_staker, store_claim_reward_info,
@@ -106,15 +106,8 @@ pub fn set_view_key<S: Storage, A: Api, Q: Querier>(
   key: String,
 ) -> StdResult<HandleResponse>{    
     let caller =  env.message.sender.clone();
-    let is_staker = is_address_already_staker(&deps, caller.clone())?;  
-    if is_staker == false {
-        return Err(StdError::unauthorized());
-    }
-    let mut staker_info = load_staker_info(&deps, caller.clone())?;
-    let prgn_seed = load_prgn_seed(&deps)?;
     let staker_vk = ViewingKey(key);
-    store_staker_vk(deps, env.message.sender.clone() ,staker_vk)?;    
-    store_staker_info(deps, &staker_info); 
+    store_staker_vk(deps, env.message.sender.clone() ,staker_vk)?;      
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
@@ -302,6 +295,7 @@ pub fn get_staking_percentage<S:Storage, A:Api, Q: Querier>(
 
 pub fn query<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>, msg: QueryMsg) -> QueryResult {
     match msg {    
+        QueryMsg::GetConfig {  } => {get_config(deps)},
         QueryMsg::GetClaimReward{ staker, time, key  } =>{get_claim_reward_for_user(deps, staker, key,time)},
         QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps)},
         QueryMsg::GetStakerLpTokenInfo { key, staker } => {get_staking_stake_lp_token_info(deps, staker, key)},
@@ -325,12 +319,44 @@ fn get_staker_reward_info<S: Storage, A: Api, Q: Querier>(
         let reward_token_info = ContractLink{
             address: contract_addr.clone(),
             code_hash: token_code_hash.clone(), 
-        };
-        let staking_contract_address = config.staking_contract;
+        };       
         let reward_token_balance =  config.reward_token.query_balance(&deps.querier,staker.clone() , viewing_key.to_string())?;
         let total_reward_token_balance = query_total_reward_liquidity(&deps.querier, &reward_token_info)?;
-        let response_msg = QueryResponse::StakerRewardTokenBalance { reward_amount: reward_token_balance, total_reward_liquidity: total_reward_token_balance };
+        let response_msg = QueryResponse::StakerRewardTokenBalance { 
+            reward_amount: reward_token_balance, 
+            total_reward_liquidity: total_reward_token_balance,
+            reward_token: ContractLink { 
+                address: contract_addr.clone(), 
+                code_hash: token_code_hash.clone()
+            } 
+        };
         return to_binary(&response_msg)
+    }else{
+        return Err(StdError::generic_err("Invalid reward token"))
+    }   
+}
+
+
+fn get_config<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>
+) -> StdResult<Binary>{    
+    let config = load_config(deps)?;    
+    if let TokenType::CustomToken {
+        contract_addr,
+        token_code_hash,
+        ..
+    } = config.reward_token.clone()
+    {
+        let response = QueryResponse::Config { 
+            reward_token: ContractLink { 
+                address: contract_addr.clone(), 
+                code_hash: token_code_hash.clone() 
+            }, 
+            lp_token: config.lp_token.clone(), 
+            daily_reward_amount: config.daily_reward_amount.clone(), 
+            contract_owner: config.contract_owner.clone() 
+        };
+        return to_binary(&response)
     }else{
         return Err(StdError::generic_err("Invalid reward token"))
     }   
@@ -342,10 +368,26 @@ fn get_staking_reward_token_balance<S: Storage, A: Api, Q: Querier>(
     address: HumanAddr,
 ) -> StdResult<Binary>{
     let config = load_config(deps)?;
-    let staking_contract_address = config.staking_contract;
-    let reward_token_balance = config.reward_token.query_balance(&deps.querier,  address.clone(), viewing_key.to_string())?;
-    let response_msg = QueryResponse::RewardTokenBalance { amount: reward_token_balance };
-    to_binary(&response_msg)
+    if let TokenType::CustomToken {
+        contract_addr,
+        token_code_hash,
+        ..
+    } = config.reward_token.clone()
+    {
+        let staking_contract_address = config.staking_contract;
+        let reward_token_balance = config.reward_token.query_balance(&deps.querier,  address.clone(), viewing_key.to_string())?;
+        let response_msg = QueryResponse::RewardTokenBalance { 
+            amount: reward_token_balance,
+            reward_token: ContractLink {
+                address: contract_addr.clone(),
+                code_hash: token_code_hash.clone(),
+            }
+        };
+        to_binary(&response_msg)
+    }
+    else{
+        return Err(StdError::generic_err("Invalid reward token"))
+    }   
 }
 
 fn get_staking_stake_lp_token_info<S: Storage, A: Api, Q: Querier>(
@@ -385,6 +427,18 @@ pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
     time: Uint128
 )-> StdResult<Binary> {
     // load stakers    
+    let config = load_config(deps)?;    
+    let reward_token_info = match config.reward_token.clone(){
+        TokenType::CustomToken { contract_addr, token_code_hash } => ContractLink{
+            address: contract_addr.clone(), 
+            code_hash: token_code_hash
+        },
+        TokenType::NativeToken { denom } => ContractLink { 
+            address: HumanAddr::default(), 
+            code_hash: "".to_string() 
+        }
+    };
+
     let is_staker = is_address_already_staker(&deps, staker.clone())?;  
     if is_staker == false {
         return Err(StdError::unauthorized());
@@ -402,7 +456,10 @@ pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
          staker.clone(), last_claim_timestamp, current_timestamp)?;
     let total_claim = unpaid_claim.amount + current_claim;
     println!("{:?}", total_claim);
-    to_binary(&QueryResponse::ClaimReward{amount: total_claim})
+    to_binary(&QueryResponse::ClaimReward{
+        amount: total_claim,
+        reward_token: reward_token_info
+    })
 }
 
 pub fn unstake<S: Storage, A: Api, Q: Querier>(

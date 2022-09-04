@@ -8,6 +8,7 @@
             * [SetVKForStaker](#SetVKForStaker)            
             * [Unstake](#Unstake)    
         * Queries
+            * [GetConfig](#GetConfig)
             * [GetContractOwner](#GetContractOwner)
             * [GetClaimReward](#GetClaimReward)   
             * [GetStakerLpTokenInfo](#GetStakerLpTokenInfo)
@@ -61,6 +62,26 @@ Get Contract Owner Address.
 }
 ```
 
+### Queries
+
+#### GetConfig
+Get Contract Config Info.
+
+##### Request
+| Name       | Type        | Description                              | optional |
+|------------|-------------|------------------------------------------|----------|
+
+
+##### Response
+```json
+{
+  "reward_token": "Contract Link of Reward Token",
+  "lp_token": "Contract Link of LP Token",
+  "daily_reward_amount": "Reward Amount of Staking Contract",
+  "contract_owner": "Admin Address of Staking Contract,
+}
+```
+
 #### GetClaimReward
 Get Claimable Reward for staker.
 
@@ -92,6 +113,7 @@ Get  Staker Lp Token Information.
 {
   "staked_lp_token": "Uint128",
   "total_staked_lp_token": "Uint128",
+  "reward_token" : "ContractLink"
 }
 ```
 
@@ -107,7 +129,8 @@ Get Reward Token Balance for staker
 ##### Response
 ```json
 {
-  "amount": "Uint128"
+  "amount": "Uint128",
+  "reward_token" : "ContractLink"
 }
 ```
 

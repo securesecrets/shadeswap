@@ -1,4 +1,4 @@
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Uint128, MessageInfo};
 use cosmwasm_std::{
     from_binary,
     Api,
@@ -20,7 +20,7 @@ pub struct TokenAmount<A> {
 }
 
 impl<A: Clone> TokenAmount<A> {
-    pub fn assert_sent_native_token_balance(&self, env: &Env) -> StdResult<()> {
-        self.token.assert_sent_native_token_balance(env, self.amount)
+    pub fn assert_sent_native_token_balance(&self, info: &MessageInfo) -> StdResult<()> {
+        self.token.assert_sent_native_token_balance(info, self.amount)
     }
 }

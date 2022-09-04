@@ -1,35 +1,34 @@
-use cosmwasm_std::{
-    from_binary,
-    Api,
-    Binary,
-    Querier,
-    StdError,
-    StdResult,
-    Storage, Env, Response
-};
+// use cosmwasm_std::{
+//     from_binary,
+//     Api,
+//     Binary,
+//     Querier,
+//     StdError,
+//     StdResult,
+//     Storage, Env, Response
+// };
 
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use secret_toolkit::snip20::{token_config_query, token_info_query, TokenConfig, TokenInfo, Balance};
+// use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-// Redefine here, so we can deserialize
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum QueryMsg {
-    TokenInfo {},
-    Balance { address: HumanAddr, key: String },
-}
+// // Redefine here, so we can deserialize
+// #[derive(Serialize, Deserialize)]
+// #[serde(rename_all = "snake_case")]
+// enum QueryMsg {
+//     TokenInfo {},
+//     Balance { address: HumanAddr, key: String },
+// }
 
-// Redefine here, so we can serialize
-#[derive(Serialize, Deserialize)]
-struct IntTokenInfoResponse {
-    token_info: TokenInfo,
-}
+// // Redefine here, so we can serialize
+// #[derive(Serialize, Deserialize)]
+// struct IntTokenInfoResponse {
+//     token_info: TokenInfo,
+// }
 
-// Redefine here, so we can serialize
-#[derive(Serialize, Deserialize)]
-struct IntBalanceResponse {
-    pub balance: Balance,
-}
+// // Redefine here, so we can serialize
+// #[derive(Serialize, Deserialize)]
+// struct IntBalanceResponse {
+//     pub balance: Balance,
+// }
 
 /*pub struct MockQuerier<C: DeserializeOwned = Empty> {
     pub std_mock_querier: StdMockQuerier<C>,

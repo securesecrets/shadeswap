@@ -49,7 +49,7 @@ const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
 pub const BLOCK_SIZE: usize = 256;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -172,7 +172,7 @@ pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey
 }
 
 fn register_lp_token<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env   
 ) -> StdResult<Response> {    
     let mut config = load_config(&deps)?;
@@ -234,7 +234,7 @@ fn register_pair_token(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: HandleMsg,
 ) -> StdResult<Response> {
@@ -294,7 +294,7 @@ pub fn query_calculate_price<S: Storage, A: Api, Q: Querier>(
 
 
 pub fn set_custom_fee<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     shade_dao_fee: Fee,
     lp_fee: Fee
@@ -318,7 +318,7 @@ pub fn set_custom_fee<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn swap<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     config: Config<HumanAddr>,
     sender: HumanAddr,
@@ -440,7 +440,7 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>, 
+    deps: DepsMut, 
     env: Env,
     contract: ContractLink<HumanAddr>
 )-> StdResult<Response>{      
@@ -767,7 +767,7 @@ fn get_token_pool_balance(
 }
 
 fn remove_liquidity<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     amount: Uint128,
     from: HumanAddr,
@@ -832,7 +832,7 @@ pub fn calculate_price(
 }
 
 pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     deposit: TokenPairAmount<HumanAddr>,
     slippage: Option<Decimal>,
@@ -1064,7 +1064,7 @@ fn query_factory_amm_settings(
 
 
 fn receiver_callback<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     from: HumanAddr,
     amount: Uint128,

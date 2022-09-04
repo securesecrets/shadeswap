@@ -22,7 +22,7 @@ use shadeswap_shared::{
 pub const EPHEMERAL_STORAGE_KEY: &[u8] = b"ephemeral_storage";
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -33,7 +33,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: HandleMsg,
 ) -> StdResult<Response> {
@@ -74,7 +74,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 }
 
 fn set_shade_dao_address<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     shade_dao_address: ContractLink<HumanAddr>,
 ) -> StdResult<Response> {
@@ -93,7 +93,7 @@ fn set_shade_dao_address<S: Storage, A: Api, Q: Querier>(
 }
 
 fn register_amm_pair<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     pair: TokenPair<HumanAddr>,
     signature: Binary,
@@ -117,7 +117,7 @@ fn register_amm_pair<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn add_amm_pairs<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     amm_pairs: Vec<AMMPair<HumanAddr>>,
 ) -> StdResult<Response> {
@@ -159,7 +159,7 @@ pub fn query_amm_pair_address<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn set_config<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: HandleMsg,
 ) -> StdResult<Response> {
@@ -209,7 +209,7 @@ pub fn get_config<S: Storage, A: Api, Q: Querier>(deps: &Deps<S, A, Q>) -> StdRe
 }
 
 pub fn create_pair<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     pair: TokenPair<HumanAddr>,
     entropy: Binary,

@@ -284,7 +284,7 @@ pub mod tests {
 
     
     fn make_init_config<S: Storage, A: Api, Q: Querier>(
-        deps: &mut Deps<S, A, Q>, 
+        deps: DepsMut, 
         env: Env,
         amount: Uint128) -> StdResult<Config> {    
         let msg = InitMsg {

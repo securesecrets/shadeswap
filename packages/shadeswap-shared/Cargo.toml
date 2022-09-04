@@ -39,14 +39,13 @@ serde = { version = "1.0.114", default-features = false, features = [
 schemars = "0.8.1"
 cosmwasm-std = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
 cosmwasm-storage = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
-# secret-toolkit = "0.2.0" # Uncomment this for extra tools
-secret-toolkit = { version = "0.2" }
+cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e" }
 snip20-reference-impl = { path = "../../contracts/snip20"}
 sha2 = { version = "0.9.1", default-features = false }
 subtle = { version = "2.2.3", default-features = false }
-cosmwasm-math-compat = { path = "../cosmwasm_math_compat" }
+rand_chacha = { version = "0.2.2", default-features = false }
+rand_core = { version = "0.5.1", default-features = false }
+query-authentication = { git = "https://github.com/securesecrets/query-authentication", branch = "cosmwasm_v1_upgrade", optional = true }
+chrono = { version = "=0.4.19", optional = true }
 # shadeswap-derive-canonize = { path = "../shadeswap_derive_canonize" }
 
-
-[dev-dependencies]
-cosmwasm-schema = "0.10.1"

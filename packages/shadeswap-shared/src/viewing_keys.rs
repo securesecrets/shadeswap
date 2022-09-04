@@ -2,8 +2,9 @@ use subtle::ConstantTimeEq;
 use std::fmt;
 use cosmwasm_std::{Env, Binary};
 use schemars::JsonSchema;
-use secret_toolkit::crypto::{Prng, sha_256};
 use serde::{Deserialize, Serialize};
+
+use crate::utils::crypto::{sha_256, Prng};
 
 pub const VIEWING_KEY_SIZE: usize = 32;
 const VIEWING_KEY_PREFIX: &str = "api_key_";

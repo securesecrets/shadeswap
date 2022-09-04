@@ -245,7 +245,7 @@ pub mod tests {
 
     
 fn make_init_config<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>, 
+    deps: DepsMut, 
     token_pair: TokenPair<HumanAddr>) -> StdResult<Config<HumanAddr>> {    
     let seed = to_binary(&"SEED".to_string())?;
     let entropy = to_binary(&"ENTROPY".to_string())?;
@@ -1116,7 +1116,7 @@ pub mod help_test_lib {
     // }
     
     pub fn make_init_config_test_calculate_price_fee<S: Storage, A: Api, Q: Querier>(
-        deps: &mut Deps<S, A, Q>, 
+        deps: DepsMut, 
         token_pair: TokenPair<HumanAddr>,
         custom_fee: Option<CustomFee>,
     ) 

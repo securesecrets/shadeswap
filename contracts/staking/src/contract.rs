@@ -15,7 +15,7 @@ use shadeswap_shared::{scrt_storage::{ns_save, ns_load, save, load}, viewing_key
 pub const BLOCK_SIZE: usize = 256;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -58,7 +58,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: HandleMsg,
 ) -> StdResult<Response> {
@@ -76,7 +76,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 }
 
 fn receiver_callback<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     from: HumanAddr,
     amount: Uint128,
@@ -101,7 +101,7 @@ fn receiver_callback<S: Storage, A: Api, Q: Querier>(
 // needs to check for the amount
 
 pub fn set_view_key<S: Storage, A: Api, Q: Querier>(
-  deps: &mut Deps<S, A, Q>,
+  deps: DepsMut,
   env: Env,
   key: String,
 ) -> StdResult<Response>{    
@@ -126,7 +126,7 @@ pub fn set_view_key<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn stake<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     amount: Uint128,
     from: HumanAddr
@@ -176,7 +176,7 @@ pub fn stake<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn claim_rewards<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env
 ) -> StdResult<Response>{
 
@@ -217,7 +217,7 @@ pub fn claim_rewards<S: Storage, A: Api, Q: Querier>(
 // User Incremental Rewards = Total Available Rewards * Staked Percentage
 // User Total Rewards = User Owed Rewards + (User Incremental Rewards)
 pub fn claim_rewards_for_all_stakers<S:Storage, A:Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     current_timestamp: Uint128
 ) -> StdResult<()> {
     let stakers = load_stakers(deps)?;
@@ -234,7 +234,7 @@ pub fn claim_rewards_for_all_stakers<S:Storage, A:Api, Q: Querier>(
 }
 
 pub fn set_lp_token<S:Storage, A:Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     lp_token: ContractLink<HumanAddr>
 ) -> StdResult<Response>{
@@ -406,7 +406,7 @@ pub fn get_claim_reward_for_user<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn unstake<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,   
     amount: Uint128,
     remove_liqudity: Option<bool>

@@ -1,13 +1,14 @@
+use crate::snip20::ExecuteMsg::Send;
 use cosmwasm_std::{
     from_binary, to_binary, Api, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Querier,
-    Response, StdError, StdResult, Storage, Uint128, WasmMsg,
+    Response, StdError, StdResult, Storage, Uint128, WasmMsg, MessageInfo, DepsMut, Addr,
 };
 use schemars::JsonSchema;
-use secret_toolkit::snip20::balance_query;
-use secret_toolkit::snip20::HandleMsg::Send;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{Canonize, Humanize};
+use crate::contract_interfaces::snip20::helpers::{balance_query};
+use crate::utils::asset::Contract;
 
 const BLOCK_SIZE: usize = 256;
 
@@ -34,7 +35,7 @@ impl Canonize for TokenType<String> {
                 contract_addr,
                 token_code_hash,
             } => TokenType::CustomToken {
-                contract_addr: contract_addr.canonize(api)?,
+                contract_addr: api.addr_canonicalize(&contract_addr)?,
                 token_code_hash: token_code_hash.clone(),
             },
             Self::NativeToken { denom } => TokenType::NativeToken {
@@ -77,9 +78,9 @@ impl<A: Clone> TokenType<A> {
             TokenType::CustomToken { .. } => true,
         }
     }
-    pub fn assert_sent_native_token_balance(&self, env: &Env, amount: Uint128) -> StdResult<()> {
+    pub fn assert_sent_native_token_balance(&self, info: &MessageInfo, amount: Uint128) -> StdResult<()> {
         if let TokenType::NativeToken { denom } = &self {
-            return match env.message.sent_funds.iter().find(|x| x.denom == *denom) {
+            return match info.funds.iter().find(|x| x.denom == *denom) {
                 Some(coin) => {
                     if amount == coin.amount {
                         Ok(())
@@ -104,28 +105,23 @@ impl<A: Clone> TokenType<A> {
 impl TokenType<String> {
     pub fn query_balance(
         &self,
-        querier: &impl Querier,
+        deps: DepsMut,
         exchange_addr: String,
         viewing_key: String,
     ) -> StdResult<Uint128> {
         match self {
             TokenType::NativeToken { denom } => {
-                let result = querier.query_balance(exchange_addr, denom)?;
+                let result = deps.querier.query_balance(exchange_addr, denom)?;
                 Ok(result.amount)
             }
             TokenType::CustomToken {
                 contract_addr,
                 token_code_hash,
             } => {
-                let result = balance_query(
-                    querier,
-                    exchange_addr,
-                    viewing_key,
-                    BLOCK_SIZE,
-                    token_code_hash.clone(),
-                    contract_addr.clone(),
-                )?;
-                Ok(result.amount)
+                balance_query(&deps.querier,  Addr::unchecked(exchange_addr), viewing_key,  &Contract {
+                    address: Addr::unchecked(contract_addr.clone()),
+                    code_hash: token_code_hash.clone(),
+                })
             }
         }
     }
@@ -151,7 +147,7 @@ impl TokenType<String> {
                     recipient_code_hash: None,
                     memo: None,
                 })?,
-                funds: None,
+                funds: vec![],
             }),
             TokenType::NativeToken { denom } => CosmosMsg::Bank(BankMsg::Send {
                 to_address: recipient,

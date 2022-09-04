@@ -29,7 +29,7 @@ pub const RESPONSE_BLOCK_SIZE: usize = 256;
 pub const PREFIX_REVOKED_PERMITS: &str = "revoked_permits";
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -118,7 +118,7 @@ fn pad_response(response: StdResult<Response>) -> StdResult<Response> {
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: HandleMsg,
 ) -> StdResult<Response> {
@@ -472,7 +472,7 @@ fn query_minters<S: Storage, A: Api, Q: Querier>(deps: &Deps<S, A, Q>) -> StdRes
 }
 
 fn change_admin<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     address: HumanAddr,
 ) -> StdResult<Response> {
@@ -526,7 +526,7 @@ fn try_mint_impl<S: Storage>(
 }
 
 fn try_mint<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     recipient: HumanAddr,
     amount: Uint128,
@@ -579,7 +579,7 @@ fn try_mint<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_mint<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     actions: Vec<batch::MintAction>,
 ) -> StdResult<Response> {
@@ -636,7 +636,7 @@ fn try_batch_mint<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_set_key<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     key: String,
 ) -> StdResult<Response> {
@@ -653,7 +653,7 @@ pub fn try_set_key<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_create_key<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     entropy: String,
 ) -> StdResult<Response> {
@@ -673,7 +673,7 @@ pub fn try_create_key<S: Storage, A: Api, Q: Querier>(
 }
 
 fn set_contract_status<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     status_level: ContractStatusLevel,
 ) -> StdResult<Response> {
@@ -712,7 +712,7 @@ pub fn query_allowance<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_deposit<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
 ) -> StdResult<Response> {
     let mut amount = Uint128::zero();
@@ -779,7 +779,7 @@ fn try_deposit<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_redeem<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     amount: Uint128,
 ) -> StdResult<Response> {
@@ -853,7 +853,7 @@ fn try_redeem<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_transfer_impl<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     sender: &CanonicalAddr,
     recipient: &CanonicalAddr,
     amount: Uint128,
@@ -879,7 +879,7 @@ fn try_transfer_impl<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_transfer<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     recipient: HumanAddr,
     amount: Uint128,
@@ -898,7 +898,7 @@ fn try_transfer<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_transfer<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     actions: Vec<batch::TransferAction>,
 ) -> StdResult<Response> {
@@ -956,7 +956,7 @@ fn try_add_receiver_api_callback<S: Storage>(
 
 #[allow(clippy::too_many_arguments)]
 fn try_send_impl<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     messages: &mut Vec<CosmosMsg>,
     sender: HumanAddr,
     sender_canon: &CanonicalAddr, // redundant but more efficient
@@ -993,7 +993,7 @@ fn try_send_impl<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_send<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     recipient: HumanAddr,
     recipient_code_hash: Option<String>,
@@ -1026,7 +1026,7 @@ fn try_send<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_send<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     actions: Vec<batch::SendAction>,
 ) -> StdResult<Response> {
@@ -1057,7 +1057,7 @@ fn try_batch_send<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_register_receive<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     code_hash: String,
 ) -> StdResult<Response> {
@@ -1103,7 +1103,7 @@ fn use_allowance<S: Storage>(
 }
 
 fn try_transfer_from_impl<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: &Env,
     spender: &CanonicalAddr,
     owner: &CanonicalAddr,
@@ -1134,7 +1134,7 @@ fn try_transfer_from_impl<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_transfer_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: &Env,
     owner: &HumanAddr,
     recipient: &HumanAddr,
@@ -1155,7 +1155,7 @@ fn try_transfer_from<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_transfer_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: &Env,
     actions: Vec<batch::TransferFromAction>,
 ) -> StdResult<Response> {
@@ -1186,7 +1186,7 @@ fn try_batch_transfer_from<S: Storage, A: Api, Q: Querier>(
 
 #[allow(clippy::too_many_arguments)]
 fn try_send_from_impl<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     messages: &mut Vec<CosmosMsg>,
     spender_canon: &CanonicalAddr, // redundant but more efficient
@@ -1225,7 +1225,7 @@ fn try_send_from_impl<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_send_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     owner: HumanAddr,
     recipient: HumanAddr,
@@ -1260,7 +1260,7 @@ fn try_send_from<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_send_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     actions: Vec<batch::SendFromAction>,
 ) -> StdResult<Response> {
@@ -1292,7 +1292,7 @@ fn try_batch_send_from<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_burn_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: &Env,
     owner: &HumanAddr,
     amount: Uint128,
@@ -1357,7 +1357,7 @@ fn try_burn_from<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_batch_burn_from<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: &Env,
     actions: Vec<batch::BurnFromAction>,
 ) -> StdResult<Response> {
@@ -1426,7 +1426,7 @@ fn try_batch_burn_from<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_increase_allowance<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     spender: HumanAddr,
     amount: Uint128,
@@ -1471,7 +1471,7 @@ fn try_increase_allowance<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_decrease_allowance<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     spender: HumanAddr,
     amount: Uint128,
@@ -1516,7 +1516,7 @@ fn try_decrease_allowance<S: Storage, A: Api, Q: Querier>(
 }
 
 fn add_minters<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     minters_to_add: Vec<HumanAddr>,
 ) -> StdResult<Response> {
@@ -1540,7 +1540,7 @@ fn add_minters<S: Storage, A: Api, Q: Querier>(
 }
 
 fn remove_minters<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     minters_to_remove: Vec<HumanAddr>,
 ) -> StdResult<Response> {
@@ -1564,7 +1564,7 @@ fn remove_minters<S: Storage, A: Api, Q: Querier>(
 }
 
 fn set_minters<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     minters_to_set: Vec<HumanAddr>,
 ) -> StdResult<Response> {
@@ -1593,7 +1593,7 @@ fn set_minters<S: Storage, A: Api, Q: Querier>(
 ///
 /// @param amount the amount of money to burn
 fn try_burn<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     amount: Uint128,
     memo: Option<String>,
@@ -1682,7 +1682,7 @@ fn perform_transfer<T: Storage>(
 }
 
 fn revoke_permit<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     permit_name: String,
 ) -> StdResult<Response> {
@@ -1732,7 +1732,7 @@ fn is_valid_symbol(symbol: &str) -> bool {
 }
 
 // pub fn migrate<S: Storage, A: Api, Q: Querier>(
-//     _deps: &mut Deps<S, A, Q>,
+//     _deps: DepsMut,
 //     _env: Env,
 //     _msg: MigrateMsg,
 // ) -> StdResult<MigrateResponse> {

@@ -27,7 +27,7 @@ impl Canonize for AMMPair<String> {
     fn canonize(self, api: &impl Api) -> StdResult<AMMPair<CanonicalAddr>> {
         Ok(AMMPair {
             pair: self.pair.canonize(api)?,
-            address: self.address.canonize(api)?,
+            address: api.addr_canonicalize(&self.address)?,
         })
     }
 

@@ -45,7 +45,7 @@ impl Into<CosmosMsg> for Callback<String> {
             contract_addr: self.contract.address,
             code_hash: self.contract.code_hash,
             msg: self.msg,
-            funds: None,
+            funds: vec![]
         })
     }
 }

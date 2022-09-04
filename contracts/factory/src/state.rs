@@ -60,7 +60,7 @@ impl Humanize for Config<CanonicalAddr> {
 }
 
 pub fn config_write<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     config: Config<HumanAddr>,
 ) -> StdResult<()> {
     save(&mut deps.storage, CONFIG_KEY, &config.canonize(&deps.api)?)
@@ -94,7 +94,7 @@ pub(crate) fn generate_pair_key(pair: &TokenPair<CanonicalAddr>) -> Vec<u8> {
 }
 
 pub(crate) fn save_amm_pairs<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     exchanges: Vec<AMMPair<HumanAddr>>,
 ) -> StdResult<()> {
     let mut count = load_amm_pairs_count(&deps.storage)?;

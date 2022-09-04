@@ -47,7 +47,7 @@ const BLOCK_SIZE: usize = 256;
 pub const EPHEMERAL_STORAGE_KEY: &[u8] = b"ephemeral_storage";
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -68,7 +68,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: HandleMsg,
 ) -> StdResult<Response> {
@@ -109,7 +109,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 }
 
 fn refresh_tokens<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     token_address: HumanAddr,
     token_code_hash: String,
@@ -135,7 +135,7 @@ fn refresh_tokens<S: Storage, A: Api, Q: Querier>(
 }
 
 fn receiver_callback<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     from: HumanAddr,
     amount: Uint128,
@@ -202,7 +202,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn next_swap<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     last_token_out: TokenAmount<HumanAddr>,
     signature: Binary,
@@ -292,7 +292,7 @@ pub fn next_swap<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     amount_in: TokenAmount<HumanAddr>,
     amount_out_min: Option<Uint128>,
@@ -333,7 +333,7 @@ pub fn swap_tokens_for_exact_tokens<S: Storage, A: Api, Q: Querier>(
 }
 
 fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     token_in: TokenAmount<HumanAddr>,
     path: HumanAddr,

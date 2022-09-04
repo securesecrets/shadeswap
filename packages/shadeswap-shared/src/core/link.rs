@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::impl_canonize_default;
 
-use super::{Canonize, Humanize, addr::{canonize_maybe_empty, humanize_maybe_empty}};
+use super::{Canonize, Humanize};
 
 pub type CodeId   = u64;
 pub type CodeHash = String;
@@ -42,7 +42,7 @@ impl Canonize for ContractLink<String>
     type Output = ContractLink<CanonicalAddr>;
 
     fn canonize(self, api: &impl cosmwasm_std::Api) -> cosmwasm_std::StdResult<Self::Output> {
-        Ok(ContractLink{ address: canonize_maybe_empty(api, &self.address)?, code_hash: self.code_hash })
+        Ok(ContractLink{ address: api.addr_canonicalize(&self.address)?, code_hash: self.code_hash })
     }
 }
 
@@ -51,7 +51,7 @@ impl Humanize for ContractLink<CanonicalAddr>
     type Output = ContractLink<String>;
 
     fn humanize(self, api: &impl cosmwasm_std::Api) -> cosmwasm_std::StdResult<Self::Output> {
-        Ok(ContractLink{ address: humanize_maybe_empty(api, &self.address)?, code_hash: self.code_hash })
+        Ok(ContractLink{ address: api.addr_humanize(&self.address)?.as_str().to_string(), code_hash: self.code_hash })
     }
 }
 

@@ -8,7 +8,7 @@ use crate::msg::{CountResponse, HandleMsg, InitMsg, QueryMsg, Snip20Msg};
 use crate::state::{config, config_read, State};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
@@ -24,7 +24,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     msg: HandleMsg,
 ) -> StdResult<Response> {
@@ -50,7 +50,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_increment<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     _env: Env,
 ) -> StdResult<Response> {
     let mut count = 0;
@@ -67,7 +67,7 @@ pub fn try_increment<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_reset<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     count: i32,
 ) -> StdResult<Response> {
@@ -83,7 +83,7 @@ pub fn try_reset<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_register<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     reg_addr: HumanAddr,
     reg_hash: String,
@@ -111,7 +111,7 @@ pub fn try_register<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_receive<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     env: Env,
     _sender: HumanAddr,
     _from: HumanAddr,

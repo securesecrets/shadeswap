@@ -38,7 +38,7 @@ pub struct ClaimRewardsInfo{
 }
 
 pub fn store_config <S: Storage, A: Api, Q: Querier>(
-    deps:   &mut Deps<S, A, Q>,
+    deps:   DepsMut,
     config: &Config
 ) -> StdResult<()> {
     save(&mut deps.storage, STAKING_CONFIG, &config)
@@ -68,14 +68,14 @@ pub fn load_claim_reward_timestamp<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn store_claim_reward_timestamp<S: Storage, A: Api, Q: Querier>(
-    deps:   &mut Deps<S, A, Q>,
+    deps:   DepsMut,
     timestamp: Uint128
 ) -> StdResult<()> {
     save(&mut deps.storage, LAST_REWARD_TIME_CLAIMED, &timestamp)
 }
 
 pub fn store_staker<S: Storage, A: Api, Q: Querier>(
-    deps:   &mut Deps<S, A, Q>,
+    deps:   DepsMut,
     staker: HumanAddr
 ) -> StdResult<()> {
     let mut unwrap_data = load_stakers(deps)?;
@@ -97,7 +97,7 @@ pub fn get_total_staking_amount<S: Storage, A: Api, Q: Querier>(
 
     
 pub fn remove_staker<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>, 
+    deps: DepsMut, 
     staker: HumanAddr
 ) -> StdResult<()> {
     let mut addresses = load_stakers(deps)?;
@@ -106,7 +106,7 @@ pub fn remove_staker<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn store_prng_seed<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>,
+    deps: DepsMut,
     pgrn_seed: &Vec<u8>
 ) -> StdResult<()> {
     save(&mut deps.storage, PGRN_SEED, &pgrn_seed)
@@ -142,14 +142,14 @@ pub fn load_staker_info<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn store_staker_info<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>, 
+    deps: DepsMut, 
     staker_info: &StakingInfo
 ) -> StdResult<()> {       
     ns_save(&mut deps.storage, STAKING_INFO, staker_info.staker.clone().as_str().as_bytes(), &staker_info)
 }   
 
 pub fn store_staker_vk<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>, 
+    deps: DepsMut, 
     staker: HumanAddr,
     viewing_key: ViewingKey
 ) -> StdResult<()> {
@@ -178,7 +178,7 @@ pub fn load_claim_reward_info<S: Storage, A: Api, Q: Querier>(
 
 
 pub fn store_claim_reward_info<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Deps<S, A, Q>, 
+    deps: DepsMut, 
     claim_reward: &ClaimRewardsInfo
 ) -> StdResult<()> {       
     ns_save(&mut deps.storage, CLAIM_REWARDS, claim_reward.staker.clone().as_str().as_bytes(), 

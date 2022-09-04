@@ -88,7 +88,7 @@ pub mod amm_pair_storage{
     use tradehistory::{DirectionType};
 
     pub fn store_config <S: Storage, A: Api, Q: Querier>(
-        deps:   &mut Deps<S, A, Q>,
+        deps:   DepsMut,
         config: Config<HumanAddr>
     ) -> StdResult<()> {
         let value = config.canonize(&deps.api)?;
@@ -96,7 +96,7 @@ pub mod amm_pair_storage{
     }
 
     pub fn store_staking_contract<S: Storage, A: Api, Q: Querier>(
-        deps:   &mut Deps<S, A, Q>,
+        deps:   DepsMut,
         contract: &ContractLink<HumanAddr>
     ) -> StdResult<()> {
         save(&mut deps.storage, STAKINGCONTRACT_LINK, &contract)
@@ -130,7 +130,7 @@ pub mod amm_pair_storage{
     }
  
     pub fn store_trade_counter<S: Storage, A: Api, Q: Querier>(
-        deps: &mut Deps<S, A, Q>, 
+        deps: DepsMut, 
         count: u64
     ) -> StdResult<()> {      
         save(&mut deps.storage, TRADE_COUNT, &count)
@@ -178,7 +178,7 @@ pub mod amm_pair_storage{
     }
     
     pub fn store_trade_history<S: Storage, A: Api, Q: Querier>(
-        deps: &mut Deps<S, A, Q>, 
+        deps: DepsMut, 
         trade_history: &TradeHistory
     ) -> StdResult<()> {       
         let count = load_trade_counter(&deps.storage)?;                            

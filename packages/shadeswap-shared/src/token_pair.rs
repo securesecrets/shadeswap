@@ -23,7 +23,7 @@ pub struct TokenPairIterator<'a, A> {
     index: u8,
 }
 
-impl Canonize for TokenPair<HumanAddr> {
+impl Canonize for TokenPair<String> {
     fn canonize(self, api: &impl Api) -> StdResult<TokenPair<CanonicalAddr>> {
         Ok(TokenPair(self.0.canonize(api)?, self.1.canonize(api)?))
     }
@@ -32,11 +32,11 @@ impl Canonize for TokenPair<HumanAddr> {
 }
 
 impl Humanize for TokenPair<CanonicalAddr> {
-    fn humanize(self, api: &impl Api) -> StdResult<TokenPair<HumanAddr>> {
+    fn humanize(self, api: &impl Api) -> StdResult<TokenPair<String>> {
         Ok(TokenPair(self.0.humanize(api)?, self.1.humanize(api)?))
     }
 
-    type Output = TokenPair<HumanAddr>;
+    type Output = TokenPair<String>;
 }
 
 impl<A: Clone + PartialEq> TokenPair<A> {
@@ -66,13 +66,13 @@ impl<A: Clone + PartialEq> TokenPair<A> {
     }
 }
 
-impl TokenPair<HumanAddr> {
+impl TokenPair<String> {
     /// Returns the balance for each token in the pair. The order of the balances in returned array
     /// correspond to the token order in the pair i.e `[ self.0 balance, self.1 balance ]`.
     pub fn query_balances(
         &self,
         querier: &impl Querier,
-        exchange_addr: HumanAddr,
+        exchange_addr: String,
         viewing_key: String,
     ) -> StdResult<[Uint128; 2]> {
         let amount_0 = self
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn token_pair_equality() {
-        let pair: TokenPair<HumanAddr> = TokenPair(
+        let pair: TokenPair<String> = TokenPair(
             TokenType::CustomToken {
                 contract_addr: "address".into(),
                 token_code_hash: "hash".into(),

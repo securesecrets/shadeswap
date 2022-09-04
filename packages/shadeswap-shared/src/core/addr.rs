@@ -22,50 +22,51 @@ pub trait Humanize {
 /// Attempting to canonicalize an empty address will fail. 
 /// This function skips calling `canonical_address` if the input is empty
 /// and returns `CanonicalAddr::default()` instead.
-pub fn canonize_maybe_empty(api: &impl Api, addr: &String) -> StdResult<CanonicalAddr> {
-    Ok(
-        if *addr == String::default() {
-            CanonicalAddr::default()
-        } else {
-            api.addr_canonicalize(addr)?
-        }
-    )
-}
+// pub fn canonize_maybe_empty(api: &impl Api, addr: &String) -> StdResult<CanonicalAddr> {
+//     Ok(
+//         if *addr == String::default() {
+//            CanonicalAddr(Binary::default())
+//         } else {
+//             api.addr_canonicalize(addr)?
+//         }
+//     )
+// }
 
-/// Attempting to humanize an empty address will fail. 
-/// This function skips calling `human_address` if the input is empty
-/// and returns `String::default()` instead.
-pub fn humanize_maybe_empty(api: &impl Api, addr: &CanonicalAddr) -> StdResult<String> {
-    Ok(
-        if *addr == CanonicalAddr::default() {
-            String::default()
-        } else {
-            api.human_address(addr)?
-        }
-    )
-}
+// /// Attempting to humanize an empty address will fail. 
+// /// This function skips calling `human_address` if the input is empty
+// /// and returns `String::default()` instead.
+// pub fn humanize_maybe_empty(api: &impl Api, addr: &CanonicalAddr) -> StdResult<String> {
+//     Ok(
+//         if *addr == CanonicalAddr(Binary::default()) {
+//             String::default()
+//         } else {
+//             api.human_address(addr)?
+//         }
+//     )
+// }
 
 impl Humanize for CanonicalAddr {
     type Output = String;
 
     fn humanize(self, api: &impl Api) -> StdResult<Self::Output> {
-        humanize_maybe_empty(api, &self)
+        Ok(api.addr_humanize(&self)?.as_str().to_string())
     }
 }
 
-impl Canonize for String {
-    type Output = CanonicalAddr;
+// impl Canonize for String {
+//     type Output = CanonicalAddr;
 
-    fn canonize(self, api: &impl Api) -> StdResult<Self::Output> {
-        canonize_maybe_empty(api, &self)
-    }
-}
+//     fn canonize(self, api: &impl Api) -> StdResult<Self::Output> {
+//         let test = &self;
+//         api.addr_canonicalize(test)
+//     }
+// }
 
 impl Humanize for &CanonicalAddr {
     type Output = String;
 
     fn humanize(self, api: &impl Api) -> StdResult<Self::Output> {
-        humanize_maybe_empty(api, self)
+        Ok(api.addr_humanize(&self)?.as_str().to_string())
     }
 }
 
@@ -73,7 +74,7 @@ impl Canonize for &String {
     type Output = CanonicalAddr;
 
     fn canonize(self, api: &impl Api) -> StdResult<Self::Output> {
-        canonize_maybe_empty(api, self)
+        api.addr_canonicalize(&self)
     }
 }
 

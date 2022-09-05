@@ -59,208 +59,83 @@ pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Ui
 
 fn main() -> serde_json::Result<()> {
     let mut reports = vec![];
-    let s_sCRT = NetContract {
-        label: "iAKBCfPG".to_string(),
-        id: "10367".to_string(),
-        address: "secret15nc5yhefuwun9wxghzmhq0fzrswcyksz9zqvs5".to_string(),
-        code_hash: "A3AB7A262D42D9FD4F67ABD507DB7E1237A68AE9EF57B746AA74AD52F922583B".to_string(),
-    };
-
-    let s_sSHD = NetContract {
-        label: "iAKBCfPG".to_string(),
-        id: "10368".to_string(),
-        address: "secret1dcxn4nqexw5d6gq2fksvnevynxaeu7nmlu4ejl".to_string(),
-        code_hash: "A3AB7A262D42D9FD4F67ABD507DB7E1237A68AE9EF57B746AA74AD52F922583B".to_string(),
-    };
-
-    // let s_sREWARDSNIP20 = NetContract {
-    //     label: "TNZElupy".to_string(),
-    //     id: "10369".to_string(),
-    //     address: "secret156jue4d0qpfnl6klpw7xgz6h3dv52lcthnpl82".to_string(),
+    // let s_sCRT = NetContract {
+    //     label: "iAKBCfPG".to_string(),
+    //     id: "10367".to_string(),
+    //     address: "secret15nc5yhefuwun9wxghzmhq0fzrswcyksz9zqvs5".to_string(),
     //     code_hash: "A3AB7A262D42D9FD4F67ABD507DB7E1237A68AE9EF57B746AA74AD52F922583B".to_string(),
     // };
 
-    let test_pair = TokenPair::<HumanAddr>(
-        TokenType::CustomToken {
-            contract_addr: s_sCRT.address.clone().into(),
-            token_code_hash: s_sCRT.code_hash.to_string(),
-        },
-        TokenType::CustomToken {
-            contract_addr: s_sSHD.address.clone().into(),
-            token_code_hash: s_sSHD.code_hash.to_string(),
-        },
-    );
+    // let s_sSHD = NetContract {
+    //     label: "iAKBCfPG".to_string(),
+    //     id: "10368".to_string(),
+    //     address: "secret1dcxn4nqexw5d6gq2fksvnevynxaeu7nmlu4ejl".to_string(),
+    //     code_hash: "A3AB7A262D42D9FD4F67ABD507DB7E1237A68AE9EF57B746AA74AD52F922583B".to_string(),
+    // };
 
-    let msg = FactoryHandleMsg::SetConfig {
-        pair_contract: None,
-        lp_token_contract: None,
-        amm_settings: Some( AMMSettings {
-            lp_fee: Fee::new(8, 100),
-            shade_dao_fee: Fee::new(2, 100),
-            shade_dao_address: ContractLink {
-                address: HumanAddr(String::from("secret1hfvezhepf6ahwry0gzhcra6zsdmva5xhphhzdh".to_string())),
-                code_hash: "".to_string(),
-            },
-        }),
-    };
+    // // let s_sREWARDSNIP20 = NetContract {
+    // //     label: "TNZElupy".to_string(),
+    // //     id: "10369".to_string(),
+    // //     address: "secret156jue4d0qpfnl6klpw7xgz6h3dv52lcthnpl82".to_string(),
+    // //     code_hash: "A3AB7A262D42D9FD4F67ABD507DB7E1237A68AE9EF57B746AA74AD52F922583B".to_string(),
+    // // };
 
-    handle(
-        &msg,
-        &NetContract{
-            label: "".to_string(),
-            id: "".to_string(),
-            address: "secret12p6nr8pumx6w5lyuut886z3cuy666rfta77e46".to_string(),
-            code_hash: "".to_string(),
-        },
-        ACCOUNT_KEY,
-        Some(GAS),
-        Some("test"),
-        Some("10000000uscrt"),
-        &mut reports,
-        None,
-    )?;
-
-    // handle(
-    //     &RouterHandleMsg::RegisterSNIP20Token {
-    //         token: HumanAddr::from(s_sCRT.address.clone()),
+    // let test_pair = TokenPair::<HumanAddr>(
+    //     TokenType::CustomToken {
+    //         contract_addr: s_sCRT.address.clone().into(),
     //         token_code_hash: s_sCRT.code_hash.to_string(),
     //     },
-    //     &NetContract { label:  "".to_string(), id:  "".to_string(), address:"secret1qp4scfkayaust4uxashax6t36upx8q32auh263".to_string(), code_hash: "".to_string() },
-    //     ACCOUNT_KEY,
-    //     Some(GAS),
-    //     Some("test"),
-    //     None,
-    //     &mut reports,
-    //     None,
-    // )
-    // .unwrap();
-
-    // handle(
-    //     &RouterHandleMsg::RegisterSNIP20Token {
-    //         token: HumanAddr::from(s_sSHD.address.clone()),
+    //     TokenType::CustomToken {
+    //         contract_addr: s_sSHD.address.clone().into(),
     //         token_code_hash: s_sSHD.code_hash.to_string(),
     //     },
-    //     &NetContract { label:  "".to_string(), id:  "".to_string(), address:"secret1qp4scfkayaust4uxashax6t36upx8q32auh263".to_string(), code_hash: "".to_string() },
+    // );
+
+    // let msg = FactoryHandleMsg::SetConfig {
+    //     pair_contract: None,
+    //     lp_token_contract: None,
+    //     amm_settings: Some( AMMSettings {
+    //         lp_fee: Fee::new(8, 100),
+    //         shade_dao_fee: Fee::new(2, 100),
+    //         shade_dao_address: ContractLink {
+    //             address: HumanAddr(String::from("secret1hfvezhepf6ahwry0gzhcra6zsdmva5xhphhzdh".to_string())),
+    //             code_hash: "".to_string(),
+    //         },
+    //     }),
+    // };
+
+    // handle(
+    //     &msg,
+    //     &NetContract{
+    //         label: "".to_string(),
+    //         id: "".to_string(),
+    //         address: "secret12p6nr8pumx6w5lyuut886z3cuy666rfta77e46".to_string(),
+    //         code_hash: "".to_string(),
+    //     },
     //     ACCOUNT_KEY,
     //     Some(GAS),
     //     Some("test"),
-    //     None,
+    //     Some("10000000uscrt"),
     //     &mut reports,
     //     None,
-    // )
-    // .unwrap();
+    // )?;
 
+   
+    // let (s_sSHDINIT, s_sSHD) = init_snip20(
+    //     "ETH".to_string(),
+    //     "ETH".to_string(),
+    //     8,
+    //     None,
+    //     &mut reports,
+    //     ACCOUNT_KEY,
+    //     Some(&SNIP20_FILE.replace("../", "")),
+    // )?;
 
-
-    // {
-    //     let msg = snip20_reference_impl::msg::HandleMsg::SetViewingKey {
-    //         key: String::from(VIEW_KEY),
-    //         padding: None,
-    //     };
-    //     handle(
-    //         &msg,
-    //         &s_sSHD,
-    //         ACCOUNT_KEY,
-    //         Some(GAS),
-    //         Some("test"),
-    //         None,
-    //         &mut reports,
-    //         None,
-    //     )?;
-    // }
-
-    // println!(
-    //     "{}",
-    //     get_balance(&s_sCRT, ACCOUNT_KEY.to_string(), VIEW_KEY.to_string(),)
-    // );
-    
-    handle(
-        &HandleMsg::Send {
-            recipient: HumanAddr::from("secret18letgdtj6fz55u4a9fm5hal9tez3ruz79gscpj".to_string()),
-            recipient_code_hash: None,
-            amount: Uint128(25000),
-            msg: Some(
-                to_binary(&RouterInvokeMsg::SwapTokensForExact {
-                    expected_return: Some(Uint128(5)),
-                    paths: vec![HumanAddr::from("secret1c50a69q0dxcedu3ufs40sf7rupz6grmxnhgwtn".to_string())],
-                    recipient: None,
-                })
-                .unwrap(),
-            ),
-            memo: None,
-            padding: None,
-        },
-        &s_sCRT,
-        ACCOUNT_KEY,
-        Some(GAS),
-        Some("test"),
-        None,
-        &mut reports,
-        None,
-    )
-    .unwrap();
-
-
-
-
-    // println!("\n\tDepositing 1000000000uscrt sSCRT");
-
-    // {
-    //     let msg = snip20::HandleMsg::Mint { padding: None, recipient: HumanAddr(String::from("secret138pqmt4gyyhjrtzj9vnf2k622d5cdvwucr423q")), amount: Uint128(1000000000)};
-
-    //     handle(
-    //         &msg,
-    //         &s_sSHD,
-    //         ACCOUNT_KEY,
-    //         Some(GAS),
-    //         Some("test"),
-    //         Some("10000000uscrt"),
-    //         &mut reports,
-    //         None,
-    //     )?;
-    // }
-
-    handle(
-        &AMMPairHandlMsg::AddLiquidityToAMMContract {
-            deposit: TokenPairAmount {
-                pair: test_pair.clone(),
-                amount_0: Uint128(100000000),
-                amount_1: Uint128(100000000),
-            },
-            slippage: None,
-            staking: None,
-        },
-        &NetContract {
-            label: "".to_string(),
-            id: "".to_string(),
-            address: "secret15hmyq33a4rn8d82h8gtmd3nyxq04zdc89u32p7".to_string(),
-            code_hash: "".to_string(),
-        },
-        ACCOUNT_KEY,
-        Some(GAS),
-        Some("test"),
-        None,
-        &mut reports,
-        None,
-    )
-    .unwrap();
-
-    println!("\n\tDepositing 1000000000uscrt sSHD");
-
-    // {
-    //     let msg = snip20::HandleMsg::Deposit { padding: None };
-
-    //     handle(
-    //         &msg,
-    //         &s_sSHD,
-    //         ACCOUNT_KEY,
-    //         Some(GAS),
-    //         Some("test"),
-    //         Some("1000000000uscrt"),
-    //         &mut reports,
-    //         None,
-    //     )?;
-    // }
+    let contract_eth = init_snip20_contract("ETH".to_string(), "ETH".to_string(), &mut reports)?;
+    let contract_btc = init_snip20_contract("BTC".to_string(), "BTC".to_string(), &mut reports)?;    
+    let reward_contract = init_snip20_contract("REWARD".to_string(), "Reward BTC/ETH".to_string(), &mut reports)?; 
+    set_viewing_key(VIEW_KEY.to_owned(), &contract_btc,&mut reports);
+    set_viewing_key(VIEW_KEY.to_owned(), &contract_eth, &mut reports);
 
     print_header("Storing all contracts");
     let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
@@ -286,6 +161,17 @@ fn main() -> serde_json::Result<()> {
         Some(STORE_GAS),
         Some("test"),
     )?;
+
+    let btc_eth_pair = TokenPair::<HumanAddr>(
+    TokenType::CustomToken {
+        contract_addr: contract_btc.address.to_string().into(),
+        token_code_hash: contract_btc.code_hash.clone(),
+    },
+    TokenType::CustomToken {
+        contract_addr: contract_eth.address.to_string().into(),
+        token_code_hash: contract_eth.code_hash.clone(),
+    },
+);
 
     print_header("\n\tInitializing Factory Contract");
 
@@ -362,8 +248,8 @@ fn main() -> serde_json::Result<()> {
             
             handle(
                 &RouterHandleMsg::RegisterSNIP20Token {
-                    token: HumanAddr::from(s_sCRT.address.clone()),
-                    token_code_hash: s_sCRT.code_hash.to_string(),
+                    token: HumanAddr::from(contract_btc.address.clone()),
+                    token_code_hash: contract_btc.code_hash.to_string(),
                 },
                 &NetContract { label:  "".to_string(), id:  "".to_string(), address: router_contract.address.to_string(), code_hash: "".to_string() },
                 ACCOUNT_KEY,
@@ -377,8 +263,8 @@ fn main() -> serde_json::Result<()> {
 
             handle(
                 &RouterHandleMsg::RegisterSNIP20Token {
-                    token: HumanAddr::from(s_sSHD.address.clone()),
-                    token_code_hash: s_sSHD.code_hash.to_string(),
+                    token: HumanAddr::from(contract_eth.address.clone()),
+                    token_code_hash: contract_eth.code_hash.to_string(),
                 },
                 &NetContract { label:  "".to_string(), id:  "".to_string(), address: router_contract.address.to_string().to_string(), code_hash: "".to_string() },
                 ACCOUNT_KEY,
@@ -391,33 +277,33 @@ fn main() -> serde_json::Result<()> {
             .unwrap();
 
 
-            {
-                handle(
-                    &FactoryHandleMsg::CreateAMMPair {
-                        pair: test_pair.clone(),
-                        entropy: entropy,
-                        staking_contract: Some(StakingContractInit {
-                            contract_info: ContractInstantiationInfo {
-                                code_hash: staking_contract.code_hash.to_string(),
-                                id: staking_contract.id.clone().parse::<u64>().unwrap(),
-                            },
-                            amount: Uint128(100000u128),
-                            reward_token: TokenType::CustomToken {
-                                contract_addr: s_sCRT.address.clone().into(),
-                                token_code_hash: s_sCRT.code_hash.to_string(),
-                            },
-                        }),
-                    },
-                    &factory_contract,
-                    ACCOUNT_KEY,
-                    Some(GAS),
-                    Some("test"),
-                    None,
-                    &mut reports,
-                    None,
-                )
-                .unwrap();
-            }
+            // {
+            //     handle(
+            //         &FactoryHandleMsg::CreateAMMPair {
+            //             pair: test_pair.clone(),
+            //             entropy: entropy,
+            //             staking_contract: Some(StakingContractInit {
+            //                 contract_info: ContractInstantiationInfo {
+            //                     code_hash: staking_contract.code_hash.to_string(),
+            //                     id: staking_contract.id.clone().parse::<u64>().unwrap(),
+            //                 },
+            //                 amount: Uint128(100000u128),
+            //                 reward_token: TokenType::CustomToken {
+            //                     contract_addr: reward_contract.address.clone().into(),
+            //                     token_code_hash: reward_contracts.code_hash.to_string(),
+            //                 },
+            //             }),
+            //         },
+            //         &factory_contract,
+            //         ACCOUNT_KEY,
+            //         Some(GAS),
+            //         Some("test"),
+            //         None,
+            //         &mut reports,
+            //         None,
+            //     )
+            //     .unwrap();
+            // }
 
             print_header("\n\tGetting Pairs from Factory");
             {
@@ -442,9 +328,9 @@ fn main() -> serde_json::Result<()> {
                         },
                         &NetContract {
                             label: "".to_string(),
-                            id: s_sSHD.id.clone(),
-                            address: s_sSHD.address.clone(),
-                            code_hash: s_sSHD.code_hash.to_string(),
+                            id: contract_btc.id.clone(),
+                            address: contract_btc.address.clone(),
+                            code_hash: contract_btc.code_hash.to_string(),
                         },
                         ACCOUNT_KEY,
                         Some(GAS),
@@ -464,9 +350,9 @@ fn main() -> serde_json::Result<()> {
                         },
                         &NetContract {
                             label: "".to_string(),
-                            id: s_sCRT.id.clone(),
-                            address: s_sCRT.address.clone(),
-                            code_hash: s_sCRT.code_hash.to_string(),
+                            id: contract_eth.id.clone(),
+                            address: contract_eth.address.clone(),
+                            code_hash: contract_eth.code_hash.to_string(),
                         },
                         ACCOUNT_KEY,
                         Some(GAS),
@@ -480,7 +366,7 @@ fn main() -> serde_json::Result<()> {
                     handle(
                         &AMMPairHandlMsg::AddLiquidityToAMMContract {
                             deposit: TokenPairAmount {
-                                pair: test_pair.clone(),
+                                pair: btc_eth_pair.clone(),
                                 amount_0: Uint128(100000000),
                                 amount_1: Uint128(100000000),
                             },
@@ -510,7 +396,7 @@ fn main() -> serde_json::Result<()> {
 
         handle(
             &msg,
-            &s_sCRT,
+            &contract_btc,
             ACCOUNT_KEY,
             Some(GAS),
             Some("test"),
@@ -519,15 +405,183 @@ fn main() -> serde_json::Result<()> {
             None,
         )?;
     }
-                }
+    }
             }
         } else {
             assert!(false, "Query returned unexpected response")
         }
     }
-
-    return Ok(());
+    Ok(())
 }
+
+fn set_viewing_key(viewingKey: String, netContract: &NetContract, reports: &mut Vec<Report>) ->Result<()>{
+    let msg = snip20_reference_impl::msg::HandleMsg::SetViewingKey {
+        key: String::from(VIEW_KEY),
+        padding: None,
+    };
+    handle(
+        &msg,
+        &netContract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        reports,
+        None,
+    )?;
+
+    Ok(())
+}
+
+fn init_snip20_contract(symbol: String, name: String, reports: &mut Vec<Report>) -> Result<NetContract>{
+    
+    let test = String::from(name.clone() + "Initializing");
+    print_header(&test);
+    
+    let (s_sSHDINIT, s_contract) = init_snip20(
+        name.to_string(),
+        symbol.to_string(),
+        8,
+        None,
+        reports,
+        ACCOUNT_KEY,
+        Some(&SNIP20_FILE.replace("../", "")),
+    )?;
+
+    println!("Contract address - {}", s_contract.address.clone());
+    println!("Code hash - {}", s_contract.code_hash.clone());
+    println!("Code Id - {}", s_contract.id);
+    
+    Ok(s_contract)
+}
+
+    // handle(
+    //     &RouterHandleMsg::RegisterSNIP20Token {
+    //         token: HumanAddr::from(s_sCRT.address.clone()),
+    //         token_code_hash: s_sCRT.code_hash.to_string(),
+    //     },
+    //     &NetContract { label:  "".to_string(), id:  "".to_string(), address:"secret1qp4scfkayaust4uxashax6t36upx8q32auh263".to_string(), code_hash: "".to_string() },
+    //     ACCOUNT_KEY,
+    //     Some(GAS),
+    //     Some("test"),
+    //     None,
+    //     &mut reports,
+    //     None,
+    // )
+    // .unwrap();
+
+    // handle(
+    //     &RouterHandleMsg::RegisterSNIP20Token {
+    //         token: HumanAddr::from(s_sSHD.address.clone()),
+    //         token_code_hash: s_sSHD.code_hash.to_string(),
+    //     },
+    //     &NetContract { label:  "".to_string(), id:  "".to_string(), address:"secret1qp4scfkayaust4uxashax6t36upx8q32auh263".to_string(), code_hash: "".to_string() },
+    //     ACCOUNT_KEY,
+    //     Some(GAS),
+    //     Some("test"),
+    //     None,
+    //     &mut reports,
+    //     None,
+    // )
+    // .unwrap();
+
+
+
+    // println!(
+    //     "{}",
+    //     get_balance(&s_sCRT, ACCOUNT_KEY.to_string(), VIEW_KEY.to_string(),)
+    // );
+    
+    // handle(
+    //     &HandleMsg::Send {
+    //         recipient: HumanAddr::from("secret18letgdtj6fz55u4a9fm5hal9tez3ruz79gscpj".to_string()),
+    //         recipient_code_hash: None,
+    //         amount: Uint128(25000),
+    //         msg: Some(
+    //             to_binary(&RouterInvokeMsg::SwapTokensForExact {
+    //                 expected_return: Some(Uint128(5)),
+    //                 paths: vec![HumanAddr::from("secret1c50a69q0dxcedu3ufs40sf7rupz6grmxnhgwtn".to_string())],
+    //                 recipient: None,
+    //             })
+    //             .unwrap(),
+    //         ),
+    //         memo: None,
+    //         padding: None,
+    //     },
+    //     &s_sCRT,
+    //     ACCOUNT_KEY,
+    //     Some(GAS),
+    //     Some("test"),
+    //     None,
+    //     &mut reports,
+    //     None,
+    // )
+    // .unwrap();
+
+
+
+
+    // println!("\n\tDepositing 1000000000uscrt sSCRT");
+
+    // {
+    //     let msg = snip20::HandleMsg::Mint { padding: None, recipient: HumanAddr(String::from("secret138pqmt4gyyhjrtzj9vnf2k622d5cdvwucr423q")), amount: Uint128(1000000000)};
+
+    //     handle(
+    //         &msg,
+    //         &s_sSHD,
+    //         ACCOUNT_KEY,
+    //         Some(GAS),
+    //         Some("test"),
+    //         Some("10000000uscrt"),
+    //         &mut reports,
+    //         None,
+    //     )?;
+    // }
+
+    // handle(
+    //     &AMMPairHandlMsg::AddLiquidityToAMMContract {
+    //         deposit: TokenPairAmount {
+    //             pair: test_pair.clone(),
+    //             amount_0: Uint128(100000000),
+    //             amount_1: Uint128(100000000),
+    //         },
+    //         slippage: None,
+    //         staking: None,
+    //     },
+    //     &NetContract {
+    //         label: "".to_string(),
+    //         id: "".to_string(),
+    //         address: "secret15hmyq33a4rn8d82h8gtmd3nyxq04zdc89u32p7".to_string(),
+    //         code_hash: "".to_string(),
+    //     },
+    //     ACCOUNT_KEY,
+    //     Some(GAS),
+    //     Some("test"),
+    //     None,
+    //     &mut reports,
+    //     None,
+    // )
+    // .unwrap();
+
+    // println!("\n\tDepositing 1000000000uscrt sSHD");
+
+    // {
+    //     let msg = snip20::HandleMsg::Deposit { padding: None };
+
+    //     handle(
+    //         &msg,
+    //         &s_sSHD,
+    //         ACCOUNT_KEY,
+    //         Some(GAS),
+    //         Some("test"),
+    //         Some("1000000000uscrt"),
+    //         &mut reports,
+    //         None,
+    //     )?;
+    // }
+
+
+// }
 
 //Used for adapting
 // let test_pair = TokenPair::<HumanAddr>(

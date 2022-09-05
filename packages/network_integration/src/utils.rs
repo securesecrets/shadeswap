@@ -149,10 +149,8 @@ pub struct InitMsg {
     pub symbol: String,
     pub decimals: u8,
     pub initial_balances: Option<Vec<InitialBalance>>,
-    pub initial_allowances: Option<Vec<InitialAllowance>>,
     pub prng_seed: Binary,
     pub config: Option<InitConfig>,
-    pub callback: Option<Callback<HumanAddr>>
 }
 
 
@@ -172,9 +170,7 @@ pub fn init_snip20(
         decimals: decimals,
         initial_balances: None,
         prng_seed: Default::default(),
-        config: config,
-        initial_allowances: None,
-        callback: None,
+        config: config
     };
 
     let s_sToken = init(

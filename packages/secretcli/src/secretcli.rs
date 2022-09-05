@@ -39,7 +39,7 @@ fn secretcli_run(command: Vec<String>, max_retry: Option<i32>) -> Result<Value> 
     let retry = max_retry.unwrap_or(20);
     let mut commands = command;
     commands.append(&mut vec_str_to_vec_string(vec!["--output", "json"]));
-    let mut cli = Command::new("secretd".to_string());
+    let mut cli = Command::new("./secretd".to_string());
     if !commands.is_empty() {
         cli.args(commands);
     }
@@ -57,9 +57,9 @@ fn secretcli_run(command: Vec<String>, max_retry: Option<i32>) -> Result<Value> 
     }
     let out = result.stdout;
     if String::from_utf8_lossy(&out).contains("output_error") {
-        println!("{:?}", &String::from_utf8_lossy(&out));
+       //  println!("{:?}", &String::from_utf8_lossy(&out));
     }
-    // println!("{:?}", &String::from_utf8_lossy(&out));
+    println!("{:?}", &String::from_utf8_lossy(&out));
     serde_json::from_str(&String::from_utf8_lossy(&out))
 }
 
@@ -88,6 +88,7 @@ fn store_contract(
         user.unwrap_or("a"),
         "--gas",
         gas.unwrap_or("10000000"),
+        "--gas-adjustment=1.5",
         "-y",
     ];
 
@@ -156,7 +157,7 @@ pub fn account_address(acc: &str) -> Result<String> {
     let command = vec_str_to_vec_string(vec!["keys", "show", "-a", acc]);
 
     let retry = 20;
-    let mut cli = Command::new("secretd".to_string());
+    let mut cli = Command::new("./secretd".to_string());
     if !command.is_empty() {
         cli.args(command);
     }
@@ -239,7 +240,9 @@ fn instantiate_contract<Init: serde::Serialize>(
         sender,
         "--label",
         label,
+        "--gas-adjustment=1.5",
         "--gas",
+      
     ];
 
     command.push(match gas {
@@ -348,6 +351,7 @@ pub fn init<Message: serde::Serialize>(
     // Look for the contract's address
     for attribute in &init_query.logs[0].events[0].attributes {
         if attribute.msg_key == "contract_address" {
+            println!("Contract Address :: {}", attribute.value.clone());
             contract.address = attribute.value.clone();
             break;
         }

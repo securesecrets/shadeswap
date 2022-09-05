@@ -4,9 +4,13 @@ version = "0.1.0"
 authors = ["Tony Nguyen <tnguyen@polarity.exchange>"]
 edition = "2018"
 
+# [[bin]]
+# name = "deploy"
+# path = "src/launch/deploy.rs"
+
 [[bin]]
-name = "deploy"
-path = "src/launch/deploy.rs"
+name="deploy-snip20"
+path="src/launch/deploy.rs"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

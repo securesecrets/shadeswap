@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{
-    Api, CanonicalAddr, Coin, HumanAddr, Storage, StdError, StdResult, Storage, Uint128,
+    Api, CanonicalAddr, Coin, HumanAddr, ReadonlyStorage, StdError, StdResult, Storage, Uint128,
 };
 use cosmwasm_storage::{PrefixedStorage, ReadonlyPrefixedStorage};
 
@@ -437,7 +437,7 @@ fn append_transfer<S: Storage>(
     store.push(tx)
 }
 
-pub fn get_txs<A: Api, S: Storage>(
+pub fn get_txs<A: Api, S: ReadonlyStorage>(
     api: &A,
     storage: &S,
     for_address: &CanonicalAddr,
@@ -470,7 +470,7 @@ pub fn get_txs<A: Api, S: Storage>(
     txs.map(|txs| (txs, store.len() as u64))
 }
 
-pub fn get_transfers<A: Api, S: Storage>(
+pub fn get_transfers<A: Api, S: ReadonlyStorage>(
     api: &A,
     storage: &S,
     for_address: &CanonicalAddr,

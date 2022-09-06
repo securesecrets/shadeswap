@@ -24,9 +24,6 @@ pub mod utils;
 pub mod contract_interfaces;
 pub use contract_interfaces::*;
 
-#[cfg(feature = "query_auth_lib")]
-pub use query_authentication;
-
 // Forward important libs to avoid constantly importing them in the cargo crates, could help reduce compile times
 pub mod c_std {
     pub use cosmwasm_std::*;
@@ -34,7 +31,6 @@ pub mod c_std {
 pub const BLOCK_SIZE: usize = 256;
 
 
-#[cfg(feature = "utils")]
 pub use utils::asset::Contract;
 pub use serde;
 

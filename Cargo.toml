@@ -1,14 +1,14 @@
 [workspace]
 members = [
     "packages/shadeswap-shared",
-    "contracts/amm_pair",
-    "contracts/factory",
-    "contracts/router",
-    "contracts/snip20",
-    "contracts/lp_token",
-    "contracts/staking",
-    "packages/network_integration",
-    "packages/cosmwasm_math_compat",
+    # "contracts/amm_pair",
+    # "contracts/factory",
+    # "contracts/router",
+    # "contracts/snip20",
+    # "contracts/lp_token",
+    # "contracts/staking",
+    # "packages/network_integration",
+    # "packages/cosmwasm_math_compat",
 ]
 
 [profile.release]

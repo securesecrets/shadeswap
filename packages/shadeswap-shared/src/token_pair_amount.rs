@@ -5,7 +5,7 @@ use cosmwasm_std::{
     Querier,
     StdError,
     StdResult,
-    Storage, Env, Response, Uint128,
+    Storage, Env, Response, Uint128, MessageInfo,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -21,9 +21,9 @@ pub struct TokenPairAmount<A: Clone> {
 }
 
 impl<A: Clone> TokenPairAmount<A> {
-    pub fn assert_sent_native_token_balance(&self, env: &Env) -> StdResult<()> {
-        self.pair.0.assert_sent_native_token_balance(env, self.amount_0)?;
-        self.pair.1.assert_sent_native_token_balance(env, self.amount_1)?;
+    pub fn assert_sent_native_token_balance(&self, info: &MessageInfo) -> StdResult<()> {
+        self.pair.0.assert_sent_native_token_balance(info, self.amount_0)?;
+        self.pair.1.assert_sent_native_token_balance(info, self.amount_1)?;
 
         Ok(())
     }

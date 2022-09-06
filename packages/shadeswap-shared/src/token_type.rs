@@ -105,7 +105,7 @@ impl<A: Clone> TokenType<A> {
 impl TokenType<String> {
     pub fn query_balance(
         &self,
-        deps: DepsMut,
+        deps: &DepsMut,
         exchange_addr: String,
         viewing_key: String,
     ) -> StdResult<Uint128> {

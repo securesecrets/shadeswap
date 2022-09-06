@@ -1,6 +1,7 @@
 use cosmwasm_std::{MessageInfo, Timestamp};
 use crate::c_std::{Binary, Env, Addr, StdError, StdResult, Storage, BlockInfo};
-use crate::query_authentication::viewing_keys::ViewingKey;
+use crate::impl_into_u8;
+use query_authentication::viewing_keys::ViewingKey;
 
 use crate::utils::asset::Contract;
 use crate::utils::crypto::{Prng, sha_256};
@@ -325,6 +326,3 @@ pub struct ReceiverHash(pub String);
 impl MapStorage<'static, Addr> for ReceiverHash {
     const MAP: Map<'static, Addr, Self> = Map::new("receiver-hash-");
 }
-
-// Auth
-pub use crate::contract_interfaces::query_auth::auth::{Key, HashedKey, PermitKey};

@@ -1,5 +1,5 @@
 
-use cosmwasm_std::{CanonicalAddr, Uint128};
+use cosmwasm_std::{CanonicalAddr, Uint128, DepsMut};
 use cosmwasm_std::{
     from_binary,
     Api,
@@ -71,14 +71,14 @@ impl TokenPair<String> {
     /// correspond to the token order in the pair i.e `[ self.0 balance, self.1 balance ]`.
     pub fn query_balances(
         &self,
-        querier: &impl Querier,
+        deps: &DepsMut,
         exchange_addr: String,
         viewing_key: String,
     ) -> StdResult<[Uint128; 2]> {
         let amount_0 = self
             .0
-            .query_balance(querier, exchange_addr.clone(), viewing_key.clone())?;
-        let amount_1 = self.1.query_balance(querier, exchange_addr, viewing_key)?;
+            .query_balance(deps, exchange_addr.clone(), viewing_key.clone())?;
+        let amount_1 = self.1.query_balance(deps, exchange_addr, viewing_key)?;
 
         // order is important
         Ok([amount_0, amount_1])

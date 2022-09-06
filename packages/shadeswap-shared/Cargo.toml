@@ -45,7 +45,7 @@ sha2 = { version = "0.9.1", default-features = false }
 subtle = { version = "2.2.3", default-features = false }
 rand_chacha = { version = "0.2.2", default-features = false }
 rand_core = { version = "0.5.1", default-features = false }
-query-authentication = { git = "https://github.com/securesecrets/query-authentication", branch = "cosmwasm_v1_upgrade", optional = true }
-chrono = { version = "=0.4.19", optional = true }
+query-authentication = { git = "https://github.com/securesecrets/query-authentication", branch = "cosmwasm_v1_upgrade" }
+chrono = { version = "=0.4.19" }
 # shadeswap-derive-canonize = { path = "../shadeswap_derive_canonize" }
 

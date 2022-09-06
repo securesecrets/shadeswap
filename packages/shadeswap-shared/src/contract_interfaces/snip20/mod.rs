@@ -6,7 +6,7 @@ pub mod helpers;
 
 use cosmwasm_std::{MessageInfo, Api};
 use crate::c_std::{Binary, Env, Addr, StdError, StdResult, Storage};
-use crate::query_authentication::permit::Permit;
+use query_authentication::permit::Permit;
 
 use serde::Serialize;
 use crate::utils::crypto::sha_256;

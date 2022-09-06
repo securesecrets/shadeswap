@@ -153,6 +153,12 @@ pub struct InitMsg {
     pub config: Option<InitConfig>,
 }
 
+impl InitMsg {
+    pub fn config(&self) -> InitConfig {
+        self.config.clone().unwrap_or_default()
+    }
+}
+
 
 pub fn init_snip20(
     name: String,
@@ -163,7 +169,7 @@ pub fn init_snip20(
     account_key: &str,
     customizedSnip20File: Option<&str>
 ) -> Result<(InitMsg, NetContract)> {
-    let init_msg = InitMsg {
+    let mut init_msg = InitMsg {
         name: name.to_string(),
         admin: None,
         symbol: symbol.to_string(),
@@ -172,6 +178,8 @@ pub fn init_snip20(
         prng_seed: Default::default(),
         config: config
     };
+
+     
 
     let s_sToken = init(
         &init_msg,

@@ -6,73 +6,26 @@ use cosmwasm_std::{
     StdError,
     StdResult,
     Storage, Env, Response, 
-    CanonicalAddr
+    CanonicalAddr, Addr
 };
-use crate::{custom_fee::Fee, core::Humanize};
-use crate::token_pair::TokenPair;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use crate::core::{Canonize, ContractLink};
+use crate::core::{ContractLink, TokenPair, Fee};
 
 /// Represents the address of an exchange and the pair that it manages
 #[derive(Serialize, Deserialize, JsonSchema, Clone, PartialEq, Debug)]
-pub struct AMMPair<A: Clone> {
+pub struct AMMPair {
     /// The pair that the contract manages.
-    pub pair: TokenPair<A>,
+    pub pair: TokenPair,
     /// Address of the contract that manages the exchange.
-    pub address: A,
+    pub address: Addr,
 }
 
-impl Canonize for AMMPair<String> {
-    fn canonize(self, api: &impl Api) -> StdResult<AMMPair<CanonicalAddr>> {
-        Ok(AMMPair {
-            pair: self.pair.canonize(api)?,
-            address: api.addr_canonicalize(&self.address)?,
-        })
-    }
-
-    type Output = AMMPair<CanonicalAddr>;
-}
-
-impl Humanize for AMMPair<CanonicalAddr> {
-    fn humanize(self, api: &impl Api) -> StdResult<AMMPair<String>> {
-        Ok(AMMPair {
-            pair: self.pair.humanize(api)?,
-            address: self.address.humanize(api)?,
-        })
-    }
-
-    type Output = AMMPair<String>;
-}
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug,Clone)]
-pub struct AMMSettings<A> {
+pub struct AMMSettings {
     pub lp_fee: Fee,
     pub shade_dao_fee: Fee,
-    pub shade_dao_address: ContractLink<A>
-}
-
-impl Canonize for AMMSettings<String> {
-    fn canonize(self, api: &impl Api) -> StdResult<AMMSettings<CanonicalAddr>> {
-        Ok(AMMSettings {
-            lp_fee: self.lp_fee,
-            shade_dao_fee: self.shade_dao_fee,
-            shade_dao_address: self.shade_dao_address.canonize(api)?
-        })
-    }
-
-    type Output = AMMSettings<CanonicalAddr>;
-}
-
-impl Humanize for AMMSettings<CanonicalAddr> {
-    fn humanize(self, api: &impl Api) -> StdResult<AMMSettings<String>> {
-        Ok(AMMSettings {
-            lp_fee: self.lp_fee,
-            shade_dao_fee: self.shade_dao_fee,
-            shade_dao_address: self.shade_dao_address.humanize(api)?
-        })
-    }
-
-    type Output = AMMSettings<String>;
+    pub shade_dao_address: ContractLink
 }
 

@@ -1,4 +1,3 @@
-use crate::TokenType;
 use cosmwasm_std::{
     from_binary, Api, Binary, Env, Response, Querier, StdError,
     StdResult, Storage,
@@ -6,9 +5,6 @@ use cosmwasm_std::{
 use cosmwasm_std::{Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-use crate::token_amount::TokenAmount;
-use crate::token_pair_amount::TokenPairAmount;
 use crate::core::ContractInstantiationInfo;
 use crate::core::ContractLink;
 
@@ -20,7 +16,7 @@ pub struct CountResponse {
 
 pub mod router {
     use super::{amm_pair::SwapResult, *};
-    use crate::{viewing_keys::ViewingKey, core::ContractLink};
+    use crate::core::{ViewingKey, ContractLink, TokenAmount};
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub enum InvokeMsg {
@@ -33,7 +29,7 @@ pub mod router {
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
-        pub factory_address: ContractLink<String>,
+        pub factory_address: ContractLink,
         pub prng_seed: Binary,
         pub entropy: Binary,
         pub viewing_key: Option<String>,
@@ -41,7 +37,7 @@ pub mod router {
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
-    pub enum HandleMsg {
+    pub enum ExecuteMsg {
         // SNIP20 receiver interface
         Receive {
             from: String,
@@ -50,13 +46,13 @@ pub mod router {
         },
         SwapTokensForExact {
             /// The token type to swap from.
-            offer: TokenAmount<String>,
+            offer: TokenAmount,
             expected_return: Option<Uint128>,
             path: Vec<String>,
             recipient: Option<String>,
         },
         SwapCallBack {
-            last_token_out: TokenAmount<String>,
+            last_token_out: TokenAmount,
             signature: Binary,
         },
         RegisterSNIP20Token {
@@ -69,7 +65,7 @@ pub mod router {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         SwapSimulation {
-            offer: TokenAmount<String>,
+            offer: TokenAmount,
             path: Vec<String>,
         },
     }
@@ -91,9 +87,8 @@ pub mod amm_pair {
     use super::*;
     use crate::{
         amm_pair::AMMSettings,
-        custom_fee::{CustomFee, Fee},
         stake_contract::StakingContractInit,
-        Pagination, TokenPair, core::{ContractLink, ContractInstantiationInfo, Callback},
+        Pagination, core::{ContractLink, ContractInstantiationInfo, Callback, TokenPairAmount, TokenAmount, CustomFee, Fee, TokenPair},
     };
     use cosmwasm_std::Decimal;
     use schemars::JsonSchema;
@@ -127,11 +122,11 @@ pub mod amm_pair {
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
-        pub pair: TokenPair<String>,
+        pub pair: TokenPair,
         pub lp_token_contract: ContractInstantiationInfo,
-        pub factory_info: ContractLink<String>,
+        pub factory_info: ContractLink,
         pub prng_seed: Binary,
-        pub callback: Option<Callback<String>>,
+        pub callback: Option<Callback>,
         pub entropy: Binary,
         pub admin: Option<String>,
         pub staking_contract: Option<StakingContractInit>,
@@ -139,18 +134,18 @@ pub mod amm_pair {
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
-    pub enum HandleMsg {
+    pub enum ExecuteMsg {
         AddLiquidityToAMMContract {
-            deposit: TokenPairAmount<String>,
+            deposit: TokenPairAmount,
             slippage: Option<Decimal>,
             staking: Option<bool>,
         },
         SwapTokens {
             /// The token type to swap from.
-            offer: TokenAmount<String>,
+            offer: TokenAmount,
             expected_return: Option<Uint128>,
             to: Option<String>,
-            router_link: Option<ContractLink<String>>,
+            router_link: Option<ContractLink>,
             callback_signature: Option<Binary>,
         },
         // SNIP20 receiver interface
@@ -171,7 +166,7 @@ pub mod amm_pair {
             admin: String,
         },
         SetStakingContract {
-            contract: ContractLink<String>,
+            contract: ContractLink,
         },
         SetCustomPairFee {
             shade_dao_fee: Fee,
@@ -184,7 +179,7 @@ pub mod amm_pair {
         SwapTokens {
             expected_return: Option<Uint128>,
             to: Option<String>,
-            router_link: Option<ContractLink<String>>,
+            router_link: Option<ContractLink>,
             callback_signature: Option<Binary>,
         },
         RemoveLiquidity {
@@ -203,15 +198,15 @@ pub mod amm_pair {
         GetAdmin {},
         GetStakingContract {},
         GetEstimatedPrice {
-            offer: TokenAmount<String>,
+            offer: TokenAmount,
             exclude_fee: Option<bool>,
         },
         SwapSimulation {
-            offer: TokenAmount<String>,
+            offer: TokenAmount,
         },
         GetShadeDaoInfo {},
         GetEstimatedLiquidity {
-            deposit: TokenPairAmount<String>,
+            deposit: TokenPairAmount,
             slippage: Option<Decimal>,
         },
     }
@@ -220,9 +215,9 @@ pub mod amm_pair {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsgResponse {
         GetPairInfo {
-            liquidity_token: ContractLink<String>,
-            factory: ContractLink<String>,
-            pair: TokenPair<String>,
+            liquidity_token: ContractLink,
+            factory: ContractLink,
+            pair: TokenPair,
             amount_0: Uint128,
             amount_1: Uint128,
             total_liquidity: Uint128,
@@ -244,7 +239,7 @@ pub mod amm_pair {
             amount: Uint128,
         },
         StakingContractInfo {
-            staking_contract: ContractLink<String>,
+            staking_contract: ContractLink,
         },
         EstimatedPrice {
             estimated_price: String,
@@ -272,8 +267,9 @@ pub mod amm_pair {
 pub mod factory {
     use super::*;
     use crate::amm_pair::AMMPair;
+    use crate::core::TokenPair;
     use crate::stake_contract::StakingContractInit;
-    use crate::{amm_pair::AMMSettings, Pagination, TokenPair};
+    use crate::{amm_pair::AMMSettings, Pagination};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
     
@@ -281,36 +277,36 @@ pub mod factory {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub pair_contract: ContractInstantiationInfo,
-        pub amm_settings: AMMSettings<String>,
+        pub amm_settings: AMMSettings,
         pub lp_token_contract: ContractInstantiationInfo,
         pub prng_seed: Binary,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
-    pub enum HandleMsg {
+    pub enum ExecuteMsg {
         SetConfig {
             pair_contract: Option<ContractInstantiationInfo>,
             lp_token_contract: Option<ContractInstantiationInfo>,
-            amm_settings: Option<AMMSettings<String>>,
+            amm_settings: Option<AMMSettings>,
         },
         CreateAMMPair {
-            pair: TokenPair<String>,
+            pair: TokenPair,
             entropy: Binary,
             staking_contract: Option<StakingContractInit>,
         },
         AddAMMPairs {
-            amm_pairs: Vec<AMMPair<String>>,
+            amm_pairs: Vec<AMMPair>,
         },
         RegisterAMMPair {
-            pair: TokenPair<String>,
+            pair: TokenPair,
             signature: Binary,
         },
         SetFactoryAdmin {
             admin: String,
         },
         SetShadeDAOAddress {
-            shade_dao_address: ContractLink<String>,
+            shade_dao_address: ContractLink,
         },
     }
 
@@ -318,18 +314,18 @@ pub mod factory {
     #[serde(rename_all = "snake_case")]
     pub enum QueryResponse {
         ListAMMPairs {
-            amm_pairs: Vec<AMMPair<String>>,
+            amm_pairs: Vec<AMMPair>,
         },
         GetConfig {
             pair_contract: ContractInstantiationInfo,
-            amm_settings: AMMSettings<String>,
+            amm_settings: AMMSettings,
             lp_token_contract: ContractInstantiationInfo,
         },
         GetAMMPairAddress {
             address: String,
         },
         GetAMMSettings {
-            settings: AMMSettings<String>,
+            settings: AMMSettings,
         },
         GetAdminAddress {
             address: String,
@@ -341,7 +337,7 @@ pub mod factory {
     pub enum QueryMsg {
         // GetCount returns the current count as a json-encoded number
         ListAMMPairs { pagination: Pagination },
-        GetAMMPairAddress { pair: TokenPair<String> },
+        GetAMMPairAddress { pair: TokenPair },
         GetAMMSettings,
         GetConfig,
         GetAdmin,
@@ -349,27 +345,29 @@ pub mod factory {
 }
 
 pub mod staking {
+    use crate::core::TokenType;
+
     use super::*;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub staking_amount: Uint128,
-        pub reward_token: TokenType<String>, 
-        pub pair_contract: ContractLink<String>,
+        pub reward_token: TokenType, 
+        pub pair_contract: ContractLink,
         pub prng_seed: Binary
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
-    pub enum HandleMsg {
+    pub enum ExecuteMsg {
         ClaimRewards {},
         Unstake {
             amount: Uint128,
             remove_liqudity: Option<bool>,
         },
         SetLPToken {
-            lp_token: ContractLink<String>,
+            lp_token: ContractLink,
         },
         Receive {
             from: String,

@@ -90,7 +90,7 @@ pub mod amm_pair {
         stake_contract::StakingContractInit,
         Pagination, core::{ContractLink, ContractInstantiationInfo, Callback, TokenPairAmount, TokenAmount, CustomFee, Fee, TokenPair},
     };
-    use cosmwasm_std::Decimal;
+    use cosmwasm_std::{Decimal, Addr};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
@@ -126,9 +126,8 @@ pub mod amm_pair {
         pub lp_token_contract: ContractInstantiationInfo,
         pub factory_info: ContractLink,
         pub prng_seed: Binary,
-        pub callback: Option<Callback>,
         pub entropy: Binary,
-        pub admin: Option<String>,
+        pub admin: Option<Addr>,
         pub staking_contract: Option<StakingContractInit>,
         pub custom_fee: Option<CustomFee>,
     }
@@ -279,7 +278,7 @@ pub mod factory {
         pub pair_contract: ContractInstantiationInfo,
         pub amm_settings: AMMSettings,
         pub lp_token_contract: ContractInstantiationInfo,
-        pub prng_seed: Binary,
+        pub prng_seed: Binary
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -298,16 +297,9 @@ pub mod factory {
         AddAMMPairs {
             amm_pairs: Vec<AMMPair>,
         },
-        RegisterAMMPair {
-            pair: TokenPair,
-            signature: Binary,
-        },
         SetFactoryAdmin {
             admin: String,
-        },
-        SetShadeDAOAddress {
-            shade_dao_address: ContractLink,
-        },
+        }
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]

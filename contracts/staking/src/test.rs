@@ -152,8 +152,8 @@ pub mod tests {
         .unwrap();
         let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;        
         assert_eq!(is_user_staker, true);
-        let env_b = mock_env("LPTOKEN".to_string(), (current_timestamp + Uint128(100u128)).u128() as u64, 1527, CONTRACT_ADDRESS, &[]);
-        let receive_msg = ExecuteMsg::Receive { 
+        let env_b = mock_env("LPTOKEN".to_string(), (current_timestamp + Uint128(1000u128)).u128() as u64, 1527, CONTRACT_ADDRESS, &[]);
+        let receive_msg = HandleMsg::Receive { 
             from: staker_b.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
                     amount: Uint128(100u128),
@@ -170,7 +170,7 @@ pub mod tests {
         let current_time = current_timestamp + Uint128(1000u128);              
         claim_rewards_for_all_stakers(&mut deps, current_time)?;
         let claim_reward_info_a = load_claim_reward_info(&deps,staker_a.clone())?;
-        assert_eq!(claim_reward_info_a.amount, Uint128(578703703));      
+        assert_eq!(claim_reward_info_a.amount, Uint128(11574074074));      
         let claim_reward_info_b = load_claim_reward_info(&deps,staker_b.clone())?;
         assert_eq!(claim_reward_info_b.amount, Uint128(0));       
         Ok(())
@@ -275,8 +275,12 @@ pub mod tests {
         // get query of staker
         let binary_msg = get_claim_reward_for_user(&deps, HumanAddr::from("STAKERA".to_string()), "password".to_string(), Uint128(14528698000))?;
         let claimable_reward_for_staker: QueryResponse = from_binary(&binary_msg)?;
-        if let QueryResponse::ClaimReward { amount} = claimable_reward_for_staker{
+        if let QueryResponse::ClaimReward { 
+            amount,
+            reward_token
+        } = claimable_reward_for_staker{
             assert_ne!(amount, Uint128(0));
+            assert_eq!(reward_token.address.to_string(), HumanAddr::from(CONTRACT_ADDRESS).to_string())
         }       
         
         Ok(())
@@ -302,6 +306,39 @@ pub mod tests {
         assert!(init(deps, env.clone(), msg).is_ok());
         let config = load_config(deps)?;
         Ok(config)
+    }
+
+    #[test]
+    fn assert_store_and_load_config() -> StdResult<()>{
+        let mut deps = mock_deps();  
+        let env = mock_env("LPTOKEN".to_string(),1656480000, 1524,CONTRACT_ADDRESS,  &[]);    
+        let staker = env.message.sender.clone();     
+        let mut config: Config = make_init_config(&mut deps, env.clone(), Uint128(10000000000u128))?;     
+        let lp_token = ContractLink{
+            address: HumanAddr::from("LPTOKEN".to_string()),
+            code_hash: "CODE_HASH".to_string(),
+        };
+        config.lp_token = lp_token.clone();
+        store_config(&mut deps, &config)?;
+
+        let reward_token = match config.reward_token {
+            // The arms of a match must cover all the possible values
+            TokenType::NativeToken { denom } => ContractLink{
+                address: HumanAddr::default(),
+                code_hash: "".to_string()
+            },
+            TokenType::CustomToken { contract_addr, token_code_hash } => ContractLink{
+                address: contract_addr.clone(),
+                code_hash: token_code_hash.clone()
+            }
+            // TODO ^ Try commenting out one of these arms
+        };
+        let config = load_config(&deps)?;
+        assert_eq!(config.lp_token.address.to_string().clone(),  HumanAddr::from("LPTOKEN".to_string()).to_string());
+        assert_eq!(config.daily_reward_amount,Uint128(10000000000u128));
+        assert_eq!(reward_token.address.to_string(), HumanAddr::from(CONTRACT_ADDRESS).to_string());
+        assert_eq!(reward_token.code_hash, CONTRACT_ADDRESS.to_string());
+        Ok(())
     }
 
     pub fn mock_env<U: Into<HumanAddr>>(sender: U, time: u64, height: u64, contract_address: &str, sent: &[Coin]) -> Env {

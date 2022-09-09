@@ -91,34 +91,18 @@ fn main() -> serde_json::Result<()> {
     //     },
     // );
 
-    // let msg = FactoryExecuteMsg::SetConfig {
-    //     pair_contract: None,
-    //     lp_token_contract: None,
-    //     amm_settings: Some( AMMSettings {
-    //         lp_fee: Fee::new(8, 100),
-    //         shade_dao_fee: Fee::new(2, 100),
-    //         shade_dao_address: ContractLink {
-    //             address: HumanAddr(String::from("secret1hfvezhepf6ahwry0gzhcra6zsdmva5xhphhzdh".to_string())),
-    //             code_hash: "".to_string(),
-    //         },
-    //     }),
-    // };
-
-    // handle(
-    //     &msg,
-    //     &NetContract{
-    //         label: "".to_string(),
-    //         id: "".to_string(),
-    //         address: "secret12p6nr8pumx6w5lyuut886z3cuy666rfta77e46".to_string(),
-    //         code_hash: "".to_string(),
-    //     },
-    //     ACCOUNT_KEY,
-    //     Some(GAS),
-    //     Some("test"),
-    //     Some("10000000uscrt"),
-    //     &mut reports,
-    //     None,
-    // )?;
+    let msg = FactoryHandleMsg::SetConfig {
+        pair_contract: None,
+        lp_token_contract: None,
+        amm_settings: Some( AMMSettings {
+            lp_fee: Fee::new(8, 100),
+            shade_dao_fee: Fee::new(2, 100),
+            shade_dao_address: ContractLink {
+                address: HumanAddr(String::from("secret1hfvezhepf6ahwry0gzhcra6zsdmva5xhphhzdh".to_string())),
+                code_hash: "".to_string(),
+            },
+        }),
+    };
 
     // handle(
     //     &RouterExecuteMsg::RegisterSNIP20Token {
@@ -174,51 +158,51 @@ fn main() -> serde_json::Result<()> {
     //     get_balance(&s_sCRT, ACCOUNT_KEY.to_string(), VIEW_KEY.to_string(),)
     // );
     
-    // handle(
-    //     &ExecuteMsg::Send {
-    //         recipient: HumanAddr::from("secret18letgdtj6fz55u4a9fm5hal9tez3ruz79gscpj".to_string()),
-    //         recipient_code_hash: None,
-    //         amount: Uint128(25000),
-    //         msg: Some(
-    //             to_binary(&RouterInvokeMsg::SwapTokensForExact {
-    //                 expected_return: Some(Uint128(5)),
-    //                 paths: vec![HumanAddr::from("secret1c50a69q0dxcedu3ufs40sf7rupz6grmxnhgwtn".to_string())],
-    //                 recipient: None,
-    //             })
-    //             .unwrap(),
-    //         ),
-    //         memo: None,
-    //         padding: None,
-    //     },
-    //     &s_sCRT,
-    //     ACCOUNT_KEY,
-    //     Some(GAS),
-    //     Some("test"),
-    //     None,
-    //     &mut reports,
-    //     None,
-    // )
-    // .unwrap();
+    handle(
+        &HandleMsg::Send {
+            recipient: HumanAddr::from("secret18letgdtj6fz55u4a9fm5hal9tez3ruz79gscpj".to_string()),
+            recipient_code_hash: None,
+            amount: Uint128(25000),
+            msg: Some(
+                to_binary(&RouterInvokeMsg::SwapTokensForExact {
+                    expected_return: Some(Uint128(5)),
+                    paths: vec![HumanAddr::from("secret1c50a69q0dxcedu3ufs40sf7rupz6grmxnhgwtn".to_string())],
+                    recipient: None,
+                })
+                .unwrap(),
+            ),
+            memo: None,
+            padding: None,
+        },
+        &s_sCRT,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None,
+    )
+    .unwrap();
 
 
 
-/*
-    println!("\n\tDepositing 1000000000uscrt sSCRT");
 
-    {
-        let msg = snip20::ExecuteMsg::Mint { padding: None, recipient: HumanAddr(String::from("secret138pqmt4gyyhjrtzj9vnf2k622d5cdvwucr423q")), amount: Uint128(1000000000)};
+    // println!("\n\tDepositing 1000000000uscrt sSCRT");
 
-        handle(
-            &msg,
-            &s_sSHD,
-            ACCOUNT_KEY,
-            Some(GAS),
-            Some("test"),
-            Some("10000000uscrt"),
-            &mut reports,
-            None,
-        )?;
-    }
+    // {
+    //     let msg = snip20::HandleMsg::Mint { padding: None, recipient: HumanAddr(String::from("secret138pqmt4gyyhjrtzj9vnf2k622d5cdvwucr423q")), amount: Uint128(1000000000)};
+
+    //     handle(
+    //         &msg,
+    //         &s_sSHD,
+    //         ACCOUNT_KEY,
+    //         Some(GAS),
+    //         Some("test"),
+    //         Some("10000000uscrt"),
+    //         &mut reports,
+    //         None,
+    //     )?;
+    // }
 
     handle(
         &AMMPairHandlMsg::AddLiquidityToAMMContract {
@@ -243,9 +227,9 @@ fn main() -> serde_json::Result<()> {
         &mut reports,
         None,
     )
-    .unwrap();*/
+    .unwrap();
 
-    // println!("\n\tDepositing 1000000000uscrt sSHD");
+    println!("\n\tDepositing 1000000000uscrt sSHD");
 
     // {
     //     let msg = snip20::ExecuteMsg::Deposit { padding: None };
@@ -262,269 +246,269 @@ fn main() -> serde_json::Result<()> {
     //     )?;
     // }
 
-    // print_header("Storing all contracts");
-    // let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
+    print_header("Storing all contracts");
+    let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
 
-    // print_warning("Storing LP Token Contract");
-    // let s_lp = store_and_return_contract(
-    //     &LPTOKEN20_FILE.replace("../", ""),
-    //     ACCOUNT_KEY,
-    //     Some(STORE_GAS),
-    //     Some("test"),
-    // )?;
-    // print_warning("Storing AMM Pair Token Contract");
-    // let s_ammPair = store_and_return_contract(
-    //     &AMM_PAIR_FILE.replace("../", ""),
-    //     ACCOUNT_KEY,
-    //     Some(STORE_GAS),
-    //     Some("test"),
-    // )?;
-    // print_warning("Storing Staking Contract");
-    // let staking_contract = store_and_return_contract(
-    //     &STAKING_FILE.replace("../", ""),
-    //     ACCOUNT_KEY,
-    //     Some(STORE_GAS),
-    //     Some("test"),
-    // )?;
+    print_warning("Storing LP Token Contract");
+    let s_lp = store_and_return_contract(
+        &LPTOKEN20_FILE.replace("../", ""),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some("test"),
+    )?;
+    print_warning("Storing AMM Pair Token Contract");
+    let s_ammPair = store_and_return_contract(
+        &AMM_PAIR_FILE.replace("../", ""),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some("test"),
+    )?;
+    print_warning("Storing Staking Contract");
+    let staking_contract = store_and_return_contract(
+        &STAKING_FILE.replace("../", ""),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some("test"),
+    )?;
 
-    // print_header("\n\tInitializing Factory Contract");
+    print_header("\n\tInitializing Factory Contract");
 
-    // let factory_msg = FactoryInitMsg {
-    //     pair_contract: ContractInstantiationInfo {
-    //         code_hash: s_ammPair.code_hash.to_string(),
-    //         id: s_ammPair.id.clone().parse::<u64>().unwrap(),
-    //     },
-    //     amm_settings: AMMSettings {
-    //         lp_fee: Fee::new(8, 100),
-    //         shade_dao_fee: Fee::new(2, 100),
-    //         shade_dao_address: ContractLink {
-    //             address: HumanAddr(String::from("secret1hfvezhepf6ahwry0gzhcra6zsdmva5xhphhzdh".to_string())),
-    //             code_hash: "".to_string(),
-    //         },
-    //     },
-    //     lp_token_contract: ContractInstantiationInfo {
-    //         code_hash: s_lp.code_hash.clone(),
-    //         id: s_lp.id.clone().parse::<u64>().unwrap(),
-    //     },
-    //     prng_seed: to_binary(&"".to_string()).unwrap(),
-    // };
+    let factory_msg = FactoryInitMsg {
+        pair_contract: ContractInstantiationInfo {
+            code_hash: s_ammPair.code_hash.to_string(),
+            id: s_ammPair.id.clone().parse::<u64>().unwrap(),
+        },
+        amm_settings: AMMSettings {
+            lp_fee: Fee::new(8, 100),
+            shade_dao_fee: Fee::new(2, 100),
+            shade_dao_address: ContractLink {
+                address: HumanAddr(String::from("secret1hfvezhepf6ahwry0gzhcra6zsdmva5xhphhzdh".to_string())),
+                code_hash: "".to_string(),
+            },
+        },
+        lp_token_contract: ContractInstantiationInfo {
+            code_hash: s_lp.code_hash.clone(),
+            id: s_lp.id.clone().parse::<u64>().unwrap(),
+        },
+        prng_seed: to_binary(&"".to_string()).unwrap(),
+    };
 
-    // let factory_contract = init(
-    //     &factory_msg,
-    //     &FACTORY_FILE.replace("../", ""),
-    //     &*generate_label(8),
-    //     ACCOUNT_KEY,
-    //     Some(STORE_GAS),
-    //     Some(GAS),
-    //     Some("test"),
-    //     &mut reports,
-    // )?;
+    let factory_contract = init(
+        &factory_msg,
+        &FACTORY_FILE.replace("../", ""),
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
 
-    // print_contract(&factory_contract);
+    print_contract(&factory_contract);
 
-    // print_header("\n\tGetting Pairs from Factory");
-    // {
-    //     let msg = FactoryQueryMsg::ListAMMPairs {
-    //         pagination: Pagination {
-    //             start: 0,
-    //             limit: 10,
-    //         },
-    //     };
+    print_header("\n\tGetting Pairs from Factory");
+    {
+        let msg = FactoryQueryMsg::ListAMMPairs {
+            pagination: Pagination {
+                start: 0,
+                limit: 10,
+            },
+        };
 
-    //     let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
-    //     if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
-    //         assert_eq!(amm_pairs.len(), 0);
+        let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
+        if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
+            assert_eq!(amm_pairs.len(), 0);
 
-    //         print_header("\n\tInitializing Router");
+            print_header("\n\tInitializing Router");
 
-    //         let router_msg = RouterInitMsg {
-    //             prng_seed: to_binary(&"".to_string()).unwrap(),
-    //             factory_address: ContractLink {
-    //                 address: HumanAddr(String::from(factory_contract.address.clone())),
-    //                 code_hash: factory_contract.code_hash.clone(),
-    //             },
-    //             entropy: to_binary(&"".to_string()).unwrap(),
-    //             viewing_key: Some(VIEW_KEY.to_string()),
-    //         };
+            let router_msg = RouterInitMsg {
+                prng_seed: to_binary(&"".to_string()).unwrap(),
+                factory_address: ContractLink {
+                    address: HumanAddr(String::from(factory_contract.address.clone())),
+                    code_hash: factory_contract.code_hash.clone(),
+                },
+                entropy: to_binary(&"".to_string()).unwrap(),
+                viewing_key: Some(VIEW_KEY.to_string()),
+            };
 
-    //         let router_contract = init(
-    //             &router_msg,
-    //             &ROUTER_FILE.replace("../", ""),
-    //             &*generate_label(8),
-    //             ACCOUNT_KEY,
-    //             Some(STORE_GAS),
-    //             Some(GAS),
-    //             Some("test"),
-    //             &mut reports,
-    //         )?;
-    //         print_contract(&router_contract);
+            let router_contract = init(
+                &router_msg,
+                &ROUTER_FILE.replace("../", ""),
+                &*generate_label(8),
+                ACCOUNT_KEY,
+                Some(STORE_GAS),
+                Some(GAS),
+                Some("test"),
+                &mut reports,
+            )?;
+            print_contract(&router_contract);
 
             
-    //         handle(
-    //             &RouterExecuteMsg::RegisterSNIP20Token {
-    //                 token: HumanAddr::from(s_sCRT.address.clone()),
-    //                 token_code_hash: s_sCRT.code_hash.to_string(),
-    //             },
-    //             &NetContract { label:  "".to_string(), id:  "".to_string(), address: router_contract.address.to_string(), code_hash: "".to_string() },
-    //             ACCOUNT_KEY,
-    //             Some(GAS),
-    //             Some("test"),
-    //             None,
-    //             &mut reports,
-    //             None,
-    //         )
-    //         .unwrap();
+            handle(
+                &RouterHandleMsg::RegisterSNIP20Token {
+                    token: HumanAddr::from(s_sCRT.address.clone()),
+                    token_code_hash: s_sCRT.code_hash.to_string(),
+                },
+                &NetContract { label:  "".to_string(), id:  "".to_string(), address: router_contract.address.to_string(), code_hash: "".to_string() },
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
 
-    //         handle(
-    //             &RouterExecuteMsg::RegisterSNIP20Token {
-    //                 token: HumanAddr::from(s_sSHD.address.clone()),
-    //                 token_code_hash: s_sSHD.code_hash.to_string(),
-    //             },
-    //             &NetContract { label:  "".to_string(), id:  "".to_string(), address: router_contract.address.to_string().to_string(), code_hash: "".to_string() },
-    //             ACCOUNT_KEY,
-    //             Some(GAS),
-    //             Some("test"),
-    //             None,
-    //             &mut reports,
-    //             None,
-    //         )
-    //         .unwrap();
+            handle(
+                &RouterHandleMsg::RegisterSNIP20Token {
+                    token: HumanAddr::from(s_sSHD.address.clone()),
+                    token_code_hash: s_sSHD.code_hash.to_string(),
+                },
+                &NetContract { label:  "".to_string(), id:  "".to_string(), address: router_contract.address.to_string().to_string(), code_hash: "".to_string() },
+                ACCOUNT_KEY,
+                Some(GAS),
+                Some("test"),
+                None,
+                &mut reports,
+                None,
+            )
+            .unwrap();
 
 
-    //         {
-    //             handle(
-    //                 &FactoryExecuteMsg::CreateAMMPair {
-    //                     pair: test_pair.clone(),
-    //                     entropy: entropy,
-    //                     staking_contract: Some(StakingContractInit {
-    //                         contract_info: ContractInstantiationInfo {
-    //                             code_hash: staking_contract.code_hash.to_string(),
-    //                             id: staking_contract.id.clone().parse::<u64>().unwrap(),
-    //                         },
-    //                         amount: Uint128(100000u128),
-    //                         reward_token: TokenType::CustomToken {
-    //                             contract_addr: s_sCRT.address.clone().into(),
-    //                             token_code_hash: s_sCRT.code_hash.to_string(),
-    //                         },
-    //                     }),
-    //                 },
-    //                 &factory_contract,
-    //                 ACCOUNT_KEY,
-    //                 Some(GAS),
-    //                 Some("test"),
-    //                 None,
-    //                 &mut reports,
-    //                 None,
-    //             )
-    //             .unwrap();
-    //         }
+            {
+                handle(
+                    &FactoryHandleMsg::CreateAMMPair {
+                        pair: test_pair.clone(),
+                        entropy: entropy,
+                        staking_contract: Some(StakingContractInit {
+                            contract_info: ContractInstantiationInfo {
+                                code_hash: staking_contract.code_hash.to_string(),
+                                id: staking_contract.id.clone().parse::<u64>().unwrap(),
+                            },
+                            amount: Uint128(100000u128),
+                            reward_token: TokenType::CustomToken {
+                                contract_addr: s_sCRT.address.clone().into(),
+                                token_code_hash: s_sCRT.code_hash.to_string(),
+                            },
+                        }),
+                    },
+                    &factory_contract,
+                    ACCOUNT_KEY,
+                    Some(GAS),
+                    Some("test"),
+                    None,
+                    &mut reports,
+                    None,
+                )
+                .unwrap();
+            }
 
-    //         print_header("\n\tGetting Pairs from Factory");
-    //         {
-    //             let msg = FactoryQueryMsg::ListAMMPairs {
-    //                 pagination: Pagination {
-    //                     start: 0,
-    //                     limit: 10,
-    //                 },
-    //             };
+            print_header("\n\tGetting Pairs from Factory");
+            {
+                let msg = FactoryQueryMsg::ListAMMPairs {
+                    pagination: Pagination {
+                        start: 0,
+                        limit: 10,
+                    },
+                };
 
-    //             let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
-    //             if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
-    //                 let ammPair = amm_pairs[0].clone();
+                let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
+                if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
+                    let ammPair = amm_pairs[0].clone();
 
-    //                 print_header("\n\tAdding Liquidity to Pair Contract");
-    //                 handle(
-    //                     &snip20_reference_impl::msg::ExecuteMsg::IncreaseAllowance {
-    //                         spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-    //                         amount: Uint128(100000000),
-    //                         expiration: None,
-    //                         padding: None,
-    //                     },
-    //                     &NetContract {
-    //                         label: "".to_string(),
-    //                         id: s_sSHD.id.clone(),
-    //                         address: s_sSHD.address.clone(),
-    //                         code_hash: s_sSHD.code_hash.to_string(),
-    //                     },
-    //                     ACCOUNT_KEY,
-    //                     Some(GAS),
-    //                     Some("test"),
-    //                     None,
-    //                     &mut reports,
-    //                     None,
-    //                 )
-    //                 .unwrap();
+                    print_header("\n\tAdding Liquidity to Pair Contract");
+                    handle(
+                        &snip20_reference_impl::msg::HandleMsg::IncreaseAllowance {
+                            spender: HumanAddr(String::from(ammPair.address.0.to_string())),
+                            amount: Uint128(100000000),
+                            expiration: None,
+                            padding: None,
+                        },
+                        &NetContract {
+                            label: "".to_string(),
+                            id: s_sSHD.id.clone(),
+                            address: s_sSHD.address.clone(),
+                            code_hash: s_sSHD.code_hash.to_string(),
+                        },
+                        ACCOUNT_KEY,
+                        Some(GAS),
+                        Some("test"),
+                        None,
+                        &mut reports,
+                        None,
+                    )
+                    .unwrap();
 
-    //                 handle(
-    //                     &snip20_reference_impl::msg::ExecuteMsg::IncreaseAllowance {
-    //                         spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-    //                         amount: Uint128(100000000),
-    //                         expiration: None,
-    //                         padding: None,
-    //                     },
-    //                     &NetContract {
-    //                         label: "".to_string(),
-    //                         id: s_sCRT.id.clone(),
-    //                         address: s_sCRT.address.clone(),
-    //                         code_hash: s_sCRT.code_hash.to_string(),
-    //                     },
-    //                     ACCOUNT_KEY,
-    //                     Some(GAS),
-    //                     Some("test"),
-    //                     None,
-    //                     &mut reports,
-    //                     None,
-    //                 )
-    //                 .unwrap();
+                    handle(
+                        &snip20_reference_impl::msg::HandleMsg::IncreaseAllowance {
+                            spender: HumanAddr(String::from(ammPair.address.0.to_string())),
+                            amount: Uint128(100000000),
+                            expiration: None,
+                            padding: None,
+                        },
+                        &NetContract {
+                            label: "".to_string(),
+                            id: s_sCRT.id.clone(),
+                            address: s_sCRT.address.clone(),
+                            code_hash: s_sCRT.code_hash.to_string(),
+                        },
+                        ACCOUNT_KEY,
+                        Some(GAS),
+                        Some("test"),
+                        None,
+                        &mut reports,
+                        None,
+                    )
+                    .unwrap();
 
-    //                 handle(
-    //                     &AMMPairHandlMsg::AddLiquidityToAMMContract {
-    //                         deposit: TokenPairAmount {
-    //                             pair: test_pair.clone(),
-    //                             amount_0: Uint128(100000000),
-    //                             amount_1: Uint128(100000000),
-    //                         },
-    //                         slippage: None,
+                    handle(
+                        &AMMPairHandlMsg::AddLiquidityToAMMContract {
+                            deposit: TokenPairAmount {
+                                pair: test_pair.clone(),
+                                amount_0: Uint128(100000000),
+                                amount_1: Uint128(100000000),
+                            },
+                            slippage: None,
 
-    //                         staking: None
-    //                     },
-    //                     &NetContract {
-    //                         label: "".to_string(),
-    //                         id: s_ammPair.id.clone(),
-    //                         address: ammPair.address.0.clone(),
-    //                         code_hash: s_ammPair.code_hash.to_string(),
-    //                     },
-    //                     ACCOUNT_KEY,
-    //                     Some(GAS),
-    //                     Some("test"),
-    //                     None,
-    //                     &mut reports,
-    //                     None,
-    //                 )
-    //                 .unwrap();
+                            staking: None
+                        },
+                        &NetContract {
+                            label: "".to_string(),
+                            id: s_ammPair.id.clone(),
+                            address: ammPair.address.0.clone(),
+                            code_hash: s_ammPair.code_hash.to_string(),
+                        },
+                        ACCOUNT_KEY,
+                        Some(GAS),
+                        Some("test"),
+                        None,
+                        &mut reports,
+                        None,
+                    )
+                    .unwrap();
     // TODO NEED TO ADD MINT
-    // println!("\n\tDepositing 1000000000uscrt sSCRT");
+    println!("\n\tDepositing 1000000000uscrt sSCRT");
 
-    // {
-    //     let msg = snip20_reference_impl::msg::ExecuteMsg::Mint { padding: None, recipient: HumanAddr(String::from("secret1ss0c4wgzcuszfsnaf0r32gpwkx2ssldqtz4mf5")), amount: Uint128(10000000000), memo: None };
+    {
+        let msg = snip20_reference_impl::msg::HandleMsg::Mint { padding: None, recipient: HumanAddr(String::from("secret1ss0c4wgzcuszfsnaf0r32gpwkx2ssldqtz4mf5")), amount: Uint128(10000000000), memo: None };
 
-    //     handle(
-    //         &msg,
-    //         &s_sCRT,
-    //         ACCOUNT_KEY,
-    //         Some(GAS),
-    //         Some("test"),
-    //         Some("10000000uscrt"),
-    //         &mut reports,
-    //         None,
-    //     )?;
-    // }
-    //             }
-    //         }
-    //     } else {
-    //         assert!(false, "Query returned unexpected response")
-    //     }
-    //}
+        handle(
+            &msg,
+            &s_sCRT,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            Some("10000000uscrt"),
+            &mut reports,
+            None,
+        )?;
+    }
+                }
+            }
+        } else {
+            assert!(false, "Query returned unexpected response")
+        }
+    }
 
     return Ok(());
 }

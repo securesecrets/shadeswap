@@ -1,6 +1,6 @@
-use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  HandleMsg}, core::ContractLink};
-use shadeswap_shared::msg::amm_pair::HandleMsg as AmmPairHandleMsg;
-use secret_toolkit::snip20::{token_info_query, mint_msg, transfer_from_msg, HandleMsg as Snip20HandleMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg};
+use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg ,QueryMsg,QueryResponse,  ExecuteMsg}, core::ContractLink};
+use shadeswap_shared::msg::amm_pair::ExecuteMsg as AmmPairExecuteMsg;
+use secret_toolkit::snip20::{token_info_query, mint_msg, transfer_from_msg, ExecuteMsg as Snip20ExecuteMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg};
 use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, token_type::{{TokenType}}};
 use crate::state::{{Config, ClaimRewardsInfo, store_config, load_claim_reward_timestamp,  store_claim_reward_timestamp,
     get_total_staking_amount, load_stakers, load_config, is_address_already_staker, store_claim_reward_info,
@@ -14,11 +14,13 @@ use shadeswap_shared::{scrt_storage::{ns_save, ns_load, save, load}, viewing_key
 
 pub const BLOCK_SIZE: usize = 256;
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
+#[entry_point]
+pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    msg: InitMsg,
-) -> StdResult<InitResponse> {
+    _info: MessageInfo,
+    msg: InstantiateMsg,
+)-> StdResult<InitResponse> {
 
     let config = Config {
         contract_owner: env.message.sender.clone(),
@@ -40,7 +42,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: msg.pair_contract.address.clone(),
         callback_code_hash: msg.pair_contract.code_hash.clone(),
-        msg: to_binary(&AmmPairHandleMsg::SetStakingContract{ contract: ContractLink {
+        msg: to_binary(&AmmPairExecuteMsg::SetStakingContract{ contract: ContractLink {
             address: env.contract.address.clone(),
             code_hash: env.contract_code_hash.clone()
         }})?,
@@ -57,21 +59,18 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: DepsMut,
-    env: Env,
-    msg: HandleMsg,
-) -> StdResult<Response> {
+#[entry_point]
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        HandleMsg::Receive {
+        ExecuteMsg::Receive {
             from, amount, msg, ..
         } => receiver_callback(deps, env, from, amount, msg),      
-        HandleMsg::ClaimRewards { } => {
+        ExecuteMsg::ClaimRewards { } => {
             claim_rewards(deps, env)
         }
-        HandleMsg::SetLPToken {lp_token} => set_lp_token(deps, env, lp_token),
-        HandleMsg::Unstake {amount, remove_liqudity} => unstake(deps,env, amount, remove_liqudity),
-        HandleMsg::SetVKForStaker { key} => set_view_key(deps, env, key),
+        ExecuteMsg::SetLPToken {lp_token} => set_lp_token(deps, env, lp_token),
+        ExecuteMsg::Unstake {amount, remove_liqudity} => unstake(deps,env, amount, remove_liqudity),
+        ExecuteMsg::SetVKForStaker { key} => set_view_key(deps, env, key),
     }    
 }
 
@@ -467,7 +466,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
         let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity { 
             from: Some(caller.clone())}).unwrap();      
        
-        let msg = to_binary(&Snip20HandleMsg::Send {
+        let msg = to_binary(&Snip20ExecuteMsg::Send {
             recipient: config.contract_owner.clone(),
             recipient_code_hash: None,
             amount: amount,
@@ -488,7 +487,7 @@ pub fn unstake<S: Storage, A: Api, Q: Querier>(
     }
     else{
         // SEND LP Token back to Staker And User Will Manually Remove Liquidity
-        let msg = to_binary(&Snip20HandleMsg::Transfer {
+        let msg = to_binary(&Snip20ExecuteMsg::Transfer {
             recipient: caller.clone(),
             amount: amount,
             memo: None,

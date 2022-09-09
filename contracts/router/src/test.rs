@@ -46,7 +46,7 @@ pub mod tests {
         msg::{
             amm_pair::QueryMsgResponse as AMMPairQueryMsgResponse,
             factory::QueryResponse as FactoryQueryResponse,
-            router::{HandleMsg, InitMsg, InvokeMsg},
+            router::{ExecuteMsg, InitMsg, InvokeMsg},
         },
         secret_toolkit::snip20::{self},
         TokenAmount, TokenPair, TokenType,
@@ -86,7 +86,7 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env,
-            HandleMsg::SwapTokensForExact {
+            ExecuteMsg::SwapTokensForExact {
                 offer: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -213,7 +213,7 @@ pub mod tests {
         let result = handle(
             &mut deps,
             mkenv("CUSTOM_TOKEN_1"),
-            HandleMsg::Receive {
+            ExecuteMsg::Receive {
                 from: HumanAddr("recipient".into()),
                 msg: Some(
                     to_binary(&InvokeMsg::SwapTokensForExact {
@@ -275,7 +275,7 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env,
-            HandleMsg::SwapCallBack {
+            ExecuteMsg::SwapCallBack {
                 last_token_out: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -329,7 +329,7 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env,
-            HandleMsg::SwapCallBack {
+            ExecuteMsg::SwapCallBack {
                 last_token_out: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -378,7 +378,7 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env.clone(),
-            HandleMsg::SwapCallBack {
+            ExecuteMsg::SwapCallBack {
                 last_token_out: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),
@@ -396,7 +396,7 @@ pub mod tests {
         let test: CosmosMsg<WasmMsg> = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: HumanAddr::from(CUSTOM_TOKEN_1),
             callback_code_hash: "hash".into(),
-            msg: to_binary(&snip20::HandleMsg::Send {
+            msg: to_binary(&snip20::ExecuteMsg::Send {
                 recipient: HumanAddr("recipient".into()),
                 amount: Uint128(10),
                 padding: None,
@@ -410,7 +410,7 @@ pub mod tests {
         assert!(result.messages.contains(&CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: HumanAddr::from(CUSTOM_TOKEN_1),
             callback_code_hash: "hash".into(),
-            msg: to_binary(&snip20::HandleMsg::Send {
+            msg: to_binary(&snip20::ExecuteMsg::Send {
                 recipient: HumanAddr("recipient".into()),
                 amount: Uint128(10), //This is how much balance the address has
                 padding: None,
@@ -455,7 +455,7 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env.clone(),
-            HandleMsg::SwapCallBack {
+            ExecuteMsg::SwapCallBack {
                 last_token_out: TokenAmount {
                     token: TokenType::NativeToken {
                         denom: "uscrt".into(),

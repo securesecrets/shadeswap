@@ -25,7 +25,7 @@ pub struct InitMsg {
     pub initial_balances: Option<Vec<InitialBalance>>,
     pub prng_seed: Binary,
     pub config: Option<InitConfig>,
-    pub callback: Option<Callback<HumanAddr>>
+    pub callback: Option<Callback>
 }
 
 impl InitMsg {

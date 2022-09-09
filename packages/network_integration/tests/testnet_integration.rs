@@ -24,19 +24,19 @@ use shadeswap_shared::{
     core::{ContractInstantiationInfo, ContractLink},
     msg::{
         amm_pair::{
-            HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
+            ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
             QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
         },
         factory::{
-            HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
+            ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse,
         },
         router::{
-            HandleMsg as RouterHandleMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
+            ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
             QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
         },
         staking::{
-            HandleMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
+            ExecuteMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
             QueryResponse as StakingQueryMsgResponse,
         },
     },
@@ -118,7 +118,7 @@ fn run_testnet() -> Result<()> {
     )?;
 
     {
-        let msg = snip20::msg::HandleMsg::SetViewingKey {
+        let msg = snip20::msg::ExecuteMsg::SetViewingKey {
             key: String::from(VIEW_KEY),
             padding: None,
         };
@@ -157,7 +157,7 @@ fn run_testnet() -> Result<()> {
 
     print_contract(&s_sREWARDSNIP20);
     {
-        let msg = snip20::msg::HandleMsg::SetViewingKey {
+        let msg = snip20::msg::ExecuteMsg::SetViewingKey {
             key: String::from(VIEW_KEY),
             padding: None,
         };
@@ -194,7 +194,7 @@ fn run_testnet() -> Result<()> {
     print_contract(&s_sSHD);
 
     {
-        let msg = snip20::msg::HandleMsg::SetViewingKey {
+        let msg = snip20::msg::ExecuteMsg::SetViewingKey {
             key: String::from(VIEW_KEY),
             padding: None,
         };
@@ -214,7 +214,7 @@ fn run_testnet() -> Result<()> {
     println!("\n\tDepositing 1000000000000uscrt s_sREWARDSNIP20");
 
     {
-        let msg = snip20::msg::HandleMsg::Deposit { padding: None };
+        let msg = snip20::msg::ExecuteMsg::Deposit { padding: None };
 
         handle(
             &msg,
@@ -236,7 +236,7 @@ fn run_testnet() -> Result<()> {
     println!("\n\tDepositing 1000000000000uscrt sSCRT");
 
     {
-        let msg = snip20::msg::HandleMsg::Deposit { padding: None };
+        let msg = snip20::msg::ExecuteMsg::Deposit { padding: None };
 
         handle(
             &msg,
@@ -258,7 +258,7 @@ fn run_testnet() -> Result<()> {
     println!("\n\tDepositing 1000000000000uscrt sSHD");
 
     {
-        let msg = snip20::msg::HandleMsg::Deposit { padding: None };
+        let msg = snip20::msg::ExecuteMsg::Deposit { padding: None };
 
         handle(
             &msg,
@@ -309,7 +309,7 @@ fn run_testnet() -> Result<()> {
 
     print_header("\n\tInitializing New Pair Contract (SNIP20/SNIP20) via Factory");
 
-    let test_pair = TokenPair::<HumanAddr>(
+    let test_pair = TokenPair(
         TokenType::CustomToken {
             contract_addr: s_sCRT.address.clone().into(),
             token_code_hash: s_sCRT.code_hash.to_string(),
@@ -322,7 +322,7 @@ fn run_testnet() -> Result<()> {
 
     {
         handle(
-            &FactoryHandleMsg::CreateAMMPair {
+            &FactoryExecuteMsg::CreateAMMPair {
                 pair: test_pair.clone(),
                 entropy: entropy,
                 // staking_contract: None,
@@ -351,7 +351,7 @@ fn run_testnet() -> Result<()> {
 
     print_header("\n\tInitializing New Pair Contract (SCRT/SNIP20) via Factory");
 
-    let test_native_pair = TokenPair::<HumanAddr>(
+    let test_native_pair = TokenPair(
         TokenType::NativeToken {
             denom: "uscrt".to_string(),
         },
@@ -363,7 +363,7 @@ fn run_testnet() -> Result<()> {
 
     {
         handle(
-            &FactoryHandleMsg::CreateAMMPair {
+            &FactoryExecuteMsg::CreateAMMPair {
                 pair: test_native_pair.clone(),
                 entropy: to_binary(&"".to_string()).unwrap(),
                 staking_contract: None,
@@ -407,7 +407,7 @@ fn run_testnet() -> Result<()> {
 
             print_header("\n\tAdding Liquidity to Pair Contract");
             handle(
-                &snip20::msg::HandleMsg::IncreaseAllowance {
+                &snip20::msg::ExecuteMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(ammPair.address.0.to_string())),
                     amount: Uint128(10000000000),
                     expiration: None,
@@ -429,7 +429,7 @@ fn run_testnet() -> Result<()> {
             .unwrap();
 
             handle(
-                &snip20::msg::HandleMsg::IncreaseAllowance {
+                &snip20::msg::ExecuteMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(ammPair.address.0.to_string())),
                     amount: Uint128(10000000000),
                     expiration: None,
@@ -451,7 +451,7 @@ fn run_testnet() -> Result<()> {
             .unwrap();
 
             handle(
-                &snip20::msg::HandleMsg::IncreaseAllowance {
+                &snip20::msg::ExecuteMsg::IncreaseAllowance {
                     spender: HumanAddr(String::from(amm_pair_2.address.0.to_string())),
                     amount: Uint128(10000000000),
                     expiration: None,
@@ -575,7 +575,7 @@ fn run_testnet() -> Result<()> {
             print_header("\n\tRegistering Tokens");
 
             handle(
-                &RouterHandleMsg::RegisterSNIP20Token {
+                &RouterExecuteMsg::RegisterSNIP20Token {
                     token: HumanAddr::from(s_sCRT.address.clone()),
                     token_code_hash: s_sCRT.code_hash.to_string(),
                 },
@@ -590,7 +590,7 @@ fn run_testnet() -> Result<()> {
             .unwrap();
 
             handle(
-                &RouterHandleMsg::RegisterSNIP20Token {
+                &RouterExecuteMsg::RegisterSNIP20Token {
                     token: HumanAddr::from(s_sSHD.address.clone()),
                     token_code_hash: s_sSHD.code_hash.to_string(),
                 },
@@ -610,7 +610,7 @@ fn run_testnet() -> Result<()> {
             let mut old_shd_balance =
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::msg::HandleMsg::Send {
+                &snip20::msg::ExecuteMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(100),
                     msg: Some(
@@ -668,7 +668,7 @@ fn run_testnet() -> Result<()> {
             print_header("\n\t 2 - BUY 50 sSHD Initiating sSCRT to sSHD Swap ");
 
             handle(
-                &snip20::msg::HandleMsg::Send {
+                &snip20::msg::ExecuteMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(50),
                     msg: Some(
@@ -725,7 +725,7 @@ fn run_testnet() -> Result<()> {
             let mut old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::msg::HandleMsg::Send {
+                &snip20::msg::ExecuteMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(2500),
                     msg: Some(
@@ -782,7 +782,7 @@ fn run_testnet() -> Result<()> {
             let mut old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::msg::HandleMsg::Send {
+                &snip20::msg::ExecuteMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(36500),
                     msg: Some(
@@ -839,7 +839,7 @@ fn run_testnet() -> Result<()> {
             let mut old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::msg::HandleMsg::Send {
+                &snip20::msg::ExecuteMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(25000),
                     msg: Some(
@@ -894,7 +894,7 @@ fn run_testnet() -> Result<()> {
             old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
 
             handle(
-                &RouterHandleMsg::SwapTokensForExact {
+                &RouterExecuteMsg::SwapTokensForExact {
                     offer: TokenAmount {
                         token: TokenType::NativeToken {
                             denom: "uscrt".to_string(),
@@ -924,7 +924,7 @@ fn run_testnet() -> Result<()> {
             old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
 
             handle(
-                &RouterHandleMsg::SwapTokensForExact {
+                &RouterExecuteMsg::SwapTokensForExact {
                     offer: TokenAmount {
                         token: TokenType::NativeToken {
                             denom: "uscrt".to_string(),
@@ -959,7 +959,7 @@ fn run_testnet() -> Result<()> {
             old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
 
             handle(
-                &snip20::msg::HandleMsg::Send {
+                &snip20::msg::ExecuteMsg::Send {
                     recipient: HumanAddr::from(router_contract.address.to_string()),
                     amount: Uint128(100),
                     msg: Some(
@@ -1069,7 +1069,7 @@ fn run_testnet() -> Result<()> {
                 println!("\n\tAllowed IncreaseAllowance for reward token - staking contract");
                 // increase allowance for reward token
                 handle(
-                    &snip20::msg::HandleMsg::IncreaseAllowance {
+                    &snip20::msg::ExecuteMsg::IncreaseAllowance {
                         spender: staking_contract.address.clone(),
                         amount: Uint128(1000000000000),
                         expiration: None,
@@ -1092,7 +1092,7 @@ fn run_testnet() -> Result<()> {
 
                 // send Reward token to staking contract
                 handle(
-                    &snip20::msg::HandleMsg::Send {
+                    &snip20::msg::ExecuteMsg::Send {
                         recipient: staking_contract.address.clone(),
                         amount: Uint128(100000000000),
                         msg: None,
@@ -1212,7 +1212,7 @@ fn run_testnet() -> Result<()> {
 
                 print_header("\n\tIncreaseAllowance - 500000000 for liqudity ");
                 handle(
-                    &snip20::msg::HandleMsg::IncreaseAllowance {
+                    &snip20::msg::ExecuteMsg::IncreaseAllowance {
                         spender: HumanAddr(String::from(ammPair.address.0.to_string())),
                         amount: Uint128(500000000),
                         expiration: None,
@@ -1233,7 +1233,7 @@ fn run_testnet() -> Result<()> {
                 )
                 .unwrap();
                 handle(
-                    &snip20::msg::HandleMsg::IncreaseAllowance {
+                    &snip20::msg::ExecuteMsg::IncreaseAllowance {
                         spender: HumanAddr(String::from(ammPair.address.0.to_string())),
                         amount: Uint128(500000000),
                         expiration: None,

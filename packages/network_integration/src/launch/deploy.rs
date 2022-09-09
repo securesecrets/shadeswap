@@ -17,21 +17,21 @@ use secretcli::{
 
 use serde_json::Result;
 use shadeswap_shared::core::ContractInstantiationInfo;
-use shadeswap_shared::secret_toolkit::snip20::HandleMsg;
+use shadeswap_shared::secret_toolkit::snip20::ExecuteMsg;
 use shadeswap_shared::secret_toolkit::snip20::QueryMsg;
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings},
     msg::{
         amm_pair::{
-            HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
+            ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
             QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
         },
         factory::{
-            HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
+            ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse,
         },
         router::{
-            HandleMsg as RouterHandleMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
+            ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
         },
     },
     stake_contract::StakingContractInit,
@@ -80,7 +80,7 @@ fn main() -> serde_json::Result<()> {
     // //     code_hash: "A3AB7A262D42D9FD4F67ABD507DB7E1237A68AE9EF57B746AA74AD52F922583B".to_string(),
     // // };
 
-    // let test_pair = TokenPair::<HumanAddr>(
+    // let test_pair = TokenPair(
     //     TokenType::CustomToken {
     //         contract_addr: s_sCRT.address.clone().into(),
     //         token_code_hash: s_sCRT.code_hash.to_string(),
@@ -91,7 +91,7 @@ fn main() -> serde_json::Result<()> {
     //     },
     // );
 
-    // let msg = FactoryHandleMsg::SetConfig {
+    // let msg = FactoryExecuteMsg::SetConfig {
     //     pair_contract: None,
     //     lp_token_contract: None,
     //     amm_settings: Some( AMMSettings {
@@ -121,7 +121,7 @@ fn main() -> serde_json::Result<()> {
     // )?;
 
     // handle(
-    //     &RouterHandleMsg::RegisterSNIP20Token {
+    //     &RouterExecuteMsg::RegisterSNIP20Token {
     //         token: HumanAddr::from(s_sCRT.address.clone()),
     //         token_code_hash: s_sCRT.code_hash.to_string(),
     //     },
@@ -136,7 +136,7 @@ fn main() -> serde_json::Result<()> {
     // .unwrap();
 
     // handle(
-    //     &RouterHandleMsg::RegisterSNIP20Token {
+    //     &RouterExecuteMsg::RegisterSNIP20Token {
     //         token: HumanAddr::from(s_sSHD.address.clone()),
     //         token_code_hash: s_sSHD.code_hash.to_string(),
     //     },
@@ -153,7 +153,7 @@ fn main() -> serde_json::Result<()> {
 
 
     // {
-    //     let msg = snip20_reference_impl::msg::HandleMsg::SetViewingKey {
+    //     let msg = snip20_reference_impl::msg::ExecuteMsg::SetViewingKey {
     //         key: String::from(VIEW_KEY),
     //         padding: None,
     //     };
@@ -175,7 +175,7 @@ fn main() -> serde_json::Result<()> {
     // );
     
     // handle(
-    //     &HandleMsg::Send {
+    //     &ExecuteMsg::Send {
     //         recipient: HumanAddr::from("secret18letgdtj6fz55u4a9fm5hal9tez3ruz79gscpj".to_string()),
     //         recipient_code_hash: None,
     //         amount: Uint128(25000),
@@ -206,7 +206,7 @@ fn main() -> serde_json::Result<()> {
     println!("\n\tDepositing 1000000000uscrt sSCRT");
 
     {
-        let msg = snip20::HandleMsg::Mint { padding: None, recipient: HumanAddr(String::from("secret138pqmt4gyyhjrtzj9vnf2k622d5cdvwucr423q")), amount: Uint128(1000000000)};
+        let msg = snip20::ExecuteMsg::Mint { padding: None, recipient: HumanAddr(String::from("secret138pqmt4gyyhjrtzj9vnf2k622d5cdvwucr423q")), amount: Uint128(1000000000)};
 
         handle(
             &msg,
@@ -248,7 +248,7 @@ fn main() -> serde_json::Result<()> {
     // println!("\n\tDepositing 1000000000uscrt sSHD");
 
     // {
-    //     let msg = snip20::HandleMsg::Deposit { padding: None };
+    //     let msg = snip20::ExecuteMsg::Deposit { padding: None };
 
     //     handle(
     //         &msg,
@@ -361,7 +361,7 @@ fn main() -> serde_json::Result<()> {
 
             
     //         handle(
-    //             &RouterHandleMsg::RegisterSNIP20Token {
+    //             &RouterExecuteMsg::RegisterSNIP20Token {
     //                 token: HumanAddr::from(s_sCRT.address.clone()),
     //                 token_code_hash: s_sCRT.code_hash.to_string(),
     //             },
@@ -376,7 +376,7 @@ fn main() -> serde_json::Result<()> {
     //         .unwrap();
 
     //         handle(
-    //             &RouterHandleMsg::RegisterSNIP20Token {
+    //             &RouterExecuteMsg::RegisterSNIP20Token {
     //                 token: HumanAddr::from(s_sSHD.address.clone()),
     //                 token_code_hash: s_sSHD.code_hash.to_string(),
     //             },
@@ -393,7 +393,7 @@ fn main() -> serde_json::Result<()> {
 
     //         {
     //             handle(
-    //                 &FactoryHandleMsg::CreateAMMPair {
+    //                 &FactoryExecuteMsg::CreateAMMPair {
     //                     pair: test_pair.clone(),
     //                     entropy: entropy,
     //                     staking_contract: Some(StakingContractInit {
@@ -434,7 +434,7 @@ fn main() -> serde_json::Result<()> {
 
     //                 print_header("\n\tAdding Liquidity to Pair Contract");
     //                 handle(
-    //                     &snip20_reference_impl::msg::HandleMsg::IncreaseAllowance {
+    //                     &snip20_reference_impl::msg::ExecuteMsg::IncreaseAllowance {
     //                         spender: HumanAddr(String::from(ammPair.address.0.to_string())),
     //                         amount: Uint128(100000000),
     //                         expiration: None,
@@ -456,7 +456,7 @@ fn main() -> serde_json::Result<()> {
     //                 .unwrap();
 
     //                 handle(
-    //                     &snip20_reference_impl::msg::HandleMsg::IncreaseAllowance {
+    //                     &snip20_reference_impl::msg::ExecuteMsg::IncreaseAllowance {
     //                         spender: HumanAddr(String::from(ammPair.address.0.to_string())),
     //                         amount: Uint128(100000000),
     //                         expiration: None,
@@ -506,7 +506,7 @@ fn main() -> serde_json::Result<()> {
     // println!("\n\tDepositing 1000000000uscrt sSCRT");
 
     // {
-    //     let msg = snip20_reference_impl::msg::HandleMsg::Mint { padding: None, recipient: HumanAddr(String::from("secret1ss0c4wgzcuszfsnaf0r32gpwkx2ssldqtz4mf5")), amount: Uint128(10000000000), memo: None };
+    //     let msg = snip20_reference_impl::msg::ExecuteMsg::Mint { padding: None, recipient: HumanAddr(String::from("secret1ss0c4wgzcuszfsnaf0r32gpwkx2ssldqtz4mf5")), amount: Uint128(10000000000), memo: None };
 
     //     handle(
     //         &msg,
@@ -530,7 +530,7 @@ fn main() -> serde_json::Result<()> {
 }
 
 //Used for adapting
-// let test_pair = TokenPair::<HumanAddr>(
+// let test_pair = TokenPair(
 //     TokenType::CustomToken {
 //         contract_addr: "secret18vd8fpwxzck93qlwghaj6arh4p7c5n8978vsyg".to_string().into(),
 //         token_code_hash: "9587d60b8e6b078ace12014ceeee089530b9fabcd76535d93666a6c127ad8813".to_string(),
@@ -542,7 +542,7 @@ fn main() -> serde_json::Result<()> {
 // );
 
 // handle(
-//     &RouterHandleMsg::RegisterSNIP20Token {
+//     &RouterExecuteMsg::RegisterSNIP20Token {
 //         token: HumanAddr::from("secret18vd8fpwxzck93qlwghaj6arh4p7c5n8978vsyg".to_string()),
 //         token_code_hash: "9587d60b8e6b078ace12014ceeee089530b9fabcd76535d93666a6c127ad8813".to_string(),
 //     },
@@ -557,7 +557,7 @@ fn main() -> serde_json::Result<()> {
 // .unwrap();
 
 // handle(
-//     &RouterHandleMsg::RegisterSNIP20Token {
+//     &RouterExecuteMsg::RegisterSNIP20Token {
 //         token: HumanAddr::from("secret19ymc8uq799zf36wjsgu4t0pk8euddxtx5fggn8".to_string()),
 //         token_code_hash: "5266a630e2b8ef910fb2515e1d3b5be95d4bd48358732788d8fcd984ee966bc1".to_string(),
 //     },
@@ -574,7 +574,7 @@ fn main() -> serde_json::Result<()> {
 
 // {
 //     handle(
-//         &FactoryHandleMsg::CreateAMMPair {
+//         &FactoryExecuteMsg::CreateAMMPair {
 //             pair: test_pair.clone(),
 //             entropy:  to_binary(&"".to_string()).unwrap(),
 //             staking_contract: None,

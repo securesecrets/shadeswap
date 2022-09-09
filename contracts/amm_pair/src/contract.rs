@@ -1,10 +1,10 @@
 use lp_token::msg::InitConfig;
 use shadeswap_shared::core::Callback;
-use cosmwasm_std::{to_binary, WasmQuery, BankMsg};
+use cosmwasm_std::{to_binary, WasmQuery, BankMsg, entry_point};
 use cosmwasm_std::{CosmosMsg, WasmMsg};
 use cosmwasm_std::{StdError, StdResult, InitResponse};
 use cosmwasm_std::Env;
-use secret_toolkit::snip20::{token_info_query, mint_msg, transfer_from_msg, HandleMsg as Snip20HandleMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg};
+use secret_toolkit::snip20::{token_info_query, mint_msg, transfer_from_msg, ExecuteMsg as Snip20ExecuteMsg, burn_msg, transfer_msg, register_receive_msg, set_viewing_key_msg};
 use std::convert::TryFrom;
 use std::hash::Hash;
 use std::collections::hash_map::DefaultHasher;
@@ -12,7 +12,7 @@ use std::str::FromStr;
 use shadeswap_shared::custom_fee::Fee;
 use cosmwasm_std::{Extern, Api, Binary, Querier, Storage,Decimal, Uint128, from_binary, HumanAddr, QueryRequest, Response, QueryResult, log};
 use shadeswap_shared::core::{ContractLink};
-use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, HandleMsg,TradeHistory, InvokeMsg,QueryMsgResponse}}};
+use shadeswap_shared::{msg::amm_pair::{{InitMsg,QueryMsg, SwapInfo, SwapResult, ExecuteMsg,TradeHistory, InvokeMsg,QueryMsgResponse}}};
 use lp_token;
 use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
 use shadeswap_shared::msg::staking::InvokeMsg as StakingInvokeMsg;
@@ -34,8 +34,8 @@ use crate::state::tradehistory::DirectionType;
 use crate::state::PAGINATION_LIMIT;
 use shadeswap_shared::msg::staking::QueryMsg as StakingQueryMsg;
 use shadeswap_shared::msg::staking::QueryResponse as StakingQueryResponse;
-use shadeswap_shared::msg::staking::HandleMsg as StakingHandleMsg;
-use shadeswap_shared::msg::router::HandleMsg as RouterHandleMsg;
+use shadeswap_shared::msg::staking::ExecuteMsg as StakingExecuteMsg;
+use shadeswap_shared::msg::router::ExecuteMsg as RouterExecuteMsg;
 use shadeswap_shared::msg::staking::InitMsg as StakingInitMsg;
 use shadeswap_shared::cosmwasm_math_compat::{Decimal as MathDecimal, Uint256};
 use shadeswap_shared::cosmwasm_math_compat::Uint128 as MathUint128;
@@ -48,10 +48,12 @@ use cosmwasm_std::BalanceResponse;
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
 pub const BLOCK_SIZE: usize = 256;
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
+#[entry_point]
+pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    msg: InitMsg,
+    _info: MessageInfo,
+    msg: InstantiateMsg,
 ) -> StdResult<InitResponse> {
     if msg.pair.0 == msg.pair.1 {
         return Err(StdError::generic_err(
@@ -76,7 +78,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         decimals: 18,
         // TODO need to find alternative
         callback: Some(Callback {
-            msg: to_binary(&HandleMsg::OnLpTokenInitAddr)?,
+            msg: to_binary(&ExecuteMsg::OnLpTokenInitAddr)?,
             contract: ContractLink {
                 address: env.contract.address.clone(),
                 code_hash: env.contract_code_hash.clone(),
@@ -233,25 +235,22 @@ fn register_pair_token(
     Ok(())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: DepsMut,
-    env: Env,
-    msg: HandleMsg,
-) -> StdResult<Response> {
+#[entry_point]
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        HandleMsg::Receive {
+        ExecuteMsg::Receive {
             from, amount, msg, ..
         } => receiver_callback(deps, env, from, amount, msg),
-        HandleMsg::AddLiquidityToAMMContract { deposit, slippage, staking } => {
+        ExecuteMsg::AddLiquidityToAMMContract { deposit, slippage, staking } => {
             add_liquidity(deps, env, deposit, slippage, staking)
         },
-        HandleMsg::SetCustomPairFee {shade_dao_fee, lp_fee} => set_custom_fee(deps, env, shade_dao_fee, lp_fee),
-        HandleMsg::SetStakingContract{contract} => set_staking_contract(deps, env, contract),
-        HandleMsg::SetAMMPairAdmin {admin} => set_admin_guard(deps,env,admin),
-        HandleMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
-        HandleMsg::AddWhiteListAddress{address} => add_address_to_whitelist(&mut deps.storage, address, env),
-        HandleMsg::RemoveWhitelistAddresses{addresses} => remove_address_from_whitelist(&mut deps.storage, addresses, env),
-        HandleMsg::SwapTokens {
+        ExecuteMsg::SetCustomPairFee {shade_dao_fee, lp_fee} => set_custom_fee(deps, env, shade_dao_fee, lp_fee),
+        ExecuteMsg::SetStakingContract{contract} => set_staking_contract(deps, env, contract),
+        ExecuteMsg::SetAMMPairAdmin {admin} => set_admin_guard(deps,env,admin),
+        ExecuteMsg::OnLpTokenInitAddr => register_lp_token(deps, env),
+        ExecuteMsg::AddWhiteListAddress{address} => add_address_to_whitelist(&mut deps.storage, address, env),
+        ExecuteMsg::RemoveWhitelistAddresses{addresses} => remove_address_from_whitelist(&mut deps.storage, addresses, env),
+        ExecuteMsg::SwapTokens {
             offer,
             expected_return,
             to,
@@ -414,7 +413,7 @@ pub fn swap<S: Storage, A: Api, Q: Querier>(
             contract_addr: router_link.clone().unwrap().address,
             callback_code_hash: router_link.clone().unwrap().code_hash,
             send: vec![],
-            msg: to_binary(&RouterHandleMsg::SwapCallBack {
+            msg: to_binary(&RouterExecuteMsg::SwapCallBack {
                 last_token_out: TokenAmount {
                     token: token.clone(),
                     amount: swap_result.result.return_amount,
@@ -457,7 +456,7 @@ pub fn set_staking_contract<S: Storage, A: Api, Q: Querier>(
         contract_addr: contract.address.clone(),
         callback_code_hash: contract.code_hash.clone(),
         send: vec![],
-        msg: to_binary(&StakingHandleMsg::SetLPToken {
+        msg: to_binary(&StakingExecuteMsg::SetLPToken {
            lp_token: config.lp_token_info.clone()
         })?,
     }));
@@ -947,10 +946,10 @@ pub fn add_liquidity<S: Storage, A: Api, Q: Querier>(
         })
         .unwrap();
 
-        let receive_msg = to_binary(&StakingHandleMsg::Receive { 
+        let receive_msg = to_binary(&StakingExecuteMsg::Receive { 
             from:  env.message.sender.clone(), msg: Some(invoke_msg.clone()), amount: lp_tokens })?;
         // SEND LP Token to Staking Contract with Staking Message
-        let msg = to_binary(&Snip20HandleMsg::Send {
+        let msg = to_binary(&Snip20ExecuteMsg::Send {
             recipient: staking_contract.address.clone(),
             recipient_code_hash: Some(staking_contract.code_hash.clone()),
             amount: lp_tokens,

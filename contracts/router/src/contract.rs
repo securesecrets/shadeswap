@@ -2,7 +2,7 @@ use cosmwasm_std::Coin;
 use shadeswap_shared::cosmwasm_math_compat::Uint256;
 use shadeswap_shared::router::InvokeMsg;
 use shadeswap_shared::router::QueryMsg;
-use shadeswap_shared::router::HandleMsg;
+use shadeswap_shared::router::ExecuteMsg;
 use secret_toolkit::snip20;
 use shadeswap_shared::viewing_keys::ViewingKey;
 use cosmwasm_std::QueryRequest;
@@ -31,7 +31,7 @@ use shadeswap_shared::{
     core::{Callback, ContractLink},
     msg::{
         amm_pair::{
-            HandleMsg as AMMPairHandleMsg, InvokeMsg as AMMPairInvokeMsg,
+            ExecuteMsg as AMMPairExecuteMsg, InvokeMsg as AMMPairInvokeMsg,
             QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryReponse,
         },
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
@@ -46,10 +46,12 @@ const BLOCK_SIZE: usize = 256;
 
 pub const EPHEMERAL_STORAGE_KEY: &[u8] = b"ephemeral_storage";
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
+#[entry_point]
+pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    msg: InitMsg,
+    _info: MessageInfo,
+    msg: InstantiateMsg,
 ) -> StdResult<InitResponse> {
     config_write(
         deps,
@@ -67,16 +69,13 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     Ok(InitResponse::default())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: DepsMut,
-    env: Env,
-    msg: HandleMsg,
-) -> StdResult<Response> {
+#[entry_point]
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        HandleMsg::Receive {
+        ExecuteMsg::Receive {
             from, amount, msg, ..
         } => receiver_callback(deps, env, from, amount, msg),
-        HandleMsg::SwapTokensForExact {
+        ExecuteMsg::SwapTokensForExact {
             offer,
             expected_return,
             path,
@@ -97,11 +96,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 recipient,
             )
         }
-        HandleMsg::SwapCallBack {
+        ExecuteMsg::SwapCallBack {
             last_token_out,
             signature,
         } => next_swap(deps, env, last_token_out, signature),
-        HandleMsg::RegisterSNIP20Token {
+        ExecuteMsg::RegisterSNIP20Token {
             token,
             token_code_hash,
         } => refresh_tokens(deps, env, token, token_code_hash),
@@ -344,7 +343,7 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
 
     match &token_in.token {
         TokenType::NativeToken { denom } => {
-            let msg = to_binary(&AMMPairHandleMsg::SwapTokens {
+            let msg = to_binary(&AMMPairExecuteMsg::SwapTokens {
                 expected_return: None,
                 to: None,
                 router_link: Some(ContractLink {
@@ -372,7 +371,7 @@ fn get_trade_with_callback<S: Storage, A: Api, Q: Querier>(
             contract_addr,
             token_code_hash,
         } => {
-            let msg = to_binary(&snip20::HandleMsg::Send {
+            let msg = to_binary(&snip20::ExecuteMsg::Send {
                 recipient: path.clone(),
                 amount: token_in.amount,
                 msg: Some(

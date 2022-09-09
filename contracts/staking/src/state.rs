@@ -3,7 +3,7 @@ use cosmwasm_std::{HumanAddr, Uint128, StdResult, Extern, Storage, Api, Querier,
 use serde::{Deserialize, Serialize};
 use shadeswap_shared::{token_type::TokenType, core::ContractLink, scrt_storage::{ns_save, ns_load, save, load}, viewing_keys::{ViewingKey, VIEWING_KEY_SIZE}};
 use serde::de::DeserializeOwned;
-use shadeswap_shared::msg::amm_pair::{{ HandleMsg,TradeHistory}};
+use shadeswap_shared::msg::amm_pair::{{ ExecuteMsg,TradeHistory}};
 use std::fmt::{{Formatter, Display}};
 
 pub static STAKING_CONFIG: &[u8] = b"STAKING_CONFIG";

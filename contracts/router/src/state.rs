@@ -29,7 +29,7 @@ pub static ADDED_TOKEN_LIST: &[u8] = b"added_token_list";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config<A> {
-    pub factory_address: ContractLink<A>,
+    pub factory_address: ContractLink,
     pub viewing_key: String,
 }
 

@@ -1,4 +1,4 @@
-use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, HandleMsg,SwapInfo, SwapResult,  InvokeMsg, QueryMsgResponse}};
+use shadeswap_shared::msg::amm_pair::{{InitMsg,QueryMsg, ExecuteMsg,SwapInfo, SwapResult,  InvokeMsg, QueryMsgResponse}};
 use shadeswap_shared::token_amount::{{TokenAmount}};
 use shadeswap_shared::token_pair::{{TokenPair}};
 use shadeswap_shared::token_pair_amount::{{TokenPairAmount}};
@@ -219,7 +219,7 @@ pub mod tests {
         handle(
             &mut deps,
             env,
-            HandleMsg::AddWhiteListAddress {
+            ExecuteMsg::AddWhiteListAddress {
                 address: address_a.clone()
             },
         )

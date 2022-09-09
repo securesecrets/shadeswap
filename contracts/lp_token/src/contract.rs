@@ -3,7 +3,7 @@
 use cosmwasm_std::{
     log, to_binary, Api, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Extern,
     Response, HumanAddr, InitResponse, Querier, QueryResult, Storage, StdError,
-    StdResult, Storage, Uint128, WasmMsg,
+    StdResult, Storage, Uint128, WasmMsg, entry_point,
 };
 
 use crate::batch;
@@ -28,10 +28,12 @@ use secret_toolkit::permit::{validate, Permission, Permit, RevokedPermits};
 pub const RESPONSE_BLOCK_SIZE: usize = 256;
 pub const PREFIX_REVOKED_PERMITS: &str = "revoked_permits";
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
+#[entry_point]
+pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    msg: InitMsg,
+    _info: MessageInfo,
+    msg: InstantiateMsg,
 ) -> StdResult<InitResponse> {
     // Check name, symbol, decimals
     if !is_valid_name(&msg.name) {

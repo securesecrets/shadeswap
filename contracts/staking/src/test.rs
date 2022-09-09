@@ -6,7 +6,7 @@ pub mod tests {
     use super::*;
     use cosmwasm_std::{BankQuery, AllBalanceResponse, to_vec, Coin, StdResult, HumanAddr, BalanceResponse, from_binary, StdError, QueryRequest, Empty, Uint128, to_binary, QuerierResult, from_slice, Querier, testing::{MockApi, MockStorage}, Extern, ContractInfo, MessageInfo, BlockInfo, Env, Api, Storage, WasmQuery};
     use secret_toolkit::snip20::Balance;
-    use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  HandleMsg}}, core::ContractLink};
+    use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  ExecuteMsg}}, core::ContractLink};
     use crate::state::{{Config , store_config, load_stakers, get_total_staking_amount, load_claim_reward_timestamp,
         load_config, is_address_already_staker, load_claim_reward_info,
         load_staker_info}};    
@@ -48,7 +48,7 @@ pub mod tests {
         };
         config.lp_token = lp_token.clone();
         store_config(&mut deps, &config)?;
-        let receive_msg = HandleMsg::Receive { 
+        let receive_msg = ExecuteMsg::Receive { 
             from: staker.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
                     amount: Uint128(100u128),
@@ -92,7 +92,7 @@ pub mod tests {
         };
         config.lp_token = lp_token.clone();        
         store_config(&mut deps, &config)?;
-        let receive_msg = HandleMsg::Receive { 
+        let receive_msg = ExecuteMsg::Receive { 
             from: staker.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
                     amount: Uint128(100u128),
@@ -112,7 +112,7 @@ pub mod tests {
         let result = handle(
             &mut deps,
             env.clone(),
-            HandleMsg::Unstake {amount: Uint128(100u128), remove_liqudity: Some(false)},
+            ExecuteMsg::Unstake {amount: Uint128(100u128), remove_liqudity: Some(false)},
         )
         .unwrap();
         let stake_info = load_staker_info(&deps, staker.clone())?;    
@@ -136,7 +136,7 @@ pub mod tests {
         };
         config.lp_token = lp_token.clone();            
         store_config(&mut deps, &config)?;
-        let receive_msg = HandleMsg::Receive { 
+        let receive_msg = ExecuteMsg::Receive { 
             from: staker_a.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
                     amount: Uint128(100u128),
@@ -153,7 +153,7 @@ pub mod tests {
         let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;        
         assert_eq!(is_user_staker, true);
         let env_b = mock_env("LPTOKEN".to_string(), (current_timestamp + Uint128(100u128)).u128() as u64, 1527, CONTRACT_ADDRESS, &[]);
-        let receive_msg = HandleMsg::Receive { 
+        let receive_msg = ExecuteMsg::Receive { 
             from: staker_b.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
                     amount: Uint128(100u128),
@@ -191,7 +191,7 @@ pub mod tests {
         };
         config.lp_token = lp_token.clone();            
         store_config(&mut deps, &config)?;      
-        let receive_msg = HandleMsg::Receive { 
+        let receive_msg = ExecuteMsg::Receive { 
             from: staker_a.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
                     amount: Uint128(100u128),
@@ -208,7 +208,7 @@ pub mod tests {
         let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;
         let stake_info = load_staker_info(&deps, staker_a.clone())?;
         assert_eq!(is_user_staker, true);
-        let receive_msg = HandleMsg::Receive { 
+        let receive_msg = ExecuteMsg::Receive { 
             from: staker_a.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
                     amount: Uint128(100u128),
@@ -246,7 +246,7 @@ pub mod tests {
         config.lp_token = lp_token.clone();            
         store_config(&mut deps, &config)?;    
         // set staker_a   
-        let receive_msg = HandleMsg::Receive { 
+        let receive_msg = ExecuteMsg::Receive { 
             from: staker_a.clone(),
             msg: Some(to_binary(&InvokeMsg::Stake{
                     amount: Uint128(100u128),
@@ -264,7 +264,7 @@ pub mod tests {
         let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;
         let stake_info = load_staker_info(&deps, staker_a.clone())?;
         assert_eq!(is_user_staker, true);
-        let set_vk_msg = HandleMsg::SetVKForStaker { key: "password".to_string()};
+        let set_vk_msg = ExecuteMsg::SetVKForStaker { key: "password".to_string()};
         let result = handle(
             &mut deps,
             env_b.clone(),      

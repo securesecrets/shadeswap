@@ -1,4 +1,5 @@
-use shadeswap_shared::core::Callback;
+
+use schemars::JsonSchema;
 use shadeswap_shared::viewing_keys::ViewingKey;
 use colored::*;
 use rand::{distributions::Alphanumeric, Rng};
@@ -6,19 +7,31 @@ use secretcli::cli_types::StoredContract;
 use secretcli::secretcli::{init, handle, Report};
 use secretcli::{cli_types::NetContract, secretcli::query};
 use serde::{Serialize, Deserialize};
+use snip20_reference_impl::contract;
 use std::fmt::Display;
 use std::fs;
 use cosmwasm_std::{
     Binary, HumanAddr, Uint128, Env
 };
-use schemars::JsonSchema;
+use shadeswap_shared::{
+    amm_pair::{AMMPair},
+    msg::{
+        amm_pair::{
+            HandleMsg as AMMPairHandlMsg,
+        },
+        factory::{
+            HandleMsg as FactoryHandleMsg, QueryMsg as FactoryQueryMsg,
+            QueryResponse as FactoryQueryResponse, InitMsg as FactoryInitMsg
+        },
+        router::{
+            HandleMsg as RouterHandleMsg,
+        },
+    },
+    stake_contract::StakingContractInit,
+    Pagination, TokenPair, TokenPairAmount, TokenType,
+};
 use shadeswap_shared::snip20_reference_impl::msg::{
     InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg, InitialBalance,
-};
-
-use shadeswap_shared::{
-    secret_toolkit::snip20::{Balance},
-    amm_pair::{AMMPair, AMMSettings}
 };
 
 use serde_json::Result;
@@ -167,9 +180,11 @@ pub fn init_snip20(
     config: Option<InitConfig>,
     reports: &mut Vec<Report>,
     account_key: &str,
-    customizedSnip20File: Option<&str>
+    customizedSnip20File: Option<&str>,
+    backend: &str
 ) -> Result<(InitMsg, NetContract)> {
-    let mut init_msg = InitMsg {
+    
+    let init_msg = InitMsg {
         name: name.to_string(),
         admin: None,
         symbol: symbol.to_string(),
@@ -178,20 +193,34 @@ pub fn init_snip20(
         prng_seed: Default::default(),
         config: config
     };
-
      
-
-    let s_sToken = init(
+    let snip_20 = init(
         &init_msg,
         customizedSnip20File.unwrap_or(SNIP20_FILE),
         &*generate_label(8),
         account_key,
         Some(STORE_GAS),
         Some(GAS),
-        Some("test"),
+        Some(backend),
         reports,
     )?;
-    Ok((init_msg, s_sToken))
+    Ok((init_msg, snip_20))
+}
+
+pub fn init_contract_factory(account_name: &str, backend: &str, 
+    file_path: &str, msg: &FactoryInitMsg,
+    reports: &mut Vec<Report>) -> Result<NetContract> {    
+    let contract = init(
+        &msg,
+        file_path,
+        &*generate_label(8),
+        account_name,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some(backend),
+        reports,
+    )?;
+    Ok(contract)
 }
 
 pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {

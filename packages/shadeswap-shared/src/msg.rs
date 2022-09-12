@@ -143,7 +143,7 @@ pub mod amm_pair {
             /// The token type to swap from.
             offer: TokenAmount,
             expected_return: Option<Uint128>,
-            to: Option<String>,
+            to: Option<Addr>,
             router_link: Option<ContractLink>,
             callback_signature: Option<Binary>,
         },
@@ -153,24 +153,18 @@ pub mod amm_pair {
             msg: Option<Binary>,
             amount: Uint128,
         },
-        // Sent by the LP token contract so that we can record its address.
-        OnLpTokenInitAddr,
         AddWhiteListAddress {
-            address: String,
+            address: Addr,
         },
         RemoveWhitelistAddresses {
-            addresses: Vec<String>,
+            addresses: Vec<Addr>,
         },
         SetAMMPairAdmin {
-            admin: String,
-        },
-        SetStakingContract {
-            contract: ContractLink,
+            admin: Addr,
         },
         SetCustomPairFee {
-            shade_dao_fee: Fee,
-            lp_fee: Fee,
-        },
+            custom_fee: Option<CustomFee>
+        }
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -226,19 +220,19 @@ pub mod amm_pair {
             data: Vec<TradeHistory>,
         },
         GetWhiteListAddress {
-            addresses: Vec<String>,
+            addresses: Vec<Addr>,
         },
         GetTradeCount {
             count: u64,
         },
         GetAdminAddress {
-            address: String,
+            address: Addr,
         },
         GetClaimReward {
             amount: Uint128,
         },
         StakingContractInfo {
-            staking_contract: ContractLink,
+            staking_contract: Option<ContractLink>,
         },
         EstimatedPrice {
             estimated_price: String,
@@ -340,6 +334,7 @@ pub mod staking {
     use crate::core::TokenType;
 
     use super::*;
+    use cosmwasm_std::Addr;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -393,7 +388,7 @@ pub mod staking {
     pub enum QueryResponse {
         ClaimReward {
             amount: Uint128,
-            reward_token: ContractLink<HumanAddr>
+            reward_token: ContractLink
         },
         ContractOwner {
             address: String,
@@ -404,18 +399,18 @@ pub mod staking {
         },
         RewardTokenBalance {
             amount: Uint128,
-            reward_token: ContractLink<HumanAddr>
+            reward_token: ContractLink
         },
         StakerRewardTokenBalance {
             reward_amount: Uint128,
             total_reward_liquidity: Uint128,
-            reward_token: ContractLink<HumanAddr>
+            reward_token: ContractLink
         },
         Config{
-            reward_token: ContractLink<HumanAddr>,
-            lp_token: ContractLink<HumanAddr>,
+            reward_token: ContractLink,
+            lp_token: ContractLink,
             daily_reward_amount: Uint128,
-            contract_owner: HumanAddr
+            contract_owner: Addr
         }
     }
 }

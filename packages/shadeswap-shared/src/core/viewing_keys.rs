@@ -61,3 +61,7 @@ impl From<&str> for ViewingKey {
         ViewingKey(vk.into())
     }
 }
+
+pub fn create_viewing_key(env: &Env, info: &MessageInfo, seed: Binary, entroy: Binary) -> ViewingKey {
+    ViewingKey::new(&env, info, seed.as_slice(), entroy.as_slice())
+}

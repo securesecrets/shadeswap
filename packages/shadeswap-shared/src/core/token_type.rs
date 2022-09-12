@@ -1,7 +1,7 @@
 use crate::snip20::ExecuteMsg::Send;
 use cosmwasm_std::{
     from_binary, to_binary, Api, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Querier,
-    Response, StdError, StdResult, Storage, Uint128, WasmMsg, MessageInfo, DepsMut, Addr,
+    Response, StdError, StdResult, Storage, Uint128, WasmMsg, MessageInfo, DepsMut, Addr, Deps,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -63,7 +63,7 @@ impl TokenType {
 impl TokenType {
     pub fn query_balance(
         &self,
-        deps: &DepsMut,
+        deps: Deps,
         exchange_addr: String,
         viewing_key: String,
     ) -> StdResult<Uint128> {

@@ -31,17 +31,13 @@ pub fn apply_admin_guard(
     return Ok(true)
 }
 
-// pub fn set_admin_guard<S: Storage, A: Api, Q: Querier>(
-//     storage: &mut dyn Storage,
-//     env: Env,
-//     info: MessageInfo,
-//     admin: String
-// ) -> StdResult<Response>{
-//     let sender = info.sender.to_string();
-//     apply_admin_guard(sender.clone(), storage)?;
-//     store_admin(storage,&admin);
-//     Ok(Response::new()
-//     .add_attribute("action", "set_admin_guard")
-//     .add_attribute("caller", sender.clone())
-//     .add_attribute("admin", admin))
-// }
+pub fn set_admin_guard(
+    storage: &mut dyn Storage,
+    info: MessageInfo,
+    admin: Addr
+) -> StdResult<Response>{
+    let sender = info.sender.to_string();
+    apply_admin_guard(&info.sender, storage)?;
+    admin_w(storage).save(&admin)?;
+    Ok(Response::default())
+}

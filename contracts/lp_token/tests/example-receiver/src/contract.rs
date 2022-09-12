@@ -1,18 +1,16 @@
 use cosmwasm_std::{
     from_binary, to_binary, Api, BankMsg, Binary, Coin, Context, CosmosMsg, Env, Extern,
-    Response, HumanAddr, InitResponse, Querier, StdError, StdResult, Storage, Uint128,
-    WasmMsg, entry_point
+    HandleResponse, HumanAddr, InitResponse, Querier, StdError, StdResult, Storage, Uint128,
+    WasmMsg,
 };
 
 use crate::msg::{CountResponse, HandleMsg, InitMsg, QueryMsg, Snip20Msg};
 use crate::state::{config, config_read, State};
 
-#[entry_point]
-pub fn instantiate(
-    deps: DepsMut,
+pub fn init<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
     env: Env,
-    _info: MessageInfo,
-    msg: InstantiateMsg,
+    msg: InitMsg,
 ) -> StdResult<InitResponse> {
     let state = State {
         count: msg.count,
@@ -26,10 +24,10 @@ pub fn instantiate(
 }
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: DepsMut,
+    deps: &mut Extern<S, A, Q>,
     env: Env,
     msg: HandleMsg,
-) -> StdResult<Response> {
+) -> StdResult<HandleResponse> {
     match msg {
         HandleMsg::Increment {} => try_increment(deps, env),
         HandleMsg::Reset { count } => try_reset(deps, env, count),
@@ -52,9 +50,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_increment<S: Storage, A: Api, Q: Querier>(
-    deps: DepsMut,
+    deps: &mut Extern<S, A, Q>,
     _env: Env,
-) -> StdResult<Response> {
+) -> StdResult<HandleResponse> {
     let mut count = 0;
     config(&mut deps.storage).update(|mut state| {
         state.count += 1;
@@ -69,10 +67,10 @@ pub fn try_increment<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_reset<S: Storage, A: Api, Q: Querier>(
-    deps: DepsMut,
+    deps: &mut Extern<S, A, Q>,
     env: Env,
     count: i32,
-) -> StdResult<Response> {
+) -> StdResult<HandleResponse> {
     let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
     config(&mut deps.storage).update(|mut state| {
         if sender_address_raw != state.owner {
@@ -81,15 +79,15 @@ pub fn try_reset<S: Storage, A: Api, Q: Querier>(
         state.count = count;
         Ok(state)
     })?;
-    Ok(Response::default())
+    Ok(HandleResponse::default())
 }
 
 pub fn try_register<S: Storage, A: Api, Q: Querier>(
-    deps: DepsMut,
+    deps: &mut Extern<S, A, Q>,
     env: Env,
     reg_addr: HumanAddr,
     reg_hash: String,
-) -> StdResult<Response> {
+) -> StdResult<HandleResponse> {
     let mut conf = config(&mut deps.storage);
     let mut state = conf.load()?;
     if !state.known_snip_20.contains(&reg_addr) {
@@ -105,7 +103,7 @@ pub fn try_register<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     });
 
-    Ok(Response {
+    Ok(HandleResponse {
         messages: vec![message],
         log: vec![],
         data: None,
@@ -113,13 +111,13 @@ pub fn try_register<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_receive<S: Storage, A: Api, Q: Querier>(
-    deps: DepsMut,
+    deps: &mut Extern<S, A, Q>,
     env: Env,
     _sender: HumanAddr,
     _from: HumanAddr,
     _amount: Uint128,
     msg: Binary,
-) -> StdResult<Response> {
+) -> StdResult<HandleResponse> {
     let msg: HandleMsg = from_binary(&msg)?;
 
     if matches!(msg, HandleMsg::Receive { .. }) {
@@ -141,13 +139,13 @@ pub fn try_receive<S: Storage, A: Api, Q: Querier>(
 }
 
 fn try_redeem<S: Storage, A: Api, Q: Querier>(
-    _deps: &Deps<S, A, Q>,
+    _deps: &Extern<S, A, Q>,
     env: Env,
     addr: HumanAddr,
     hash: String,
     to: HumanAddr,
     amount: Uint128,
-) -> StdResult<Response> {
+) -> StdResult<HandleResponse> {
     // let state = config_read(&deps.storage).load()?;
     // if !state.known_snip_20.contains(&addr) {
     //     return Err(StdError::generic_err(format!(
@@ -169,19 +167,19 @@ fn try_redeem<S: Storage, A: Api, Q: Querier>(
         to_address: to,
     });
 
-    Ok(Response {
+    Ok(HandleResponse {
         messages: vec![secret_redeem, redeem],
         log: vec![],
         data: None,
     })
 }
 
-fn try_fail() -> StdResult<Response> {
+fn try_fail() -> StdResult<HandleResponse> {
     Err(StdError::generic_err("intentional failure"))
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Deps<S, A, Q>,
+    deps: &Extern<S, A, Q>,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
@@ -189,7 +187,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn query_count<S: Storage, A: Api, Q: Querier>(deps: &Deps<S, A, Q>) -> StdResult<CountResponse> {
+fn query_count<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<CountResponse> {
     let state = config_read(&deps.storage).load()?;
     Ok(CountResponse { count: state.count })
 }

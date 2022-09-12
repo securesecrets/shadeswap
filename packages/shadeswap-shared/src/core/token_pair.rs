@@ -1,5 +1,5 @@
 
-use cosmwasm_std::{CanonicalAddr, Uint128, DepsMut};
+use cosmwasm_std::{CanonicalAddr, Uint128, DepsMut, Deps};
 use cosmwasm_std::{
     from_binary,
     Api,
@@ -55,7 +55,7 @@ impl TokenPair{
     /// correspond to the token order in the pair i.e `[ self.0 balance, self.1 balance ]`.
     pub fn query_balances(
         &self,
-        deps: &DepsMut,
+        deps: Deps,
         exchange_addr: String,
         viewing_key: String,
     ) -> StdResult<[Uint128; 2]> {

@@ -1,5 +1,4 @@
-use shadeswap_shared::core::Callback;
-use shadeswap_shared::viewing_keys::ViewingKey;
+use shadeswap_shared::core::{Callback, ViewingKey};
 use colored::*;
 use rand::{distributions::Alphanumeric, Rng};
 use secretcli::cli_types::StoredContract;
@@ -9,16 +8,13 @@ use serde::{Serialize, Deserialize};
 use std::fmt::Display;
 use std::fs;
 use cosmwasm_std::{
-    Binary, HumanAddr, Uint128, Env
+    Binary, Uint128, Env, Addr, MessageInfo
 };
 use schemars::JsonSchema;
-use shadeswap_shared::snip20_reference_impl::msg::{
-    InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg, InitialBalance,
-};
 
 use shadeswap_shared::{
-    secret_toolkit::snip20::{Balance},
-    amm_pair::{AMMPair, AMMSettings}
+    amm_pair::{AMMPair, AMMSettings},
+    contract_interfaces::snip20::{InitConfig as Snip20ComposableConfig, InstantiateMsg as Snip20ComposableMsg, InitialBalance,}
 };
 
 use serde_json::Result;
@@ -136,8 +132,8 @@ impl InitConfig {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 pub struct InitialAllowance {
-    pub owner: HumanAddr,
-    pub spender: HumanAddr,
+    pub owner: Addr,
+    pub spender: Addr,
     pub amount: Uint128,
     pub expiration: Option<u64>,
 }
@@ -145,7 +141,7 @@ pub struct InitialAllowance {
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct InitMsg {
     pub name: String,
-    pub admin: Option<HumanAddr>,
+    pub admin: Option<Addr>,
     pub symbol: String,
     pub decimals: u8,
     pub initial_balances: Option<Vec<InitialBalance>>,
@@ -190,6 +186,6 @@ pub fn init_snip20(
     Ok((init_msg, s_sToken))
 }
 
-pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
-    ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
+pub fn create_viewing_key(env: &Env, info: &MessageInfo, seed: Binary, entroy: Binary) -> String {
+    ViewingKey::new(&env, info, seed.as_slice(), entroy.as_slice()).to_string()
 }

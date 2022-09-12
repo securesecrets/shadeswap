@@ -2,4 +2,10 @@ FROM ghcr.io/scrtlabs/localsecret:v1.4.0-cw-v1-beta.2
 
 RUN curl https://sh.rustup.rs -sSf |  sh -s -- -y
 
+RUN  rustup target add wasm32-unknown-unknown
+
+RUN apt install --assume-yes clang
+
+RUN apt install --assume-yes binaryen
+
 ENTRYPOINT ["./bootstrap_init.sh"]

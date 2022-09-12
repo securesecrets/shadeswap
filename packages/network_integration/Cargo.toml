@@ -31,3 +31,8 @@ query-authentication = {git = "https://github.com/securesecrets/query-authentica
 shadeswap-shared = {path = "../shadeswap-shared"}
 snip20-reference-impl = {path ="../../contracts/snip20"}
 schemars = "0.8.1"
+secret-toolkit = { git = "https://github.com/scrtlabs/secret-toolkit", branch = "cosmwasm-v1.0", features = [
+  "permit",
+  "viewing-key",
+  "crypto",
+] }

@@ -1,12 +1,13 @@
 use crate::{
     execute::{
-        add_address_to_whitelist, add_liquidity, get_estimated_lp_token, get_shade_dao_info,
+        add_address_to_whitelist, get_estimated_lp_token, get_shade_dao_info,
         load_trade_history_query, query_calculate_price, query_liquidity, register_lp_token,
         remove_address_from_whitelist, remove_liquidity, set_staking_contract, swap,
         swap_simulation,
     },
     state::{config_r, config_w, trade_count_r, whitelist_r, Config},
 };
+use crate::execute::add_liquidity;
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
     Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,

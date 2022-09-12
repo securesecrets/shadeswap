@@ -35,7 +35,7 @@ default = []
 
 
 [dependencies]
-snafu = { version = "0.6.3" }
+snafu = { version = "0.7.1" }
 serde = { version = "1.0.114", default-features = false, features = [
   "derive",
   "alloc"
@@ -47,4 +47,4 @@ shadeswap-shared = {path = "../../packages/shadeswap-shared"}
 lp-token = {path="../lp_token"}
 
 [dev-dependencies]
-cosmwasm-schema = "0.10.1"
+cosmwasm-schema = "1.1.0"

@@ -13,7 +13,7 @@ cat ./$(1).wasm | gzip -n -9 > ${compiled_dir}/$(1).wasm.gz
 rm ./$(1).wasm
 endef
 
-CONTRACTS = factory amm_pair router snip20 lp_token staking
+CONTRACTS = fstaking #snip20 lp_token actory amm_pair router 
 debug: setup
 	(cd ${contracts_dir}; ${build-debug})
 	@$(MAKE) compress_all

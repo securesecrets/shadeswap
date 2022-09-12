@@ -359,7 +359,7 @@ pub mod staking {
             lp_token: ContractLink,
         },
         Receive {
-            from: String,
+            from: Addr,
             msg: Option<Binary>,
             amount: Uint128,
         }, 
@@ -371,17 +371,17 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
-        Stake { from: String, amount: Uint128 },
+        Stake { from: Addr, amount: Uint128 },
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {        
-        GetClaimReward {staker: String, key: String, time: Uint128},
+        GetClaimReward {staker: Addr, key: String, time: Uint128},
         GetContractOwner {},
-        GetStakerLpTokenInfo{key: String, staker: String},
-        GetRewardTokenBalance {key: String, address: String},
-        GetStakerRewardTokenBalance {key: String, staker: String},
+        GetStakerLpTokenInfo{key: String, staker: Addr},
+        GetRewardTokenBalance {key: String, address: Addr},
+        GetStakerRewardTokenBalance {key: String, staker: Addr},
         GetConfig{}
     }
 

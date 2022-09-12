@@ -1,5 +1,6 @@
 pub mod contract;
 pub mod state;
+pub mod operations;
 #[cfg(test)] mod test;
 
 #[cfg(target_arch = "wasm32")]
@@ -12,19 +13,20 @@ mod wasm {
     use cosmwasm_std::do_init;
     use cosmwasm_std::do_handle;
 
+
     #[no_mangle]
-    extern "C" fn init(env_ptr: u32, msg_ptr: u32) -> u32 {
+    extern "C" fn instantiate(env_ptr: u32, msg_ptr: u32) -> u32 {
         do_init(
-            &contract::init::<ExternalStorage, ExternalApi, ExternalQuerier>,
+            &contract::instantiate::<ExternalStorage, ExternalApi, ExternalQuerier>,
             env_ptr,
             msg_ptr,
         )
     }
 
     #[no_mangle]
-    extern "C" fn handle(env_ptr: u32, msg_ptr: u32) -> u32 {
+    extern "C" fn execute(env_ptr: u32, msg_ptr: u32) -> u32 {
         do_handle(
-            &contract::handle::<ExternalStorage, ExternalApi, ExternalQuerier>,
+            &contract::execute::<ExternalStorage, ExternalApi, ExternalQuerier>,
             env_ptr,
             msg_ptr,
         )

@@ -20,7 +20,7 @@ pub mod test_contract {
     use crate::contract::execute;
     use crate::contract::instantiate;
     use crate::contract::query;
-    use crate::execute::create_pair;
+    use crate::operations::create_pair;
     use crate::state::config_r;
     use crate::state::config_w;
     use crate::state::PAGINATION_LIMIT;

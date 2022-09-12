@@ -15,15 +15,17 @@ pub struct CountResponse {
 }
 
 pub mod router {
+    use cosmwasm_std::Addr;
+
     use super::{amm_pair::SwapResult, *};
     use crate::core::{ViewingKey, ContractLink, TokenAmount};
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub enum InvokeMsg {
         SwapTokensForExact {
-            paths: Vec<String>,
+            paths: Vec<Addr>,
             expected_return: Option<Uint128>,
-            recipient: Option<String>,
+            recipient: Option<Addr>,
         },
     }
 
@@ -40,7 +42,7 @@ pub mod router {
     pub enum ExecuteMsg {
         // SNIP20 receiver interface
         Receive {
-            from: String,
+            from: Addr,
             msg: Option<Binary>,
             amount: Uint128,
         },
@@ -48,15 +50,15 @@ pub mod router {
             /// The token type to swap from.
             offer: TokenAmount,
             expected_return: Option<Uint128>,
-            path: Vec<String>,
-            recipient: Option<String>,
+            path: Vec<Addr>,
+            recipient: Option<Addr>,
         },
         SwapCallBack {
             last_token_out: TokenAmount,
             signature: Binary,
         },
         RegisterSNIP20Token {
-            token: String,
+            token_addr: Addr,
             token_code_hash: String,
         },
     }
@@ -66,7 +68,7 @@ pub mod router {
     pub enum QueryMsg {
         SwapSimulation {
             offer: TokenAmount,
-            path: Vec<String>,
+            path: Vec<Addr>,
         },
     }
 

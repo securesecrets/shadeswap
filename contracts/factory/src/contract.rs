@@ -1,5 +1,5 @@
 use crate::{
-    execute::{add_amm_pairs, create_pair, register_amm_pair, set_config, list_pairs, query_amm_pair_address, query_amm_settings},
+    operations::{add_amm_pairs, create_pair, register_amm_pair, set_config, list_pairs, query_amm_pair_address, query_amm_settings},
     state::{config_r, config_w, ephemeral_storage_w, prng_seed_w, Config, ephemeral_storage_r},
 };
 use cosmwasm_std::{

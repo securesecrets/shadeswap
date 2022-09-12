@@ -791,11 +791,10 @@ dependencies = [
 name = "router"
 version = "0.1.0"
 dependencies = [
- "cosmwasm-schema 0.10.1",
+ "cosmwasm-schema 1.1.0-rc.2",
  "cosmwasm-std",
  "cosmwasm-storage",
  "schemars 0.8.10",
- "secret-toolkit 0.2.0",
  "serde",
  "shadeswap-shared",
  "snafu",

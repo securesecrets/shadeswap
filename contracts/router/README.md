@@ -28,7 +28,7 @@ Initialize a Router Contract
 
 |Name|Type|Description|Optional|
 |-|-|-|-|
-|factory_address|ContractLink<HumanAddr>|The Factory Contract to register the router for|No|
+|factory_address|ContractLink|The Factory Contract to register the router for|No|
 |prng_seed|Binary|Seed used for generated viewing key|No|
 |entropy|Binary|Entropy used for generated viewing key|No|
 |viewing_key|Option<ViewingKey>|Fixed viewing key to use for router, useful for testing|No|

@@ -48,6 +48,7 @@ base64 = "0.12.3"
 rand_chacha = { version = "0.2.2", default-features = false }
 rand_core = { version = "0.5.1", default-features = false }
 sha2 = { version = "0.9.1", default-features = false }
+shadeswap-shared = {path = "../../packages/shadeswap-shared"}
 
 [dev-dependencies]
 cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e" }

@@ -1,9 +1,21 @@
-use cosmwasm_std::{entry_point, DepsMut, Env, MessageInfo, StdResult, Response, Addr, CosmosMsg, WasmMsg, Attribute, Uint128, Binary, from_binary, StdError, Deps};
-use shadeswap_shared::{staking::{InitMsg, ExecuteMsg, InvokeMsg, QueryMsg}, core::{ContractLink, admin_w}};
+use cosmwasm_std::{
+    entry_point, from_binary, to_binary, Addr, Attribute, Binary, CosmosMsg, Deps, DepsMut, Env,
+    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
+};
+use shadeswap_shared::{
+    core::{admin_w, ContractLink},
+    msg::amm_pair::ExecuteMsg as AmmPairExecuteMsg,
+    staking::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg},
+};
 
-use crate::{state::{Config, config_w, prng_seed_w, config_r, stakers_r}, operations::{claim_rewards, set_lp_token, unstake, set_view_key, stake, get_claim_reward_for_user, get_staking_contract_owner, get_staking_stake_lp_token_info, get_staking_reward_token_balance, get_staker_reward_info, get_config}};
-
-
+use crate::{
+    operations::{
+        claim_rewards, get_claim_reward_for_user, get_config, get_staker_reward_info,
+        get_staking_contract_owner, get_staking_reward_token_balance,
+        get_staking_stake_lp_token_info, set_lp_token, set_view_key, stake, unstake,
+    },
+    state::{config_r, config_w, prng_seed_w, stakers_r, Config},
+};
 
 pub const BLOCK_SIZE: usize = 256;
 
@@ -13,16 +25,15 @@ pub fn instantiate(
     env: Env,
     _info: MessageInfo,
     msg: InitMsg,
-)-> StdResult<Response> {
-
+) -> StdResult<Response> {
     let config = Config {
         contract_owner: _info.sender.clone(),
         daily_reward_amount: msg.staking_amount,
         reward_token: msg.reward_token.clone(),
-        lp_token: ContractLink { 
+        lp_token: ContractLink {
             address: Addr::unchecked("".to_string()),
-            code_hash: "".to_string()
-        }
+            code_hash: "".to_string(),
+        },
     };
     config_w(deps.storage).save(&config)?;
     admin_w(deps.storage).save(&_info.sender)?;
@@ -31,11 +42,22 @@ pub fn instantiate(
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
 
-    Ok(response.add_attributes(
-        vec![
-           Attribute::new("staking_contract_addr", env.contract.address),
-           Attribute::new("reward_token", msg.reward_token.to_string()),
-           Attribute::new("daily_reward_amount", msg.staking_amount),
+    Ok(response
+        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: msg.pair_contract.address.to_string(),
+            code_hash: msg.pair_contract.code_hash.clone(),
+            msg: to_binary(&AmmPairExecuteMsg::SetStakingContract {
+                contract: ContractLink {
+                    address: env.contract.address.clone(),
+                    code_hash: env.contract.code_hash.clone(),
+                },
+            })?,
+            funds: vec![],
+        }))
+        .add_attributes(vec![
+            Attribute::new("staking_contract_addr", env.contract.address),
+            Attribute::new("reward_token", msg.reward_token.to_string()),
+            Attribute::new("daily_reward_amount", msg.staking_amount),
         ]))
 }
 
@@ -44,14 +66,15 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     match msg {
         ExecuteMsg::Receive {
             from, amount, msg, ..
-        } => receiver_callback(deps, env, info, from, amount, msg),      
-        ExecuteMsg::ClaimRewards { } => {
-            claim_rewards(deps, info, env)
-        }
-        ExecuteMsg::SetLPToken {lp_token} => set_lp_token(deps, env, lp_token),
-        ExecuteMsg::Unstake {amount, remove_liqudity} => unstake(deps,env, info, amount, remove_liqudity),
-        ExecuteMsg::SetVKForStaker { key} => set_view_key(deps, env, info, key),
-    }    
+        } => receiver_callback(deps, env, info, from, amount, msg),
+        ExecuteMsg::ClaimRewards {} => claim_rewards(deps, info, env),
+        ExecuteMsg::SetLPToken { lp_token } => set_lp_token(deps, env, lp_token),
+        ExecuteMsg::Unstake {
+            amount,
+            remove_liqudity,
+        } => unstake(deps, env, info, amount, remove_liqudity),
+        ExecuteMsg::SetVKForStaker { key } => set_view_key(deps, env, info, key),
+    }
 }
 
 fn receiver_callback(
@@ -67,25 +90,31 @@ fn receiver_callback(
     })?;
 
     let config = config_r(deps.storage).load()?;
-    match from_binary(&msg)? {       
+    match from_binary(&msg)? {
         InvokeMsg::Stake { from, amount } => {
             if config.lp_token.address != info.sender {
                 return Err(StdError::generic_err("".to_string()));
             }
-            stake(deps, env,info, amount, from)
+            stake(deps, env, info, amount, from)
         }
     }
 }
 
-
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {    
-        QueryMsg::GetConfig {  } => {get_config(deps)},
-        QueryMsg::GetClaimReward{ staker, time, key  } =>{get_claim_reward_for_user(deps, staker, key,time)},
-        QueryMsg::GetContractOwner {} => {get_staking_contract_owner(deps, env)},
-        QueryMsg::GetStakerLpTokenInfo { key, staker } => {get_staking_stake_lp_token_info(deps, staker, key)},
-        QueryMsg::GetRewardTokenBalance {key, address} => {get_staking_reward_token_balance(env, deps, key, address)},
-        QueryMsg::GetStakerRewardTokenBalance { key, staker } => {get_staker_reward_info(deps, key, staker)},
+    match msg {
+        QueryMsg::GetConfig {} => get_config(deps),
+        QueryMsg::GetClaimReward { staker, time, key } => {
+            get_claim_reward_for_user(deps, staker, key, time)
+        }
+        QueryMsg::GetContractOwner {} => get_staking_contract_owner(deps, env),
+        QueryMsg::GetStakerLpTokenInfo { key, staker } => {
+            get_staking_stake_lp_token_info(deps, staker, key)
+        }
+        QueryMsg::GetRewardTokenBalance { key, address } => {
+            get_staking_reward_token_balance(env, deps, key, address)
+        }
+        QueryMsg::GetStakerRewardTokenBalance { key, staker } => {
+            get_staker_reward_info(deps, key, staker)
+        }
     }
 }
-

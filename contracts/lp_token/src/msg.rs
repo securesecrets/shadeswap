@@ -2,6 +2,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use shadeswap_shared::core::Callback;
 
 use crate::batch;
 use crate::transaction_history::{RichTx, Tx};
@@ -24,6 +25,7 @@ pub struct InstantiateMsg {
     pub initial_balances: Option<Vec<InitialBalance>>,
     pub prng_seed: Binary,
     pub config: Option<InitConfig>,
+    pub callback: Option<Callback>
 }
 
 impl InstantiateMsg {
@@ -40,19 +42,19 @@ impl InstantiateMsg {
 pub struct InitConfig {
     /// Indicates whether the total supply is public or should be kept secret.
     /// default: False
-    public_total_supply: Option<bool>,
+    pub public_total_supply: Option<bool>,
     /// Indicates whether deposit functionality should be enabled
     /// default: False
-    enable_deposit: Option<bool>,
+    pub enable_deposit: Option<bool>,
     /// Indicates whether redeem functionality should be enabled
     /// default: False
-    enable_redeem: Option<bool>,
+    pub enable_redeem: Option<bool>,
     /// Indicates whether mint functionality should be enabled
     /// default: False
-    enable_mint: Option<bool>,
+    pub enable_mint: Option<bool>,
     /// Indicates whether burn functionality should be enabled
     /// default: False
-    enable_burn: Option<bool>,
+    pub enable_burn: Option<bool>,
 }
 
 impl InitConfig {

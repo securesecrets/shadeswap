@@ -9,7 +9,6 @@ dependencies = [
  "cosmwasm-schema 1.1.0-rc.2",
  "cosmwasm-std",
  "cosmwasm-storage",
- "lp-token",
  "schemars 0.8.10",
  "serde",
  "shadeswap-shared",
@@ -617,6 +616,7 @@ dependencies = [
  "secret-toolkit 0.4.0",
  "serde",
  "sha2 0.9.9",
+ "shadeswap-shared",
  "snafu 0.7.1",
  "subtle 2.4.1",
 ]

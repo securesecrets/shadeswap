@@ -2,7 +2,7 @@
 /// https://github.com/SecretFoundation/SNIPs/blob/master/SNIP-20.md
 use cosmwasm_std::{
     entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult, Storage, Uint128,
+    MessageInfo, Response, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
 use crate::batch;
@@ -109,9 +109,17 @@ pub fn instantiate(
     MintersStore::save(deps.storage, minters)?;
 
     ViewingKey::set_seed(deps.storage, &prng_seed_hashed);
-    let mut response = Response::new();
-    response.data = Some(env.contract.address.as_bytes().into());
-    Ok(response)
+    let response = Response::new();
+    if let Some(callback) = msg.callback {
+        Ok(response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: callback.contract.address.to_string(),
+            code_hash: callback.contract.code_hash,
+            msg: callback.msg,
+            funds: vec![],
+        })))
+    } else {
+        Ok(response)
+    }
 }
 
 fn pad_response(response: StdResult<Response>) -> StdResult<Response> {
@@ -1578,11 +1586,10 @@ fn is_valid_symbol(symbol: &str) -> bool {
     cond.push(b'a'..=b'z');
     let special = vec![b'-'];
 
-    len_is_valid && symbol.bytes().all(|x|
-        cond.iter().any(|c|
-            c.contains(&x) || special.contains(&x)
-        )
-    )
+    len_is_valid
+        && symbol
+            .bytes()
+            .all(|x| cond.iter().any(|c| c.contains(&x) || special.contains(&x)))
 }
 // pub fn migrate(
 //     _deps: DepsMut,
@@ -1626,6 +1633,7 @@ mod tests {
             initial_balances: Some(initial_balances),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: None,
+            callback: None,
         };
 
         (instantiate(deps.as_mut(), env, info, init_msg), deps)
@@ -1670,6 +1678,7 @@ mod tests {
             initial_balances: Some(initial_balances),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
+            callback: None,
         };
 
         (instantiate(deps.as_mut(), env, info, init_msg), deps)
@@ -3706,6 +3715,7 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
+            callback: None,
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(
@@ -3773,6 +3783,7 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
+            callback: None,
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(
@@ -3843,6 +3854,7 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
+            callback: None,
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(
@@ -3901,6 +3913,7 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
+            callback: None,
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(
@@ -3959,6 +3972,7 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: Some(init_config),
+            callback: None,
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(
@@ -4005,6 +4019,7 @@ mod tests {
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
             config: None,
+            callback: None,
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(

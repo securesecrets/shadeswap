@@ -211,66 +211,66 @@ fn run_testnet() -> Result<()> {
         )?;
     }
 
-    println!("\n\tDepositing 1000000000000uscrt s_sREWARDSNIP20");
+    // println!("\n\tDepositing 1000000000000uscrt s_sREWARDSNIP20");
 
-    {
-        let msg = snip20::ExecuteMsg::Deposit { padding: None };
+    // {
+    //     let msg = snip20::ExecuteMsg::Deposit { padding: None };
 
-        handle(
-            &msg,
-            &s_sREWARDSNIP20,
-            ACCOUNT_KEY,
-            Some(GAS),
-            Some("test"),
-            Some("1000000000000uscrt"),
-            &mut reports,
-            None,
-        )?;
-    }
+    //     handle(
+    //         &msg,
+    //         &s_sREWARDSNIP20,
+    //         ACCOUNT_KEY,
+    //         Some(GAS),
+    //         Some("test"),
+    //         Some("1000000000000uscrt"),
+    //         &mut reports,
+    //         None,
+    //     )?;
+    // }
 
-    assert_eq!(
-        get_balance(&s_sREWARDSNIP20, account.to_string(), VIEW_KEY.to_string()),
-        Uint128::new(1000000000000)
-    );
+    // assert_eq!(
+    //     get_balance(&s_sREWARDSNIP20, account.to_string(), VIEW_KEY.to_string()),
+    //     Uint128::new(1000000000000)
+    // );
 
-    println!("\n\tDepositing 1000000000000uscrt sSCRT");
+    // println!("\n\tDepositing 1000000000000uscrt sSCRT");
 
-    {
-        let msg = snip20::ExecuteMsg::Deposit { padding: None };
+    // {
+    //     let msg = snip20::ExecuteMsg::Deposit { padding: None };
 
-        handle(
-            &msg,
-            &s_sCRT,
-            ACCOUNT_KEY,
-            Some(GAS),
-            Some("test"),
-            Some("1000000000000uscrt"),
-            &mut reports,
-            None,
-        )?;
-    }
+    //     handle(
+    //         &msg,
+    //         &s_sCRT,
+    //         ACCOUNT_KEY,
+    //         Some(GAS),
+    //         Some("test"),
+    //         Some("1000000000000uscrt"),
+    //         &mut reports,
+    //         None,
+    //     )?;
+    // }
 
-    assert_eq!(
-        get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-        Uint128::new(1000000000000)
-    );
+    // assert_eq!(
+    //     get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+    //     Uint128::new(1000000000000)
+    // );
 
-    println!("\n\tDepositing 1000000000000uscrt sSHD");
+    // println!("\n\tDepositing 1000000000000uscrt sSHD");
 
-    {
-        let msg = snip20::ExecuteMsg::Deposit { padding: None };
+    // {
+    //     let msg = snip20::ExecuteMsg::Deposit { padding: None };
 
-        handle(
-            &msg,
-            &s_sSHD,
-            ACCOUNT_KEY,
-            Some(GAS),
-            Some("test"),
-            Some("1000000000000uscrt"),
-            &mut reports,
-            None,
-        )?;
-    }
+    //     handle(
+    //         &msg,
+    //         &s_sSHD,
+    //         ACCOUNT_KEY,
+    //         Some(GAS),
+    //         Some("test"),
+    //         Some("1000000000000uscrt"),
+    //         &mut reports,
+    //         None,
+    //     )?;
+    // }
 
     print_header("\n\tInitializing Factory Contract");
 
@@ -283,7 +283,7 @@ fn run_testnet() -> Result<()> {
             lp_fee: Fee::new(8, 100),
             shade_dao_fee: Fee::new(2, 100),
             shade_dao_address: ContractLink {
-                address: Addr::unchecked(String::from(shade_dao.to_string())),
+                address: Addr::unchecked(s_sSHD.address.clone()),
                 code_hash: s_sSHD.code_hash.clone(),
             },
         },

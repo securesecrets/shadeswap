@@ -78,8 +78,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
     }
 }
+
 #[entry_point]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
+    //Ok(Response::default())
     match (msg.id, msg.result) {
         (INSTANTIATE_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
             Some(x) => {
@@ -89,7 +91,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                 ephemeral_storage_w(deps.storage).remove();
                 Ok(Response::default())
             }
-            None => todo!(),
+            None => Err(StdError::generic_err(format!("Expecting contract id"))),
         },
         _ => Err(StdError::generic_err(format!("Unknown reply id"))),
     }

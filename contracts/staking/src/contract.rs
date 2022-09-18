@@ -28,7 +28,10 @@ pub fn instantiate(
     admin_w(deps.storage).save(&_info.sender)?;
     prng_seed_w(deps.storage).save(&msg.prng_seed.as_slice().to_vec())?;
 
-    Ok(Response::new().add_attributes(
+    let mut response = Response::new();
+    response.data = Some(env.contract.address.as_bytes().into());
+
+    Ok(response.add_attributes(
         vec![
            Attribute::new("staking_contract_addr", env.contract.address),
            Attribute::new("reward_token", msg.reward_token.to_string()),

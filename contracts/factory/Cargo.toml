@@ -17,13 +17,13 @@ crate-type = ["cdylib", "rlib"]
 
 [profile.release]
 opt-level = 3
-debug = false
-rpath = false
+debug = true
+rpath = true
 lto = true
-debug-assertions = false
+debug-assertions = true
 codegen-units = 1
 panic = 'abort'
-incremental = false
+incremental = true
 overflow-checks = true
 
 [features]

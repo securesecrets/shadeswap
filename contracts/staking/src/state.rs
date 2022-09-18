@@ -84,11 +84,11 @@ pub fn prng_seed_r(storage: &dyn Storage) -> ReadonlySingleton<Vec<u8>> {
     singleton_read(storage, PGRN_SEED)
 }
 
-pub fn total_stakers_w(storage: &mut dyn Storage) -> Singleton<u64> {
+pub fn total_stakers_w(storage: &mut dyn Storage) -> Singleton<Uint128> {
     singleton(storage, TOTAL_STAKERS)
 }
 
-pub fn total_stakers_r(storage: &dyn Storage) -> ReadonlySingleton<u64> {
+pub fn total_stakers_r(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
     singleton_read(storage, TOTAL_STAKERS)
 }
 

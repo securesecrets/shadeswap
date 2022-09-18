@@ -14,6 +14,11 @@ pub struct TxResponse {
 pub struct TxCompute {
     //#[serde(rename="key")]
     //pub msg_key: String,
+    pub answers: Vec<Answer>
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Answer {
     pub input: String,
 }
 
@@ -53,9 +58,9 @@ pub struct TxQueryKeyValue {
 
 #[derive(Serialize, Deserialize)]
 pub struct ListCodeResponse {
-    pub id: u128,
+    pub code_id: u128,
     pub creator: String,
-    pub data_hash: String,
+    pub code_hash: String,
 }
 
 #[derive(Serialize, Deserialize)]

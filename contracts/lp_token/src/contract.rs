@@ -40,7 +40,7 @@ pub fn instantiate(
     // Check name, symbol, decimals
     if !is_valid_name(&msg.name) {
         return Err(StdError::generic_err(
-            "Name is not in the expected format (3-30 UTF-8 bytes)",
+            "Name is not in the expected format (3-200 UTF-8 bytes)",
         ));
     }
     if !is_valid_symbol(&msg.symbol) {
@@ -96,7 +96,7 @@ pub fn instantiate(
             redeem_is_enabled: init_config.redeem_enabled(),
             mint_is_enabled: init_config.mint_enabled(),
             burn_is_enabled: init_config.burn_enabled(),
-            contract_address: env.contract.address,
+            contract_address: env.contract.address.clone(),
         },
     )?;
     TotalSupplyStore::save(deps.storage, total_supply)?;
@@ -109,7 +109,9 @@ pub fn instantiate(
     MintersStore::save(deps.storage, minters)?;
 
     ViewingKey::set_seed(deps.storage, &prng_seed_hashed);
-    Ok(Response::default())
+    let mut response = Response::new();
+    response.data = Some(env.contract.address.as_bytes().into());
+    Ok(response)
 }
 
 fn pad_response(response: StdResult<Response>) -> StdResult<Response> {
@@ -1565,16 +1567,23 @@ fn check_if_admin(config_admin: &Addr, account: &Addr) -> StdResult<()> {
 
 fn is_valid_name(name: &str) -> bool {
     let len = name.len();
-    (3..=30).contains(&len)
+    (3..=200).contains(&len)
 }
 
 fn is_valid_symbol(symbol: &str) -> bool {
     let len = symbol.len();
-    let len_is_valid = (3..=6).contains(&len);
+    let len_is_valid = (3..=18).contains(&len);
+    let mut cond = Vec::new();
+    cond.push(b'A'..=b'Z');
+    cond.push(b'a'..=b'z');
+    let special = vec![b'-'];
 
-    len_is_valid && symbol.bytes().all(|byte| (b'A'..=b'Z').contains(&byte))
+    len_is_valid && symbol.bytes().all(|x|
+        cond.iter().any(|c|
+            c.contains(&x) || special.contains(&x)
+        )
+    )
 }
-
 // pub fn migrate(
 //     _deps: DepsMut,
 //     _env: Env,

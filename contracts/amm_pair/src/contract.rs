@@ -9,7 +9,7 @@ use crate::{
 };
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
+    Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg, ReplyOn,
 };
 use shadeswap_shared::{
     contract_interfaces::snip20::{InitConfig, InstantiateMsg},
@@ -70,7 +70,9 @@ pub fn instantiate(
 
     let mut response = Response::new();
 
-    response = response.add_submessage(SubMsg::reply_on_success(
+    response = response.add_submessage(SubMsg{
+        id: INSTANTIATE_LP_TOKEN_REPLY_ID,
+        msg:
         CosmosMsg::Wasm(WasmMsg::Instantiate {
             code_id: msg.lp_token_contract.id,
             msg: to_binary(&init_snip20_msg)?,
@@ -80,41 +82,42 @@ pub fn instantiate(
             ),
             code_hash: msg.lp_token_contract.code_hash.clone(),
             funds: vec![],
-        }),
-        INSTANTIATE_LP_TOKEN_REPLY_ID,
-    ));
+        }).into(),
+        reply_on: ReplyOn::Always,
+        gas_limit: None,
+    });
 
-    match msg.staking_contract {
-        Some(c) => {
-            response = response.add_submessage(SubMsg::reply_on_success(
-                CosmosMsg::Wasm(WasmMsg::Instantiate {
-                    code_id: c.contract_info.id,
-                    label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
-                    msg: to_binary(&StakingInitMsg {
-                        staking_amount: c.amount,
-                        reward_token: c.reward_token.clone(),
-                        pair_contract: ContractLink {
-                            address: env.contract.address.clone(),
-                            code_hash: env.contract.code_hash.clone(),
-                        },
-                        prng_seed: msg.prng_seed.clone(),
-                    })?,
-                    code_hash: c.contract_info.code_hash.clone(),
-                    funds: vec![],
-                }),
-                INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
-            ));
-        }
-        _ => {
-            ();
-        }
-    }
+    // match msg.staking_contract {
+    //     Some(c) => {
+    //         response = response.add_submessage(SubMsg::reply_on_success(
+    //             CosmosMsg::Wasm(WasmMsg::Instantiate {
+    //                 code_id: c.contract_info.id,
+    //                 label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
+    //                 msg: to_binary(&StakingInitMsg {
+    //                     staking_amount: c.amount,
+    //                     reward_token: c.reward_token.clone(),
+    //                     pair_contract: ContractLink {
+    //                         address: env.contract.address.clone(),
+    //                         code_hash: env.contract.code_hash.clone(),
+    //                     },
+    //                     prng_seed: msg.prng_seed.clone(),
+    //                 })?,
+    //                 code_hash: c.contract_info.code_hash.clone(),
+    //                 funds: vec![],
+    //             }),
+    //             INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
+    //         ));
+    //     }
+    //     _ => {
+    //         ();
+    //     }
+    // }
 
     let config = Config {
         factory_contract: msg.factory_info.clone(),
         lp_token: ContractLink {
             code_hash: msg.lp_token_contract.code_hash,
-            address: Addr::unchecked(""),
+            address: Addr::unchecked("secret16p6yd65e5v6dscaduxpwvtt2s6lh0yjnrcxcqj"),
         },
         pair: msg.pair,
         viewing_key: viewing_key,
@@ -128,7 +131,9 @@ pub fn instantiate(
         Some(admin) => admin_w(deps.storage).save(&admin)?,
         None => println!("No admin given"),
     }
-    Ok(response.add_attribute("created_exchange_address", env.contract.address))
+    
+    response.data = Some(env.contract.address.as_bytes().into());
+    Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
 }
 
 #[entry_point]
@@ -314,37 +319,38 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[entry_point]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
-    match (msg.id, msg.result) {
-        (INSTANTIATE_LP_TOKEN_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
-            Some(x) => {
-                let contract_address = String::from_utf8(x.to_vec())?;
-                register_lp_token(
-                    deps,
-                    _env,
-                    Contract {
-                        address: Addr::unchecked(contract_address),
-                        code_hash: "".to_string(),
-                    },
-                );
-                Ok(Response::default())
-            }
-            None => todo!(),
-        },
-        (INSTANTIATE_STAKING_CONTRACT_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
-            Some(x) => {
-                let contract_address = String::from_utf8(x.to_vec())?;
-                set_staking_contract(
-                    deps,
-                    _env,
-                    Some(ContractLink {
-                        address: Addr::unchecked(contract_address),
-                        code_hash: "".to_string(),
-                    }),
-                );
-                Ok(Response::default())
-            }
-            None => todo!(),
-        },
-        _ => Err(StdError::generic_err(format!("Unknown reply id"))),
-    }
+    Ok(Response::default())
+    // match (msg.id, msg.result) {
+    //     (INSTANTIATE_LP_TOKEN_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
+    //         Some(x) => {
+    //             let contract_address = String::from_utf8(x.to_vec())?;
+    //             register_lp_token(
+    //                 deps,
+    //                 _env,
+    //                 Contract {
+    //                     address: Addr::unchecked(contract_address),
+    //                     code_hash: "".to_string(),
+    //                 },
+    //             )?;
+    //             Ok(Response::default())
+    //         }
+    //         None => Err(StdError::generic_err(format!("Unknown reply id"))),
+    //     },
+    //     (INSTANTIATE_STAKING_CONTRACT_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
+    //         Some(x) => {
+    //             let contract_address = String::from_utf8(x.to_vec())?;
+    //             set_staking_contract(
+    //                 deps,
+    //                 _env,
+    //                 Some(ContractLink {
+    //                     address: Addr::unchecked(contract_address),
+    //                     code_hash: "".to_string(),
+    //                 }),
+    //             )?;
+    //             Ok(Response::default())
+    //         }
+    //         None => Err(StdError::generic_err(format!("Unknown reply id"))),
+    //     },
+    //     _ => Err(StdError::generic_err(format!("Unknown reply id"))),
+    // }
 }

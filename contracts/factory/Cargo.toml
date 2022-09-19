@@ -17,13 +17,13 @@ crate-type = ["cdylib", "rlib"]
 
 [profile.release]
 opt-level = 3
-debug = false
-rpath = false
+debug = true
+rpath = true
 lto = true
-debug-assertions = false
+debug-assertions = true
 codegen-units = 1
 panic = 'abort'
-incremental = false
+incremental = true
 overflow-checks = true
 
 [features]
@@ -34,7 +34,7 @@ default = []
 
 
 [dependencies]
-snafu = { version = "0.6.3" }
+snafu = { version = "0.7.1" }
 serde = { version = "1.0.114", default-features = false, features = [
   "derive",
   "alloc"
@@ -45,4 +45,4 @@ cosmwasm-storage = { git = "https://github.com/scrtlabs/cosmwasm", branch = "sec
 shadeswap-shared = {path = "../../packages/shadeswap-shared"}
 
 [dev-dependencies]
-cosmwasm-schema = "0.10.1"
+cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e" }

@@ -1,10 +1,10 @@
 use std::ops::Add;
 
-use crate::state::{
+use crate::{state::{
     amm_pair_keys_r, amm_pair_keys_w, amm_pairs_r, amm_pairs_w, config_r, config_w,
     ephemeral_storage_r, ephemeral_storage_w, prng_seed_r, total_amm_pairs_r, total_amm_pairs_w,
     Config, NextPairKey, PAGINATION_LIMIT,
-};
+}, contract::INSTANTIATE_REPLY_ID};
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Querier,
     Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
@@ -23,15 +23,12 @@ use shadeswap_shared::{
 pub fn register_amm_pair(
     storage: &mut dyn Storage,
     env: Env,
-    pair: AMMPair
+    pair: AMMPair,
 ) -> StdResult<Response> {
     add_amm_pairs(storage, vec![pair])
 }
 
-pub fn add_amm_pairs(
-    storage: &mut dyn Storage,
-    amm_pairs: Vec<AMMPair>
-) -> StdResult<Response> {
+pub fn add_amm_pairs(storage: &mut dyn Storage, amm_pairs: Vec<AMMPair>) -> StdResult<Response> {
     for amm_pair in amm_pairs {
         let new_key = generate_pair_key(&amm_pair.pair);
         let existingPair = amm_pair_keys_r(storage).may_load(&new_key)?;
@@ -49,7 +46,7 @@ pub fn add_amm_pairs(
                 let mut next_count = 0;
                 match current_count {
                     Some(c) => next_count = c,
-                    None => ()
+                    None => (),
                 }
                 amm_pair_keys_w(storage).save(&new_key, &amm_pair.address)?;
                 amm_pairs_w(storage).save(&next_count.to_string().as_bytes(), &amm_pair)?;
@@ -58,8 +55,7 @@ pub fn add_amm_pairs(
         }
     }
 
-    Ok(Response::new()
-        .add_attribute("action", "register_amm_pairs"))
+    Ok(Response::new().add_attribute("action", "register_amm_pairs"))
 }
 
 pub fn list_pairs(deps: Deps, pagination: Pagination) -> StdResult<Binary> {
@@ -104,7 +100,7 @@ pub fn set_config(deps: DepsMut, env: Env, msg: ExecuteMsg) -> StdResult<Respons
             config.amm_settings = new_value;
         }
 
-        config_w(deps.storage).save(&config);
+        config_w(deps.storage).save(&config)?;
 
         Ok(Response::default())
     } else {
@@ -129,7 +125,7 @@ pub fn create_pair(
         is_verified: admin == sender,
     })?;
     Ok(Response::new().add_submessage(SubMsg {
-        id: 1,
+        id: INSTANTIATE_REPLY_ID,
         msg: CosmosMsg::Wasm(WasmMsg::Instantiate {
             code_id: config.pair_contract.id,
             label: format!(
@@ -149,31 +145,36 @@ pub fn create_pair(
                 staking_contract: staking_contract,
                 custom_fee: None,
             })?,
-            code_hash: "".to_string(),
+            code_hash: config.pair_contract.code_hash,
             funds: vec![],
-        }),
+        }).into(),
         gas_limit: None,
         reply_on: cosmwasm_std::ReplyOn::Success,
     }))
 }
 
 pub(crate) fn load_amm_pairs(deps: Deps, pagination: Pagination) -> StdResult<Vec<AMMPair>> {
-    let count = total_amm_pairs_r(deps.storage).load()?;
+    let count = total_amm_pairs_r(deps.storage).may_load()?;
 
-    if pagination.start >= count {
-        return Ok(vec![]);
+    match count {
+        Some(c) => {
+            if pagination.start >= c {
+                return Ok(vec![]);
+            }
+
+            let limit = pagination.limit.min(PAGINATION_LIMIT);
+            let end = (pagination.start + limit as u64).min(c);
+
+            let mut result = Vec::with_capacity((end - pagination.start) as usize);
+
+            for i in pagination.start..end {
+                let exchange: AMMPair = amm_pairs_r(deps.storage).load(i.to_string().as_bytes())?;
+
+                result.push(exchange);
+            }
+
+            Ok(result)
+        }
+        None =>  Ok(vec![]),
     }
-
-    let limit = pagination.limit.min(PAGINATION_LIMIT);
-    let end = (pagination.start + limit as u64).min(count);
-
-    let mut result = Vec::with_capacity((end - pagination.start) as usize);
-
-    for i in pagination.start..end {
-        let exchange: AMMPair = amm_pairs_r(deps.storage).load(i.to_string().as_bytes())?;
-
-        result.push(exchange);
-    }
-
-    Ok(result)
 }

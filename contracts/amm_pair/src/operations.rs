@@ -17,11 +17,15 @@ use shadeswap_shared::{
         amm_pair::{QueryMsgResponse, SwapInfo, SwapResult, TradeHistory},
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
         router::ExecuteMsg as RouterExecuteMsg,
-        staking::{ExecuteMsg as StakingExecuteMsg, InvokeMsg as StakingInvokeMsg},
+        staking::{
+            ExecuteMsg as StakingExecuteMsg, InitMsg as StakingInitMsg,
+            InvokeMsg as StakingInvokeMsg,
+        },
     },
     snip20::{
         helpers::{
-            burn_msg, mint_msg, register_receive, send_msg, set_viewing_key_msg, token_info, transfer_from_msg,
+            burn_msg, mint_msg, register_receive, send_msg, set_viewing_key_msg, token_info,
+            transfer_from_msg,
         },
         ExecuteMsg as SNIP20ExecuteMsg,
     },
@@ -63,7 +67,7 @@ pub fn is_address_in_whitelist(storage: &dyn Storage, address: Addr) -> StdResul
             } else {
                 return Ok(false);
             }
-        },
+        }
         None => return Ok(false),
     }
 }
@@ -88,7 +92,10 @@ pub fn register_lp_token(
 ) -> StdResult<Response> {
     let mut config = config_r(deps.storage).load()?;
 
-    config.lp_token.address = lp_token_address.address.clone();
+    config.lp_token = ContractLink {
+        address: lp_token_address.address.clone(),
+        code_hash: lp_token_address.code_hash.clone(),
+    };
     // store config against Smart contract address
     config_w(deps.storage).save(&config.clone())?;
 
@@ -97,8 +104,35 @@ pub fn register_lp_token(
     messages.push(register_receive(
         env.contract.code_hash.clone(),
         None,
-        &lp_token_address,
+        &lp_token_address.clone(),
     )?);
+
+    match config.staking_contract_init {
+        Some(c) => {
+            messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
+                code_id: c.contract_info.id,
+                label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
+                msg: to_binary(&StakingInitMsg {
+                    staking_amount: c.amount,
+                    reward_token: c.reward_token.clone(),
+                    pair_contract: ContractLink {
+                        address: env.contract.address.clone(),
+                        code_hash: env.contract.code_hash.clone(),
+                    },
+                    prng_seed: config.prng_seed.clone(),
+                    lp_token: ContractLink {
+                        address: lp_token_address.address.clone(),
+                        code_hash: lp_token_address.code_hash.clone(),
+                    },
+                })?,
+                code_hash: c.contract_info.code_hash.clone(),
+                funds: vec![],
+            }));
+        }
+        _ => {
+            ();
+        }
+    }
 
     Ok(Response::new().add_messages(messages))
 }
@@ -299,21 +333,12 @@ pub fn set_staking_contract(
                 pair: config.pair,
                 viewing_key: config.viewing_key,
                 custom_fee: config.custom_fee,
+                staking_contract_init: config.staking_contract_init,
+                prng_seed: config.prng_seed,
             })?;
-
-            let mut messages = Vec::new();
-            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: contract.address.to_string(),
-                code_hash: contract.code_hash.clone(),
-                funds: vec![],
-                msg: to_binary(&StakingExecuteMsg::SetLPToken {
-                    lp_token: config_r(deps.storage).load()?.lp_token.clone(),
-                })?,
-            }));
 
             // send lp contractLink to staking contract
             Ok(Response::new()
-                .add_messages(messages)
                 .add_attribute("action", "set_staking_contract")
                 .add_attribute("contract_address", contract.address.clone())
                 .add_attribute("contract_hash", contract.code_hash.clone()))
@@ -481,7 +506,7 @@ pub fn calculate_swap_result(
     let mut lp_fee_amount = Uint128::zero();
     let mut shade_dao_fee_amount = Uint128::zero();
     // calculation fee
-    let discount_fee = false;//is_address_in_whitelist(deps.storage, recipient)?;
+    let discount_fee = false; //is_address_in_whitelist(deps.storage, recipient)?;
     if discount_fee == false {
         match &config.custom_fee {
             Some(f) => {
@@ -503,8 +528,8 @@ pub fn calculate_swap_result(
         deducted_offer_amount = offer.amount;
     }
 
-     let swap_amount = calculate_price(deducted_offer_amount, token0_pool, token1_pool)?;
-     let result_swap = SwapResult {
+    let swap_amount = calculate_price(deducted_offer_amount, token0_pool, token1_pool)?;
+    let result_swap = SwapResult {
         return_amount: swap_amount,
     };
 
@@ -732,29 +757,29 @@ pub fn add_liquidity(
                             code_hash: lp_token.code_hash.clone(),
                         },
                     )?);
-                    // let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
-                    //     from: info.sender.clone(),
-                    //     amount: lp_tokens,
-                    // })
-                    // .unwrap();
-                    // // SEND LP Token to Staking Contract with Staking Message
-                    // let msg = to_binary(&SNIP20ExecuteMsg::Send {
-                    //     recipient: stake.address.to_string(),
-                    //     recipient_code_hash: Some(stake.code_hash.clone()),
-                    //     amount: lp_tokens,
-                    //     msg: Some(invoke_msg.clone()),
-                    //     memo: None,
-                    //     padding: None,
-                    // })?;
-                    // pair_messages.push(
-                    //     WasmMsg::Execute {
-                    //         contract_addr: lp_token.address.to_string(),
-                    //         code_hash: lp_token.code_hash.clone(),
-                    //         msg,
-                    //         funds: vec![],
-                    //     }
-                    //     .into(),
-                    // );
+                    let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
+                        from: info.sender.clone(),
+                        amount: lp_tokens,
+                    })
+                    .unwrap();
+                    // SEND LP Token to Staking Contract with Staking Message
+                    let msg = to_binary(&SNIP20ExecuteMsg::Send {
+                        recipient: stake.address.to_string(),
+                        recipient_code_hash: Some(stake.code_hash.clone()),
+                        amount: lp_tokens,
+                        msg: Some(invoke_msg.clone()),
+                        memo: None,
+                        padding: None,
+                    })?;
+                    pair_messages.push(
+                        WasmMsg::Execute {
+                            contract_addr: lp_token.address.to_string(),
+                            code_hash: lp_token.code_hash.clone(),
+                            msg,
+                            funds: vec![],
+                        }
+                        .into(),
+                    );
                 }
                 None => {
                     return Err(StdError::generic_err(

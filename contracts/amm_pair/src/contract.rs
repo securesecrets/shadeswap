@@ -1,11 +1,11 @@
 use crate::{
     operations::{
         add_address_to_whitelist, add_liquidity, get_estimated_lp_token, get_shade_dao_info,
-        load_trade_history_query, query_calculate_price, query_liquidity, register_lp_token,
-        remove_address_from_whitelist, remove_liquidity, set_staking_contract, swap,
-        swap_simulation, is_address_in_whitelist,
+        is_address_in_whitelist, load_trade_history_query, query_calculate_price, query_liquidity,
+        register_lp_token, remove_address_from_whitelist, remove_liquidity, set_staking_contract,
+        swap, swap_simulation,
     },
-    state::{config_r, config_w, trade_count_r, whitelist_r, Config, whitelist_w},
+    state::{config_r, config_w, trade_count_r, whitelist_r, whitelist_w, Config},
 };
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
@@ -42,10 +42,12 @@ pub fn instantiate(
         ));
     }
 
+    let mut response = Response::new();
     let mut messages = vec![];
     let viewing_key = create_viewing_key(&env, &_info, msg.prng_seed.clone(), msg.entropy.clone());
     register_pair_token(&env, &mut messages, &msg.pair.0, &viewing_key)?;
     register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;
+    response = response.add_messages(messages);
 
     let init_snip20_msg = InstantiateMsg {
         name: format!(
@@ -65,15 +67,13 @@ pub fn instantiate(
             enable_burn: Some(true),
         }),
         callback: Some(Callback {
-            msg: to_binary(&ExecuteMsg::OnLpTokenInitAddr)?,
+            msg: to_binary(&ExecuteMsg::OnLpTokenInitAddr {})?,
             contract: ContractLink {
                 address: env.contract.address.clone(),
                 code_hash: env.contract.code_hash.clone(),
             },
         }),
     };
-
-    let mut response = Response::new();
 
     response = response.add_message(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
@@ -86,39 +86,30 @@ pub fn instantiate(
         funds: vec![],
     }));
 
-    match msg.staking_contract {
+    match msg.callback {
         Some(c) => {
-            response = response.add_message(CosmosMsg::Wasm(WasmMsg::Instantiate {
-                code_id: c.contract_info.id,
-                label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
-                msg: to_binary(&StakingInitMsg {
-                    staking_amount: c.amount,
-                    reward_token: c.reward_token.clone(),
-                    pair_contract: ContractLink {
-                        address: env.contract.address.clone(),
-                        code_hash: env.contract.code_hash.clone(),
-                    },
-                    prng_seed: msg.prng_seed.clone(),
-                })?,
-                code_hash: c.contract_info.code_hash.clone(),
+            response = response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: c.contract.address.to_string(),
+                code_hash: c.contract.code_hash,
+                msg: c.msg,
                 funds: vec![],
-            }));
+            }))
         }
-        _ => {
-            ();
-        }
+        None => println!("No callback given"),
     }
 
     let config = Config {
         factory_contract: msg.factory_info.clone(),
         lp_token: ContractLink {
             code_hash: msg.lp_token_contract.code_hash,
-            address: Addr::unchecked("secret16p6yd65e5v6dscaduxpwvtt2s6lh0yjnrcxcqj"),
+            address: Addr::unchecked(""),
         },
         pair: msg.pair,
         viewing_key: viewing_key,
         custom_fee: msg.custom_fee.clone(),
         staking_contract: None,
+        staking_contract_init: msg.staking_contract,
+        prng_seed: msg.prng_seed,
     };
 
     config_w(deps.storage).save(&config)?;
@@ -128,16 +119,7 @@ pub fn instantiate(
         None => println!("No admin given"),
     }
 
-    match msg.callback {
-        Some(c) => messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: c.contract.address.to_string(),
-            code_hash: c.contract.code_hash,
-            msg: c.msg,
-            funds: vec![],
-        })),
-        None => println!("No callback given"),
-    }
-    Ok(response.add_messages(messages).add_attribute("created_exchange_address", env.contract.address.to_string()))
+    Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
 }
 
 #[entry_point]
@@ -161,6 +143,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 pair: config.pair,
                 viewing_key: config.viewing_key,
                 custom_fee: custom_fee,
+                staking_contract_init: config.staking_contract_init,
+                prng_seed: config.prng_seed,
             })?;
             Ok(Response::default())
         }
@@ -201,27 +185,25 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             )
         }
         ExecuteMsg::SetStakingContract { contract } => {
-            set_staking_contract(
+            return set_staking_contract(
                 deps,
                 env,
                 Some(ContractLink {
                     address: Addr::unchecked(contract.address),
                     code_hash: contract.code_hash,
                 }),
-            )?;
-            Ok(Response::default())
+            );
         }
         ExecuteMsg::OnLpTokenInitAddr => {
             let config_settings = config_r(deps.storage).load()?;
-            register_lp_token(
+            return register_lp_token(
                 deps,
                 env,
                 Contract {
                     address: info.sender,
                     code_hash: config_settings.lp_token.code_hash,
                 },
-            )?;
-            Ok(Response::default())
+            );
         }
     }
 }
@@ -346,6 +328,16 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetShadeDaoInfo {} => get_shade_dao_info(deps),
         QueryMsg::GetEstimatedLiquidity { deposit, slippage } => {
             get_estimated_lp_token(deps, env, deposit, slippage)
+        }
+        QueryMsg::GetConfig {} => {
+            let config = config_r(deps.storage).load()?;
+            return to_binary(&QueryMsgResponse::GetConfig {
+                factory_contract: config.factory_contract,
+                lp_token: config.lp_token,
+                staking_contract: config.staking_contract,
+                pair: config.pair,
+                custom_fee: config.custom_fee,
+            });
         }
     }
 }

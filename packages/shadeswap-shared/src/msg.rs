@@ -66,6 +66,7 @@ pub mod router {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         SwapSimulation { offer: TokenAmount, path: Vec<Addr> },
+        GetConfig {},
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -78,6 +79,9 @@ pub mod router {
             result: SwapResult,
             price: String,
         },
+        GetConfig {
+            pair_contract_code_hash: String,
+        }
     }
 }
 
@@ -189,6 +193,7 @@ pub mod amm_pair {
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
+        GetConfig{},
         GetPairInfo {},
         GetTradeHistory {
             pagination: Pagination,
@@ -261,6 +266,13 @@ pub mod amm_pair {
             lp_token: Uint128,
             total_lp_token: Uint128,
         },
+        GetConfig{
+            factory_contract: ContractLink,
+            lp_token: ContractLink,
+            staking_contract: Option<ContractLink>,
+            pair: TokenPair,
+            custom_fee: Option<CustomFee>
+        }
     }
 }
 
@@ -353,6 +365,7 @@ pub mod staking {
         pub reward_token: TokenType,
         pub pair_contract: ContractLink,
         pub prng_seed: Binary,
+        pub lp_token: ContractLink,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -362,9 +375,6 @@ pub mod staking {
         Unstake {
             amount: Uint128,
             remove_liqudity: Option<bool>,
-        },
-        SetLPToken {
-            lp_token: ContractLink,
         },
         Receive {
             from: Addr,

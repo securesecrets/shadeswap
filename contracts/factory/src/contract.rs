@@ -64,6 +64,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             if (config.key != signature) {
                 return Err(StdError::generic_err("Invalid signature given".to_string()));
             }
+            ephemeral_storage_w(deps.storage).remove();
             register_amm_pair(
                 deps.storage,
                 env,
@@ -72,9 +73,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     address: Addr::unchecked(info.sender),
                     enabled: true,
                 },
-            )?;
-            ephemeral_storage_w(deps.storage).remove();
-            Ok(Response::default())
+            )
         }
     };
 }

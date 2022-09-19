@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     entry_point, from_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128,
+    StdResult, Uint128, to_binary,
 };
 use shadeswap_shared::{core::admin_w, router::InitMsg};
 use shadeswap_shared::{
@@ -140,5 +140,8 @@ fn receiver_callback(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::SwapSimulation { offer, path } => swap_simulation(deps, path, offer),
+        QueryMsg::GetConfig {} => {
+            return Ok(to_binary(&config_r(deps.storage).load()?)?)
+        }
     }
 }

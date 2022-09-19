@@ -1,8 +1,8 @@
 [package]
-name = "amm_pair"
-version = "0.1.0"
 authors = ["Tony <plutonyium@gmail.com>"]
 edition = "2018"
+name = "amm_pair"
+version = "0.1.0"
 
 exclude = [
   # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
@@ -16,35 +16,31 @@ exclude = [
 crate-type = ["cdylib", "rlib"]
 
 [profile.release]
-opt-level = 3
-debug = false
-rpath = false
-lto = true
-debug-assertions = false
 codegen-units = 1
-panic = 'abort'
-incremental = false
+debug = true
+debug-assertions = true
+incremental = true
+lto = true
+opt-level = 3
 overflow-checks = true
+panic = 'abort'
+rpath = true
 
 [features]
 default = []
 # for quicker tests, cargo test --lib
 # # for more explicit tests, cargo test --features=backtraces
 
-
-
-
 [dependencies]
-snafu = { version = "0.7.1" }
-serde = { version = "1.0.114", default-features = false, features = [
-  "derive",
-  "alloc"
-] }
+cosmwasm-std = {git = "https://github.com/scrtlabs/cosmwasm", branch = "secret"}
+cosmwasm-storage = {git = "https://github.com/scrtlabs/cosmwasm", branch = "secret"}
 schemars = "0.8.1"
-cosmwasm-std = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
-cosmwasm-storage = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
+serde = {version = "1.0.114", default-features = false, features = [
+  "derive",
+  "alloc",
+]}
 shadeswap-shared = {path = "../../packages/shadeswap-shared"}
-lp-token = {path="../lp_token"}
+snafu = {version = "0.7.1"}
 
 [dev-dependencies]
-cosmwasm-schema = "1.1.0"
+cosmwasm-schema = {git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e"}

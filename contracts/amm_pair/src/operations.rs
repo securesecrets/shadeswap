@@ -738,15 +738,10 @@ pub fn add_liquidity(
                         },
                     )?);
                     let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
-                        from: info.sender.to_string(),
+                        from: info.sender.clone(),
                         amount: lp_tokens,
                     })
                     .unwrap();
-                    let receive_msg = to_binary(&StakingExecuteMsg::Receive {
-                        from: info.sender.to_string(),
-                        msg: Some(invoke_msg.clone()),
-                        amount: lp_tokens,
-                    })?;
                     // SEND LP Token to Staking Contract with Staking Message
                     let msg = to_binary(&SNIP20ExecuteMsg::Send {
                         recipient: stake.address.to_string(),

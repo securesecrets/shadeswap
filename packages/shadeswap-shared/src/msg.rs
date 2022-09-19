@@ -30,10 +30,10 @@ pub mod router {
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
-        pub factory_address: ContractLink,
         pub prng_seed: Binary,
         pub entropy: Binary,
         pub viewing_key: Option<String>,
+        pub pair_contract_code_hash: String
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -132,6 +132,7 @@ pub mod amm_pair {
         pub admin: Option<Addr>,
         pub staking_contract: Option<StakingContractInit>,
         pub custom_fee: Option<CustomFee>,
+        pub callback: Option<Callback>,
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -299,6 +300,10 @@ pub mod factory {
         SetFactoryAdmin {
             admin: String,
         },
+        RegisterAMMPair {
+            pair: TokenPair,
+            signature: Binary,
+        },
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -436,7 +441,7 @@ pub mod staking {
 pub mod lp_token {
     use cosmwasm_std::Addr;
 
-    use crate::{snip20::InitialBalance, core::Callback};
+    use crate::{core::Callback, snip20::InitialBalance};
 
     use super::*;
 

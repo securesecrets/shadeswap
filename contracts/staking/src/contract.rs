@@ -100,6 +100,7 @@ fn receiver_callback(
     }
 }
 
+#[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig {} => get_config(deps),

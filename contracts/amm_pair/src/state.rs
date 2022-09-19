@@ -52,7 +52,6 @@ pub fn whitelist_r(storage: &dyn Storage) -> ReadonlySingleton<Vec<Addr>> {
     singleton_read(storage, CONFIG)
 }
 
-
 pub fn trade_history_w(storage: &mut dyn Storage) -> Bucket<TradeHistory> {
     bucket(storage, CONFIG)
 }

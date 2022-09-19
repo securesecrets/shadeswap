@@ -47,76 +47,76 @@ pub fn next_swap(
     let current_trade_info: Option<CurrentSwapInfo> =
         epheral_storage_r(deps.storage).may_load()?;
     let config = config_r(deps.storage).load()?;
-    let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
-    match current_trade_info {
-        Some(info) => {
-            if signature != info.signature {
-                return Err(StdError::generic_err("".to_string()));
-            }
-            let pair_contract = query_pair_contract_config(
-                &deps.querier,
-                ContractLink {
-                    address: info.paths[info.current_index as usize].clone(),
-                    code_hash: factory_config.pair_contract.code_hash.clone(),
-                },
-            )?;
+    Ok(Response::default())
+    // match current_trade_info {
+    //     Some(info) => {
+    //         if signature != info.signature {
+    //             return Err(StdError::generic_err("".to_string()));
+    //         }
+    //         let pair_contract = query_pair_contract_config(
+    //             &deps.querier,
+    //             ContractLink {
+    //                 address: info.paths[info.current_index as usize].clone(),
+    //                 code_hash: config.pair_contract_code_hash.clone(),
+    //             },
+    //         )?;
 
-            let mut next_token_in = pair_contract.pair.0.clone();
+    //         let mut next_token_in = pair_contract.pair.0.clone();
 
-            if pair_contract.pair.1.clone() == last_token_out.token {
-                next_token_in = pair_contract.pair.1;
-            }
+    //         if pair_contract.pair.1.clone() == last_token_out.token {
+    //             next_token_in = pair_contract.pair.1;
+    //         }
 
-            let token_in: TokenAmount = TokenAmount {
-                token: next_token_in.clone(),
-                amount: last_token_out.amount,
-            };
+    //         let token_in: TokenAmount = TokenAmount {
+    //             token: next_token_in.clone(),
+    //             amount: last_token_out.amount,
+    //         };
 
-            if info.paths.len() > (info.current_index + 1) as usize {
-                epheral_storage_w(deps.storage).save(&CurrentSwapInfo {
-                    amount: info.amount.clone(),
-                    paths: info.paths.clone(),
-                    signature: info.signature.clone(),
-                    recipient: info.recipient,
-                    current_index: info.current_index + 1,
-                    amount_out_min: info.amount_out_min,
-                })?;
-                Ok(Response::new().add_messages(get_trade_with_callback(
-                    deps,
-                    env,
-                    token_in,
-                    info.paths[(info.current_index + 1) as usize].clone(),
-                    factory_config.pair_contract.code_hash.clone(),
-                    info.signature,
-                )?))
-            } else {
-                if let Some(min_out) = info.amount_out_min {
-                    if token_in.amount.lt(&min_out) {
-                        return Err(StdError::generic_err(
-                            "Operation fell short of expected_return. Actual: ".to_owned()
-                                + &token_in.amount.to_string().to_owned()
-                                + ", Expected: "
-                                + &min_out.to_string().to_owned(),
-                        ));
-                    }
-                }
+    //         if info.paths.len() > (info.current_index + 1) as usize {
+    //             epheral_storage_w(deps.storage).save(&CurrentSwapInfo {
+    //                 amount: info.amount.clone(),
+    //                 paths: info.paths.clone(),
+    //                 signature: info.signature.clone(),
+    //                 recipient: info.recipient,
+    //                 current_index: info.current_index + 1,
+    //                 amount_out_min: info.amount_out_min,
+    //             })?;
+    //             Ok(Response::new().add_messages(get_trade_with_callback(
+    //                 deps,
+    //                 env,
+    //                 token_in,
+    //                 info.paths[(info.current_index + 1) as usize].clone(),
+    //                 config.pair_contract_code_hash.clone(),
+    //                 info.signature,
+    //             )?))
+    //         } else {
+    //             if let Some(min_out) = info.amount_out_min {
+    //                 if token_in.amount.lt(&min_out) {
+    //                     return Err(StdError::generic_err(
+    //                         "Operation fell short of expected_return. Actual: ".to_owned()
+    //                             + &token_in.amount.to_string().to_owned()
+    //                             + ", Expected: "
+    //                             + &min_out.to_string().to_owned(),
+    //                     ));
+    //                 }
+    //             }
 
-                let clear_storage: Option<CurrentSwapInfo> = None;
+    //             let clear_storage: Option<CurrentSwapInfo> = None;
 
-                epheral_storage_w(deps.storage).remove();
-                Ok(
-                    Response::new().add_messages(vec![token_in.token.create_send_msg(
-                        env.contract.address.to_string(),
-                        info.recipient.to_string(),
-                        token_in.amount,
-                    )?]),
-                )
-            }
-        }
-        None => Err(StdError::generic_err(
-            "There is currently no trade in progress.",
-        )),
-    }
+    //             epheral_storage_w(deps.storage).remove();
+    //             Ok(
+    //                 Response::new().add_messages(vec![token_in.token.create_send_msg(
+    //                     env.contract.address.to_string(),
+    //                     info.recipient.to_string(),
+    //                     token_in.amount,
+    //                 )?]),
+    //             )
+    //         }
+    //     }
+    //     None => Err(StdError::generic_err(
+    //         "There is currently no trade in progress.",
+    //     )),
+    // }
 }
 
 pub fn swap_tokens_for_exact_tokens(
@@ -129,10 +129,8 @@ pub fn swap_tokens_for_exact_tokens(
     sender: Addr,
     recipient: Option<Addr>,
 ) -> StdResult<Response> {
-    let querier = &deps.querier;
     //Validates whether the amount received is greater then the amount_out_min
     let config = config_r(deps.storage).load()?;
-    let factory_config = query_factory_config(querier, config.factory_address.clone())?;
     let signature = create_signature(&env, info)?;
     epheral_storage_w(deps.storage).save(&CurrentSwapInfo {
         amount: amount_in.clone(),
@@ -148,7 +146,7 @@ pub fn swap_tokens_for_exact_tokens(
         env,
         amount_in,
         paths[0].clone(),
-        factory_config.pair_contract.code_hash,
+        config.pair_contract_code_hash,
         signature.clone(),
     )?))
 }
@@ -227,31 +225,6 @@ fn get_trade_with_callback(
     return Ok(messages);
 }
 
-pub fn query_factory_config(
-    querier: &QuerierWrapper,
-    factory_address: ContractLink,
-) -> StdResult<FactoryConfig> {
-    let result: FactoryQueryResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: factory_address.address.to_string(),
-        code_hash: factory_address.code_hash.clone(),
-        msg: to_binary(&FactoryQueryMsg::GetConfig {})?,
-    }))?;
-
-    match result {
-        FactoryQueryResponse::GetConfig {
-            pair_contract,
-            amm_settings,
-            lp_token_contract: _,
-        } => Ok(FactoryConfig {
-            pair_contract,
-            amm_settings,
-        }),
-        _ => Err(StdError::generic_err(
-            "An error occurred while trying to retrieve factory settings.",
-        )),
-    }
-}
-
 pub fn query_pair_contract_config(
     querier: &QuerierWrapper,
     pair_contract_address: ContractLink,
@@ -293,12 +266,11 @@ pub fn swap_simulation(deps: Deps, path: Vec<Addr>, offer: TokenAmount) -> StdRe
     let mut next_in = offer.clone();
     let querier = &deps.querier;
     let config = config_r(deps.storage).load()?;
-    let factory_config = query_factory_config(querier, config.factory_address.clone())?;
 
     for hop in path {
         let contract = ContractLink {
             address: hop,
-            code_hash: factory_config.pair_contract.clone().code_hash,
+            code_hash: config.pair_contract_code_hash.clone(),
         };
         let contract_info: AMMPairQueryReponse =
             querier.query(&QueryRequest::Wasm(WasmQuery::Smart {

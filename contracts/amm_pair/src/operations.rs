@@ -21,7 +21,7 @@ use shadeswap_shared::{
     },
     snip20::{
         helpers::{
-            burn_msg, mint_msg, register_receive, send_msg, set_viewing_key_msg, token_info,
+            burn_msg, mint_msg, register_receive, send_msg, set_viewing_key_msg, token_info, transfer_from_msg,
         },
         ExecuteMsg as SNIP20ExecuteMsg,
     },
@@ -43,7 +43,6 @@ pub fn add_whitelist_address(storage: &mut dyn Storage, address: Addr) -> StdRes
     unwrap_data.push(address);
     whitelist_w(storage).save(&unwrap_data)
 }
-
 pub fn remove_whitelist_address(
     storage: &mut dyn Storage,
     address_to_remove: Vec<Addr>,
@@ -56,11 +55,16 @@ pub fn remove_whitelist_address(
 }
 
 pub fn is_address_in_whitelist(storage: &dyn Storage, address: Addr) -> StdResult<bool> {
-    let addrs = whitelist_r(storage).load()?;
-    if addrs.contains(&address) {
-        return Ok(true);
-    } else {
-        return Ok(false);
+    let addrs = whitelist_r(storage).may_load()?;
+    match addrs {
+        Some(a) => {
+            if a.contains(&address) {
+                return Ok(true);
+            } else {
+                return Ok(false);
+            }
+        },
+        None => return Ok(false),
     }
 }
 
@@ -184,7 +188,7 @@ pub fn swap(
         }
     }
 
-    // // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
+    // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
     let mut messages = Vec::with_capacity(3);
     if swap_result.shade_dao_fee_amount > Uint128::zero() {
         match &offer.token {
@@ -232,23 +236,23 @@ pub fn swap(
         action = "SELL".to_string();
     }
     // Push Trade History
-    let mut hasher = DefaultHasher::new();
-    swaper_receiver.to_string().hash(&mut hasher);
-    let hash_address = hasher.finish();
-    let trade_history = TradeHistory {
-        price: swap_result.price,
-        amount_in: swap_result.result.return_amount,
-        amount_out: offer.amount,
-        timestamp: env.block.time.seconds(),
-        height: env.block.height,
-        direction: action.to_string(),
-        lp_fee_amount: swap_result.lp_fee_amount,
-        total_fee_amount: swap_result.total_fee_amount,
-        shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
-        trader: hash_address.to_string(),
-    };
+    // let mut hasher = DefaultHasher::new();
+    // swaper_receiver.to_string().hash(&mut hasher);
+    // let hash_address = hasher.finish();
+    // let trade_history = TradeHistory {
+    //     price: swap_result.price,
+    //     amount_in: swap_result.result.return_amount,
+    //     amount_out: offer.amount,
+    //     timestamp: env.block.time.seconds(),
+    //     height: env.block.height,
+    //     direction: action.to_string(),
+    //     lp_fee_amount: swap_result.lp_fee_amount,
+    //     total_fee_amount: swap_result.total_fee_amount,
+    //     shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
+    //     trader: hash_address.to_string(),
+    // };
 
-    store_trade_history(deps, &trade_history)?;
+    // store_trade_history(deps, &trade_history)?;
 
     match &router_link {
         Some(r) => {
@@ -477,7 +481,7 @@ pub fn calculate_swap_result(
     let mut lp_fee_amount = Uint128::zero();
     let mut shade_dao_fee_amount = Uint128::zero();
     // calculation fee
-    let discount_fee = is_address_in_whitelist(deps.storage, recipient)?;
+    let discount_fee = false;//is_address_in_whitelist(deps.storage, recipient)?;
     if discount_fee == false {
         match &config.custom_fee {
             Some(f) => {
@@ -499,8 +503,8 @@ pub fn calculate_swap_result(
         deducted_offer_amount = offer.amount;
     }
 
-    let swap_amount = calculate_price(deducted_offer_amount, token0_pool, token1_pool)?;
-    let result_swap = SwapResult {
+     let swap_amount = calculate_price(deducted_offer_amount, token0_pool, token1_pool)?;
+     let result_swap = SwapResult {
         return_amount: swap_amount,
     };
 
@@ -658,10 +662,10 @@ pub fn add_liquidity(
                 contract_addr,
                 token_code_hash,
             } => {
-                pair_messages.push(send_msg(
-                    env.contract.address.clone(),
+                pair_messages.push(transfer_from_msg(
+                    info.sender.to_string(),
+                    env.contract.address.to_string(),
                     amount,
-                    None,
                     None,
                     None,
                     &Contract {
@@ -728,29 +732,29 @@ pub fn add_liquidity(
                             code_hash: lp_token.code_hash.clone(),
                         },
                     )?);
-                    let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
-                        from: info.sender.clone(),
-                        amount: lp_tokens,
-                    })
-                    .unwrap();
-                    // SEND LP Token to Staking Contract with Staking Message
-                    let msg = to_binary(&SNIP20ExecuteMsg::Send {
-                        recipient: stake.address.to_string(),
-                        recipient_code_hash: Some(stake.code_hash.clone()),
-                        amount: lp_tokens,
-                        msg: Some(invoke_msg.clone()),
-                        memo: None,
-                        padding: None,
-                    })?;
-                    pair_messages.push(
-                        WasmMsg::Execute {
-                            contract_addr: lp_token.address.to_string(),
-                            code_hash: lp_token.code_hash.clone(),
-                            msg,
-                            funds: vec![],
-                        }
-                        .into(),
-                    );
+                    // let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
+                    //     from: info.sender.clone(),
+                    //     amount: lp_tokens,
+                    // })
+                    // .unwrap();
+                    // // SEND LP Token to Staking Contract with Staking Message
+                    // let msg = to_binary(&SNIP20ExecuteMsg::Send {
+                    //     recipient: stake.address.to_string(),
+                    //     recipient_code_hash: Some(stake.code_hash.clone()),
+                    //     amount: lp_tokens,
+                    //     msg: Some(invoke_msg.clone()),
+                    //     memo: None,
+                    //     padding: None,
+                    // })?;
+                    // pair_messages.push(
+                    //     WasmMsg::Execute {
+                    //         contract_addr: lp_token.address.to_string(),
+                    //         code_hash: lp_token.code_hash.clone(),
+                    //         msg,
+                    //         funds: vec![],
+                    //     }
+                    //     .into(),
+                    // );
                 }
                 None => {
                     return Err(StdError::generic_err(

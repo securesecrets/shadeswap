@@ -1,9 +1,20 @@
-use shadeswap_shared::{router::{ExecuteMsg, InvokeMsg, QueryMsg}, core::{ContractLink, TokenType, TokenAmount}};
-use cosmwasm_std::{entry_point, DepsMut, Env, MessageInfo, Response, StdResult, StdError, Addr, Uint128, Binary, from_binary, Deps};
-use shadeswap_shared::{router::InitMsg, core::admin_w};
+use cosmwasm_std::{
+    entry_point, from_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, Uint128,
+};
+use shadeswap_shared::{core::admin_w, router::InitMsg};
+use shadeswap_shared::{
+    core::{ContractLink, TokenAmount, TokenType},
+    router::{ExecuteMsg, InvokeMsg, QueryMsg},
+};
 
-use crate::{state::{Config, config_w, config_r}, operations::{create_viewing_key, swap_tokens_for_exact_tokens, next_swap, refresh_tokens, query_factory_config, query_pair_contract_config, swap_simulation}};
-
+use crate::{
+    operations::{
+        create_viewing_key, next_swap, query_pair_contract_config, refresh_tokens, swap_simulation,
+        swap_tokens_for_exact_tokens,
+    },
+    state::{config_r, config_w, Config},
+};
 
 /// Pad handle responses and log attributes to blocks
 /// of 256 bytes to prevent leaking info based on response size
@@ -16,18 +27,15 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InitMsg,
 ) -> StdResult<Response> {
-    config_w(
-        deps.storage).save(
-        &Config {
-            factory_address: msg.factory_address,
-            viewing_key: msg.viewing_key.unwrap_or(create_viewing_key(
-                &env,
-                &_info, 
-                msg.prng_seed.clone(),
-                msg.entropy.clone(),
-            )),
-        },
-    )?;
+    config_w(deps.storage).save(&Config {
+        viewing_key: msg.viewing_key.unwrap_or(create_viewing_key(
+            &env,
+            &_info,
+            msg.prng_seed.clone(),
+            msg.entropy.clone(),
+        )),
+        pair_contract_code_hash: msg.pair_contract_code_hash,
+    })?;
 
     admin_w(deps.storage).save(&_info.sender.clone())?;
     Ok(Response::default())
@@ -46,7 +54,9 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             recipient,
         } => {
             if !offer.token.is_native_token() {
-                return Err(StdError::generic_err("Sent a non-native token. Should use the receive interface in SNIP20."));
+                return Err(StdError::generic_err(
+                    "Sent a non-native token. Should use the receive interface in SNIP20.",
+                ));
             }
             offer.assert_sent_native_token_balance(&info)?;
             let sender = info.sender.clone();
@@ -88,13 +98,11 @@ fn receiver_callback(
                 recipient,
             } => {
                 let config = config_r(deps.storage).load()?;
-                let factory_config =
-                    query_factory_config(&deps.querier, config.factory_address.clone())?;
                 let pair_config = query_pair_contract_config(
                     &deps.querier,
                     ContractLink {
                         address: paths[0].clone(),
-                        code_hash: factory_config.pair_contract.code_hash,
+                        code_hash: config.pair_contract_code_hash,
                     },
                 )?;
                 for token in pair_config.pair.into_iter() {

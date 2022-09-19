@@ -3,9 +3,9 @@ use crate::{
         add_address_to_whitelist, add_liquidity, get_estimated_lp_token, get_shade_dao_info,
         load_trade_history_query, query_calculate_price, query_liquidity, register_lp_token,
         remove_address_from_whitelist, remove_liquidity, set_staking_contract, swap,
-        swap_simulation,
+        swap_simulation, is_address_in_whitelist,
     },
-    state::{config_r, config_w, trade_count_r, whitelist_r, Config},
+    state::{config_r, config_w, trade_count_r, whitelist_r, Config, whitelist_w},
 };
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
@@ -16,9 +16,10 @@ use shadeswap_shared::{
         admin_r, admin_w, apply_admin_guard, create_viewing_key, set_admin_guard, Callback,
         ContractLink, TokenAmount, TokenType,
     },
+    lp_token::{InitConfig, InstantiateMsg},
     msg::amm_pair::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse},
     msg::staking::InitMsg as StakingInitMsg,
-    Contract, lp_token::{InstantiateMsg, InitConfig},
+    Contract,
 };
 
 use crate::operations::register_pair_token;
@@ -61,7 +62,7 @@ pub fn instantiate(
             enable_deposit: Some(false),
             enable_redeem: Some(false),
             enable_mint: Some(true),
-            enable_burn: Some(true)
+            enable_burn: Some(true),
         }),
         callback: Some(Callback {
             msg: to_binary(&ExecuteMsg::OnLpTokenInitAddr)?,
@@ -74,39 +75,39 @@ pub fn instantiate(
 
     let mut response = Response::new();
 
-    response = response.add_submessage(SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Instantiate {
-            code_id: msg.lp_token_contract.id,
-            msg: to_binary(&init_snip20_msg)?,
-            label: format!(
-                "{}-{}-ShadeSwap-Pair-Token-{}",
-                &msg.pair.0, &msg.pair.1, &env.contract.address
-            ),
-            code_hash: msg.lp_token_contract.code_hash.clone(),
-            funds: vec![],
-        }), INSTANTIATE_LP_TOKEN_REPLY_ID));
+    response = response.add_message(CosmosMsg::Wasm(WasmMsg::Instantiate {
+        code_id: msg.lp_token_contract.id,
+        msg: to_binary(&init_snip20_msg)?,
+        label: format!(
+            "{}-{}-ShadeSwap-Pair-Token-{}",
+            &msg.pair.0, &msg.pair.1, &env.contract.address
+        ),
+        code_hash: msg.lp_token_contract.code_hash.clone(),
+        funds: vec![],
+    }));
 
-    // match msg.staking_contract {
-    //     Some(c) => {
-    //         response = response.add_message(CosmosMsg::Wasm(WasmMsg::Instantiate {
-    //                 code_id: c.contract_info.id,
-    //                 label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
-    //                 msg: to_binary(&StakingInitMsg {
-    //                     staking_amount: c.amount,
-    //                     reward_token: c.reward_token.clone(),
-    //                     pair_contract: ContractLink {
-    //                         address: env.contract.address.clone(),
-    //                         code_hash: env.contract.code_hash.clone(),
-    //                     },
-    //                     prng_seed: msg.prng_seed.clone(),
-    //                 })?,
-    //                 code_hash: c.contract_info.code_hash.clone(),
-    //                 funds: vec![],
-    //             }));
-    //     }
-    //     _ => {
-    //         ();
-    //     }
-    // }
+    match msg.staking_contract {
+        Some(c) => {
+            response = response.add_message(CosmosMsg::Wasm(WasmMsg::Instantiate {
+                code_id: c.contract_info.id,
+                label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
+                msg: to_binary(&StakingInitMsg {
+                    staking_amount: c.amount,
+                    reward_token: c.reward_token.clone(),
+                    pair_contract: ContractLink {
+                        address: env.contract.address.clone(),
+                        code_hash: env.contract.code_hash.clone(),
+                    },
+                    prng_seed: msg.prng_seed.clone(),
+                })?,
+                code_hash: c.contract_info.code_hash.clone(),
+                funds: vec![],
+            }));
+        }
+        _ => {
+            ();
+        }
+    }
 
     let config = Config {
         factory_contract: msg.factory_info.clone(),
@@ -126,8 +127,17 @@ pub fn instantiate(
         Some(admin) => admin_w(deps.storage).save(&admin)?,
         None => println!("No admin given"),
     }
-    response.data = Some(env.contract.address.as_bytes().into());
-    Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
+
+    match msg.callback {
+        Some(c) => messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: c.contract.address.to_string(),
+            code_hash: c.contract.code_hash,
+            msg: c.msg,
+            funds: vec![],
+        })),
+        None => println!("No callback given"),
+    }
+    Ok(response.add_messages(messages).add_attribute("created_exchange_address", env.contract.address.to_string()))
 }
 
 #[entry_point]
@@ -279,6 +289,7 @@ fn receiver_callback(
     }
 }
 
+#[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetPairInfo {} => {

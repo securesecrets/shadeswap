@@ -38,6 +38,7 @@ impl Config {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct NextPairKey {
     pub pair: TokenPair,
+    pub key: Binary,
     pub is_verified: bool
 }
 

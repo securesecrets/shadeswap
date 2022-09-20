@@ -17,11 +17,15 @@ use shadeswap_shared::{
         amm_pair::{QueryMsgResponse, SwapInfo, SwapResult, TradeHistory},
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
         router::ExecuteMsg as RouterExecuteMsg,
-        staking::{ExecuteMsg as StakingExecuteMsg, InvokeMsg as StakingInvokeMsg},
+        staking::{
+            ExecuteMsg as StakingExecuteMsg, InitMsg as StakingInitMsg,
+            InvokeMsg as StakingInvokeMsg,
+        },
     },
     snip20::{
         helpers::{
-            burn_msg, mint_msg, register_receive, send_msg, token_info, set_viewing_key_msg,
+            burn_msg, mint_msg, register_receive, send_msg, set_viewing_key_msg, token_info,
+            transfer_from_msg,
         },
         ExecuteMsg as SNIP20ExecuteMsg,
     },
@@ -46,7 +50,6 @@ pub fn add_whitelist_address(storage: &mut dyn Storage, address: Addr) -> StdRes
     unwrap_data.push(address);
     whitelist_w(storage).save(&unwrap_data)
 }
-
 pub fn remove_whitelist_address(
     storage: &mut dyn Storage,
     address_to_remove: Vec<Addr>,
@@ -59,14 +62,16 @@ pub fn remove_whitelist_address(
 }
 
 pub fn is_address_in_whitelist(storage: &dyn Storage, address: Addr) -> StdResult<bool> {
-    let addrs = match whitelist_r(storage).may_load() {
-        Ok(it) => it.unwrap_or(Vec::new()),
-        Err(err) => Vec::new(),
-    };
-    if addrs.contains(&address) {
-        return Ok(true);
-    } else {
-        return Ok(false);
+    let addrs = whitelist_r(storage).may_load()?;
+    match addrs {
+        Some(a) => {
+            if a.contains(&address) {
+                return Ok(true);
+            } else {
+                return Ok(false);
+            }
+        }
+        None => return Ok(false),
     }
 }
 
@@ -93,7 +98,10 @@ pub fn register_lp_token(
 ) -> StdResult<Response> {
     let mut config = config_r(deps.storage).load()?;
 
-    config.lp_token.address = lp_token_address.address.clone();
+    config.lp_token = ContractLink {
+        address: lp_token_address.address.clone(),
+        code_hash: lp_token_address.code_hash.clone(),
+    };
     // store config against Smart contract address
     config_w(deps.storage).save(&config.clone())?;
 
@@ -102,8 +110,35 @@ pub fn register_lp_token(
     messages.push(register_receive(
         env.contract.code_hash.clone(),
         None,
-        &lp_token_address,
+        &lp_token_address.clone(),
     )?);
+
+    match config.staking_contract_init {
+        Some(c) => {
+            messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
+                code_id: c.contract_info.id,
+                label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
+                msg: to_binary(&StakingInitMsg {
+                    staking_amount: c.amount,
+                    reward_token: c.reward_token.clone(),
+                    pair_contract: ContractLink {
+                        address: env.contract.address.clone(),
+                        code_hash: env.contract.code_hash.clone(),
+                    },
+                    prng_seed: config.prng_seed.clone(),
+                    lp_token: ContractLink {
+                        address: lp_token_address.address.clone(),
+                        code_hash: lp_token_address.code_hash.clone(),
+                    },
+                })?,
+                code_hash: c.contract_info.code_hash.clone(),
+                funds: vec![],
+            }));
+        }
+        _ => {
+            ();
+        }
+    }
 
     Ok(Response::new().add_messages(messages))
 }
@@ -193,7 +228,7 @@ pub fn swap(
         }
     }
 
-    // // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
+    // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
     let mut messages = Vec::with_capacity(3);
     if swap_result.shade_dao_fee_amount > Uint128::zero() {
         match &offer.token {
@@ -241,23 +276,23 @@ pub fn swap(
         action = "SELL".to_string();
     }
     // Push Trade History
-    let mut hasher = DefaultHasher::new();
-    swaper_receiver.to_string().hash(&mut hasher);
-    let hash_address = hasher.finish();
-    let trade_history = TradeHistory {
-        price: swap_result.price,
-        amount_in: swap_result.result.return_amount,
-        amount_out: offer.amount,
-        timestamp: env.block.time.seconds(),
-        height: env.block.height,
-        direction: action.to_string(),
-        lp_fee_amount: swap_result.lp_fee_amount,
-        total_fee_amount: swap_result.total_fee_amount,
-        shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
-        trader: hash_address.to_string(),
-    };
+    // let mut hasher = DefaultHasher::new();
+    // swaper_receiver.to_string().hash(&mut hasher);
+    // let hash_address = hasher.finish();
+    // let trade_history = TradeHistory {
+    //     price: swap_result.price,
+    //     amount_in: swap_result.result.return_amount,
+    //     amount_out: offer.amount,
+    //     timestamp: env.block.time.seconds(),
+    //     height: env.block.height,
+    //     direction: action.to_string(),
+    //     lp_fee_amount: swap_result.lp_fee_amount,
+    //     total_fee_amount: swap_result.total_fee_amount,
+    //     shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
+    //     trader: hash_address.to_string(),
+    // };
 
-    store_trade_history(deps, &trade_history)?;
+    // store_trade_history(deps, &trade_history)?;
 
     match &router_link {
         Some(r) => {
@@ -304,21 +339,12 @@ pub fn set_staking_contract(
                 pair: config.pair,
                 viewing_key: config.viewing_key,
                 custom_fee: config.custom_fee,
+                staking_contract_init: config.staking_contract_init,
+                prng_seed: config.prng_seed,
             })?;
-
-            let mut messages = Vec::new();
-            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: contract.address.to_string(),
-                code_hash: contract.code_hash.clone(),
-                funds: vec![],
-                msg: to_binary(&StakingExecuteMsg::SetLPToken {
-                    lp_token: config_r(deps.storage).load()?.lp_token.clone(),
-                })?,
-            }));
 
             // send lp contractLink to staking contract
             Ok(Response::new()
-                .add_messages(messages)
                 .add_attribute("action", "set_staking_contract")
                 .add_attribute("contract_address", contract.address.clone())
                 .add_attribute("contract_hash", contract.code_hash.clone()))
@@ -667,10 +693,10 @@ pub fn add_liquidity(
                 contract_addr,
                 token_code_hash,
             } => {
-                pair_messages.push(send_msg(
-                    env.contract.address.clone(),
+                pair_messages.push(transfer_from_msg(
+                    info.sender.to_string(),
+                    env.contract.address.to_string(),
                     amount,
-                    None,
                     None,
                     None,
                     &Contract {

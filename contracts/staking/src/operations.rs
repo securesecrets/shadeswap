@@ -203,30 +203,30 @@ pub fn claim_rewards_for_all_stakers(storage: &mut dyn Storage, current_timestam
     Ok(())
 }
 
-pub fn set_lp_token(deps: DepsMut, env: Env, lp_token: ContractLink) -> StdResult<Response> {
-    let mut config = config_r(deps.storage).load()?;
+// pub fn set_lp_token(deps: DepsMut, env: Env, lp_token: ContractLink) -> StdResult<Response> {
+//     let mut config = config_r(deps.storage).load()?;
 
-    if config.lp_token.address != Addr::unchecked("".to_string()) {
-        return Err(StdError::generic_err(
-            "LP Token has already been added.".to_string(),
-        ));
-    }
-    config.lp_token = lp_token.clone();
-    let mut messages = Vec::new();
-    // register pair contract for LP receiver
-    messages.push(register_receive(
-        env.contract.code_hash.clone(),
-        None,
-        &Contract {
-            address: lp_token.address.clone(),
-            code_hash: lp_token.code_hash.clone(),
-        },
-    )?);
+//     if config.lp_token.address != Addr::unchecked("".to_string()) {
+//         return Err(StdError::generic_err(
+//             "LP Token has already been added.".to_string(),
+//         ));
+//     }
+//     config.lp_token = lp_token.clone();
+//     let mut messages = Vec::new();
+//     // register pair contract for LP receiver
+//     messages.push(register_receive(
+//         env.contract.code_hash.clone(),
+//         None,
+//         &Contract {
+//             address: lp_token.address.clone(),
+//             code_hash: lp_token.code_hash.clone(),
+//         },
+//     )?);
 
-    //store lp_token
-    config_w(deps.storage).save(&config)?;
-    Ok(Response::new().add_attributes(vec![Attribute::new("action", "set_lp_token")]))
-}
+//     //store lp_token
+//     config_w(deps.storage).save(&config)?;
+//     Ok(Response::new().add_attributes(vec![Attribute::new("action", "set_lp_token")]))
+// }
 
 pub fn calculate_staking_reward(
     storage: &dyn Storage,

@@ -47,7 +47,6 @@ pub fn next_swap(
     let current_trade_info: Option<CurrentSwapInfo> =
         epheral_storage_r(deps.storage).may_load()?;
     let config = config_r(deps.storage).load()?;
-    let factory_config = query_factory_config(&deps.querier, config.factory_address.clone())?;
     match current_trade_info {
         Some(info) => {
             if signature != info.signature {
@@ -57,7 +56,7 @@ pub fn next_swap(
                 &deps.querier,
                 ContractLink {
                     address: info.paths[info.current_index as usize].clone(),
-                    code_hash: factory_config.pair_contract.code_hash.clone(),
+                    code_hash: config.pair_contract_code_hash.clone(),
                 },
             )?;
 
@@ -86,7 +85,7 @@ pub fn next_swap(
                     env,
                     token_in,
                     info.paths[(info.current_index + 1) as usize].clone(),
-                    factory_config.pair_contract.code_hash.clone(),
+                    config.pair_contract_code_hash.clone(),
                     info.signature,
                 )?))
             } else {
@@ -129,10 +128,8 @@ pub fn swap_tokens_for_exact_tokens(
     sender: Addr,
     recipient: Option<Addr>,
 ) -> StdResult<Response> {
-    let querier = &deps.querier;
     //Validates whether the amount received is greater then the amount_out_min
     let config = config_r(deps.storage).load()?;
-    let factory_config = query_factory_config(querier, config.factory_address.clone())?;
     let signature = create_signature(&env, info)?;
     epheral_storage_w(deps.storage).save(&CurrentSwapInfo {
         amount: amount_in.clone(),
@@ -148,7 +145,7 @@ pub fn swap_tokens_for_exact_tokens(
         env,
         amount_in,
         paths[0].clone(),
-        factory_config.pair_contract.code_hash,
+        config.pair_contract_code_hash,
         signature.clone(),
     )?))
 }
@@ -227,31 +224,6 @@ fn get_trade_with_callback(
     return Ok(messages);
 }
 
-pub fn query_factory_config(
-    querier: &QuerierWrapper,
-    factory_address: ContractLink,
-) -> StdResult<FactoryConfig> {
-    let result: FactoryQueryResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: factory_address.address.to_string(),
-        code_hash: factory_address.code_hash.clone(),
-        msg: to_binary(&FactoryQueryMsg::GetConfig {})?,
-    }))?;
-
-    match result {
-        FactoryQueryResponse::GetConfig {
-            pair_contract,
-            amm_settings,
-            lp_token_contract: _,
-        } => Ok(FactoryConfig {
-            pair_contract,
-            amm_settings,
-        }),
-        _ => Err(StdError::generic_err(
-            "An error occurred while trying to retrieve factory settings.",
-        )),
-    }
-}
-
 pub fn query_pair_contract_config(
     querier: &QuerierWrapper,
     pair_contract_address: ContractLink,
@@ -293,12 +265,11 @@ pub fn swap_simulation(deps: Deps, path: Vec<Addr>, offer: TokenAmount) -> StdRe
     let mut next_in = offer.clone();
     let querier = &deps.querier;
     let config = config_r(deps.storage).load()?;
-    let factory_config = query_factory_config(querier, config.factory_address.clone())?;
 
     for hop in path {
         let contract = ContractLink {
             address: hop,
-            code_hash: factory_config.pair_contract.clone().code_hash,
+            code_hash: config.pair_contract_code_hash.clone(),
         };
         let contract_info: AMMPairQueryReponse =
             querier.query(&QueryRequest::Wasm(WasmQuery::Smart {

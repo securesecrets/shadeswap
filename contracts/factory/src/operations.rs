@@ -111,6 +111,7 @@ pub fn set_config(deps: DepsMut, env: Env, msg: ExecuteMsg) -> StdResult<Respons
 pub fn create_pair(
     deps: DepsMut,
     env: Env,
+    info: &MessageInfo,
     pair: TokenPair,
     sender: Addr,
     entropy: Binary,
@@ -120,13 +121,13 @@ pub fn create_pair(
     println!("create_pair caller {}", &sender);
     apply_admin_guard(&sender, deps.storage)?;
     let admin = admin_r(deps.storage).load()?;
+    let signature = create_signature(&env, info)?;
     ephemeral_storage_w(deps.storage).save(&NextPairKey {
         pair: pair.clone(),
         is_verified: admin == sender,
+        key: signature.clone(),
     })?;
-    Ok(Response::new().add_submessage(SubMsg {
-        id: INSTANTIATE_REPLY_ID,
-        msg: CosmosMsg::Wasm(WasmMsg::Instantiate {
+    Ok(Response::new().add_message( CosmosMsg::Wasm(WasmMsg::Instantiate {
             code_id: config.pair_contract.id,
             label: format!(
                 "{}-{}-pair-{}-{}",
@@ -144,13 +145,12 @@ pub fn create_pair(
                 admin: Some(admin_r(deps.storage).load()?),
                 staking_contract: staking_contract,
                 custom_fee: None,
+                callback: Some(Callback { msg: to_binary(&ExecuteMsg::RegisterAMMPair { pair: pair.clone(), signature: signature })?, contract: ContractLink { address: env.contract.address, code_hash: env.contract.code_hash } }),
             })?,
             code_hash: config.pair_contract.code_hash,
             funds: vec![],
-        }).into(),
-        gas_limit: None,
-        reply_on: cosmwasm_std::ReplyOn::Success,
-    }))
+        })
+        ))
 }
 
 pub(crate) fn load_amm_pairs(deps: Deps, pagination: Pagination) -> StdResult<Vec<AMMPair>> {
@@ -177,4 +177,15 @@ pub(crate) fn load_amm_pairs(deps: Deps, pagination: Pagination) -> StdResult<Ve
         }
         None =>  Ok(vec![]),
     }
+}
+
+pub(crate) fn create_signature(env: &Env, info: &MessageInfo) -> StdResult<Binary> {
+    to_binary(
+        &[
+            info.sender.as_bytes(),
+            &env.block.height.to_be_bytes(),
+            &env.block.time.seconds().to_be_bytes(),
+        ]
+        .concat(),
+    )
 }

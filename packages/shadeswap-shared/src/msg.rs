@@ -30,10 +30,10 @@ pub mod router {
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
-        pub factory_address: ContractLink,
         pub prng_seed: Binary,
         pub entropy: Binary,
         pub viewing_key: Option<String>,
+        pub pair_contract_code_hash: String
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -66,6 +66,7 @@ pub mod router {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         SwapSimulation { offer: TokenAmount, path: Vec<Addr> },
+        GetConfig {},
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -78,6 +79,9 @@ pub mod router {
             result: SwapResult,
             price: String,
         },
+        GetConfig {
+            pair_contract_code_hash: String,
+        }
     }
 }
 
@@ -132,6 +136,7 @@ pub mod amm_pair {
         pub admin: Option<Addr>,
         pub staking_contract: Option<StakingContractInit>,
         pub custom_fee: Option<CustomFee>,
+        pub callback: Option<Callback>,
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -188,6 +193,7 @@ pub mod amm_pair {
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
+        GetConfig{},
         GetPairInfo {},
         GetTradeHistory {
             pagination: Pagination,
@@ -260,6 +266,13 @@ pub mod amm_pair {
             lp_token: Uint128,
             total_lp_token: Uint128,
         },
+        GetConfig{
+            factory_contract: ContractLink,
+            lp_token: ContractLink,
+            staking_contract: Option<ContractLink>,
+            pair: TokenPair,
+            custom_fee: Option<CustomFee>
+        }
     }
 }
 
@@ -298,6 +311,10 @@ pub mod factory {
         },
         SetFactoryAdmin {
             admin: String,
+        },
+        RegisterAMMPair {
+            pair: TokenPair,
+            signature: Binary,
         },
     }
 
@@ -348,6 +365,7 @@ pub mod staking {
         pub reward_token: TokenType,
         pub pair_contract: ContractLink,
         pub prng_seed: Binary,
+        pub lp_token: ContractLink,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -357,9 +375,6 @@ pub mod staking {
         Unstake {
             amount: Uint128,
             remove_liqudity: Option<bool>,
-        },
-        SetLPToken {
-            lp_token: ContractLink,
         },
         Receive {
             from: Addr,
@@ -436,7 +451,7 @@ pub mod staking {
 pub mod lp_token {
     use cosmwasm_std::Addr;
 
-    use crate::{snip20::InitialBalance, core::Callback};
+    use crate::{core::Callback, snip20::InitialBalance};
 
     use super::*;
 

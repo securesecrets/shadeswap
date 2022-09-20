@@ -71,7 +71,8 @@ pub mod tests {
             entropy: entropy.clone(),
             admin: Some(mock_info.sender.clone()),           
             staking_contract: None,
-            custom_fee: None
+            custom_fee: None,
+            callback: None,
         };     
         assert!(instantiate(deps.as_mut(), env.clone(),mock_info.clone(), msg).is_ok());     
         let test_view_key = create_viewing_key(&env, &mock_info.clone(), seed.clone(),entropy.clone());
@@ -127,7 +128,8 @@ pub mod tests {
             entropy: entropy.clone(),
             admin: Some(mock_info.sender.clone()),           
             staking_contract: None,
-            custom_fee: None
+            custom_fee: None,
+            callback: None,
         };     
         assert!(instantiate(deps.as_mut(), env.clone(),mock_info.clone(), msg).is_ok());         
         let address_a =  Addr::unchecked("TESTA".to_string());
@@ -515,7 +517,8 @@ pub mod help_test_lib {
     use shadeswap_shared::core::{Fee, TokenPair, CustomFee};
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
     use shadeswap_shared::snip20::QueryAnswer;
-    use shadeswap_shared::snip20::manager::Balance;   
+    use shadeswap_shared::snip20::manager::Balance;
+    use shadeswap_shared::stake_contract::StakingContractInit;   
     use crate::contract::{instantiate, query};
     use crate::operations::{swap, add_whitelist_address, is_address_in_whitelist, add_address_to_whitelist};
     use crate::state::{config_w, trade_count_r};
@@ -541,7 +544,8 @@ pub mod help_test_lib {
             entropy: entropy.clone(),
             admin: Some(mock_info.sender.clone()),      
             staking_contract: None,
-            custom_fee: None
+            custom_fee: None,
+            callback: None,
         };         
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let config = config_r(&deps.storage).load()?;
@@ -643,7 +647,13 @@ pub mod help_test_lib {
             staking_contract: Some(mock_contract_link(MOCK_CONTRACT_ADDR.to_string())),
             pair:      mk_token_pair(),
             viewing_key:  create_viewing_key(&env, &mk_info.clone(), seed.clone(), entropy.clone()),
-            custom_fee: None
+            custom_fee: None,
+            staking_contract_init: Some(StakingContractInit{ 
+                contract_info: ContractInstantiationInfo { code_hash:"".to_string(), id: 1 }, 
+                amount: Uint128::from(1000u128), 
+                reward_token: TokenType::CustomToken { contract_addr: Addr::unchecked("".to_string()), token_code_hash: "".to_string() },
+            }),
+            prng_seed: to_binary(&"to_string".to_string())?,
         })
     }
 
@@ -810,6 +820,7 @@ pub mod help_test_lib {
             admin: Some(mock_info.sender.clone()),          
             staking_contract: None,
             custom_fee: custom_fee,
+            callback: None,
         };         
         let temp_deps = deps.branch();
         assert!(instantiate(temp_deps, env.clone(),mock_info, msg).is_ok());

@@ -152,7 +152,8 @@ pub mod test_help_lib{
                 address: Addr::unchecked(CONTRACT_ADDRESS),
                 code_hash: "".to_string().clone(),
             },
-            prng_seed: to_binary(&"prng")?
+            prng_seed: to_binary(&"prng")?,
+            lp_token: ContractLink { address: Addr::unchecked("".to_string()), code_hash: "".to_string() },
         };         
         assert!(instantiate(deps.branch(), env.clone(),info.clone(), msg).is_ok());
         let mut config = config_r(deps.storage).load()?;

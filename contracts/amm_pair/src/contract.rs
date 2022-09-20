@@ -1,6 +1,6 @@
 use crate::{
     operations::{
-        add_address_to_whitelist, add_liquidity, get_estimated_lp_token, get_shade_dao_info,
+        add_address_to_whitelist, get_estimated_lp_token, get_shade_dao_info,
         load_trade_history_query, query_calculate_price, query_liquidity, register_lp_token,
         remove_address_from_whitelist, remove_liquidity, set_staking_contract, swap,
         swap_simulation,add_liquidity, register_pair_token
@@ -22,7 +22,6 @@ use shadeswap_shared::{
     Contract, lp_token::{InstantiateMsg, InitConfig},
 };
 
-use crate::operations::register_pair_token;
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
 pub const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1u64;

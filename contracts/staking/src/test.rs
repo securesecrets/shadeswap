@@ -1,497 +1,289 @@
-// use serde::de::DeserializeOwned;
-// use shadeswap_shared::msg::staking::InvokeMsg;
+use serde::de::DeserializeOwned;
+use shadeswap_shared::msg::staking::InvokeMsg;
 
-// #[cfg(test)]
-// pub mod tests {
-//     use super::*;
-//     use cosmwasm_std::{BankQuery, AllBalanceResponse, to_vec, Coin, StdResult, HumanAddr, BalanceResponse, from_binary, StdError, QueryRequest, Empty, Uint128, to_binary, QuerierResult, from_slice, Querier, testing::{MockApi, MockStorage}, Extern, ContractInfo, MessageInfo, BlockInfo, Env, Api, Storage, WasmQuery};
-//     use secret_toolkit::snip20::Balance;
-//     use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  ExecuteMsg}}, core::ContractLink};
-//     use crate::state::{{Config , store_config, load_stakers, get_total_staking_amount, load_claim_reward_timestamp,
-//         load_config, is_address_already_staker, load_claim_reward_info,
-//         load_staker_info}};    
-//     use crate::contract::{{init, get_current_timestamp,claim_rewards_for_all_stakers, query, handle, get_staking_percentage}};
-//     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-//     use crate::contract::{{get_claim_reward_for_user}};
-//     use shadeswap_shared::token_type::TokenType;
-//     use serde::Deserialize;
-//     use serde::Serialize;
-   
+pub const CONTRACT_ADDRESS: &str = "CONTRACT_ADDRESS";
+pub const LP_TOKEN: &str = "LP_TOKEN";
+pub const REWARD_TOKEN: &str = "REWARD_TOKEN";
+pub const STAKING_CONTRACT_ADDRESS: &str = "STAKING_CONTRACT_ADDRESS";
 
-//     pub const CONTRACT_ADDRESS: &str = "CONTRACT_ADDRESS";
-//     pub const LP_TOKEN: &str = "LP_TOKEN";
-//     pub const REWARD_TOKEN: &str = "REWARD_TOKEN";
-//     pub const STAKING_CONTRACT_ADDRESS: &str = "STAKING_CONTRACT_ADDRESS";
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use cosmwasm_std::{BankQuery, AllBalanceResponse, to_vec, Coin, StdResult, BalanceResponse, from_binary, StdError, QueryRequest, Empty, Uint128, to_binary, QuerierResult, from_slice, Querier, testing::{MockApi, MockStorage, mock_info}, MessageInfo, BlockInfo, Env, Api, Storage, WasmQuery, Addr, Decimal};
+    use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  ExecuteMsg}}, core::{ContractLink, TokenType}};    
+    use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
+    use crate::{test::test_help_lib::{mock_custom_env, make_init_config, mock_dependencies, mock_custom_env_b}, state::{Config, claim_reward_info_r, ClaimRewardsInfo}, operations::{calculate_staker_shares, stake, get_total_stakers_count, claim_rewards_for_all_stakers, calculate_staking_reward}};
+    use serde::Deserialize;
+    use serde::Serialize; 
     
-//     #[test]
-//     fn assert_init_config() -> StdResult<()> {   
-//         let mut deps = mock_deps();  
-//         let env = mock_env(CONTRACT_ADDRESS,1571797523, 1524,CONTRACT_ADDRESS, &[]);
-//         let config: Config = make_init_config(&mut deps, env, Uint128(100u128))?;        
-//         assert_eq!(config.daily_reward_amount, Uint128(100u128));
-//         assert_eq!(config.reward_token, TokenType::CustomToken{
-//             contract_addr: HumanAddr::from(CONTRACT_ADDRESS),
-//             token_code_hash: CONTRACT_ADDRESS.to_string(),
-//         });
-//         Ok(())
-//     }
+    #[test]
+    fn assert_init_config() -> StdResult<()> {   
+        let mut deps = mock_dependencies(&[]);  
+        let env = mock_custom_env(CONTRACT_ADDRESS,1571797523, 1524);
+        let config: Config = make_init_config(deps.as_mut(), env, Uint128::from(100u128))?;        
+        assert_eq!(config.daily_reward_amount, Uint128::from(100u128));
+        assert_eq!(config.reward_token, TokenType::CustomToken{
+            contract_addr: Addr::unchecked(CONTRACT_ADDRESS),
+            token_code_hash: CONTRACT_ADDRESS.to_string(),
+        });
+        Ok(())
+    }
 
-//     #[test]
-//     fn assert_stake_existing_staker() -> StdResult<()>{
-//         let mut deps = mock_deps();  
-//         let env = mock_env("LPTOKEN".to_string(),1656480000, 1524,CONTRACT_ADDRESS,  &[]);    
-//         let staker = env.message.sender.clone();     
-//         let mut config: Config = make_init_config(&mut deps, env.clone(), Uint128(10000000000u128))?;     
-//         let lp_token = ContractLink{
-//             address: HumanAddr::from("LPTOKEN".to_string()),
-//             code_hash: "CODE_HASH".to_string(),
-//         };
-//         config.lp_token = lp_token.clone();
-//         store_config(&mut deps, &config)?;
-//         let receive_msg = ExecuteMsg::Receive { 
-//             from: staker.clone(),
-//             msg: Some(to_binary(&InvokeMsg::Stake{
-//                     amount: Uint128(100u128),
-//                     from: staker.clone()
-//             }).unwrap()),
-//             amount: Uint128(100u128)
-//         };
+    #[test]
+    fn assert_calculate_user_share_first_return_100() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(CONTRACT_ADDRESS,1571797523, 1524);
+        let config: Config = make_init_config(deps.as_mut(), env, Uint128::from(100u128))?;       
+        let user_shares = calculate_staker_shares(deps.as_mut().storage, Uint128::from(100u128))?;
+        assert_eq!(user_shares, Decimal::zero());
+        Ok(())
+    }
 
-//         let result = handle(
-//             &mut deps,
-//             env.clone(),  
-//             receive_msg.clone()          
-//         )
-//         .unwrap();
+    // total = 1500
+    // amount = 500
+    // share = 500/1500 = 0.33333333333333333
+    #[test]
+    fn assert_calculate_user_share_already_return_() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(CONTRACT_ADDRESS,1571797523, 1524);
+        let mock_info = mock_info(LP_TOKEN, &[]);
+        let config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let stake = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1500u128),Addr::unchecked("Staker"))?;       
+        let user_shares = calculate_staker_shares(deps.as_mut().storage, Uint128::from(500u128))?;
+        assert_eq!(user_shares, Decimal::from_atomics(Uint128::new(333333333333333333), 18).unwrap());
+        Ok(())
+    }
 
-//         let is_user_staker = is_address_already_staker(&deps, staker.clone())?;
-//         let stake_info = load_staker_info(&deps, staker.clone())?;
-//         assert_eq!(is_user_staker, true);
-//         assert_eq!(stake_info.amount, Uint128(100u128));
+    #[test]
+    fn assert_get_total_stakers_count_return_3() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(CONTRACT_ADDRESS,1571797523, 1524);
+        let env_b = mock_custom_env(CONTRACT_ADDRESS,1571797854, 1534);
+        let mock_info = mock_info(LP_TOKEN, &[]);
+        let config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),Addr::unchecked("StakerA"))?;    
+        let stake_b = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1500u128),Addr::unchecked("StakerB"))?;       
+        let stake_c = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1700u128),Addr::unchecked("StakerC"))?;   
+        let stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),Addr::unchecked("StakerA"))?;           
+        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
+        assert_eq!(total_stakers_count, Uint128::from(3u128));
+        Ok(())
+    }
 
-//         let result = handle(
-//             &mut deps,
-//             env.clone(),
-//             receive_msg.clone()
-//         )
-//         .unwrap();
-//         let total_amount = get_total_staking_amount(&mut deps)?;
-//         assert_eq!(total_amount, Uint128(200u128));
-//         Ok(())
-//     }
+    #[test]
+    fn assert_staking_with_claim_rewards() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(CONTRACT_ADDRESS,15000000, 1500);
+        let env_b = mock_custom_env(CONTRACT_ADDRESS,16000000, 1534);
+        let mock_info = mock_info(LP_TOKEN, &[]);
+        let config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),Addr::unchecked("StakerA"))?;    
+        let stake_b = stake(deps.as_mut(), env_b.clone(),mock_info.clone(), Uint128::from(1500u128),Addr::unchecked("StakerB"))?;    
+        claim_rewards_for_all_stakers(deps.as_mut().storage,Uint128::from(16000000u128))?;
+        let claim_reward_info_a: ClaimRewardsInfo  = claim_reward_info_r(deps.as_mut().storage).load(Addr::unchecked("StakerA").as_bytes())?;
+        let claim_reward_info_b: ClaimRewardsInfo  = claim_reward_info_r(deps.as_mut().storage).load(Addr::unchecked("StakerB").as_bytes())?;
+        assert_eq!(claim_reward_info_a.amount, Uint128::from(22222u128));
+        assert_eq!(claim_reward_info_b.amount, Uint128::from(33333u128));
+        assert_eq!(claim_reward_info_a.last_time_claimed, Uint128::from(16000000u128));
+        assert_eq!(claim_reward_info_b.last_time_claimed, Uint128::from(16000000u128));
+        Ok(())
+    }
 
-//     #[test]
-//     fn assert_unstake_existing_staker() -> StdResult<()>{
-//         let mut deps = mock_deps();  
-//         let env = mock_env("LPTOKEN".to_string(), 1571797523, 1524,CONTRACT_ADDRESS, &[]);
-//         let staker = env.message.sender.clone();     
-//         let mut config: Config = make_init_config(&mut deps, env.clone(), Uint128(100u128))?;     
-//         let lp_token = ContractLink{
-//             address: HumanAddr::from("LPTOKEN".to_string()),
-//             code_hash: "CODE_HASH".to_string(),
-//         };
-//         config.lp_token = lp_token.clone();        
-//         store_config(&mut deps, &config)?;
-//         let receive_msg = ExecuteMsg::Receive { 
-//             from: staker.clone(),
-//             msg: Some(to_binary(&InvokeMsg::Stake{
-//                     amount: Uint128(100u128),
-//                     from: staker.clone()
-//             }).unwrap()),
-//             amount: Uint128(100u128)
-//         };
+    // const reward_amount = 300000
+    // ration is 0.4 : 0.6 (Staker_A : Staker_B)
+    // seconds 86,400,000
+    // stake -> staker_a 15000000time -> 1000amount
+    // stake -> staker_b 16000000time -> 1500amount
+    // 1. (300000 * 10000000 / 86400000) * 0.4 = 1388-> Staker A
+    // 
+    #[test]
+    fn assert_calculate_staking_reward() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(CONTRACT_ADDRESS,15000000, 1500);
+        let env_b = mock_custom_env(CONTRACT_ADDRESS,16000000, 1534);
+        let mock_info = mock_info(LP_TOKEN, &[]);
+        let config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),Addr::unchecked("StakerA"))?;    
+        let stake_b = stake(deps.as_mut(), env_b.clone(),mock_info.clone(), Uint128::from(1500u128),Addr::unchecked("StakerB"))?;   
+        let last_timestamp = Uint128::from(15000000u128);
+        let current_timestamp  = Uint128::from(16000000u128);
+        let staking_reward = calculate_staking_reward(deps.as_mut().storage, Uint128::from(1000u128),last_timestamp, current_timestamp)?;
+        assert_eq!(staking_reward, Uint128::from(1388u128));       
+        Ok(())
+    }
 
-//         let result = handle(
-//             &mut deps,
-//             env.clone(),
-//             receive_msg.clone()
-//         )
-//         .unwrap();            
-//         let stake_info = load_staker_info(&deps, staker.clone())?;     
-//         assert_eq!(stake_info.amount, Uint128(100u128));
-//         let result = handle(
-//             &mut deps,
-//             env.clone(),
-//             ExecuteMsg::Unstake {amount: Uint128(100u128), remove_liqudity: Some(false)},
-//         )
-//         .unwrap();
-//         let stake_info = load_staker_info(&deps, staker.clone())?;    
-//         let claim_reward_inf = load_claim_reward_info(&deps, staker.clone()) ?;
-//         assert_eq!(stake_info.amount, Uint128(0u128));
-//         Ok(())
-//     }
+    #[test]
+    fn assert_staking_first_time_store_timestamp() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env_b(CONTRACT_ADDRESS,15000000, 1500);        
+        let mock_info = mock_info(LP_TOKEN, &[]);
+        let config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),Addr::unchecked("StakerA"))?;    
+        let claim_reward_info_b: ClaimRewardsInfo  = claim_reward_info_r(deps.as_mut().storage).load(Addr::unchecked("StakerA").as_bytes())?;
+        assert_eq!(claim_reward_info_b.amount, Uint128::zero());
+        assert_eq!(claim_reward_info_b.last_time_claimed, Uint128::from(15000000u128));       
+        Ok(())
+    }
+}
 
+#[cfg(test)]
+pub mod test_help_lib{
+    use super::*;
+    use cosmwasm_std::{Uint128, DepsMut, Env, StdResult, Addr, testing::{mock_info, MockStorage, MockApi}, BlockInfo, TransactionInfo, ContractInfo, Timestamp, to_binary, OwnedDeps, Coin, Querier, QuerierResult, BalanceResponse, from_slice, Empty, QueryRequest};
+    use serde::{Deserialize, Serialize};
+    use shadeswap_shared::{staking::InitMsg, core::{TokenType, ContractLink, Fee}, snip20::{QueryAnswer, manager::Balance}};
 
-//     #[test]
-//     fn assert_claim_rewards() -> StdResult<()>{
-//         let staker_a = HumanAddr("STAKERA".to_string());
-//         let staker_b = HumanAddr("STAKERB".to_string());  
-//         let mut deps = mock_deps();  
-//         let current_timestamp = get_current_timestamp()?;
-//         let env_a = mock_env("LPTOKEN".to_string(), current_timestamp.u128() as u64, 1524, CONTRACT_ADDRESS,  &[]);
-//         let mut config: Config = make_init_config(&mut deps, env_a.clone(), Uint128(1000000000000u128))?;           
-//         let lp_token = ContractLink{
-//             address: HumanAddr::from("LPTOKEN".to_string()),
-//             code_hash: "CODE_HASH".to_string(),
-//         };
-//         config.lp_token = lp_token.clone();            
-//         store_config(&mut deps, &config)?;
-//         let receive_msg = ExecuteMsg::Receive { 
-//             from: staker_a.clone(),
-//             msg: Some(to_binary(&InvokeMsg::Stake{
-//                     amount: Uint128(100u128),
-//                     from: staker_a.clone()
-//             }).unwrap()),
-//             amount: Uint128(100u128)
-//         };
-//         let result = handle(
-//             &mut deps,
-//             env_a.clone(),          
-//             receive_msg.clone()            
-//         )
-//         .unwrap();
-//         let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;        
-//         assert_eq!(is_user_staker, true);
-//         let env_b = mock_env("LPTOKEN".to_string(), (current_timestamp + Uint128(1000u128)).u128() as u64, 1527, CONTRACT_ADDRESS, &[]);
-//         let receive_msg = HandleMsg::Receive { 
-//             from: staker_b.clone(),
-//             msg: Some(to_binary(&InvokeMsg::Stake{
-//                     amount: Uint128(100u128),
-//                     from: staker_b.clone()
-//             }).unwrap()),
-//             amount: Uint128(100u128)
-//         };
-//         let result = handle(
-//             &mut deps,
-//             env_b.clone(),        
-//             receive_msg.clone()
-//         )
-//         .unwrap();            
-//         let current_time = current_timestamp + Uint128(1000u128);              
-//         claim_rewards_for_all_stakers(&mut deps, current_time)?;
-//         let claim_reward_info_a = load_claim_reward_info(&deps,staker_a.clone())?;
-//         assert_eq!(claim_reward_info_a.amount, Uint128(11574074074));      
-//         let claim_reward_info_b = load_claim_reward_info(&deps,staker_b.clone())?;
-//         assert_eq!(claim_reward_info_b.amount, Uint128(0));       
-//         Ok(())
-//     }
+    use crate::{state::{Config, config_r, config_w}, contract::instantiate};
 
+    pub fn make_init_config(
+            mut deps: DepsMut, 
+            env: Env,
+            amount: Uint128
+        ) -> StdResult<Config> 
+    {    
+        let info = mock_info("Sender", &[]);
+        let msg = InitMsg {
+            staking_amount: amount.clone(),         
+            reward_token: TokenType::CustomToken{
+                contract_addr: Addr::unchecked(CONTRACT_ADDRESS),
+                token_code_hash: CONTRACT_ADDRESS.to_string(),
+            },           
+            pair_contract: ContractLink {
+                address: Addr::unchecked(CONTRACT_ADDRESS),
+                code_hash: "".to_string().clone(),
+            },
+            prng_seed: to_binary(&"prng")?
+        };         
+        assert!(instantiate(deps.branch(), env.clone(),info.clone(), msg).is_ok());
+        let mut config = config_r(deps.storage).load()?;
+        config.lp_token = ContractLink{ address: Addr::unchecked(LP_TOKEN), code_hash: "".to_string() };
+        config_w(deps.storage).save(&config)?;
+        Ok(config)
+    }
+  
+    pub fn mock_custom_env(address: &str, height: u64, time: u64) -> Env {
+        Env {
+            block: BlockInfo {
+                height: height,
+                time: Timestamp::from_nanos(time),
+                chain_id: "pulsar-2".to_string(),
+            },
+            transaction: Some(TransactionInfo { index: 3 }),
+            contract: ContractInfo {
+                address: Addr::unchecked(address),
+                code_hash: "".to_string(),
+            },
+        }
+    }
+
+    pub fn mock_custom_env_b(address: &str, height: u64, time: u64) -> Env {
+        Env {
+            block: BlockInfo {
+                height: height,
+                time: Timestamp::from_seconds(15000),
+                chain_id: "pulsar-2".to_string(),
+            },
+            transaction: Some(TransactionInfo { index: 3 }),
+            contract: ContractInfo {
+                address: Addr::unchecked(address),
+                code_hash: "".to_string(),
+            },
+        }
+    }
+
+    pub fn mock_dependencies(
+        contract_balance: &[Coin],
+      ) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
+        let contract_addr = Addr::unchecked(CONTRACT_ADDRESS);
+        OwnedDeps {
+          storage: MockStorage::default(),
+          api: MockApi::default(),
+          querier: MockQuerier{portion :100},
+            custom_query_type: std::marker::PhantomData,      
+        }
+      }
+
+    #[derive(Serialize, Deserialize)]
+    struct IntBalanceResponse {
+        pub balance: Balance,
+    }
       
-//     #[test]
-//     fn assert_get_staking_percentage_success() -> StdResult<()>{
-//         let mut deps = mock_deps();  
-//         let mut env_a = mock_env("LPTOKEN".to_string(), 14525698, 1425,STAKING_CONTRACT_ADDRESS, &[]);
-//         let mut env_b = mock_env("LPTOKEN".to_string(), 14525710, 1435,STAKING_CONTRACT_ADDRESS, &[]);
-//         let mut config: Config = make_init_config(&mut deps, env_a.clone(), Uint128(100u128))?;   
-//         let staker_a = HumanAddr("STAKERA".to_string());
-//         let staker_b = HumanAddr("STAKERB".to_string()); 
-//         let lp_token = ContractLink{
-//             address: HumanAddr::from("LPTOKEN".to_string()),
-//             code_hash: "CODE_HASH".to_string(),
-//         };
-//         config.lp_token = lp_token.clone();            
-//         store_config(&mut deps, &config)?;      
-//         let receive_msg = ExecuteMsg::Receive { 
-//             from: staker_a.clone(),
-//             msg: Some(to_binary(&InvokeMsg::Stake{
-//                     amount: Uint128(100u128),
-//                     from: staker_a.clone()
-//             }).unwrap()),
-//             amount: Uint128(100u128)
-//         };
-//         let result = handle(
-//             &mut deps,
-//             env_a.clone(),        
-//             receive_msg.clone()
-//         )
-//         .unwrap();
-//         let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;
-//         let stake_info = load_staker_info(&deps, staker_a.clone())?;
-//         assert_eq!(is_user_staker, true);
-//         let receive_msg = ExecuteMsg::Receive { 
-//             from: staker_a.clone(),
-//             msg: Some(to_binary(&InvokeMsg::Stake{
-//                     amount: Uint128(100u128),
-//                     from: staker_b.clone()
-//             }).unwrap()),
-//             amount: Uint128(100u128)
-//         };
-//         let result = handle(
-//             &mut deps,
-//             env_b.clone(),      
-//             receive_msg.clone()
-//         )
-//         .unwrap();
-//         let staking_percentage_a = get_staking_percentage(&mut deps, staker_a.clone(), Uint128(100u128))?;
-//         println!("{}", staking_percentage_a);
-//         assert_eq!(staking_percentage_a, Uint128(50u128));
-//         let staking_percentage_b = get_staking_percentage(&mut deps, staker_b.clone(), Uint128(100u128))?;
-//         println!("{}", staking_percentage_b);
-//         assert_eq!(staking_percentage_b, Uint128(50u128));
-//         Ok(())
-//     }
-
-//     #[test]
-//     fn assert_set_and_check_viewing_key_for_query_success() -> StdResult<()>{
-//         let mut deps = mock_deps();  
-//         let staker_a = HumanAddr("STAKERA".to_string());     
-//         let mut env_a = mock_env("LPTOKEN".to_string(), 14525698, 1425,STAKING_CONTRACT_ADDRESS, &[]);       
-//         let mut env_b = mock_env( "STAKERA".to_string(),14528698, 1465,STAKING_CONTRACT_ADDRESS, &[]);       
-//         let mut config: Config = make_init_config(&mut deps, env_a.clone(), Uint128(100u128))?;   
-//         let staker_a = HumanAddr("STAKERA".to_string());       
-//         let lp_token = ContractLink{
-//             address: HumanAddr::from("LPTOKEN".to_string()),
-//             code_hash: "CODE_HASH".to_string(),
-//         };
-//         config.lp_token = lp_token.clone();            
-//         store_config(&mut deps, &config)?;    
-//         // set staker_a   
-//         let receive_msg = ExecuteMsg::Receive { 
-//             from: staker_a.clone(),
-//             msg: Some(to_binary(&InvokeMsg::Stake{
-//                     amount: Uint128(100u128),
-//                     from: staker_a.clone()
-//             }).unwrap()),
-//             amount: Uint128(100u128)
-//         };
-//         let result = handle(
-//             &mut deps,
-//             env_a.clone(),        
-//             receive_msg.clone()
-//         )
-//         .unwrap();
-
-//         let is_user_staker = is_address_already_staker(&deps, staker_a.clone())?;
-//         let stake_info = load_staker_info(&deps, staker_a.clone())?;
-//         assert_eq!(is_user_staker, true);
-//         let set_vk_msg = ExecuteMsg::SetVKForStaker { key: "password".to_string()};
-//         let result = handle(
-//             &mut deps,
-//             env_b.clone(),      
-//             set_vk_msg.clone()
-//         )
-//         .unwrap();
-     
-//         // get query of staker
-//         let binary_msg = get_claim_reward_for_user(&deps, HumanAddr::from("STAKERA".to_string()), "password".to_string(), Uint128(14528698000))?;
-//         let claimable_reward_for_staker: QueryResponse = from_binary(&binary_msg)?;
-//         if let QueryResponse::ClaimReward { 
-//             amount,
-//             reward_token
-//         } = claimable_reward_for_staker{
-//             assert_ne!(amount, Uint128(0));
-//             assert_eq!(reward_token.address.to_string(), HumanAddr::from(CONTRACT_ADDRESS).to_string())
-//         }       
-        
-//         Ok(())
-//     }
-
+    pub struct MockQuerier{
+        portion: u128,
+    }
     
-//     fn make_init_config<S: Storage, A: Api, Q: Querier>(
-//         deps: DepsMut, 
-//         env: Env,
-//         amount: Uint128) -> StdResult<Config> {    
-//         let msg = InitMsg {
-//             staking_amount: amount.clone(),         
-//             reward_token: TokenType::CustomToken{
-//                 contract_addr: HumanAddr::from(CONTRACT_ADDRESS),
-//                 token_code_hash: CONTRACT_ADDRESS.to_string(),
-//             },           
-//             pair_contract: ContractLink {
-//                 address: HumanAddr::from(CONTRACT_ADDRESS),
-//                 code_hash: "".to_string().clone(),
-//             },
-//             prng_seed: to_binary(&"prng")?
-//         };         
-//         assert!(init(deps, env.clone(), msg).is_ok());
-//         let config = load_config(deps)?;
-//         Ok(config)
-//     }
+    impl Querier for MockQuerier {
+        fn raw_query (&self, bin_request: &[u8]) -> QuerierResult {
+            let request: QueryRequest<Empty> = from_slice(bin_request).unwrap();
+            match &request {
+                QueryRequest::Bank(msg) => {
+                    match msg {
+                        cosmwasm_std::BankQuery::Balance { address, denom } => {
+                            match address.as_str() {
+                                CUSTOM_TOKEN_2 => {
+                                    let balance = to_binary(&QueryAnswer::Balance { amount: Uint128::from(1000u128)}).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                FACTORY_CONTRACT_ADDRESS => {
+                                    let balance = to_binary(&BalanceResponse{
+                                        amount: Coin{
+                                            denom: "uscrt".into(),
+                                            amount: Uint128::from(1000000u128),
+                                        }
+                                    }).unwrap();                                  
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                CUSTOM_TOKEN_1 => {
+                                    let balance = to_binary(&BalanceResponse{
+                                        amount: Coin{
+                                            denom: "uscrt".into(),
+                                            amount: Uint128::from(1000000u128),
+                                        }
+                                    }).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                _ => {
+                                    let response : &str= &address.to_string();
+                                    println!("{}", response);
+                                    unimplemented!("wrong tt address")   
+                                }                      
 
-//     #[test]
-//     fn assert_store_and_load_config() -> StdResult<()>{
-//         let mut deps = mock_deps();  
-//         let env = mock_env("LPTOKEN".to_string(),1656480000, 1524,CONTRACT_ADDRESS,  &[]);    
-//         let staker = env.message.sender.clone();     
-//         let mut config: Config = make_init_config(&mut deps, env.clone(), Uint128(10000000000u128))?;     
-//         let lp_token = ContractLink{
-//             address: HumanAddr::from("LPTOKEN".to_string()),
-//             code_hash: "CODE_HASH".to_string(),
-//         };
-//         config.lp_token = lp_token.clone();
-//         store_config(&mut deps, &config)?;
-
-//         let reward_token = match config.reward_token {
-//             // The arms of a match must cover all the possible values
-//             TokenType::NativeToken { denom } => ContractLink{
-//                 address: HumanAddr::default(),
-//                 code_hash: "".to_string()
-//             },
-//             TokenType::CustomToken { contract_addr, token_code_hash } => ContractLink{
-//                 address: contract_addr.clone(),
-//                 code_hash: token_code_hash.clone()
-//             }
-//             // TODO ^ Try commenting out one of these arms
-//         };
-//         let config = load_config(&deps)?;
-//         assert_eq!(config.lp_token.address.to_string().clone(),  HumanAddr::from("LPTOKEN".to_string()).to_string());
-//         assert_eq!(config.daily_reward_amount,Uint128(10000000000u128));
-//         assert_eq!(reward_token.address.to_string(), HumanAddr::from(CONTRACT_ADDRESS).to_string());
-//         assert_eq!(reward_token.code_hash, CONTRACT_ADDRESS.to_string());
-//         Ok(())
-//     }
-
-//     pub fn mock_env<U: Into<HumanAddr>>(sender: U, time: u64, height: u64, contract_address: &str, sent: &[Coin]) -> Env {
-//         Env {
-//             block: BlockInfo {
-//                 height: height,
-//                 time: time,
-//                 chain_id: "cosmos-testnet-14002".to_string(),
-//             },
-//             message: MessageInfo {
-//                 sender: sender.into(),
-//                 sent_funds: sent.to_vec(),
-//             },
-//             contract: ContractInfo {
-//                 address: HumanAddr::from(contract_address),
-//             },
-//             contract_key: Some("".to_string()),
-//             contract_code_hash: "".to_string(),
-//         }
-//     }
-
-//     fn mock_deps() -> Deps<MockStorage, MockApi, MockQuerier> {
-//         Extern {
-//             storage: MockStorage::default(),
-//             api: MockApi::new(123),
-//             querier: MockQuerier { portion: 2500 },
-//         }
-//     }
-
-//     #[derive(Serialize, Deserialize)]
-//     struct IntBalanceResponse {
-//         pub balance: Balance,
-//     }
-
-//     struct MockQuerier{
-//         portion: u128,
-//     }
-    
-//     impl Querier for MockQuerier {
-//         fn raw_query (&self, bin_request: &[u8]) -> QuerierResult {
-//             let request: QueryRequest<Empty> = from_slice(bin_request).unwrap();
-//             match &request {
-//                 QueryRequest::Wasm(msg) => {
-//                     match msg {
-//                         WasmQuery::Smart { contract_addr, .. } => {
-//                             println!("Factory Address :: {}", contract_addr);
-//                             match contract_addr.as_str() {                    
-//                                 CONTRACT_ADDRESS => {
-//                                     QuerierResult::Ok(to_binary(&BalanceResponse{
-//                                         amount: Coin{
-//                                             denom: "uscrt".into(),
-//                                             amount: Uint128(1000000u128),
-//                                         }
-//                                     }))
-//                                 },
-//                                 REWARD_TOKEN => {
-//                                     QuerierResult::Ok(to_binary(&IntBalanceResponse {
-//                                         balance: Balance {
-//                                             amount: Uint128(1000000u128),
-//                                         },
-//                                     }))
-//                                 },                            
-//                                 _ => unimplemented!()
-//                             }
-//                         },                  
-//                         _ => unimplemented!(),
-//                     }
-//                 },      
-//                 QueryRequest::Bank(msg) => {
-//                     match msg {
-//                         BankQuery::Balance {address, .. } => {
-//                             println!("Factory Address :: {}", address);
-//                             match address.as_str() {
-//                                 CONTRACT_ADDRESS => {
-//                                     QuerierResult::Ok(to_binary(&BalanceResponse{
-//                                         amount: Coin{
-//                                             denom: "uscrt".into(),
-//                                             amount: Uint128(1000000u128),
-//                                         }
-//                                     }))
-//                                 }, 
-//                                 "cosmos2contract" => {
-//                                     QuerierResult::Ok(to_binary(&BalanceResponse{
-//                                         amount: Coin{
-//                                             denom: "uscrt".into(),
-//                                             amount: Uint128(1000000u128),
-//                                         }
-//                                     }))
-//                                 },                          
-//                                 _ => {                            
-//                                     unimplemented!()
-//                                 } 
-//                             }
-//                         },
-//                         _ => unimplemented!(),
-//                     }
-//                 },  
-//                 _ => unimplemented!(),
-//             }
-//         }
-    
-//         fn query<T: DeserializeOwned>(&self, request: &QueryRequest<Empty>) -> StdResult<T> {
-//             self.custom_query(request)
-//         }
-    
-//         fn custom_query<T: serde::Serialize, U: DeserializeOwned>(
-//             &self,
-//             request: &QueryRequest<T>,
-//         ) -> StdResult<U> {
-//             let raw = match to_vec(request) {
-//                 Ok(raw) => raw,
-//                 Err(e) => {
-//                     return Err(StdError::generic_err(format!(
-//                         "Serializing QueryRequest: {}",
-//                         e
-//                     )))
-//                 }
-//             };
-//             match self.raw_query(&raw) {
-//                 Err(sys) => Err(StdError::generic_err(format!(
-//                     "Querier system error: {}",
-//                     sys
-//                 ))),
-//                 Ok(Err(err)) => Err(err),
-//                 // in theory we would process the response, but here it is the same type, so just pass through
-//                 Ok(Ok(res)) => from_binary(&res),
-//             }
-//         }
-    
-//         fn query_balance<U: Into<HumanAddr>>(&self, address: U, denom: &str) -> StdResult<Coin> {
-//             let request = BankQuery::Balance {
-//                 address: address.into(),
-//                 denom: denom.to_string(),
-//             }
-//             .into();
-//             let res: BalanceResponse = self.query(&request)?;
-//             Ok(res.amount)
-//         }
-    
-//         fn query_all_balances<U: Into<HumanAddr>>(&self, address: U) -> StdResult<Vec<Coin>> {
-//             let request = BankQuery::AllBalances {
-//                 address: address.into(),
-//             }
-//             .into();
-//             let res: AllBalanceResponse = self.query(&request)?;
-//             Ok(res.amount)
-//         }
-    
-       
-//     }
-
-// }
-
-
+                            }
+                        },
+                        cosmwasm_std::BankQuery::AllBalances { address } => todo!(),
+                        _ => todo!(),
+                    }
+                },
+                QueryRequest::Custom(_) => todo!(),
+                QueryRequest::Wasm(msg) =>{ 
+                    match msg {
+                        cosmwasm_std::WasmQuery::Smart { contract_addr, code_hash, msg } => {
+                            match contract_addr.as_str(){                              
+                                CUSTOM_TOKEN_1 => {
+                                    let balance = to_binary(&QueryAnswer::Balance { amount: Uint128::from(10000u128)}).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                CUSTOM_TOKEN_2 => {
+                                    let balance = to_binary(&QueryAnswer::Balance { amount: Uint128::from(10000u128)}).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                _ => {
+                                    let response : &str= &contract_addr.to_string();
+                                    println!("{}", response);
+                                    unimplemented!("wrong address")
+                                },
+                            }
+                        },
+                        cosmwasm_std::WasmQuery::ContractInfo { contract_addr } => todo!(),
+                        cosmwasm_std::WasmQuery::Raw { key, contract_addr } => todo!(),
+                        _ => todo!(),
+                    }
+                },
+                _ => todo!(),
+            }
+        }
+    }
+}
+   
 
 

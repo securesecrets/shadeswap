@@ -1,6 +1,9 @@
 use crate::{
-    operations::{add_amm_pairs, create_pair, register_amm_pair, set_config, list_pairs, query_amm_pair_address, query_amm_settings},
-    state::{config_r, config_w, ephemeral_storage_w, prng_seed_w, Config, ephemeral_storage_r},
+    operations::{
+        add_amm_pairs, create_pair, list_pairs, query_amm_pair_address, query_amm_settings,
+        register_amm_pair, set_config,
+    },
+    state::{config_r, config_w, ephemeral_storage_r, ephemeral_storage_w, prng_seed_w, Config},
 };
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Querier,
@@ -8,11 +11,11 @@ use cosmwasm_std::{
 };
 use shadeswap_shared::{
     amm_pair::{self, AMMPair},
-    core::{admin_w, apply_admin_guard, Callback, ContractLink, admin_r},
+    core::{admin_r, admin_w, apply_admin_guard, Callback, ContractLink},
     msg::{
         amm_pair::InitMsg as AMMPairInitMsg,
         factory::{ExecuteMsg, InitMsg, QueryMsg, QueryResponse},
-    }
+    },
 };
 
 pub const INSTANTIATE_REPLY_ID: u64 = 1u64;
@@ -37,7 +40,15 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             pair,
             entropy,
             staking_contract,
-        } => create_pair(deps, env, pair, info.sender, entropy, staking_contract),
+        } => create_pair(
+            deps,
+            env,
+            &info,
+            pair,
+            info.sender.clone(),
+            entropy,
+            staking_contract,
+        ),
         ExecuteMsg::SetConfig { .. } => set_config(deps, env, msg),
         ExecuteMsg::AddAMMPairs { amm_pairs } => {
             apply_admin_guard(&info.sender, deps.storage)?;
@@ -47,6 +58,22 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             apply_admin_guard(&info.sender, deps.storage)?;
             admin_w(deps.storage).save(&Addr::unchecked(admin))?;
             Ok(Response::default())
+        }
+        ExecuteMsg::RegisterAMMPair { pair, signature } => {
+            let config = ephemeral_storage_r(deps.storage).load()?;
+            if (config.key != signature) {
+                return Err(StdError::generic_err("Invalid signature given".to_string()));
+            }
+            ephemeral_storage_w(deps.storage).remove();
+            register_amm_pair(
+                deps.storage,
+                env,
+                AMMPair {
+                    pair: config.pair,
+                    address: Addr::unchecked(info.sender),
+                    enabled: true,
+                },
+            )
         }
     };
 }
@@ -66,7 +93,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 amm_settings,
                 lp_token_contract,
             })
-        },
+        }
         QueryMsg::ListAMMPairs { pagination } => list_pairs(deps, pagination),
         QueryMsg::GetAMMPairAddress { pair } => query_amm_pair_address(&deps, pair),
         QueryMsg::GetAMMSettings {} => query_amm_settings(deps),
@@ -87,7 +114,15 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
             Some(x) => {
                 let contract_address = String::from_utf8(x.to_vec())?;
                 let config = ephemeral_storage_r(deps.storage).load()?;
-                register_amm_pair(deps.storage, _env, AMMPair{ pair: config.pair, address: Addr::unchecked(contract_address), enabled: true } )?;
+                register_amm_pair(
+                    deps.storage,
+                    _env,
+                    AMMPair {
+                        pair: config.pair,
+                        address: Addr::unchecked(contract_address),
+                        enabled: true,
+                    },
+                )?;
                 ephemeral_storage_w(deps.storage).remove();
                 Ok(Response::default())
             }

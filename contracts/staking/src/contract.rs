@@ -12,7 +12,7 @@ use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staker_reward_info,
         get_staking_contract_owner, get_staking_reward_token_balance,
-        get_staking_stake_lp_token_info, set_lp_token, set_view_key, stake, unstake,
+        get_staking_stake_lp_token_info, set_view_key, stake, unstake,
     },
     state::{config_r, config_w, prng_seed_w, stakers_r, Config},
 };
@@ -30,10 +30,7 @@ pub fn instantiate(
         contract_owner: _info.sender.clone(),
         daily_reward_amount: msg.staking_amount,
         reward_token: msg.reward_token.clone(),
-        lp_token: ContractLink {
-            address: Addr::unchecked("".to_string()),
-            code_hash: "".to_string(),
-        },
+        lp_token: msg.lp_token
     };
     config_w(deps.storage).save(&config)?;
     admin_w(deps.storage).save(&_info.sender)?;
@@ -68,7 +65,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             from, amount, msg, ..
         } => receiver_callback(deps, env, info, from, amount, msg),
         ExecuteMsg::ClaimRewards {} => claim_rewards(deps, info, env),
-        ExecuteMsg::SetLPToken { lp_token } => set_lp_token(deps, env, lp_token),
         ExecuteMsg::Unstake {
             amount,
             remove_liqudity,
@@ -93,13 +89,14 @@ fn receiver_callback(
     match from_binary(&msg)? {
         InvokeMsg::Stake { from, amount } => {
             if config.lp_token.address != info.sender {
-                return Err(StdError::generic_err("".to_string()));
+                return Err(StdError::generic_err("Sender was not LP Token".to_string()));
             }
             stake(deps, env, info, amount, from)
         }
     }
 }
 
+#[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig {} => get_config(deps),

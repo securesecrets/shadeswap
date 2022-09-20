@@ -5,7 +5,7 @@ use shadeswap_shared::core::{TokenType, ContractLink, ViewingKey};
 
 
 
-pub static CONFIG: &[u8] = b"STAKING_CONFIG";
+pub static CONFIG: &[u8] = b"CONFIG";
 pub static STAKERS: &[u8] = b"LIST_STAKERS";
 pub static STAKING_INFO: &[u8] = b"STAKING_INFO";
 pub static CLAIM_REWARDS: &[u8] = b"CLAIM_REWARDS";
@@ -93,11 +93,11 @@ pub fn total_stakers_r(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
 }
 
 pub fn total_staked_w(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, CONFIG)
+    singleton(storage, TOTAL_STAKED)
 }
 
 pub fn total_staked_r(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, CONFIG)
+    singleton_read(storage, TOTAL_STAKED)
 }
 
 // pub fn store_config <S: Storage, A: Api, Q: Querier>(

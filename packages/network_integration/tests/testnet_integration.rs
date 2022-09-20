@@ -4,6 +4,7 @@ use cosmwasm_std::BalanceResponse;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Uint128;
 use network_integration::utils::InitConfig;
+use shadeswap_shared::amm_pair;
 use shadeswap_shared::core::Fee;
 use shadeswap_shared::core::TokenAmount;
 use shadeswap_shared::core::TokenPair;
@@ -211,66 +212,71 @@ fn run_testnet() -> Result<()> {
         )?;
     }
 
-    // println!("\n\tDepositing 1000000000000uscrt s_sREWARDSNIP20");
+    println!("\n\tDepositing 1000000000000uscrt s_sREWARDSNIP20");
 
-    // {
-    //     let msg = snip20::ExecuteMsg::Deposit { padding: None };
+    {
+        let msg = snip20::ExecuteMsg::Deposit { padding: None };
 
-    //     handle(
-    //         &msg,
-    //         &s_sREWARDSNIP20,
-    //         ACCOUNT_KEY,
-    //         Some(GAS),
-    //         Some("test"),
-    //         Some("1000000000000uscrt"),
-    //         &mut reports,
-    //         None,
-    //     )?;
-    // }
+        handle(
+            &msg,
+            &s_sREWARDSNIP20,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            Some("1000000000000uscrt"),
+            &mut reports,
+            None,
+        )?;
+    }
 
-    // assert_eq!(
-    //     get_balance(&s_sREWARDSNIP20, account.to_string(), VIEW_KEY.to_string()),
-    //     Uint128::new(1000000000000)
-    // );
+    assert_eq!(
+        get_balance(&s_sREWARDSNIP20, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(1000000000000)
+    );
 
-    // println!("\n\tDepositing 1000000000000uscrt sSCRT");
+    println!("\n\tDepositing 1000000000000uscrt sSCRT");
 
-    // {
-    //     let msg = snip20::ExecuteMsg::Deposit { padding: None };
+    {
+        let msg = snip20::ExecuteMsg::Deposit { padding: None };
 
-    //     handle(
-    //         &msg,
-    //         &s_sCRT,
-    //         ACCOUNT_KEY,
-    //         Some(GAS),
-    //         Some("test"),
-    //         Some("1000000000000uscrt"),
-    //         &mut reports,
-    //         None,
-    //     )?;
-    // }
+        handle(
+            &msg,
+            &s_sCRT,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            Some("1000000000000uscrt"),
+            &mut reports,
+            None,
+        )?;
+    }
 
-    // assert_eq!(
-    //     get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-    //     Uint128::new(1000000000000)
-    // );
+    assert_eq!(
+        get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(1000000000000)
+    );
 
-    // println!("\n\tDepositing 1000000000000uscrt sSHD");
+    println!("\n\tDepositing 1000000000000uscrt sSHD");
 
-    // {
-    //     let msg = snip20::ExecuteMsg::Deposit { padding: None };
+    {
+        let msg = snip20::ExecuteMsg::Deposit { padding: None };
 
-    //     handle(
-    //         &msg,
-    //         &s_sSHD,
-    //         ACCOUNT_KEY,
-    //         Some(GAS),
-    //         Some("test"),
-    //         Some("1000000000000uscrt"),
-    //         &mut reports,
-    //         None,
-    //     )?;
-    // }
+        handle(
+            &msg,
+            &s_sSHD,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            Some("1000000000000uscrt"),
+            &mut reports,
+            None,
+        )?;
+        
+    assert_eq!(
+        get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(1000000000000)
+    );
+    }
 
     print_header("\n\tInitializing Factory Contract");
 
@@ -405,7 +411,7 @@ fn run_testnet() -> Result<()> {
             let ammPair = amm_pairs[0].clone();
             let amm_pair_2 = amm_pairs[1].clone();
 
-            print_header("\n\tAdding Liquidity to Pair Contract");
+            print_header("\n\tIncreasing Allowances");
             handle(
                 &snip20::ExecuteMsg::IncreaseAllowance {
                     spender: ammPair.address.to_string(),
@@ -490,6 +496,7 @@ fn run_testnet() -> Result<()> {
                 assert_ne!(staking_contract, None);
             }
 
+            print_header("\n\tAdding Liquidity to SNIP20/20 staking contract");
             handle(
                 &AMMPairHandlMsg::AddLiquidityToAMMContract {
                     deposit: TokenPairAmount {
@@ -515,6 +522,7 @@ fn run_testnet() -> Result<()> {
             )
             .unwrap();
 
+            print_header("\n\tAdding Liquidity to NATIVE/SNIP20 staking contract");
             handle(
                 &AMMPairHandlMsg::AddLiquidityToAMMContract {
                     deposit: TokenPairAmount {
@@ -553,12 +561,9 @@ fn run_testnet() -> Result<()> {
 
             let router_msg = RouterInitMsg {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
-                factory_address: ContractLink {
-                    address: Addr::unchecked(String::from(factory_contract.address)),
-                    code_hash: factory_contract.code_hash,
-                },
                 entropy: to_binary(&"".to_string()).unwrap(),
                 viewing_key: Some(ViewingKey::from(VIEW_KEY).to_string()),
+                pair_contract_code_hash: s_ammPair.code_hash.clone(),
             };
 
             let router_contract = init(
@@ -1318,7 +1323,7 @@ fn run_testnet() -> Result<()> {
                             contract_addr: Addr::unchecked(s_sCRT.address.clone()),
                         },
                     },
-                    path: vec![Addr::unchecked(ammPair.address.to_string())],
+                    path: vec![ammPair.address.clone()],
                 };
 
                 let swap_result_response: RouterQueryResponse = query(
@@ -1694,12 +1699,9 @@ fn run_test_deploy() -> Result<()> {
 
             let router_msg = RouterInitMsg {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
-                factory_address: ContractLink {
-                    address: Addr::unchecked(String::from(factory_contract.address)),
-                    code_hash: factory_contract.code_hash,
-                },
                 entropy: to_binary(&"".to_string()).unwrap(),
                 viewing_key: Some(ViewingKey::from(VIEW_KEY).to_string()),
+                pair_contract_code_hash: s_ammPair.code_hash.to_string(),
             };
 
             let router_contract = init(

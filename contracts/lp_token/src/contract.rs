@@ -110,15 +110,14 @@ pub fn instantiate(
 
     ViewingKey::set_seed(deps.storage, &prng_seed_hashed);
     let response = Response::new();
-    if let Some(callback) = msg.callback {
-        Ok(response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: callback.contract.address.to_string(),
-            code_hash: callback.contract.code_hash,
-            msg: callback.msg,
+    match msg.callback {
+        Some(m) => Ok(response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: m.contract.address.to_string(),
+            code_hash: m.contract.code_hash,
+            msg: m.msg,
             funds: vec![],
-        })))
-    } else {
-        Ok(response)
+        }))),
+        None => Err(StdError::generic_err("LP Token should have a callback".to_string()))
     }
 }
 

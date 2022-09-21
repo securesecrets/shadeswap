@@ -1,11 +1,15 @@
 // This should be callback from Snip20 Receiver
 // needs to check for the amount
 
+use std::convert;
+use std::ops::Add;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
 
 use cosmwasm_std::{
     to_binary, Addr, Attribute, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
-    Uint128, Storage,
+    Uint128, Storage, Decimal,
 };
 use cosmwasm_std::{Binary, QuerierWrapper, WasmMsg};
 use shadeswap_shared::core::TokenType;
@@ -21,7 +25,7 @@ use shadeswap_shared::{
 
 use crate::state::{
     claim_reward_info_r, claim_reward_info_w, config_r, config_w, stakers_r, stakers_vk_r,
-    stakers_vk_w, stakers_w, total_staked_r, ClaimRewardsInfo, StakingInfo,
+    stakers_vk_w, stakers_w, total_staked_r, ClaimRewardsInfo, StakingInfo, total_staked_w, total_stakers_r, total_stakers_w, staker_index_w, staker_index_r, last_reward_time_claimed_w, Config,
 };
 
 pub fn set_view_key(
@@ -39,8 +43,25 @@ pub fn set_view_key(
     ]))
 }
 
+pub fn calculate_staker_shares(
+    storage: &dyn Storage,
+    amount: Uint128
+) -> StdResult<Decimal>
+{
+    let total_staking_amount: Uint128 = match total_staked_r(storage).may_load() {
+        Ok(it) => it.unwrap_or(Uint128::zero()),
+        Err(err) => Uint128::zero(),
+    };   
+    if total_staking_amount.is_zero() == true{
+        return Ok(Decimal::zero())
+    }
+
+    let user_share = Decimal::from_ratio(amount,total_staking_amount);
+    Ok(user_share)
+}
+
 pub fn stake(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     amount: Uint128,
@@ -53,8 +74,19 @@ pub fn stake(
             "Token sent is not LP Token".to_string(),
         ));
     }
+    // calculate staking for existing stakers without increasing amount    
     let current_timestamp = Uint128::from((env.block.time.seconds() * 1000) as u128);
     claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
+
+    // set the new total stake amount
+    let mut total_stake_amount = match total_staked_r(deps.storage).may_load() {
+        Ok(it) => it.unwrap_or(Uint128::zero()) ,
+        Err(_) => Uint128::zero(),
+    };
+
+    total_stake_amount += amount;
+    total_staked_w(deps.storage).save(&total_stake_amount)?;
+   
     let caller = from.clone();
     // check if caller exist
     let is_staker = is_address_already_staker(deps.as_ref(), caller.clone())?;
@@ -69,19 +101,26 @@ pub fn stake(
             &StakingInfo {
                 staker: caller.clone(),
                 amount: amount,
-                last_time_updated: current_timestamp,
+                last_time_updated: current_timestamp,                 
+            },
+        )?;
+
+        // new staker add it to the count
+        let mut stakers_count = get_total_stakers_count(deps.storage);
+        stakers_count += Uint128::from(1u128);
+        total_stakers_w(deps.storage).save(&stakers_count)?;
+        // store staker with index
+        staker_index_w(deps.storage).save(&stakers_count.u128().to_be_bytes(), &caller.clone())?;        
+        // store zero for claim rewards
+        println!("storing claim first time {}", current_timestamp);
+        claim_reward_info_w(deps.storage).save(
+            caller.as_bytes(),
+            &ClaimRewardsInfo {
+                amount: Uint128::from(0u128),
+                last_time_claimed: current_timestamp,
             },
         )?;
     }
-
-    // store zero for claim rewards
-    claim_reward_info_w(deps.storage).save(
-        caller.as_bytes(),
-        &ClaimRewardsInfo {
-            amount: Uint128::from(0u128),
-            last_time_claimed: current_timestamp,
-        },
-    )?;
 
     // return response
     Ok(Response::new().add_attributes(vec![
@@ -89,6 +128,16 @@ pub fn stake(
         Attribute::new("staker", caller.as_str()),
         Attribute::new("amount", amount),
     ]))
+}
+
+pub fn get_total_stakers_count(
+    storage: &dyn Storage
+) -> Uint128 
+{    
+    match total_stakers_r(storage).may_load(){
+        Ok(it) => it.unwrap_or(Uint128::zero()) ,
+        Err(_) => Uint128::zero(),
+    }
 }
 
 pub fn claim_rewards(deps: DepsMut, info: MessageInfo, env: Env) -> StdResult<Response> {
@@ -124,18 +173,33 @@ pub fn claim_rewards(deps: DepsMut, info: MessageInfo, env: Env) -> StdResult<Re
 // Total Available Rewards = Daily_Rewards / 24*60*60*1000 * (current_date_time - last_calculated_date_time).miliseconds()
 // User Incremental Rewards = Total Available Rewards * Staked Percentage
 // User Total Rewards = User Owed Rewards + (User Incremental Rewards)
-pub fn claim_rewards_for_all_stakers(storage: &dyn Storage, current_timestamp: Uint128) -> StdResult<()> {
+pub fn claim_rewards_for_all_stakers(storage: &mut dyn Storage, current_timestamp: Uint128) -> StdResult<()> {
     // TO DO FIX THIS
-    /*let stakers = stakers_r(deps.storage).load()?;
-    let last_timestamp = claim(deps)?;
-    for staker in stakers.into_iter() {
-        let mut claim_info = load_claim_reward_info(deps, staker.clone())?;
-        let staking_reward = calculate_staking_reward(deps, staker.clone(), last_timestamp, current_timestamp)?;
-        claim_info.amount += staking_reward;
-        claim_info.last_time_claimed = current_timestamp;
-        store_claim_reward_info(deps, &claim_info)?;
+    let stakers_count = get_total_stakers_count(storage);
+    let mut index = Uint128::one();
+    while  index <= stakers_count
+    {
+        // load staker address
+        let staker_address: Addr = staker_index_r(storage).load(&index.to_be_bytes())?;
+        let mut staker_info = match stakers_r(storage).may_load(staker_address.as_bytes()){
+            Ok(it) => it.unwrap_or(StakingInfo{ amount: Uint128::zero(), staker: Addr::unchecked(""), last_time_updated: Uint128::zero() }),
+            Err(_) =>  StakingInfo{ amount: Uint128::zero(), staker: Addr::unchecked(""), last_time_updated: Uint128::zero() }
+        };
+      
+        if staker_info.amount != Uint128::zero(){
+           let reward = calculate_staking_reward(storage,staker_info.amount, staker_info.last_time_updated,current_timestamp)?;
+           let mut claim_info = match claim_reward_info_r(storage).may_load(staker_address.as_bytes()){
+             Ok(it) => it.unwrap_or(ClaimRewardsInfo{ amount: Uint128::zero(), last_time_claimed: Uint128::zero() }),
+             Err(_) => ClaimRewardsInfo{ amount: Uint128::zero(), last_time_claimed: Uint128::zero() }
+           };
+
+           claim_info.amount += reward;
+           claim_info.last_time_claimed = current_timestamp;
+           claim_reward_info_w(storage).save(staker_address.as_bytes(),&claim_info)?;        
+        }      
+        index += Uint128::one()
     }
-    store_claim_reward_timestamp(deps, current_timestamp)?;*/
+    last_reward_time_claimed_w(storage).save(&current_timestamp)?;
     Ok(())
 }
 
@@ -165,32 +229,25 @@ pub fn claim_rewards_for_all_stakers(storage: &dyn Storage, current_timestamp: U
 // }
 
 pub fn calculate_staking_reward(
-    deps: Deps,
-    staker: Addr,
+    storage: &dyn Storage,
+    amount: Uint128,
     last_timestamp: Uint128,
     current_timestamp: Uint128,
 ) -> StdResult<Uint128> {
-    let cons = Uint128::from(100u128);
-    let percentage = get_staking_percentage(deps, staker, cons)?;
-    let config = config_r(deps.storage).load()?;
-    let seconds = Uint128::from(24u128 * 60u128 * 60u128 * 1000u128);
+    let percentage = calculate_staker_shares(storage, amount)?;
+    let config: Config = config_r(storage).load()?;
+    let seconds = Uint128::from(24u128 * 60u128 * 60u128 * 1000u128);   
     if last_timestamp < current_timestamp {
         let time_dif = (current_timestamp - last_timestamp);
         let total_available_reward = config.daily_reward_amount.multiply_ratio(time_dif, seconds);
-        let result = total_available_reward.multiply_ratio(percentage, cons);
-        Ok(result)
+        let converted_total_reward = Decimal::from_atomics(total_available_reward, 0).unwrap();  
+        let result = converted_total_reward.checked_mul(percentage)?;
+        Ok(result.atomics().checked_div(DECIMAL_FRACTIONAL)?)
     } else {
         Ok(Uint128::from(0u128))
     }
 }
 
-pub fn get_staking_percentage(deps: Deps, staker: Addr, cons: Uint128) -> StdResult<Uint128> {
-    let total_staking = total_staked_r(deps.storage).load()?;
-    let stake_info = stakers_r(deps.storage).load(&staker.as_bytes())?;
-    let stake_amount = stake_info.amount;
-    let percentage = stake_amount.multiply_ratio(cons, total_staking);
-    Ok(percentage)
-}
 
 pub fn get_staker_reward_info(deps: Deps, viewing_key: String, staker: Addr) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
@@ -342,8 +399,8 @@ pub fn get_claim_reward_for_user(
     let last_claim_timestamp = unpaid_claim.last_time_claimed;
     let current_timestamp = time;
     let current_claim = calculate_staking_reward(
-        deps,
-        staker.clone(),
+        deps.storage,
+        staker_info.amount,
         last_claim_timestamp,
         current_timestamp,
     )?;
@@ -370,7 +427,7 @@ pub fn unstake(
         return Err(StdError::generic_err("".to_string()));
     }
     // claim rewards
-    //claim_rewards_for_all_stakers(deps, current_timestamp)?;
+    claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
     // remove staker
     let mut messages = Vec::new();
     // update stake_info

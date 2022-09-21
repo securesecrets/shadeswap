@@ -1,12 +1,13 @@
 use crate::{
     operations::{
-        add_address_to_whitelist, add_liquidity, get_estimated_lp_token, get_shade_dao_info,
-        is_address_in_whitelist, load_trade_history_query, query_calculate_price, query_liquidity,
-        register_lp_token, remove_address_from_whitelist, remove_liquidity, set_staking_contract,
-        swap, swap_simulation,
+        add_address_to_whitelist, get_estimated_lp_token, get_shade_dao_info,
+        load_trade_history_query, query_calculate_price, query_liquidity, register_lp_token,
+        remove_address_from_whitelist, remove_liquidity, set_staking_contract, swap,
+        swap_simulation,add_liquidity, register_pair_token
     },
     state::{config_r, config_w, trade_count_r, whitelist_r, whitelist_w, Config},
 };
+
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
     Reply, ReplyOn, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
@@ -22,7 +23,6 @@ use shadeswap_shared::{
     Contract,
 };
 
-use crate::operations::register_pair_token;
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
 pub const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1u64;

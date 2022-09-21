@@ -43,7 +43,10 @@ use crate::{
 
 // WHITELIST
 pub fn add_whitelist_address(storage: &mut dyn Storage, address: Addr) -> StdResult<()> {
-    let mut unwrap_data = whitelist_r(storage).load()?;
+    let mut unwrap_data = match whitelist_r(storage).may_load(){
+        Ok(v) => v.unwrap_or(Vec::new()),
+        Err(err) => Vec::new(),
+    };
     unwrap_data.push(address);
     whitelist_w(storage).save(&unwrap_data)
 }
@@ -79,7 +82,10 @@ fn load_trade_history(deps: Deps, count: u64) -> StdResult<TradeHistory> {
 }
 
 fn store_trade_history(deps: DepsMut, trade_history: &TradeHistory) -> StdResult<()> {
-    let count = trade_count_r(deps.storage).load()?;
+    let count: u64 = match trade_count_r(deps.storage).may_load() {
+        Ok(it) => it.unwrap_or(0),
+        Err(err) => 0,
+    };
     let update_count = count + 1;
     trade_count_w(deps.storage).save(&update_count)?;
     trade_history_w(deps.storage).save(update_count.to_string().as_bytes(), &trade_history)
@@ -506,7 +512,7 @@ pub fn calculate_swap_result(
     let mut lp_fee_amount = Uint128::zero();
     let mut shade_dao_fee_amount = Uint128::zero();
     // calculation fee
-    let discount_fee = false; //is_address_in_whitelist(deps.storage, recipient)?;
+    let discount_fee =  is_address_in_whitelist(deps.storage, recipient)?;
     if discount_fee == false {
         match &config.custom_fee {
             Some(f) => {

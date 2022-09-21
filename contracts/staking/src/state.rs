@@ -70,11 +70,11 @@ pub fn claim_reward_info_r(storage: &dyn Storage) -> ReadonlyBucket<ClaimRewards
 }
 
 pub fn stakers_vk_w(storage: &mut dyn Storage) -> Bucket<ViewingKey> {
-    bucket(storage, CLAIM_REWARDS)
+    bucket(storage, STAKER_VK)
 }
 
 pub fn stakers_vk_r(storage: &dyn Storage) -> ReadonlyBucket<ViewingKey> {
-    bucket_read(storage, CLAIM_REWARDS)
+    bucket_read(storage, STAKER_VK)
 }
 
 pub fn prng_seed_w(storage: &mut dyn Storage) -> Singleton<Vec<u8>> {

@@ -340,14 +340,14 @@ pub fn get_staking_reward_token_balance(
 pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr, key: String) -> StdResult<Binary> {
     let is_staker = is_address_already_staker(deps, staker.clone())?;
     if is_staker == false {
-        return Err(StdError::generic_err("".to_string()));
+        return Err(StdError::generic_err("Shared address is not staker".to_string()));
     }
 
     let staker_info = stakers_r(deps.storage).load(&staker.as_bytes())?;
     let staker_vk = stakers_vk_r(deps.storage).load(&staker.as_bytes())?;
     let viewing_key = ViewingKey(key.clone());
-    if viewing_key.check_viewing_key(&staker_vk.as_bytes()) != true {
-        return Err(StdError::generic_err("".to_string()));
+    if viewing_key.check_viewing_key(&staker_vk.to_hashed()) != true {
+        return Err(StdError::generic_err("Viewing key does not match".to_string()));
     }
     let response_msg = QueryResponse::StakerLpTokenInfo {
         staked_lp_token: staker_info.amount,

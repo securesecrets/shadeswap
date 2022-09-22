@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Uint128, Storage, Decimal256};
 use cosmwasm_storage::{singleton, Singleton, ReadonlySingleton, singleton_read, bucket_read, bucket, ReadonlyBucket, Bucket};
 use serde::{Serialize, Deserialize};
-use shadeswap_shared::core::{TokenType, ContractLink, ViewingKey};
+use shadeswap_shared::{core::{TokenType, ContractLink, ViewingKey}, Contract};
 
 
 
@@ -21,7 +21,8 @@ pub struct Config {
     pub contract_owner: Addr,
     pub daily_reward_amount: Uint128,
     pub reward_token: TokenType,
-    pub lp_token: ContractLink
+    pub lp_token: ContractLink,
+    pub authenticator: Option<Contract>
 }
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]

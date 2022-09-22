@@ -4,14 +4,20 @@ use cosmwasm_std::BalanceResponse;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Uint128;
 use network_integration::utils::InitConfig;
+use query_authentication::permit::Permit;
+use query_authentication::transaction::PermitSignature;
+use query_authentication::transaction::PubKey;
 use shadeswap_shared::amm_pair;
+use shadeswap_shared::c_std::Binary;
 use shadeswap_shared::core::Fee;
 use shadeswap_shared::core::TokenAmount;
 use shadeswap_shared::core::TokenPair;
 use shadeswap_shared::core::TokenPairAmount;
 use shadeswap_shared::core::TokenType;
 use shadeswap_shared::core::ViewingKey;
+use shadeswap_shared::query_auth::PermitData;
 use shadeswap_shared::snip20;
+use shadeswap_shared::staking::AuthQuery;
 use shadeswap_shared::staking::InitMsg;
 
 use cosmwasm_std::to_binary;
@@ -25,6 +31,7 @@ use secretcli::{
     secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
 };
 use serde_json::Result;
+use shadeswap_shared::staking::QueryData;
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings},
     core::{ContractInstantiationInfo, ContractLink},
@@ -72,6 +79,27 @@ fn run_testnet() -> Result<()> {
     let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
 
     let mut reports = vec![];
+
+    // set viewing key for staker
+    print_header("\n\t Set Viewing Key for Staker - Staking Contract password");
+    print_header(&to_binary(&QueryData {}).unwrap().to_base64());
+
+
+    type TestPermit = Permit<PermitData>;
+    //secretd tx sign-doc file --from a
+    let newPermit = TestPermit{
+        params: PermitData { data: to_binary(&QueryData {}).unwrap(), key: "0".to_string()},
+        chain_id: Some("secretdev-1".to_string()),
+        sequence: Some(Uint128::zero()),
+        signature: PermitSignature {
+            pub_key: PubKey::new(Binary::from_base64(&"A07oJJ9n4TYTnD7ZStYyiPbB3kXOZvqIMkchGmmPRAzf".to_string()).unwrap()),
+            signature: Binary::from_base64(&"bct9+cSJF+m51/be9/Bcc1zwfzYdMGzFMUH4VQl8EW9BuDDok6YEGzw6ZQOmu+rGqlFOfMBGybZbgINjD48rVQ==".to_string()).unwrap(),
+        },
+        account_number: Some(Uint128::zero()),
+        memo: Some("".to_string())
+    };
+
+
 
     // print_header("Initializing sSCRT");
     // let (s_sSINIT, s_sCRT) = init_snip20(
@@ -1374,33 +1402,13 @@ fn run_testnet() -> Result<()> {
                         Addr::unchecked("".to_string()).to_string()
                     )
                 }
-                // set viewing key for staker
-                print_header("\n\t Set Viewing Key for Staker - Staking Contract password");
-                handle(
-                    &StakingMsgHandle::SetVKForStaker {
-                        key: "password".to_string(),
-                    },
-                    &NetContract {
-                        label: "".to_string(),
-                        id: "".to_string(),
-                        address: staking_contract.clone().unwrap().address.to_string(),
-                        code_hash: staking_contract.clone().unwrap().code_hash.to_string(),
-                    },
-                    ACCOUNT_KEY,
-                    Some(GAS),
-                    Some("test"),
-                    None,
-                    &mut reports,
-                    None,
-                )
-                .unwrap();
+
 
                 print_header("\n\tGet Claimamble Rewards ");
-                let get_claims_reward_msg = StakingQueryMsg::GetClaimReward {
-                    staker: Addr::unchecked(account.to_string()),
-                    time: get_current_timestamp().unwrap(),
-                    key: "password".to_string(),
-                };
+                let get_claims_reward_msg = StakingQueryMsg::WithPermit { permit: newPermit.clone(), query: AuthQuery::GetClaimReward {
+                    time: get_current_timestamp().unwrap()
+                }};
+                
                 let claims_reward_response: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
@@ -1483,10 +1491,9 @@ fn run_testnet() -> Result<()> {
                     assert_ne!(total_lp_token, Uint128::new(0))
                 }
                 print_header("\n\tGetStakeLpTokenInfo For Staker");
-                let get_stake_lp_token_info = StakingQueryMsg::GetStakerLpTokenInfo {
-                    key: "password".to_string(),
-                    staker: Addr::unchecked(account.to_string()),
-                };
+                let get_stake_lp_token_info = StakingQueryMsg::WithPermit { permit: newPermit, query: AuthQuery::GetStakerLpTokenInfo {
+                }};
+
                 let stake_lp_token_info: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
@@ -1506,11 +1513,11 @@ fn run_testnet() -> Result<()> {
                     assert_ne!(staked_lp_token, Uint128::new(0));
                     assert_ne!(total_staked_lp_token, Uint128::new(0))
                 }
+                /* TO DO FIX
                 print_header("\n\tGetRewardTokenBalance");
-                let get_balance_reward_token_msg = StakingQueryMsg::GetRewardTokenBalance {
-                    key: String::from(VIEW_KEY),
-                    address: Addr::unchecked(account.to_string()),
-                };
+                let get_balance_reward_token_msg = StakingQueryMsg::WithPermit { permit: newPermit, query: AuthQuery::GetRewardTokenBalance {
+                }};
+
                 let balance_reward_token: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
@@ -1520,9 +1527,9 @@ fn run_testnet() -> Result<()> {
                     },
                     get_balance_reward_token_msg,
                     None,
-                )?;
+                )?;*/
 
-                if let StakingQueryMsgResponse::RewardTokenBalance {
+                /*if let StakingQueryMsgResponse::RewardTokenBalance {
                     amount,
                     reward_token,
                 } = balance_reward_token
@@ -1536,26 +1543,7 @@ fn run_testnet() -> Result<()> {
                         s_sREWARDSNIP20.code_hash.to_string()
                     );
                     assert_ne!(amount, Uint128::new(0));
-                }
-                print_header("\n\tSet VK for non Staker");
-                handle(
-                    &StakingMsgHandle::SetVKForStaker {
-                        key: "password".to_string(),
-                    },
-                    &NetContract {
-                        label: "".to_string(),
-                        id: "".to_string(),
-                        address: staking_contract.clone().unwrap().address.to_string(),
-                        code_hash: staking_contract.clone().unwrap().code_hash.to_string(),
-                    },
-                    STAKER_KEY,
-                    Some(GAS),
-                    Some("test"),
-                    None,
-                    &mut reports,
-                    None,
-                )
-                .unwrap();
+                }*/
                 print_header("\n\t GetStakerRewardTokenBalance for Non Staker");
                 // let get_staker_reward_token_balance_msg =
                 //     StakingQueryMsg::GetStakerRewardTokenBalance {
@@ -1582,12 +1570,10 @@ fn run_testnet() -> Result<()> {
                 //     assert_ne!(total_reward_liquidity, Uint128::new(0));
                 // }
 
-                print_header("\n\t GetStakerRewardTokenBalance for Staker");
+                /*print_header("\n\t GetStakerRewardTokenBalance for Staker");
                 let get_staker_reward_token_balance_msg =
-                    StakingQueryMsg::GetStakerRewardTokenBalance {
-                        key: String::from(VIEW_KEY),
-                        staker: Addr::unchecked(account.to_string()),
-                    };
+                StakingQueryMsg::WithPermit { permit: newPermit.clone(), query: AuthQuery::GetStakerRewardTokenBalance {
+                    }};
                 let staker_reward_token_balance: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
@@ -1615,7 +1601,7 @@ fn run_testnet() -> Result<()> {
                         reward_token.code_hash.clone(),
                         s_sREWARDSNIP20.code_hash.to_string()
                     );
-                }
+                }*/
             }
         } else {
             assert!(false, "Query returned unexpected response")

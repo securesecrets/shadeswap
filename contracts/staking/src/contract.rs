@@ -5,14 +5,13 @@ use cosmwasm_std::{
 use shadeswap_shared::{
     core::{admin_w, ContractLink},
     msg::amm_pair::ExecuteMsg as AmmPairExecuteMsg,
-    staking::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg},
+    staking::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, AuthQuery, QueryData}, query_auth::helpers::{authenticate_permit, PermitAuthentication},
 };
 
 use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staker_reward_info,
-        get_staking_contract_owner, get_staking_reward_token_balance,
-        get_staking_stake_lp_token_info, set_view_key, stake, unstake,
+        get_staking_contract_owner, get_staking_stake_lp_token_info, set_view_key, stake, unstake,
     },
     state::{config_r, config_w, prng_seed_w, stakers_r, Config},
 };
@@ -30,7 +29,8 @@ pub fn instantiate(
         contract_owner: _info.sender.clone(),
         daily_reward_amount: msg.staking_amount,
         reward_token: msg.reward_token.clone(),
-        lp_token: msg.lp_token
+        lp_token: msg.lp_token,
+        authenticator: None
     };
     config_w(deps.storage).save(&config)?;
     admin_w(deps.storage).save(&_info.sender)?;
@@ -68,8 +68,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::Unstake {
             amount,
             remove_liqudity,
-        } => unstake(deps, env, info, amount, remove_liqudity),
-        ExecuteMsg::SetVKForStaker { key } => set_view_key(deps, env, info, key),
+        } => unstake(deps, env, info, amount, remove_liqudity)
     }
 }
 
@@ -100,18 +99,27 @@ fn receiver_callback(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig {} => get_config(deps),
-        QueryMsg::GetClaimReward { staker, time, key } => {
-            get_claim_reward_for_user(deps, staker, key, time)
-        }
-        QueryMsg::GetContractOwner {} => get_staking_contract_owner(deps, env),
-        QueryMsg::GetStakerLpTokenInfo { key, staker } => {
-            get_staking_stake_lp_token_info(deps, staker, key)
-        }
-        QueryMsg::GetRewardTokenBalance { key, address } => {
-            get_staking_reward_token_balance(env, deps, key, address)
-        }
-        QueryMsg::GetStakerRewardTokenBalance { key, staker } => {
-            get_staker_reward_info(deps, key, staker)
+        QueryMsg::GetContractOwner {} => todo!(),
+        QueryMsg::WithPermit { permit, query } => {
+            let res: PermitAuthentication<QueryData> = authenticate_permit(deps, permit, &deps.querier, None)?;
+
+            if res.revoked {
+                return Err(StdError::generic_err("".to_string()));
+            }
+
+            auth_queries(deps, env, query, res.sender)
+        },
+    }
+}
+
+pub fn auth_queries(deps: Deps, env: Env, msg: AuthQuery, user: Addr) -> StdResult<Binary> {
+    match msg {
+        AuthQuery::GetClaimReward { time } => {
+            get_claim_reward_for_user(deps, user, time)
+        },
+        AuthQuery::GetStakerLpTokenInfo { } => {
+            get_staking_stake_lp_token_info(deps, user)
         }
     }
 }
+

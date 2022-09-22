@@ -305,50 +305,13 @@ pub fn get_config(deps: Deps) -> StdResult<Binary> {
     }
 }
 
-pub fn get_staking_reward_token_balance(
-    env: Env,
-    deps: Deps,
-    viewing_key: String,
-    address: Addr,
-) -> StdResult<Binary> {
-    let config = config_r(deps.storage).load()?;
-    if let TokenType::CustomToken {
-        contract_addr,
-        token_code_hash,
-        ..
-    } = config.reward_token.clone()
-    {
-        let staking_contract_address = env.contract.address;
-        let reward_token_balance = config.reward_token.query_balance(
-            deps,
-            address.to_string(),
-            viewing_key.to_string(),
-        )?;
-        let response_msg = QueryResponse::RewardTokenBalance {
-            amount: reward_token_balance,
-            reward_token: ContractLink {
-                address: contract_addr.clone(),
-                code_hash: token_code_hash.clone(),
-            },
-        };
-        to_binary(&response_msg)
-    } else {
-        return Err(StdError::generic_err("Invalid reward token"));
-    }
-}
-
-pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr, key: String) -> StdResult<Binary> {
+pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Binary> {
     let is_staker = is_address_already_staker(deps, staker.clone())?;
     if is_staker == false {
         return Err(StdError::generic_err("Shared address is not staker".to_string()));
     }
 
     let staker_info = stakers_r(deps.storage).load(&staker.as_bytes())?;
-    let staker_vk = stakers_vk_r(deps.storage).load(&staker.as_bytes())?;
-    let viewing_key = ViewingKey(key.clone());
-    if viewing_key.check_viewing_key(&staker_vk.to_hashed()) != true {
-        return Err(StdError::generic_err("Viewing key does not match".to_string()));
-    }
     let response_msg = QueryResponse::StakerLpTokenInfo {
         staked_lp_token: staker_info.amount,
         total_staked_lp_token: total_staked_r(deps.storage).load()?,
@@ -366,7 +329,6 @@ pub fn get_staking_contract_owner(deps: Deps, env: Env) -> StdResult<Binary> {
 pub fn get_claim_reward_for_user(
     deps: Deps,
     staker: Addr,
-    key: String,
     time: Uint128,
 ) -> StdResult<Binary> {
     // load stakers
@@ -390,11 +352,6 @@ pub fn get_claim_reward_for_user(
         return Err(StdError::generic_err("".to_string()));
     }
     let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;
-    let staker_vk = stakers_vk_r(deps.storage).load(staker.as_bytes())?;
-    let viewing_key = ViewingKey(key.clone());
-    if viewing_key.check_viewing_key(&staker_vk.to_hashed()) != true {
-        return Err(StdError::generic_err("".to_string()));
-    }
     let unpaid_claim = claim_reward_info_r(deps.storage).load(staker.as_bytes())?;
     let last_claim_timestamp = unpaid_claim.last_time_claimed;
     let current_timestamp = time;

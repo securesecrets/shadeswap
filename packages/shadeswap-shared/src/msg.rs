@@ -353,12 +353,17 @@ pub mod factory {
 }
 
 pub mod staking {
-    use crate::core::TokenType;
+    use crate::{core::TokenType, query_auth::QueryPermit};
 
     use super::*;
+    use cosmwasm_schema::cw_serde;
     use cosmwasm_std::Addr;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
+
+    #[cw_serde]
+    pub struct QueryData {}
+
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
         pub staking_amount: Uint128,
@@ -380,10 +385,7 @@ pub mod staking {
             from: Addr,
             msg: Option<Binary>,
             amount: Uint128,
-        },
-        SetVKForStaker {
-            key: String,
-        },
+        }
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -395,25 +397,22 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        GetClaimReward {
-            staker: Addr,
-            key: String,
-            time: Uint128,
-        },
         GetContractOwner {},
-        GetStakerLpTokenInfo {
-            key: String,
-            staker: Addr,
-        },
-        GetRewardTokenBalance {
-            key: String,
-            address: Addr,
-        },
-        GetStakerRewardTokenBalance {
-            key: String,
-            staker: Addr,
-        },
         GetConfig {},
+        WithPermit {
+            permit: QueryPermit,
+            query: AuthQuery,
+        }
+    }
+
+    #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
+    #[serde(rename_all = "snake_case")]
+    pub enum AuthQuery {
+        GetStakerLpTokenInfo {
+        },
+        GetClaimReward {
+            time: Uint128,
+        }
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]

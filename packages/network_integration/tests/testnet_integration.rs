@@ -637,6 +637,34 @@ fn run_testnet() -> Result<()> {
             )
             .unwrap();
 
+            
+
+            {
+                let trade_count_info_msg = AMMPairQueryMsg::GetTradeCount {};
+                let trade_count_info_query: AMMPairQueryMsgResponse = query(
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.to_string(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    },
+                    trade_count_info_msg,
+                    None,
+                )?;
+
+                    
+                if let AMMPairQueryMsgResponse::GetTradeCount {
+                    count
+                } = trade_count_info_query
+                {
+                    assert_eq!(count, 0u64);
+                }
+                else
+                {
+                    panic!("Trade count couldnt pass")
+                }
+            }
+
             print_header("\n\t 1. - BUY 100 sSHD Initiating sSCRT to sSHD Swap ");
             let mut old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
@@ -694,6 +722,31 @@ fn run_testnet() -> Result<()> {
                 (old_shd_balance + Uint128::new(89))
             );
 
+            {
+                let trade_count_info_msg = AMMPairQueryMsg::GetTradeCount {};
+                let trade_count_info_query: AMMPairQueryMsgResponse = query(
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.to_string(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    },
+                    trade_count_info_msg,
+                    None,
+                )?;
+
+                    
+                if let AMMPairQueryMsgResponse::GetTradeCount {
+                    count
+                } = trade_count_info_query
+                {
+                    assert_eq!(count, 1u64);
+                }
+                else
+                {
+                    panic!("Trade count couldnt pass")
+                }
+            }
             let mut old_shd_balance =
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             let mut old_scrt_balance =

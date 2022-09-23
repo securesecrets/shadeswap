@@ -309,7 +309,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             })
         }
         QueryMsg::GetTradeCount {} => {
-            let count = trade_count_r(deps.storage).load()?;
+            let count = trade_count_r(deps.storage).may_load()?.unwrap_or(0u64);
             to_binary(&QueryMsgResponse::GetTradeCount { count })
         }
         QueryMsg::GetStakingContract {} => {

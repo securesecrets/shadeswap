@@ -322,6 +322,8 @@ pub fn init<Message: serde::Serialize>(
     report: &mut Vec<Report>,
 ) -> Result<NetContract> {
     let store_response = store_contract(contract_file, Option::from(&*sender), store_gas, backend)?;
+    println!("{} stored contract", store_response.txhash);
+    
     let store_query = query_hash(store_response.txhash)?;
     let mut contract = NetContract {
         label: label.to_string(),

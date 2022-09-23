@@ -279,20 +279,21 @@ pub fn swap(
     // let mut hasher = DefaultHasher::new();
     // swaper_receiver.to_string().hash(&mut hasher);
     // let hash_address = hasher.finish();
-    // let trade_history = TradeHistory {
-    //     price: swap_result.price,
-    //     amount_in: swap_result.result.return_amount,
-    //     amount_out: offer.amount,
-    //     timestamp: env.block.time.seconds(),
-    //     height: env.block.height,
-    //     direction: action.to_string(),
-    //     lp_fee_amount: swap_result.lp_fee_amount,
-    //     total_fee_amount: swap_result.total_fee_amount,
-    //     shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
-    //     trader: hash_address.to_string(),
-    // };
+    let trader_hash_address = calculate_hash(&swaper_receiver.to_string());
+    let trade_history = TradeHistory {
+        price: swap_result.price,
+        amount_in: swap_result.result.return_amount,
+        amount_out: offer.amount,
+        timestamp: env.block.time.seconds(),
+        height: env.block.height,
+        direction: action.to_string(),
+        lp_fee_amount: swap_result.lp_fee_amount,
+        total_fee_amount: swap_result.total_fee_amount,
+        shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
+        trader: trader_hash_address.to_string(),
+    };
 
-    // store_trade_history(deps, &trade_history)?;
+    store_trade_history(deps, &trade_history)?;
 
     match &router_link {
         Some(r) => {
@@ -895,4 +896,10 @@ pub fn query_liquidity(deps: Deps, lp_token_info: &ContractLink) -> StdResult<Ui
     }
 
     Ok(result.total_supply.unwrap())
+}
+
+pub fn calculate_hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    s.finish()
 }

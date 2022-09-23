@@ -275,10 +275,6 @@ pub fn swap(
     if index == 1 {
         action = "SELL".to_string();
     }
-    // Push Trade History
-    // let mut hasher = DefaultHasher::new();
-    // swaper_receiver.to_string().hash(&mut hasher);
-    // let hash_address = hasher.finish();
     let trader_hash_address = calculate_hash(&swaper_receiver.to_string());
     let trade_history = TradeHistory {
         price: swap_result.price,

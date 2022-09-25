@@ -1,6 +1,8 @@
 use std::{io, string};
+use std::env;
 use std::io::{Write};
 use std::io::BufRead;
+use network_integration::cli_commands::parse_args;
 use secretcli::cli_types::StoredContract;
 use shadeswap_shared::core::{ TokenPair, TokenPairAmount, TokenType, Fee, ViewingKey};
 use shadeswap_shared::router;
@@ -10,7 +12,7 @@ use colored::Colorize;
 use network_integration::utils::{
     generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
     AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY, 
-    STAKING_FILE, VIEW_KEY, SNIP20_FILE, InitConfig, init_contract_factory, init_snip20_cli,
+    STAKING_FILE, VIEW_KEY, InitConfig, init_contract_factory, init_snip20_cli,
 };
 use secretcli::{
     cli_types::NetContract,
@@ -41,7 +43,7 @@ use shadeswap_shared::{
     Pagination,
 };
 
-// pub const SNIP20_FILE: &str = "../../../compiled/snip20.wasm.gz";
+pub const SNIP20_FILE: &str = "../../compiled/snip20.wasm.gz";
 // pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
 // pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
 // pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
@@ -53,95 +55,99 @@ pub const STORE_GAS: &str = "10000000";
 
 fn main() -> io::Result<()> {
      
-    let account_name = read_string("Account Name ")?;
-    let keyring_backend = read_string("Keyring Backend ")?;
-    while true 
-    {      
-        print_options()?;
-        let input = read_input()?;
-        if input == 10
-        {
-            let stdout = io::stdout();
-            let mut handle = stdout.lock();
-            handle.write_all(b"Exiting Secretd Cli.\n\t")?; 
-            handle.flush()?;             
-            break;
-        }
+    // let account_name = read_string("Account Name ")?;
+    // let keyring_backend = read_string("Keyring Backend ")?;
+    let mut reports = vec![];   
+    let args: Vec<String> = env::args().collect();
+    parse_args(&args, &mut reports)?;
+   
+    // while true 
+    // {      
+    //     print_options()?;
+    //     let input = read_input()?;
+    //     if input == 10
+    //     {
+    //         let stdout = io::stdout();
+    //         let mut handle = stdout.lock();
+    //         handle.write_all(b"Exiting Secretd Cli.\n\t")?; 
+    //         handle.flush()?;             
+    //         break;
+    //     }
 
-        if input == 1{
-            let mut reports = vec![];   
-            let contract = create_new_snip_20(&account_name.trim(), &keyring_backend.trim(), &mut reports)?;
-        }
+    //     if input == 1{
+    //         let mut reports = vec![];   
+    //         let contract = create_new_snip_20(&account_name.trim(), &keyring_backend.trim(), &mut reports)?;
+    //     }
 
-        if input == 2{
-            create_new_deployment(account_name.trim(), keyring_backend.trim())?;
-        }
+    //     if input == 2{
+    //         create_new_deployment(account_name.trim(), keyring_backend.trim())?;
+    //     }
 
-        if input == 3{
-            let mut reports = vec![];  
-            add_new_pair_into_existing_factory(&account_name.trim(), &keyring_backend.trim(), &mut reports)?;
-        }
+    //     if input == 3{
+    //         let mut reports = vec![];  
+    //         add_new_pair_into_existing_factory(&account_name.trim(), &keyring_backend.trim(), &mut reports)?;
+    //     }
 
-        if input == 4 {
-            let mut reports = vec![];  
-            let contract = create_snip20_and_register(&account_name.trim(), &keyring_backend.trim(),
-                &mut reports)?;
-        }
+    //     if input == 4 {
+    //         let mut reports = vec![];  
+    //         let contract = create_snip20_and_register(&account_name.trim(), &keyring_backend.trim(),
+    //             &mut reports)?;
+    //     }
 
         
-        if input == 5 {
-            let mut reports = vec![];  
+    //     if input == 5 {
+    //         let mut reports = vec![];  
 
-            let btc_contrat = NetContract{
-                label : "".to_string(),
-                id : "12143".to_string(),
-                address: "secret1yn7jaxaukswkrqykvnz8rs8dvc4nqqty4dut9l".to_string(),
-                code_hash: "DFE53F3E3FFF02E59077AD4986FF6B620B084E2B3A4E9CE133155EABE105FFF1".to_string()
-            };            
+    //         let btc_contrat = NetContract{
+    //             label : "".to_string(),
+    //             id : "12143".to_string(),
+    //             address: "secret1yn7jaxaukswkrqykvnz8rs8dvc4nqqty4dut9l".to_string(),
+    //             code_hash: "DFE53F3E3FFF02E59077AD4986FF6B620B084E2B3A4E9CE133155EABE105FFF1".to_string()
+    //         };            
 
-            let etc_contrat = NetContract{
-                label : "".to_string(),
-                id : "12144".to_string(),
-                address: "secret1hvgu4gt8w20j5m3vc8tjvgewff3rx88ewewyq8".to_string(),
-                code_hash: "DFE53F3E3FFF02E59077AD4986FF6B620B084E2B3A4E9CE133155EABE105FFF1".to_string()
-            };
+    //         let etc_contrat = NetContract{
+    //             label : "".to_string(),
+    //             id : "12144".to_string(),
+    //             address: "secret1hvgu4gt8w20j5m3vc8tjvgewff3rx88ewewyq8".to_string(),
+    //             code_hash: "DFE53F3E3FFF02E59077AD4986FF6B620B084E2B3A4E9CE133155EABE105FFF1".to_string()
+    //         };
 
-            let usdt_contrat = NetContract{
-                label : "".to_string(),
-                id : "".to_string(),
-                address: "secret199mjvc9ggw9yh23lr5xya2dxw7qemeqktzw2wc".to_string(),
-                code_hash: "DFE53F3E3FFF02E59077AD4986FF6B620B084E2B3A4E9CE133155EABE105FFF1".to_string()
-            };
+    //         let usdt_contrat = NetContract{
+    //             label : "".to_string(),
+    //             id : "".to_string(),
+    //             address: "secret199mjvc9ggw9yh23lr5xya2dxw7qemeqktzw2wc".to_string(),
+    //             code_hash: "DFE53F3E3FFF02E59077AD4986FF6B620B084E2B3A4E9CE133155EABE105FFF1".to_string()
+    //         };
 
-            let recipient = read_string("Recipient address: ")?;
-            let amount = read_amount("Amount:: ")?;
-            // _ = mint_snip20(&account_name.trim(), &
-            //         keyring_backend.trim(),
-            //         Addr::unchecked(recipient.clone().trim()),
-            //         Uint128(1000000),
-            //         "1000000uscrt",
-            //         &mut reports,
-            //         btc_contrat.clone())?;       
+    //         let recipient = read_string("Recipient address: ")?;
+    //         let amount = read_amount("Amount:: ")?;
+    //         // _ = mint_snip20(&account_name.trim(), &
+    //         //         keyring_backend.trim(),
+    //         //         Addr::unchecked(recipient.clone().trim()),
+    //         //         Uint128(1000000),
+    //         //         "1000000uscrt",
+    //         //         &mut reports,
+    //         //         btc_contrat.clone())?;       
             
-            _ = mint_snip20(
-                &account_name.trim(), 
-                &keyring_backend.trim(),
-                Addr::unchecked(recipient.clone().trim()),
-                Uint128::from(1000000u128),
-                "1000000uscrt",
-                &mut reports,
-                usdt_contrat.clone())?;    
+    //         _ = mint_snip20(
+    //             &account_name.trim(), 
+    //             &keyring_backend.trim(),
+    //             Addr::unchecked(recipient.clone().trim()),
+    //             Uint128::from(1000000u128),
+    //             "1000000uscrt",
+    //             &mut reports,
+    //             usdt_contrat.clone())?;    
             
           
-            _ = mint_snip20(&account_name.trim(), &
-                    keyring_backend.trim(),
-                    Addr::unchecked(recipient.clone().trim()),
-                    Uint128::from(1000000u128),
-                    "1000000uscrt",
-                    &mut reports,
-                    etc_contrat.clone())?;                 
-        }
-    }    
+    //         _ = mint_snip20(&account_name.trim(), &
+    //                 keyring_backend.trim(),
+    //                 Addr::unchecked(recipient.clone().trim()),
+    //                 Uint128::from(1000000u128),
+    //                 "1000000uscrt",
+    //                 &mut reports,
+    //                 etc_contrat.clone())?;                 
+    //     }
+    // }    
     Ok(())
 }
 
@@ -342,22 +348,22 @@ fn create_new_snip_20(account_name: &str, backend: &str, reports: &mut Vec<Repor
 fn init_snip20_contract(symbol: &str, name: &str, reports: &mut Vec<Report>, 
     decimal: u8, account_name: &str, keyring_backend: &str) -> io::Result<NetContract>{
       
-    let config = InitConfig{
+    let config = IniSNIP20_FILEtConfig{
         enable_burn: Some(true),
         enable_mint: Some(true),
         enable_deposit : Some(true),
-        enable_redeem: Some(true),
+        enable_redeem: Some(false),
         public_total_supply: Some(true),
     };
 
     let s_contract = init_snip20_cli(
         name.to_string(),
         symbol.to_string(),
-        8, //decimal,
-        Some(config),
+        decimal,
+        None, // Some(config),
         reports,
-        &account_name,
-        Some(&SNIP20_FILE.replace("../", "")),
+        &account_name, 
+        Some(&SNIP20_FILE),
         &keyring_backend        
     )?;
 

@@ -46,7 +46,7 @@ fn secretcli_run(command: Vec<String>, max_retry: Option<i32>) -> Result<Value> 
     }
 
     if !commands.is_empty() {
-        cli.args(commands);
+        cli.args(commands);        
     }
 
     let mut result = cli.output().expect("Unexpected error");

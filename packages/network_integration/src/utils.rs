@@ -9,7 +9,7 @@ use std::fmt::Display;
 use std::fs;
 use shadeswap_shared::snip20::InitialBalance;
 use cosmwasm_std::{
-    Binary, Uint128, Env, Addr, MessageInfo
+    Binary, Uint128, Env, Addr, MessageInfo, to_binary
 };
 use schemars::JsonSchema;
 
@@ -39,7 +39,7 @@ use shadeswap_shared::{
 };
 use serde_json::Result;
 // Smart contracts
-pub const SNIP20_FILE: &str = "../../../compiled/snip20.wasm.gz";
+pub const SNIP20_FILE: &str = "../../compiled/snip20.wasm.gz";
 pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
 pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
 pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
@@ -47,7 +47,7 @@ pub const ROUTER_FILE: &str = "../../compiled/router.wasm.gz";
 pub const STAKING_FILE: &str = "../../compiled/staking.wasm.gz";
 
 pub const STORE_GAS: &str = "100000000";
-pub const GAS: &str = "5000000";
+pub const GAS: &str = "8000000";
 pub const VIEW_KEY: &str = "password";
 pub const ACCOUNT_KEY: &str = "a";
 pub const STAKER_KEY: &str = "b";
@@ -173,6 +173,17 @@ pub struct InitMsg {
     pub callback: Option<Callback>
 }
 
+#[derive(Serialize, Deserialize, JsonSchema)]
+pub struct InstantiateMsgSnip20 {
+    pub name: String,
+    pub admin: Option<Addr>,
+    pub symbol: String,
+    pub decimals: u8,
+    pub initial_balances: Option<Vec<InitialBalance>>,
+    pub prng_seed: Binary,
+    pub config: Option<InitConfig>
+}
+
 
 pub fn init_snip20(
     name: String,
@@ -219,17 +230,15 @@ pub fn init_snip20_cli(
     account_key: &str,
     customizedSnip20File: Option<&str>,
     backend: &str
-) -> Result<(InitMsg, NetContract)> {
-    let init_msg = InitMsg {
+) -> Result<(InstantiateMsgSnip20, NetContract)> {
+    let init_msg = InstantiateMsgSnip20 {
         name: name.to_string(),
         admin: None,
         symbol: symbol.to_string(),
         decimals: decimals,
         initial_balances: None,
-        prng_seed: Default::default(),
-        config: config,
-        initial_allowances: None,
-        callback: None,
+        prng_seed: to_binary(&"".to_string()).unwrap(),
+        config: config
     };
     
 

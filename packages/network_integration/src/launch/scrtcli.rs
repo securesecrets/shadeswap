@@ -2,7 +2,7 @@ use std::{io, string};
 use std::env;
 use std::io::{Write};
 use std::io::BufRead;
-use network_integration::cli_commands::parse_args;
+use network_integration::cli_menu::parse_args;
 use secretcli::cli_types::StoredContract;
 use shadeswap_shared::core::{ TokenPair, TokenPairAmount, TokenType, Fee, ViewingKey};
 use shadeswap_shared::router;
@@ -348,7 +348,7 @@ fn create_new_snip_20(account_name: &str, backend: &str, reports: &mut Vec<Repor
 fn init_snip20_contract(symbol: &str, name: &str, reports: &mut Vec<Report>, 
     decimal: u8, account_name: &str, keyring_backend: &str) -> io::Result<NetContract>{
       
-    let config = IniSNIP20_FILEtConfig{
+    let config = InitConfig{
         enable_burn: Some(true),
         enable_mint: Some(true),
         enable_deposit : Some(true),

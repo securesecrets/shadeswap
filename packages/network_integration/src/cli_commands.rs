@@ -2,7 +2,8 @@
 pub mod snip20_lib{
     use std::io;
 
-    use secretcli::{secretcli::{Report, handle}, cli_types::NetContract};
+    use secretcli::{secretcli::{Report, handle, query}, cli_types::NetContract};
+    use snip20_reference_impl::msg::QueryAnswer;
 
     use crate::utils::{InitConfig, init_snip20_cli, GAS};
     use shadeswap_shared::{
@@ -21,11 +22,13 @@ pub mod snip20_lib{
     pub const SNIP20_FILE: &str = "../../compiled/snip20.wasm.gz";
     
     pub fn create_new_snip_20(account_name: &str, backend: &str, name:&str, symbol:&str, decimal: u8, 
-        viewing_key:&str, reports: &mut Vec<Report>) -> io::Result<NetContract>
+        viewing_key:&str, reports: &mut Vec<Report>,  enable_burn: bool, enable_mint: bool, enable_deposit: bool,
+        enable_redeem: bool, public_total_sypply:bool) -> io::Result<NetContract>
     {       
         println!("Creating SNIP20 token - Name: {}, Symbol: {}, Decimals: {}", name, symbol, decimal);
         let snip20 = init_snip20_contract(&name.trim(), &symbol.trim(),
-        reports, decimal, account_name, backend)?;
+        reports, decimal, account_name, backend, enable_burn, enable_mint, enable_deposit,
+        enable_redeem, public_total_sypply)?;
     
          let contract = NetContract{
             label: snip20.label.to_string(),
@@ -40,14 +43,15 @@ pub mod snip20_lib{
     }
     
     pub fn init_snip20_contract(symbol: &str, name: &str, reports: &mut Vec<Report>, 
-        decimal: u8, account_name: &str, keyring_backend: &str) -> io::Result<NetContract>{
+        decimal: u8, account_name: &str, keyring_backend: &str, enable_burn: bool, enable_mint: bool, enable_deposit: bool,
+        enable_redeem: bool, public_total_sypply:bool) -> io::Result<NetContract>{
           
         let config = InitConfig{
-            enable_burn: Some(true),
-            enable_mint: Some(true),
-            enable_deposit : Some(true),
-            enable_redeem: Some(false),
-            public_total_supply: Some(true),
+            enable_burn: Some(enable_burn),
+            enable_mint: Some(enable_mint),
+            enable_deposit : Some(enable_deposit),
+            enable_redeem: Some(enable_redeem),
+            public_total_supply: Some(public_total_sypply),
         };
     
         let s_contract = init_snip20_cli(
@@ -91,6 +95,24 @@ pub mod snip20_lib{
         )?;
         Ok(())
     }   
+
+          
+    pub fn balance_snip20_query(
+        snip20_addr: String,
+        spender: String,
+        key: String
+    ) -> io::Result<()>
+    {
+        let msg = &snip20_reference_impl::msg::QueryMsg::Balance { address: Addr::unchecked(spender.clone()), key: key.clone() };
+
+        let snip20_contract = NetContract { label: "".to_string(), id: "".to_string(), address: snip20_addr.clone(), code_hash: "".to_string() };          
+        let snip_query: QueryAnswer = query(&snip20_contract, msg, None)?;
+        if let QueryAnswer::Balance {  amount } = snip_query {
+            println!("Balance Snip20 {} - address {} - amount {}", snip20_addr.clone(), spender.clone(),amount);        
+        }
+    
+        Ok(())
+    }
 }
 
 pub mod factory_lib{
@@ -226,7 +248,7 @@ pub mod factory_lib{
         };
         handle(
             &snip20_reference_impl::msg::ExecuteMsg::IncreaseAllowance {
-                spender: Addr::unchecked(String::from(spender)),
+                spender: Addr::unchecked(spender.clone()),
                 amount: amount,
                 expiration: None,
                 padding: None,
@@ -355,7 +377,7 @@ pub mod amm_pair_lib{
     use std::io;
     use shadeswap_shared::{
         amm_pair::{AMMPair, AMMSettings},
-        core::{ContractInstantiationInfo, ContractLink, Fee, TokenType, TokenPair},
+        core::{ContractInstantiationInfo, ContractLink, Fee, TokenType, TokenPair, TokenPairAmount},
         msg::{
             amm_pair::{
                 ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
@@ -552,6 +574,58 @@ pub mod amm_pair_lib{
             };
         
             Ok((token_0_address, token_1_address))
+        }
+
+        pub fn add_liquidity(          
+            account_name: &str,
+            backend: &str,
+            pair_addr: String,
+            token_0_addr: String,
+            token_1_addr: String,
+            token_code_hash: String,
+            amount_0: Uint128, 
+            amount_1: Uint128, 
+            staking_opt: bool,
+            reports: &mut Vec<Report>
+        ) -> io::Result<()>
+        {
+            let pair_contract=  NetContract { 
+                label: "".to_string(), 
+                id: "".to_string(), 
+                address: pair_addr.clone(), 
+                code_hash: "".to_string() };
+
+            let pair = TokenPair(
+                TokenType::CustomToken { contract_addr: Addr::unchecked(token_0_addr.clone()), token_code_hash: token_code_hash.clone() },
+                TokenType::CustomToken { contract_addr: Addr::unchecked(token_1_addr.clone()), token_code_hash: token_code_hash.clone() }
+            );
+
+            let mut staking:Option<bool> = None;
+            if staking_opt == true{
+                staking = Some(true);
+            }
+
+            handle(
+                &AMMPairHandlMsg::AddLiquidityToAMMContract {
+                    deposit: TokenPairAmount {
+                        pair: pair.clone(),
+                        amount_0: amount_0,
+                        amount_1: amount_1,
+                    },
+                    slippage: None,
+                    staking: staking
+                },
+                &pair_contract,
+                account_name,
+                Some(GAS),
+                Some(backend),
+                None,
+                reports,
+                None,
+            )
+            .unwrap();
+        
+            Ok(())
         }
         
 }

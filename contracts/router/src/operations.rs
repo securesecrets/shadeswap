@@ -196,7 +196,7 @@ fn get_trade_with_callback(
                 msg: Some(
                     to_binary(&AMMPairInvokeMsg::SwapTokens {
                         expected_return: None,
-                        to: Some(env.contract.address.to_string()),
+                        to: Some(env.contract.address.clone()),
                         router_link: Some(ContractLink {
                             address: env.contract.address.clone(),
                             code_hash: env.contract.code_hash.clone(),

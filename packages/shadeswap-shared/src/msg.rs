@@ -156,7 +156,7 @@ pub mod amm_pair {
         },
         // SNIP20 receiver interface
         Receive {
-            from: String,
+            from: Addr,
             msg: Option<Binary>,
             amount: Uint128,
         },
@@ -182,12 +182,12 @@ pub mod amm_pair {
     pub enum InvokeMsg {
         SwapTokens {
             expected_return: Option<Uint128>,
-            to: Option<String>,
+            to: Option<Addr>,
             router_link: Option<ContractLink>,
             callback_signature: Option<Binary>,
         },
         RemoveLiquidity {
-            from: Option<String>,
+            from: Option<Addr>,
         },
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
@@ -282,6 +282,7 @@ pub mod factory {
     use crate::core::TokenPair;
     use crate::stake_contract::StakingContractInit;
     use crate::{amm_pair::AMMSettings, Pagination};
+    use cosmwasm_std::Addr;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
@@ -310,7 +311,7 @@ pub mod factory {
             amm_pairs: Vec<AMMPair>,
         },
         SetFactoryAdmin {
-            admin: String,
+            admin: Addr,
         },
         RegisterAMMPair {
             pair: TokenPair,

@@ -284,13 +284,13 @@ fn permit_queries(deps: Deps, permit: Permit, query: QueryWithPermit) -> Result<
     // Validate permit content
     let token_address = Constants::load(deps.storage)?.contract_address;
 
-    let account = Addr::unchecked(validate(
+    let account = deps.api.addr_validate(&validate(
         deps,
         PREFIX_REVOKED_PERMITS,
         &permit,
         token_address.into_string(),
         None,
-    )?);
+    )?)?;
 
     // Permit validated! We can now execute the query.
     match query {

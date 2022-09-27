@@ -127,7 +127,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     match msg {
         ExecuteMsg::Receive {
             from, amount, msg, ..
-        } => receiver_callback(deps, env, info, Addr::unchecked(from), amount, msg),
+        } => receiver_callback(deps, env, info, from, amount, msg),
         ExecuteMsg::AddLiquidityToAMMContract {
             deposit,
             slippage,
@@ -149,11 +149,11 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             Ok(Response::default())
         }
         ExecuteMsg::SetAMMPairAdmin { admin } => {
-            set_admin_guard(deps.storage, info, Addr::unchecked(admin))
+            set_admin_guard(deps.storage, info, admin)
         }
         ExecuteMsg::AddWhiteListAddress { address } => {
             apply_admin_guard(&info.sender, deps.storage)?;
-            add_address_to_whitelist(deps.storage, Addr::unchecked(address), env)
+            add_address_to_whitelist(deps.storage, address, env)
         }
         ExecuteMsg::RemoveWhitelistAddresses { addresses } => {
             apply_admin_guard(&info.sender, deps.storage)?;
@@ -189,7 +189,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 deps,
                 env,
                 Some(ContractLink {
-                    address: Addr::unchecked(contract.address),
+                    address: contract.address,
                     code_hash: contract.code_hash,
                 }),
             );
@@ -243,9 +243,9 @@ fn receiver_callback(
                                 env,
                                 config,
                                 from,
-                                Some(Addr::unchecked(
-                                    to.ok_or_else(|| StdError::generic_err("".to_string()))?,
-                                )),
+                                Some(
+                                    to.ok_or_else(|| StdError::generic_err("".to_string()))?
+                                ),
                                 offer,
                                 expected_return,
                                 router_link,
@@ -264,7 +264,7 @@ fn receiver_callback(
                 return Err(StdError::generic_err("".to_string()));
             }
             match from {
-                Some(address) => remove_liquidity(deps, env, amount, Addr::unchecked(address)),
+                Some(address) => remove_liquidity(deps, env, amount, address),
                 None => remove_liquidity(deps, env, amount, from_caller),
             }
         }

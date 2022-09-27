@@ -56,7 +56,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         }
         ExecuteMsg::SetFactoryAdmin { admin } => {
             apply_admin_guard(&info.sender, deps.storage)?;
-            admin_w(deps.storage).save(&Addr::unchecked(admin))?;
+            admin_w(deps.storage).save(&admin)?;
             Ok(Response::default())
         }
         ExecuteMsg::RegisterAMMPair { pair, signature } => {
@@ -70,7 +70,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 env,
                 AMMPair {
                     pair: config.pair,
-                    address: Addr::unchecked(info.sender),
+                    address: info.sender,
                     enabled: true,
                 },
             )
@@ -119,7 +119,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                     _env,
                     AMMPair {
                         pair: config.pair,
-                        address: Addr::unchecked(contract_address),
+                        address: deps.api.addr_validate(&contract_address)?,
                         enabled: true,
                     },
                 )?;

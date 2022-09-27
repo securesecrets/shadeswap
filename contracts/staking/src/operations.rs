@@ -430,7 +430,7 @@ pub fn unstake(
     if let Some(true) = remove_liqudity {
         // SEND LP Token back to Pair Contract With Remove Liquidity
         let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity {
-            from: Some(caller.to_string()),
+            from: Some(caller.clone()),
         })
         .unwrap();
         let msg = to_binary(&snip20::ExecuteMsg::Send {

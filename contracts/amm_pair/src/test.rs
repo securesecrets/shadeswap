@@ -1,18 +1,12 @@
-use shadeswap_shared::amm_pair::{{AMMPair, AMMSettings}};
-use shadeswap_shared::msg::amm_pair::{{ TradeHistory}};
+use shadeswap_shared::amm_pair::{{AMMSettings}};
 use cosmwasm_std::{QuerierResult, Querier, QueryRequest};
 use shadeswap_shared::{
-        contract_interfaces::snip20::{InstantiateMsg},
         core::{
-            admin_r, admin_w, apply_admin_guard, create_viewing_key, set_admin_guard, ContractLink,
+            create_viewing_key, ContractLink,
             TokenAmount, TokenType,
         },
-        msg::amm_pair::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg,SwapInfo, SwapResult, QueryMsgResponse},
-        msg::staking::InitMsg as StakingInitMsg,
-        Contract,
+        msg::amm_pair::{InitMsg}
     };
-    use shadeswap_shared::contract_interfaces::snip20::InitConfig;
-use std::hash::Hash;
 use crate::state::{{Config}};    
 use serde::Deserialize;
 use serde::Serialize;
@@ -24,26 +18,18 @@ pub const CONTRACT_ADDRESS: &str = "CONTRACT_ADDRESS";
 pub const LP_TOKEN_ADDRESS: &str = "LP_TOKEN_ADDRESS";
 use crate::help_math::calculate_and_print_price;
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
+    to_binary, Addr, DepsMut, Env, StdError, StdResult, Uint128
 };
-use shadeswap_shared::core::{Callback, ContractInstantiationInfo};
+use shadeswap_shared::core::{ContractInstantiationInfo};
 use crate::state::config_r;
 
 #[cfg(test)]
 pub mod tests {
     use super::*;
     use super::help_test_lib::{mk_token_pair, mk_amm_settings, make_init_config};   
-    use cosmwasm_std::{Coin, OwnedDeps, Empty, from_slice, SystemResult, SystemError, BlockInfo, Timestamp, ContractInfo, TransactionInfo, BalanceResponse};
-    use cosmwasm_std::testing::{MockStorage, MockApi, MockQuerierCustomHandlerResult, BankQuerier};
-    use serde::de::DeserializeOwned;   
-    use shadeswap_shared::core::{Fee, TokenPair};
-    use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-    use shadeswap_shared::snip20::QueryAnswer;
-    use shadeswap_shared::snip20::manager::Balance;   
-    use crate::contract::{instantiate, query};
+    use crate::contract::{instantiate};
     use crate::operations::{swap, add_whitelist_address, is_address_in_whitelist, add_address_to_whitelist, calculate_hash};
-    use crate::state::{config_w, trade_count_r};
+    use crate::state::{trade_count_r};
     use crate::test::help_test_lib::{mock_dependencies, mk_custom_token_amount, mk_native_token_pair, mock_custom_env};
    
 
@@ -98,7 +84,7 @@ pub mod tests {
         let deps = mock_dependencies(&[]);
         let initial_value = match trade_count_r(&deps.storage).load() {
             Ok(it) => it,
-            Err(err) => 0u64,
+            Err(_) => 0u64,
         };
         assert_eq!(0, initial_value);
         Ok(())
@@ -134,10 +120,10 @@ pub mod tests {
         assert!(instantiate(deps.as_mut(), env.clone(),mock_info.clone(), msg).is_ok());         
         let address_a =  Addr::unchecked("TESTA".to_string());
         let address_b =  Addr::unchecked("TESTB".to_string());
-        let response = add_address_to_whitelist(deps.as_mut().storage, address_a.clone(), env.clone())?;        
+        add_address_to_whitelist(deps.as_mut().storage, address_a.clone())?;        
         let is_stalker_a = is_address_in_whitelist(deps.as_mut().storage, address_a.clone())?;
         assert_eq!(true, is_stalker_a);        
-        add_address_to_whitelist(deps.as_mut().storage, address_b.clone(), env.clone())?;
+        add_address_to_whitelist(deps.as_mut().storage, address_b.clone())?;
         let is_stalker_b = is_address_in_whitelist(deps.as_mut().storage, address_b.clone())?;
         assert_eq!(true, is_stalker_b);     
         Ok(())
@@ -146,7 +132,6 @@ pub mod tests {
     //#[test]
     fn assert_remove_address_from_whitelist_success()-> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
-        let env = mock_env();       
         let address_a =  Addr::unchecked("TESTA".to_string());
         let address_b =  Addr::unchecked("TESTB".to_string());
         let address_c =  Addr::unchecked("TESTC".to_string());
@@ -159,7 +144,6 @@ pub mod tests {
     #[test]
     fn assert_load_address_from_whitelist_success()-> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
-        let env = mock_env();       
         let address_a = Addr::unchecked("TESTA".to_string());
         let address_b =  Addr::unchecked("TESTB".to_string());
         let address_c =  Addr::unchecked("TESTC".to_string());

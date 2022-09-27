@@ -137,7 +137,7 @@ fn receiver_callback(
 }
 
 #[entry_point]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::SwapSimulation { offer, path } => swap_simulation(deps, path, offer),
         QueryMsg::GetConfig {} => {

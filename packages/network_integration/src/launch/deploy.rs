@@ -1,20 +1,18 @@
-use colored::Colorize;
 use cosmwasm_std::to_binary;
 use cosmwasm_std::Addr;
 use cosmwasm_std::BalanceResponse;
 use cosmwasm_std::Uint128;
 use network_integration::utils::InitConfig;
 use network_integration::utils::{
-    generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
-    AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY, SNIP20_FILE,
+    generate_label, init_snip20, print_contract, print_header, print_warning,
+    AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SNIP20_FILE,
     STAKING_FILE, VIEW_KEY,
 };
 use secretcli::{
     cli_types::NetContract,
-    secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
+    secretcli::{handle, init, query, store_and_return_contract},
 };
 
-use serde_json::Result;
 use shadeswap_shared::core::ContractInstantiationInfo;
 use shadeswap_shared::core::Fee;
 use shadeswap_shared::core::TokenPair;
@@ -22,25 +20,23 @@ use shadeswap_shared::core::TokenPairAmount;
 use shadeswap_shared::core::TokenType;
 use shadeswap_shared::snip20::QueryMsg;
 use shadeswap_shared::{
-    amm_pair::{AMMPair, AMMSettings},
+    amm_pair::{AMMSettings},
     core::ContractLink,
     msg::{
         amm_pair::{
-            ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
-            QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
+            ExecuteMsg as AMMPairHandlMsg
         },
         factory::{
             ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg,
             QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
         },
         router::{
-            ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
+            ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg
         },
     },
     stake_contract::StakingContractInit,
     Pagination,
 };
-use std::env;
 
 use shadeswap_shared::snip20 as snip20_reference_impl;
 
@@ -59,7 +55,7 @@ pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Ui
 }
 
 fn main() -> serde_json::Result<()> {
-    redeploy_infra();
+    redeploy_infra()?;
     return Ok(());
 }
 
@@ -144,7 +140,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
     )?;
 
     print_warning("Storing AMM Pair Token Contract");
-    let s_ammPair = store_and_return_contract(
+    let s_amm_pair = store_and_return_contract(
         &AMM_PAIR_FILE.replace("../", ""),
         ACCOUNT_KEY,
         Some(STORE_GAS),
@@ -162,8 +158,8 @@ fn redeploy_infra() -> serde_json::Result<()> {
 
     let factory_msg = FactoryInitMsg {
         pair_contract: ContractInstantiationInfo {
-            code_hash: s_ammPair.code_hash.to_string(),
-            id: s_ammPair.id.clone().parse::<u64>().unwrap(),
+            code_hash: s_amm_pair.code_hash.to_string(),
+            id: s_amm_pair.id.clone().parse::<u64>().unwrap(),
         },
         amm_settings: AMMSettings {
             lp_fee: Fee::new(2, 100),
@@ -214,7 +210,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
                 entropy: to_binary(&"".to_string()).unwrap(),
                 viewing_key: Some(VIEW_KEY.to_string()),
-                pair_contract_code_hash: s_ammPair.code_hash.clone(),
+                pair_contract_code_hash: s_amm_pair.code_hash.clone(),
             };
 
             let router_contract = init(
@@ -308,12 +304,12 @@ fn redeploy_infra() -> serde_json::Result<()> {
 
                 let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
                 if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
-                    let ammPair = amm_pairs[0].clone();
+                    let amm_pair = amm_pairs[0].clone();
 
                     print_header("\n\tAdding Liquidity to Pair Contract");
                     handle(
                         &snip20_reference_impl::ExecuteMsg::IncreaseAllowance {
-                            spender: ammPair.address.to_string(),
+                            spender: amm_pair.address.to_string(),
                             amount: Uint128::from(1000000000u64),
                             expiration: None,
                             padding: None,
@@ -335,7 +331,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
 
                     handle(
                         &snip20_reference_impl::ExecuteMsg::IncreaseAllowance {
-                            spender: ammPair.address.to_string(),
+                            spender: amm_pair.address.to_string(),
                             amount: Uint128::from(200000000000u64),
                             expiration: None,
                             padding: None,
@@ -368,9 +364,9 @@ fn redeploy_infra() -> serde_json::Result<()> {
                         },
                         &NetContract {
                             label: "".to_string(),
-                            id: s_ammPair.id.clone(),
-                            address: ammPair.address.to_string(),
-                            code_hash: s_ammPair.code_hash.to_string(),
+                            id: s_amm_pair.id.clone(),
+                            address: amm_pair.address.to_string(),
+                            code_hash: s_amm_pair.code_hash.to_string(),
                         },
                         ACCOUNT_KEY,
                         Some(GAS),
@@ -393,7 +389,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
     let mut reports = vec![];
     print_warning("SENT");
     print_warning("Storing LP Token Contract");
-    let (btc_init, btc_contract) = init_snip20(
+    let (_btc_init, btc_contract) = init_snip20(
         "Bitcoin".to_string(),
         "BTC".to_string(),
         8,
@@ -410,7 +406,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
     )?;
     print_contract(&btc_contract);
 
-    let (usdt_init, usdt_contract) = init_snip20(
+    let (_usdt_init, usdt_contract) = init_snip20(
         "USDT".to_string(),
         "USDT".to_string(),
         6,
@@ -512,7 +508,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
     )?;
 
     print_warning("Storing AMM Pair Token Contract");
-    let s_ammPair = store_and_return_contract(
+    let s_amm_pair = store_and_return_contract(
         &AMM_PAIR_FILE.replace("../", ""),
         ACCOUNT_KEY,
         Some(STORE_GAS),
@@ -530,8 +526,8 @@ fn deploy_fresh() -> serde_json::Result<()> {
 
     let factory_msg = FactoryInitMsg {
         pair_contract: ContractInstantiationInfo {
-            code_hash: s_ammPair.code_hash.to_string(),
-            id: s_ammPair.id.clone().parse::<u64>().unwrap(),
+            code_hash: s_amm_pair.code_hash.to_string(),
+            id: s_amm_pair.id.clone().parse::<u64>().unwrap(),
         },
         amm_settings: AMMSettings {
             lp_fee: Fee::new(8, 100),
@@ -582,7 +578,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
                 entropy: to_binary(&"".to_string()).unwrap(),
                 viewing_key: Some(VIEW_KEY.to_string()),
-                pair_contract_code_hash: s_ammPair.code_hash.clone(),
+                pair_contract_code_hash: s_amm_pair.code_hash.clone(),
             };
 
             let router_contract = init(
@@ -676,12 +672,12 @@ fn deploy_fresh() -> serde_json::Result<()> {
 
                 let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
                 if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
-                    let ammPair = amm_pairs[0].clone();
+                    let amm_pair = amm_pairs[0].clone();
 
                     print_header("\n\tAdding Liquidity to Pair Contract");
                     handle(
                         &snip20_reference_impl::ExecuteMsg::IncreaseAllowance {
-                            spender: ammPair.address.to_string(),
+                            spender: amm_pair.address.to_string(),
                             amount: Uint128::from(1000000000u64),
                             expiration: None,
                             padding: None,
@@ -703,7 +699,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
 
                     handle(
                         &snip20_reference_impl::ExecuteMsg::IncreaseAllowance {
-                            spender: ammPair.address.to_string(),
+                            spender: amm_pair.address.to_string(),
                             amount: Uint128::from(200000000000u64),
                             expiration: None,
                             padding: None,
@@ -736,9 +732,9 @@ fn deploy_fresh() -> serde_json::Result<()> {
                         },
                         &NetContract {
                             label: "".to_string(),
-                            id: s_ammPair.id.clone(),
-                            address: ammPair.address.to_string(),
-                            code_hash: s_ammPair.code_hash.to_string(),
+                            id: s_amm_pair.id.clone(),
+                            address: amm_pair.address.to_string(),
+                            code_hash: s_amm_pair.code_hash.to_string(),
                         },
                         ACCOUNT_KEY,
                         Some(GAS),

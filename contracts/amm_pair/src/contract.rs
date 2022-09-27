@@ -153,7 +153,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         }
         ExecuteMsg::AddWhiteListAddress { address } => {
             apply_admin_guard(&info.sender, deps.storage)?;
-            add_address_to_whitelist(deps.storage, address, env)
+            add_address_to_whitelist(deps.storage, address)
         }
         ExecuteMsg::RemoveWhitelistAddresses { addresses } => {
             apply_admin_guard(&info.sender, deps.storage)?;
@@ -187,7 +187,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::SetStakingContract { contract } => {
             return set_staking_contract(
                 deps,
-                env,
                 Some(ContractLink {
                     address: contract.address,
                     code_hash: contract.code_hash,

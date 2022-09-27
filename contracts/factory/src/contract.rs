@@ -6,14 +6,13 @@ use crate::{
     state::{config_r, config_w, ephemeral_storage_r, ephemeral_storage_w, prng_seed_w, Config},
 };
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Api, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Querier,
-    Reply, Response, StdError, StdResult, Storage, SubMsgResult, WasmMsg,
+    entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo,
+    Reply, Response, StdError, StdResult, SubMsgResult
 };
 use shadeswap_shared::{
-    amm_pair::{self, AMMPair},
-    core::{admin_r, admin_w, apply_admin_guard, Callback, ContractLink},
+    amm_pair::{AMMPair},
+    core::{admin_r, admin_w, apply_admin_guard},
     msg::{
-        amm_pair::InitMsg as AMMPairInitMsg,
         factory::{ExecuteMsg, InitMsg, QueryMsg, QueryResponse},
     },
 };
@@ -23,7 +22,7 @@ pub const INSTANTIATE_REPLY_ID: u64 = 1u64;
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     _info: MessageInfo,
     msg: InitMsg,
 ) -> StdResult<Response> {
@@ -61,8 +60,11 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         }
         ExecuteMsg::RegisterAMMPair { pair, signature } => {
             let config = ephemeral_storage_r(deps.storage).load()?;
-            if (config.key != signature) {
+            if config.key != signature {
                 return Err(StdError::generic_err("Invalid signature given".to_string()));
+            }
+            if pair != config.pair {
+                return Err(StdError::generic_err("Provided pair is not equal.".to_string()));
             }
             ephemeral_storage_w(deps.storage).remove();
             register_amm_pair(
@@ -79,7 +81,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 }
 
 #[entry_point]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetConfig {} => {
             let Config {

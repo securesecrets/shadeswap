@@ -18,7 +18,7 @@ use shadeswap_shared::{
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
         router::ExecuteMsg as RouterExecuteMsg,
         staking::{
-            ExecuteMsg as StakingExecuteMsg, InitMsg as StakingInitMsg,
+            InitMsg as StakingInitMsg,
             InvokeMsg as StakingInvokeMsg,
         },
     },
@@ -30,7 +30,7 @@ use shadeswap_shared::{
         ExecuteMsg as SNIP20ExecuteMsg,
     },
     utils::calc::sqrt,
-    Contract, Pagination, BLOCK_SIZE,
+    Contract, Pagination,
 };
 
 use crate::{
@@ -45,7 +45,7 @@ use crate::{
 pub fn add_whitelist_address(storage: &mut dyn Storage, address: Addr) -> StdResult<()> {
     let mut unwrap_data = match whitelist_r(storage).may_load(){
         Ok(v) => v.unwrap_or(Vec::new()),
-        Err(err) => Vec::new(),
+        Err(_) => Vec::new(),
     };
     unwrap_data.push(address);
     whitelist_w(storage).save(&unwrap_data)
@@ -84,7 +84,7 @@ fn load_trade_history(deps: Deps, count: u64) -> StdResult<TradeHistory> {
 fn store_trade_history(deps: DepsMut, trade_history: &TradeHistory) -> StdResult<()> {
     let count: u64 = match trade_count_r(deps.storage).may_load() {
         Ok(it) => it.unwrap_or(0),
-        Err(err) => 0,
+        Err(_) => 0,
     };
     let update_count = count + 1;
     trade_count_w(deps.storage).save(&update_count)?;
@@ -322,7 +322,6 @@ pub fn swap(
 
 pub fn set_staking_contract(
     deps: DepsMut,
-    env: Env,
     staking_contract: Option<ContractLink>,
 ) -> StdResult<Response> {
     match staking_contract.clone() {
@@ -405,7 +404,7 @@ pub fn get_estimated_lp_token(
         ));
     }
 
-    let mut pool_balances =
+    let pool_balances =
         deposit
             .pair
             .query_balances(deps, env.contract.address.to_string(), viewing_key.0)?;
@@ -417,7 +416,7 @@ pub fn get_estimated_lp_token(
     )?;
 
     let pair_contract_pool_liquidity = query_liquidity_pair_contract(deps, &lp_token)?;
-    let mut lp_tokens: Uint128 = Uint128::zero();
+    let lp_tokens: Uint128;
     if pair_contract_pool_liquidity == Uint128::zero() {
         // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
         // x and y is amount of token0 and token1 provided
@@ -526,7 +525,7 @@ pub fn calculate_swap_result(
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
 
     // sub fee from offer amount
-    let mut deducted_offer_amount = (offer.amount - total_fee_amount);
+    let mut deducted_offer_amount = offer.amount - total_fee_amount;
     if let Some(true) = exclude_fee {
         deducted_offer_amount = offer.amount;
     }
@@ -550,7 +549,6 @@ pub fn calculate_swap_result(
 pub fn add_address_to_whitelist(
     storage: &mut dyn Storage,
     address: Addr,
-    env: Env,
 ) -> StdResult<Response> {
     add_whitelist_address(storage, address.clone())?;
     Ok(Response::default().add_attributes(vec![
@@ -615,7 +613,7 @@ pub fn remove_liquidity(
     let mut pool_withdrawn: [Uint128; 2] = [Uint128::zero(), Uint128::zero()];
 
     for (i, pool_amount) in pool_balances.iter().enumerate() {
-        let pool_amount = (*pool_amount);
+        let pool_amount = *pool_amount;
         pool_withdrawn[i] = pool_amount.multiply_ratio(withdraw_amount, total_liquidity)
     }
 
@@ -652,7 +650,7 @@ pub fn calculate_price(
     token0_pool_balance: Uint128,
     token1_pool_balance: Uint128,
 ) -> StdResult<Uint128> {
-    Ok(token1_pool_balance.multiply_ratio(amount, (token0_pool_balance + amount)))
+    Ok(token1_pool_balance.multiply_ratio(amount, token0_pool_balance + amount))
 }
 
 pub fn add_liquidity(
@@ -706,7 +704,7 @@ pub fn add_liquidity(
                 // If the asset is native token, balance is already increased.
                 // To calculate properly we should subtract user deposit from the pool.
                 token.assert_sent_native_token_balance(info, amount)?;
-                pool_balances[i] = (pool_balances[i] - amount);
+                pool_balances[i] = pool_balances[i] - amount;
             }
         }
     }
@@ -761,8 +759,7 @@ pub fn add_liquidity(
                         },
                     )?);
                     let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
-                        from: info.sender.clone(),
-                        amount: lp_tokens,
+                        from: info.sender.clone()
                     })
                     .unwrap();
                     // SEND LP Token to Staking Contract with Staking Message

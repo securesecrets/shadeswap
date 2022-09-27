@@ -9,7 +9,6 @@ use shadeswap_shared::{
     Contract,
     msg::{
         amm_pair::{ExecuteMsg as AMMPairExecuteMsg, InvokeMsg as AMMPairInvokeMsg, QueryMsgResponse as AMMPairQueryReponse, QueryMsg as AMMPairQueryMsg, SwapResult},
-        factory:: {QueryResponse as FactoryQueryResponse, QueryMsg as FactoryQueryMsg}
     }, router::QueryMsgResponse, amm_pair::AMMSettings
 };
 
@@ -100,8 +99,6 @@ pub fn next_swap(
                     }
                 }
 
-                let clear_storage: Option<CurrentSwapInfo> = None;
-
                 epheral_storage_w(deps.storage).remove();
                 Ok(
                     Response::new().add_messages(vec![token_in.token.create_send_msg(
@@ -151,7 +148,7 @@ pub fn swap_tokens_for_exact_tokens(
 }
 
 fn get_trade_with_callback(
-    deps: DepsMut,
+    _deps: DepsMut,
     env: Env,
     token_in: TokenAmount,
     path: Addr,
@@ -280,13 +277,13 @@ pub fn swap_simulation(deps: Deps, path: Vec<Addr>, offer: TokenAmount) -> StdRe
 
         match contract_info {
             AMMPairQueryReponse::GetPairInfo {
-                liquidity_token,
-                factory,
+                liquidity_token: _,
+                factory: _,
                 pair,
-                amount_0,
-                amount_1,
-                total_liquidity,
-                contract_version,
+                amount_0: _,
+                amount_1: _,
+                total_liquidity: _,
+                contract_version: _,
             } => {
                 let result: AMMPairQueryReponse =
                     querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
@@ -302,7 +299,7 @@ pub fn swap_simulation(deps: Deps, path: Vec<Addr>, offer: TokenAmount) -> StdRe
                         lp_fee_amount,
                         shade_dao_fee_amount,
                         result,
-                        price,
+                        price: _,
                     } => {
                         if pair.1 == next_in.token {
                             next_in = TokenAmount {

@@ -1,9 +1,6 @@
-use std::ops::Add;
-
 use crate::{state::{
-    amm_pair_keys_r, amm_pair_keys_w, amm_pairs_r, amm_pairs_w, config_r, config_w,
-    ephemeral_storage_r, ephemeral_storage_w, prng_seed_r, total_amm_pairs_r, total_amm_pairs_w,
-    Config, NextPairKey, PAGINATION_LIMIT,
+    amm_pair_keys_r, amm_pair_keys_w, amm_pairs_r, amm_pairs_w, config_r, config_w, ephemeral_storage_w, prng_seed_r, total_amm_pairs_r, total_amm_pairs_w,
+    NextPairKey, PAGINATION_LIMIT,
 }, contract::INSTANTIATE_REPLY_ID};
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Api, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Querier,
@@ -22,7 +19,7 @@ use shadeswap_shared::{
 
 pub fn register_amm_pair(
     storage: &mut dyn Storage,
-    env: Env,
+    _env: Env,
     pair: AMMPair,
 ) -> StdResult<Response> {
     add_amm_pairs(storage, vec![pair])
@@ -31,9 +28,9 @@ pub fn register_amm_pair(
 pub fn add_amm_pairs(storage: &mut dyn Storage, amm_pairs: Vec<AMMPair>) -> StdResult<Response> {
     for amm_pair in amm_pairs {
         let new_key = generate_pair_key(&amm_pair.pair);
-        let existingPair = amm_pair_keys_r(storage).may_load(&new_key)?;
+        let existing_pair = amm_pair_keys_r(storage).may_load(&new_key)?;
 
-        match existingPair {
+        match existing_pair {
             Some(_) => {
                 return Err(StdError::generic_err(format!(
                     "AMM Pair ({}) already exists",
@@ -79,7 +76,7 @@ pub fn query_amm_pair_address(deps: &Deps, pair: TokenPair) -> StdResult<Binary>
     })
 }
 
-pub fn set_config(deps: DepsMut, env: Env, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn set_config(deps: DepsMut, _env: Env, msg: ExecuteMsg) -> StdResult<Response> {
     if let ExecuteMsg::SetConfig {
         pair_contract,
         lp_token_contract,
@@ -117,7 +114,7 @@ pub fn create_pair(
     entropy: Binary,
     staking_contract: Option<StakingContractInit>,
 ) -> StdResult<Response> {
-    let mut config = config_r(deps.storage).load()?;
+    let config = config_r(deps.storage).load()?;
     println!("create_pair caller {}", &sender);
     apply_admin_guard(&sender, deps.storage)?;
     let admin = admin_r(deps.storage).load()?;

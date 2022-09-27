@@ -2,80 +2,49 @@ use cosmwasm_std::{
     from_binary,
     Api,
     Binary,
-    Extern,
-    HumanAddr,
     Querier,
     StdError,
     StdResult,
-    Storage, Env, HandleResponse, 
-    log,
-    CanonicalAddr
+    Storage, Env, Response, 
+    CanonicalAddr, Addr
 };
-use crate::{custom_fee::Fee, core::Humanize};
-use crate::token_pair::TokenPair;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use crate::core::{Canonize, ContractLink};
+use crate::core::{ContractLink, TokenPair, Fee, TokenType};
 
 /// Represents the address of an exchange and the pair that it manages
 #[derive(Serialize, Deserialize, JsonSchema, Clone, PartialEq, Debug)]
-pub struct AMMPair<A: Clone> {
+pub struct AMMPair {
     /// The pair that the contract manages.
-    pub pair: TokenPair<A>,
+    pub pair: TokenPair,
     /// Address of the contract that manages the exchange.
-    pub address: A,
+    pub address: Addr,
+    /// Used to enable or disable the AMMPair
+    pub enabled: bool
 }
 
-impl Canonize for AMMPair<HumanAddr> {
-    fn canonize(self, api: &impl Api) -> StdResult<AMMPair<CanonicalAddr>> {
-        Ok(AMMPair {
-            pair: self.pair.canonize(api)?,
-            address: self.address.canonize(api)?,
-        })
-    }
-
-    type Output = AMMPair<CanonicalAddr>;
-}
-
-impl Humanize for AMMPair<CanonicalAddr> {
-    fn humanize(self, api: &impl Api) -> StdResult<AMMPair<HumanAddr>> {
-        Ok(AMMPair {
-            pair: self.pair.humanize(api)?,
-            address: self.address.humanize(api)?,
-        })
-    }
-
-    type Output = AMMPair<HumanAddr>;
-}
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug,Clone)]
-pub struct AMMSettings<A> {
+pub struct AMMSettings {
     pub lp_fee: Fee,
     pub shade_dao_fee: Fee,
-    pub shade_dao_address: ContractLink<A>
+    pub shade_dao_address: ContractLink
 }
 
-impl Canonize for AMMSettings<HumanAddr> {
-    fn canonize(self, api: &impl Api) -> StdResult<AMMSettings<CanonicalAddr>> {
-        Ok(AMMSettings {
-            lp_fee: self.lp_fee,
-            shade_dao_fee: self.shade_dao_fee,
-            shade_dao_address: self.shade_dao_address.canonize(api)?
-        })
+pub fn generate_pair_key(pair: &TokenPair) -> Vec<u8> {
+    let mut bytes: Vec<&[u8]> = Vec::new();
+
+    match &pair.0 {
+        TokenType::NativeToken { denom } => bytes.push(denom.as_bytes()),
+        TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_bytes())
     }
 
-    type Output = AMMSettings<CanonicalAddr>;
-}
-
-impl Humanize for AMMSettings<CanonicalAddr> {
-    fn humanize(self, api: &impl Api) -> StdResult<AMMSettings<HumanAddr>> {
-        Ok(AMMSettings {
-            lp_fee: self.lp_fee,
-            shade_dao_fee: self.shade_dao_fee,
-            shade_dao_address: self.shade_dao_address.humanize(api)?
-        })
+    match &pair.1 {
+        TokenType::NativeToken { denom } => bytes.push(denom.as_bytes()),
+        TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_bytes())
     }
 
-    type Output = AMMSettings<HumanAddr>;
-}
+    bytes.sort();
 
+    bytes.concat()
+}

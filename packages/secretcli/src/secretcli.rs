@@ -40,6 +40,11 @@ fn secretcli_run(command: Vec<String>, max_retry: Option<i32>) -> Result<Value> 
     let mut commands = command;
     commands.append(&mut vec_str_to_vec_string(vec!["--output", "json"]));
     let mut cli = Command::new("secretd".to_string());
+    
+    for c in &commands {
+        print!("{:} ", c);
+    }
+
     if !commands.is_empty() {
         cli.args(commands);
     }
@@ -59,7 +64,7 @@ fn secretcli_run(command: Vec<String>, max_retry: Option<i32>) -> Result<Value> 
     if String::from_utf8_lossy(&out).contains("output_error") {
         println!("{:?}", &String::from_utf8_lossy(&out));
     }
-    // println!("{:?}", &String::from_utf8_lossy(&out));
+    //println!("{:?}", &String::from_utf8_lossy(&out));
     serde_json::from_str(&String::from_utf8_lossy(&out))
 }
 
@@ -283,8 +288,8 @@ pub fn store_and_return_contract(
     let listed_contracts = list_code()?;
 
     for item in listed_contracts {
-        if item.id.to_string() == contract.id {
-            contract.code_hash = item.data_hash;
+        if item.code_id.to_string() == contract.id {
+            contract.code_hash = item.code_hash;
             break;
         }
     }
@@ -357,8 +362,8 @@ pub fn init<Message: serde::Serialize>(
 
     // Find the code_hash
     for item in listed_contracts {
-        if item.id.to_string() == contract.id {
-            contract.code_hash = item.data_hash;
+        if item.code_id.to_string() == contract.id {
+            contract.code_hash = item.code_hash;
             break;
         }
     }

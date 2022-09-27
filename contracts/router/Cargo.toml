@@ -30,17 +30,19 @@ overflow-checks = true
 default = []
 # for quicker tests, cargo test --lib
 # for more explicit tests, cargo test --features=backtraces
-backtraces = ["cosmwasm-std/backtraces"]
-debug-print = ["cosmwasm-std/debug-print"]
+
+
 
 [dependencies]
-snafu = { version = "0.6.3" }
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-schemars = "0.7"
-cosmwasm-std = { version = "0.10.1", package = "secret-cosmwasm-std" }
-cosmwasm-storage = { version = "0.10", package = "secret-cosmwasm-storage" }
-secret-toolkit = { version = "0.2" }
+snafu = { version = "0.7.1" }
+serde = { version = "1.0.114", default-features = false, features = [
+  "derive",
+  "alloc"
+] }
+schemars = "0.8.1"
+cosmwasm-std = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
+cosmwasm-storage = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
 shadeswap-shared = {path = "../../packages/shadeswap-shared"}
 
 [dev-dependencies]
-cosmwasm-schema = "0.10.1"
+cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e" }

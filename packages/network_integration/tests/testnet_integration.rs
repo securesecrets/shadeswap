@@ -1,12 +1,24 @@
 use colored::Colorize;
+use cosmwasm_std::Addr;
 use cosmwasm_std::BalanceResponse;
-use cosmwasm_std::HumanAddr;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Uint128;
 use network_integration::utils::InitConfig;
-use shadeswap_shared::custom_fee::Fee;
+use query_authentication::permit::Permit;
+use query_authentication::transaction::PermitSignature;
+use query_authentication::transaction::PubKey;
+use shadeswap_shared::amm_pair;
+use shadeswap_shared::c_std::Binary;
+use shadeswap_shared::core::Fee;
+use shadeswap_shared::core::TokenAmount;
+use shadeswap_shared::core::TokenPair;
+use shadeswap_shared::core::TokenPairAmount;
+use shadeswap_shared::core::TokenType;
+use shadeswap_shared::core::ViewingKey;
+use shadeswap_shared::query_auth::PermitData;
+use shadeswap_shared::snip20;
+use shadeswap_shared::staking::AuthQuery;
 use shadeswap_shared::staking::InitMsg;
-use shadeswap_shared::viewing_keys::ViewingKey;
 
 use cosmwasm_std::to_binary;
 use network_integration::utils::{
@@ -19,44 +31,42 @@ use secretcli::{
     secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
 };
 use serde_json::Result;
+use shadeswap_shared::staking::QueryData;
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings},
     core::{ContractInstantiationInfo, ContractLink},
     msg::{
         amm_pair::{
-            HandleMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
+            ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
             QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
         },
         factory::{
-            HandleMsg as FactoryHandleMsg, InitMsg as FactoryInitMsg, QueryMsg as FactoryQueryMsg,
-            QueryResponse as FactoryQueryResponse,
+            ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg,
+            QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
         },
         router::{
-            HandleMsg as RouterHandleMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
+            ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
             QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
         },
         staking::{
-            HandleMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
+            ExecuteMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
             QueryResponse as StakingQueryMsgResponse,
         },
     },
-    secret_toolkit::snip20::Balance,
     stake_contract::StakingContractInit,
-    Pagination, TokenAmount, TokenPair, TokenPairAmount, TokenType,
+    Pagination,
 };
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use shadeswap_shared::snip20_reference_impl::msg::InitMsg as Snip20ComposableMsg;
-
-use shadeswap_shared::snip20_reference_impl as snip20;
+use shadeswap_shared::contract_interfaces::snip20::InstantiateMsg as Snip20ComposableMsg;
 
 pub fn get_current_timestamp() -> StdResult<Uint128> {
     let start = SystemTime::now();
     let since_the_epoch = start
         .duration_since(UNIX_EPOCH)
         .expect("Time went backwards");
-    Ok(Uint128(since_the_epoch.as_millis()))
+    Ok(Uint128::from(since_the_epoch.as_millis()))
 }
 
 #[test]
@@ -69,6 +79,24 @@ fn run_testnet() -> Result<()> {
     let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
 
     let mut reports = vec![];
+
+    // set viewing key for staker
+    print_header("\n\t Set Viewing Key for Staker - Staking Contract password");
+    print_header(&to_binary(&QueryData {}).unwrap().to_base64());
+
+    type TestPermit = Permit<PermitData>;
+    //secretd tx sign-doc file --from a
+    let newPermit = TestPermit{
+        params: PermitData { data: to_binary(&QueryData {}).unwrap(), key: "0".to_string()},
+        chain_id: Some("secretdev-1".to_string()),
+        sequence: Some(Uint128::zero()),
+        signature: PermitSignature {
+            pub_key: PubKey::new(Binary::from_base64(&"A07oJJ9n4TYTnD7ZStYyiPbB3kXOZvqIMkchGmmPRAzf".to_string()).unwrap()),
+            signature: Binary::from_base64(&"bct9+cSJF+m51/be9/Bcc1zwfzYdMGzFMUH4VQl8EW9BuDDok6YEGzw6ZQOmu+rGqlFOfMBGybZbgINjD48rVQ==".to_string()).unwrap(),
+        },
+        account_number: Some(Uint128::zero()),
+        memo: Some("".to_string())
+    };
 
     // print_header("Initializing sSCRT");
     // let (s_sSINIT, s_sCRT) = init_snip20(
@@ -87,7 +115,6 @@ fn run_testnet() -> Result<()> {
     //     None,
     // )?;
     // print_contract(&s_sCRT);
-
 
     print_header("Storing all contracts");
     print_warning("Storing LP Token Contract");
@@ -118,7 +145,7 @@ fn run_testnet() -> Result<()> {
     )?;
 
     {
-        let msg = snip20::msg::HandleMsg::SetViewingKey {
+        let msg = snip20::ExecuteMsg::SetViewingKey {
             key: String::from(VIEW_KEY),
             padding: None,
         };
@@ -156,7 +183,7 @@ fn run_testnet() -> Result<()> {
 
     print_contract(&s_sREWARDSNIP20);
     {
-        let msg = snip20::msg::HandleMsg::SetViewingKey {
+        let msg = snip20::ExecuteMsg::SetViewingKey {
             key: String::from(VIEW_KEY),
             padding: None,
         };
@@ -193,7 +220,7 @@ fn run_testnet() -> Result<()> {
     print_contract(&s_sSHD);
 
     {
-        let msg = snip20::msg::HandleMsg::SetViewingKey {
+        let msg = snip20::ExecuteMsg::SetViewingKey {
             key: String::from(VIEW_KEY),
             padding: None,
         };
@@ -213,7 +240,7 @@ fn run_testnet() -> Result<()> {
     println!("\n\tDepositing 1000000000000uscrt s_sREWARDSNIP20");
 
     {
-        let msg = snip20::msg::HandleMsg::Deposit { padding: None };
+        let msg = snip20::ExecuteMsg::Deposit { padding: None };
 
         handle(
             &msg,
@@ -229,13 +256,13 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&s_sREWARDSNIP20, account.to_string(), VIEW_KEY.to_string()),
-        Uint128(1000000000000)
+        Uint128::new(1000000000000)
     );
 
     println!("\n\tDepositing 1000000000000uscrt sSCRT");
 
     {
-        let msg = snip20::msg::HandleMsg::Deposit { padding: None };
+        let msg = snip20::ExecuteMsg::Deposit { padding: None };
 
         handle(
             &msg,
@@ -251,13 +278,13 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-        Uint128(1000000000000)
+        Uint128::new(1000000000000)
     );
 
     println!("\n\tDepositing 1000000000000uscrt sSHD");
 
     {
-        let msg = snip20::msg::HandleMsg::Deposit { padding: None };
+        let msg = snip20::ExecuteMsg::Deposit { padding: None };
 
         handle(
             &msg,
@@ -269,6 +296,11 @@ fn run_testnet() -> Result<()> {
             &mut reports,
             None,
         )?;
+
+        assert_eq!(
+            get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(1000000000000)
+        );
     }
 
     print_header("\n\tInitializing Factory Contract");
@@ -282,7 +314,7 @@ fn run_testnet() -> Result<()> {
             lp_fee: Fee::new(8, 100),
             shade_dao_fee: Fee::new(2, 100),
             shade_dao_address: ContractLink {
-                address: HumanAddr(String::from(shade_dao.to_string())),
+                address: Addr::unchecked(s_sSHD.address.clone()),
                 code_hash: s_sSHD.code_hash.clone(),
             },
         },
@@ -308,20 +340,20 @@ fn run_testnet() -> Result<()> {
 
     print_header("\n\tInitializing New Pair Contract (SNIP20/SNIP20) via Factory");
 
-    let test_pair = TokenPair::<HumanAddr>(
+    let test_pair = TokenPair(
         TokenType::CustomToken {
-            contract_addr: s_sCRT.address.clone().into(),
+            contract_addr: Addr::unchecked(s_sCRT.address.clone()),
             token_code_hash: s_sCRT.code_hash.to_string(),
         },
         TokenType::CustomToken {
-            contract_addr: s_sSHD.address.clone().into(),
+            contract_addr: Addr::unchecked(s_sSHD.address.clone()),
             token_code_hash: s_sSHD.code_hash.to_string(),
         },
     );
 
     {
         handle(
-            &FactoryHandleMsg::CreateAMMPair {
+            &FactoryExecuteMsg::CreateAMMPair {
                 pair: test_pair.clone(),
                 entropy: entropy,
                 // staking_contract: None,
@@ -330,9 +362,9 @@ fn run_testnet() -> Result<()> {
                         code_hash: staking_contract.code_hash.to_string(),
                         id: staking_contract.id.clone().parse::<u64>().unwrap(),
                     },
-                    amount: Uint128(3450000000000u128),
+                    amount: Uint128::new(3450000000000u128),
                     reward_token: TokenType::CustomToken {
-                        contract_addr: s_sREWARDSNIP20.address.clone().into(),
+                        contract_addr: Addr::unchecked(s_sREWARDSNIP20.address.clone()),
                         token_code_hash: s_sREWARDSNIP20.code_hash.to_string(),
                     },
                 }),
@@ -350,19 +382,19 @@ fn run_testnet() -> Result<()> {
 
     print_header("\n\tInitializing New Pair Contract (SCRT/SNIP20) via Factory");
 
-    let test_native_pair = TokenPair::<HumanAddr>(
+    let test_native_pair = TokenPair(
         TokenType::NativeToken {
             denom: "uscrt".to_string(),
         },
         TokenType::CustomToken {
-            contract_addr: s_sCRT.address.clone().into(),
+            contract_addr: Addr::unchecked(s_sCRT.address.clone()),
             token_code_hash: s_sCRT.code_hash.to_string(),
         },
     );
 
     {
         handle(
-            &FactoryHandleMsg::CreateAMMPair {
+            &FactoryExecuteMsg::CreateAMMPair {
                 pair: test_native_pair.clone(),
                 entropy: to_binary(&"".to_string()).unwrap(),
                 staking_contract: None,
@@ -371,7 +403,7 @@ fn run_testnet() -> Result<()> {
                 //         code_hash: staking_contract.code_hash.to_string(),
                 //         id: staking_contract.id.clone().parse::<u64>().unwrap(),
                 //     },
-                //     amount: Uint128(100000u128),
+                //     amount: Uint128::new(100000u128),
                 //     reward_token:  TokenType::CustomToken {
                 //         contract_addr: s_sCRT.address.clone().into(),
                 //         token_code_hash: s_sCRT.code_hash.to_string(),
@@ -404,11 +436,11 @@ fn run_testnet() -> Result<()> {
             let ammPair = amm_pairs[0].clone();
             let amm_pair_2 = amm_pairs[1].clone();
 
-            print_header("\n\tAdding Liquidity to Pair Contract");
+            print_header("\n\tIncreasing Allowances");
             handle(
-                &snip20::msg::HandleMsg::IncreaseAllowance {
-                    spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-                    amount: Uint128(10000000000),
+                &snip20::ExecuteMsg::IncreaseAllowance {
+                    spender: ammPair.address.to_string(),
+                    amount: Uint128::new(10000000000),
                     expiration: None,
                     padding: None,
                 },
@@ -428,9 +460,9 @@ fn run_testnet() -> Result<()> {
             .unwrap();
 
             handle(
-                &snip20::msg::HandleMsg::IncreaseAllowance {
-                    spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-                    amount: Uint128(10000000000),
+                &snip20::ExecuteMsg::IncreaseAllowance {
+                    spender: ammPair.address.to_string(),
+                    amount: Uint128::new(10000000000),
                     expiration: None,
                     padding: None,
                 },
@@ -450,9 +482,9 @@ fn run_testnet() -> Result<()> {
             .unwrap();
 
             handle(
-                &snip20::msg::HandleMsg::IncreaseAllowance {
-                    spender: HumanAddr(String::from(amm_pair_2.address.0.to_string())),
-                    amount: Uint128(10000000000),
+                &snip20::ExecuteMsg::IncreaseAllowance {
+                    spender: amm_pair_2.address.to_string(),
+                    amount: Uint128::new(10000000000),
                     expiration: None,
                     padding: None,
                 },
@@ -477,7 +509,7 @@ fn run_testnet() -> Result<()> {
                 &NetContract {
                     label: "".to_string(),
                     id: s_ammPair.id.clone(),
-                    address: ammPair.address.0.clone(),
+                    address: ammPair.address.to_string(),
                     code_hash: s_ammPair.code_hash.to_string(),
                 },
                 staking_contract_msg,
@@ -486,15 +518,16 @@ fn run_testnet() -> Result<()> {
             if let AMMPairQueryMsgResponse::StakingContractInfo { staking_contract } =
                 staking_contract_query
             {
-                assert_ne!(staking_contract.address, HumanAddr::default());
+                assert_ne!(staking_contract, None);
             }
 
+            print_header("\n\tAdding Liquidity to SNIP20/20 staking contract");
             handle(
                 &AMMPairHandlMsg::AddLiquidityToAMMContract {
                     deposit: TokenPairAmount {
                         pair: test_pair.clone(),
-                        amount_0: Uint128(10000000000),
-                        amount_1: Uint128(10000000000),
+                        amount_0: Uint128::new(10000000000),
+                        amount_1: Uint128::new(10000000000),
                     },
                     slippage: None,
                     staking: Some(true),
@@ -502,7 +535,7 @@ fn run_testnet() -> Result<()> {
                 &NetContract {
                     label: "".to_string(),
                     id: s_ammPair.id.clone(),
-                    address: ammPair.address.0.clone(),
+                    address: ammPair.address.to_string(),
                     code_hash: s_ammPair.code_hash.to_string(),
                 },
                 ACCOUNT_KEY,
@@ -514,12 +547,13 @@ fn run_testnet() -> Result<()> {
             )
             .unwrap();
 
+            print_header("\n\tAdding Liquidity to NATIVE/SNIP20 staking contract");
             handle(
                 &AMMPairHandlMsg::AddLiquidityToAMMContract {
                     deposit: TokenPairAmount {
                         pair: test_native_pair.clone(),
-                        amount_0: Uint128(10000000000),
-                        amount_1: Uint128(10000000000),
+                        amount_0: Uint128::new(10000000000),
+                        amount_1: Uint128::new(10000000000),
                     },
                     slippage: None,
                     staking: None,
@@ -527,7 +561,7 @@ fn run_testnet() -> Result<()> {
                 &NetContract {
                     label: "".to_string(),
                     id: s_ammPair.id.clone(),
-                    address: amm_pair_2.address.0.clone(),
+                    address: amm_pair_2.address.to_string(),
                     code_hash: s_ammPair.code_hash.to_string(),
                 },
                 ACCOUNT_KEY,
@@ -541,23 +575,20 @@ fn run_testnet() -> Result<()> {
 
             assert_eq!(
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-                Uint128(1000000000000 - 20000000000)
+                Uint128::new(1000000000000 - 20000000000)
             );
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                Uint128(1000000000000 - 10000000000)
+                Uint128::new(1000000000000 - 10000000000)
             );
 
             print_header("\n\tInitializing Router");
 
             let router_msg = RouterInitMsg {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
-                factory_address: ContractLink {
-                    address: HumanAddr(String::from(factory_contract.address)),
-                    code_hash: factory_contract.code_hash,
-                },
                 entropy: to_binary(&"".to_string()).unwrap(),
                 viewing_key: Some(ViewingKey::from(VIEW_KEY).to_string()),
+                pair_contract_code_hash: s_ammPair.code_hash.clone(),
             };
 
             let router_contract = init(
@@ -574,8 +605,8 @@ fn run_testnet() -> Result<()> {
             print_header("\n\tRegistering Tokens");
 
             handle(
-                &RouterHandleMsg::RegisterSNIP20Token {
-                    token: HumanAddr::from(s_sCRT.address.clone()),
+                &RouterExecuteMsg::RegisterSNIP20Token {
+                    token_addr: Addr::unchecked(s_sCRT.address.clone()),
                     token_code_hash: s_sCRT.code_hash.to_string(),
                 },
                 &router_contract,
@@ -589,8 +620,8 @@ fn run_testnet() -> Result<()> {
             .unwrap();
 
             handle(
-                &RouterHandleMsg::RegisterSNIP20Token {
-                    token: HumanAddr::from(s_sSHD.address.clone()),
+                &RouterExecuteMsg::RegisterSNIP20Token {
+                    token_addr: Addr::unchecked(s_sSHD.address.clone()),
                     token_code_hash: s_sSHD.code_hash.to_string(),
                 },
                 &router_contract,
@@ -603,20 +634,65 @@ fn run_testnet() -> Result<()> {
             )
             .unwrap();
 
+            {
+                let trade_count_info_msg = AMMPairQueryMsg::GetTradeCount {};
+                let trade_count_info_query: AMMPairQueryMsgResponse = query(
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.to_string(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    },
+                    trade_count_info_msg,
+                    None,
+                )?;
+
+                if let AMMPairQueryMsgResponse::GetTradeCount { count } = trade_count_info_query {
+                    assert_eq!(count, 0u64);
+                } else {
+                    panic!("Trade count couldnt pass")
+                }
+            }
+
+            {
+                let trade_count_info_msg = AMMPairQueryMsg::GetTradeHistory {
+                    pagination: Pagination {
+                        start: 0u64,
+                        limit: 10u8,
+                    },
+                };
+                let trade_count_info_query: AMMPairQueryMsgResponse = query(
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.to_string(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    },
+                    trade_count_info_msg,
+                    None,
+                )?;
+
+                if let AMMPairQueryMsgResponse::GetTradeHistory { data } = trade_count_info_query {
+                    assert_eq!(data.len(), 0u32  as usize);
+                } else {
+                    panic!("Trade count couldnt pass")
+                }
+            }
+
             print_header("\n\t 1. - BUY 100 sSHD Initiating sSCRT to sSHD Swap ");
             let mut old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             let mut old_shd_balance =
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::msg::HandleMsg::Send {
-                    recipient: HumanAddr::from(router_contract.address.to_string()),
-                    amount: Uint128(100),
+                &snip20::ExecuteMsg::Send {
+                    recipient: router_contract.address.to_string(),
+                    amount: Uint128::new(100),
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
-                            expected_return: Some(Uint128(10)),
+                            expected_return: Some(Uint128::new(10)),
                             paths: vec![ammPair.address.clone()],
-                            recipient: Some(HumanAddr::from(account.to_string())),
+                            recipient: Some(Addr::unchecked(account.to_string())),
                         })
                         .unwrap(),
                     ),
@@ -636,7 +712,7 @@ fn run_testnet() -> Result<()> {
 
             assert_eq!(
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-                (old_scrt_balance - Uint128(100)).unwrap()
+                (old_scrt_balance - Uint128::new(100))
             );
 
             assert_eq!(
@@ -645,7 +721,7 @@ fn run_testnet() -> Result<()> {
                     router_contract.address.to_string(),
                     VIEW_KEY.to_string()
                 ),
-                Uint128(0)
+                Uint128::new(0)
             );
             assert_eq!(
                 get_balance(
@@ -653,12 +729,58 @@ fn run_testnet() -> Result<()> {
                     router_contract.address.to_string(),
                     VIEW_KEY.to_string()
                 ),
-                Uint128(0)
+                Uint128::new(0)
             );
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                (old_shd_balance + Uint128(89))
+                (old_shd_balance + Uint128::new(89))
             );
+
+            {
+                let trade_count_info_msg = AMMPairQueryMsg::GetTradeCount {};
+                let trade_count_info_query: AMMPairQueryMsgResponse = query(
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.to_string(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    },
+                    trade_count_info_msg,
+                    None,
+                )?;
+
+                if let AMMPairQueryMsgResponse::GetTradeCount { count } = trade_count_info_query {
+                    assert_eq!(count, 1u64);
+                } else {
+                    panic!("Trade count couldnt pass")
+                }
+            }
+
+            
+            {
+                let trade_count_info_msg = AMMPairQueryMsg::GetTradeHistory {
+                    pagination: Pagination {
+                        start: 0u64,
+                        limit: 10u8,
+                    },
+                };
+                let trade_count_info_query: AMMPairQueryMsgResponse = query(
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.to_string(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    },
+                    trade_count_info_msg,
+                    None,
+                )?;
+
+                if let AMMPairQueryMsgResponse::GetTradeHistory { data } = trade_count_info_query {
+                    assert_eq!(data.len(), 1u32 as usize);
+                } else {
+                    panic!("Trade count couldnt pass")
+                }
+            }
 
             let mut old_shd_balance =
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
@@ -667,14 +789,14 @@ fn run_testnet() -> Result<()> {
             print_header("\n\t 2 - BUY 50 sSHD Initiating sSCRT to sSHD Swap ");
 
             handle(
-                &snip20::msg::HandleMsg::Send {
-                    recipient: HumanAddr::from(router_contract.address.to_string()),
-                    amount: Uint128(50),
+                &snip20::ExecuteMsg::Send {
+                    recipient: router_contract.address.to_string(),
+                    amount: Uint128::new(50),
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
-                            expected_return: Some(Uint128(5)),
+                            expected_return: Some(Uint128::new(5)),
                             paths: vec![ammPair.address.clone()],
-                            recipient: Some(HumanAddr::from(account.to_string())),
+                            recipient: Some(Addr::unchecked(account.to_string())),
                         })
                         .unwrap(),
                     ),
@@ -694,7 +816,7 @@ fn run_testnet() -> Result<()> {
 
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                old_shd_balance + Uint128(44)
+                old_shd_balance + Uint128::new(44)
             );
 
             assert_eq!(
@@ -703,7 +825,7 @@ fn run_testnet() -> Result<()> {
                     router_contract.address.to_string(),
                     VIEW_KEY.to_string()
                 ),
-                Uint128(0)
+                Uint128::new(0)
             );
             assert_eq!(
                 get_balance(
@@ -711,11 +833,11 @@ fn run_testnet() -> Result<()> {
                     router_contract.address.to_string(),
                     VIEW_KEY.to_string()
                 ),
-                Uint128(0)
+                Uint128::new(0)
             );
             assert_eq!(
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-                (old_scrt_balance - Uint128(50)).unwrap()
+                (old_scrt_balance - Uint128::new(50))
             );
 
             print_header("\n\t 3 - SELL 2500 sSHD Initiating sSHD to sSCRT Swap ");
@@ -724,14 +846,14 @@ fn run_testnet() -> Result<()> {
             let mut old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::msg::HandleMsg::Send {
-                    recipient: HumanAddr::from(router_contract.address.to_string()),
-                    amount: Uint128(2500),
+                &snip20::ExecuteMsg::Send {
+                    recipient: router_contract.address.to_string(),
+                    amount: Uint128::new(2500),
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
-                            expected_return: Some(Uint128(5)),
+                            expected_return: Some(Uint128::new(5)),
                             paths: vec![ammPair.address.clone()],
-                            recipient: Some(HumanAddr::from(account.to_string())),
+                            recipient: Some(Addr::unchecked(account.to_string())),
                         })
                         .unwrap(),
                     ),
@@ -751,7 +873,7 @@ fn run_testnet() -> Result<()> {
 
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                (old_shd_balance - Uint128(2500)).unwrap()
+                (old_shd_balance - Uint128::new(2500))
             );
 
             assert_eq!(
@@ -760,7 +882,7 @@ fn run_testnet() -> Result<()> {
                     router_contract.address.to_string(),
                     VIEW_KEY.to_string()
                 ),
-                Uint128(0)
+                Uint128::new(0)
             );
             assert_eq!(
                 get_balance(
@@ -768,11 +890,11 @@ fn run_testnet() -> Result<()> {
                     router_contract.address.to_string(),
                     VIEW_KEY.to_string()
                 ),
-                Uint128(0)
+                Uint128::new(0)
             );
             assert_eq!(
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-                old_scrt_balance + Uint128(2249)
+                old_scrt_balance + Uint128::new(2249)
             );
 
             print_header("\n\t 4 - SELL 36500 sSHD Initiating sSHD to sSCRT Swap ");
@@ -781,14 +903,14 @@ fn run_testnet() -> Result<()> {
             let mut old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::msg::HandleMsg::Send {
-                    recipient: HumanAddr::from(router_contract.address.to_string()),
-                    amount: Uint128(36500),
+                &snip20::ExecuteMsg::Send {
+                    recipient: router_contract.address.to_string(),
+                    amount: Uint128::new(36500),
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
-                            expected_return: Some(Uint128(5)),
+                            expected_return: Some(Uint128::new(5)),
                             paths: vec![ammPair.address.clone()],
-                            recipient: Some(HumanAddr::from(account.to_string())),
+                            recipient: Some(Addr::unchecked(account.to_string())),
                         })
                         .unwrap(),
                     ),
@@ -808,7 +930,7 @@ fn run_testnet() -> Result<()> {
 
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                (old_shd_balance - Uint128(36500)).unwrap()
+                (old_shd_balance - Uint128::new(36500))
             );
 
             assert_eq!(
@@ -817,7 +939,7 @@ fn run_testnet() -> Result<()> {
                     router_contract.address.to_string(),
                     VIEW_KEY.to_string()
                 ),
-                Uint128(0)
+                Uint128::new(0)
             );
             assert_eq!(
                 get_balance(
@@ -825,11 +947,11 @@ fn run_testnet() -> Result<()> {
                     router_contract.address.to_string(),
                     VIEW_KEY.to_string()
                 ),
-                Uint128(0)
+                Uint128::new(0)
             );
             assert_eq!(
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-                old_scrt_balance + Uint128(32849)
+                old_scrt_balance + Uint128::new(32849)
             );
 
             print_header("\n\t 5 - BUY 25000 sSHD Initiating sSCRT to sSHD Swap ");
@@ -838,14 +960,14 @@ fn run_testnet() -> Result<()> {
             let mut old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
-                &snip20::msg::HandleMsg::Send {
-                    recipient: HumanAddr::from(router_contract.address.to_string()),
-                    amount: Uint128(25000),
+                &snip20::ExecuteMsg::Send {
+                    recipient: router_contract.address.to_string(),
+                    amount: Uint128::new(25000),
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
-                            expected_return: Some(Uint128(5)),
+                            expected_return: Some(Uint128::new(5)),
                             paths: vec![ammPair.address.clone()],
-                            recipient: Some(HumanAddr::from(account.to_string())),
+                            recipient: Some(Addr::unchecked(account.to_string())),
                         })
                         .unwrap(),
                     ),
@@ -865,7 +987,7 @@ fn run_testnet() -> Result<()> {
 
             assert_eq!(
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-                old_shd_balance + Uint128(22500)
+                old_shd_balance + Uint128::new(22500)
             );
 
             assert_eq!(
@@ -874,7 +996,7 @@ fn run_testnet() -> Result<()> {
                     router_contract.address.to_string(),
                     VIEW_KEY.to_string()
                 ),
-                Uint128(0)
+                Uint128::new(0)
             );
             assert_eq!(
                 get_balance(
@@ -882,23 +1004,23 @@ fn run_testnet() -> Result<()> {
                     router_contract.address.to_string(),
                     VIEW_KEY.to_string()
                 ),
-                Uint128(0)
+                Uint128::new(0)
             );
             assert_eq!(
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-                (old_scrt_balance - Uint128(25000)).unwrap()
+                (old_scrt_balance - Uint128::new(25000))
             );
 
             print_header("\n\tInitiating SCRT to sSCRT Swap");
             old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
 
             handle(
-                &RouterHandleMsg::SwapTokensForExact {
+                &RouterExecuteMsg::SwapTokensForExact {
                     offer: TokenAmount {
                         token: TokenType::NativeToken {
                             denom: "uscrt".to_string(),
                         },
-                        amount: Uint128(100),
+                        amount: Uint128::new(100),
                     },
                     expected_return: None,
                     path: vec![amm_pair_2.address.clone()],
@@ -923,12 +1045,12 @@ fn run_testnet() -> Result<()> {
             old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
 
             handle(
-                &RouterHandleMsg::SwapTokensForExact {
+                &RouterExecuteMsg::SwapTokensForExact {
                     offer: TokenAmount {
                         token: TokenType::NativeToken {
                             denom: "uscrt".to_string(),
                         },
-                        amount: Uint128(100),
+                        amount: Uint128::new(100),
                     },
                     expected_return: None,
                     path: vec![amm_pair_2.address.clone(), ammPair.address.clone()],
@@ -958,14 +1080,14 @@ fn run_testnet() -> Result<()> {
             old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
 
             handle(
-                &snip20::msg::HandleMsg::Send {
-                    recipient: HumanAddr::from(router_contract.address.to_string()),
-                    amount: Uint128(100),
+                &snip20::ExecuteMsg::Send {
+                    recipient: router_contract.address.to_string(),
+                    amount: Uint128::new(100),
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
-                            expected_return: Some(Uint128(10)),
+                            expected_return: Some(Uint128::new(10)),
                             paths: vec![ammPair.address.clone(), amm_pair_2.address.clone()],
-                            recipient: Some(HumanAddr::from(account.to_string())),
+                            recipient: Some(Addr::unchecked(account.to_string())),
                         })
                         .unwrap(),
                     ),
@@ -996,10 +1118,10 @@ fn run_testnet() -> Result<()> {
             let estimated_price_query_msg = AMMPairQueryMsg::GetEstimatedPrice {
                 offer: TokenAmount {
                     token: TokenType::CustomToken {
-                        contract_addr: s_sCRT.address.clone().into(),
+                        contract_addr: Addr::unchecked(s_sCRT.address.clone()),
                         token_code_hash: s_sCRT.code_hash.clone(),
                     },
-                    amount: Uint128(100),
+                    amount: Uint128::new(100),
                 },
                 exclude_fee: None,
             };
@@ -1007,7 +1129,7 @@ fn run_testnet() -> Result<()> {
                 &NetContract {
                     label: "".to_string(),
                     id: s_ammPair.id.clone(),
-                    address: ammPair.address.0.clone(),
+                    address: ammPair.address.to_string(),
                     code_hash: s_ammPair.code_hash.to_string(),
                 },
                 estimated_price_query_msg,
@@ -1025,7 +1147,7 @@ fn run_testnet() -> Result<()> {
                 &NetContract {
                     label: "".to_string(),
                     id: s_ammPair.id.clone(),
-                    address: ammPair.address.0.clone(),
+                    address: ammPair.address.to_string(),
                     code_hash: s_ammPair.code_hash.to_string(),
                 },
                 lp_token_info_msg,
@@ -1047,7 +1169,7 @@ fn run_testnet() -> Result<()> {
                     liquidity_token.address.to_string()
                 );
                 print_header("\n\tLP Token Liquidity - 10000000000");
-                assert_eq!(total_liquidity, Uint128(10000000000));
+                assert_eq!(total_liquidity, Uint128::new(10000000000));
             }
 
             let staking_contract_msg = AMMPairQueryMsg::GetStakingContract {};
@@ -1055,7 +1177,7 @@ fn run_testnet() -> Result<()> {
                 &NetContract {
                     label: "".to_string(),
                     id: s_ammPair.id.clone(),
-                    address: ammPair.address.0.clone(),
+                    address: ammPair.address.to_string(),
                     code_hash: s_ammPair.code_hash.to_string(),
                 },
                 staking_contract_msg,
@@ -1068,9 +1190,9 @@ fn run_testnet() -> Result<()> {
                 println!("\n\tAllowed IncreaseAllowance for reward token - staking contract");
                 // increase allowance for reward token
                 handle(
-                    &snip20::msg::HandleMsg::IncreaseAllowance {
-                        spender: staking_contract.address.clone(),
-                        amount: Uint128(1000000000000),
+                    &snip20::ExecuteMsg::IncreaseAllowance {
+                        spender: staking_contract.clone().unwrap().address.to_string(),
+                        amount: Uint128::new(1000000000000),
                         expiration: None,
                         padding: None,
                     },
@@ -1091,9 +1213,9 @@ fn run_testnet() -> Result<()> {
 
                 // send Reward token to staking contract
                 handle(
-                    &snip20::msg::HandleMsg::Send {
-                        recipient: staking_contract.address.clone(),
-                        amount: Uint128(100000000000),
+                    &snip20::ExecuteMsg::Send {
+                        recipient: staking_contract.clone().unwrap().address.to_string(),
+                        amount: Uint128::new(100000000000),
                         msg: None,
                         padding: None,
                         recipient_code_hash: None,
@@ -1113,14 +1235,14 @@ fn run_testnet() -> Result<()> {
 
                 handle(
                     &StakingMsgHandle::Unstake {
-                        amount: Uint128(5000000000),
+                        amount: Uint128::new(5000000000),
                         remove_liqudity: Some(true),
                     },
                     &NetContract {
                         label: "".to_string(),
                         id: "".to_string(),
-                        address: staking_contract.address.to_string(),
-                        code_hash: staking_contract.code_hash.to_string(),
+                        address: staking_contract.clone().unwrap().address.to_string(),
+                        code_hash: staking_contract.clone().unwrap().code_hash.clone(),
                     },
                     ACCOUNT_KEY,
                     Some(GAS),
@@ -1136,7 +1258,7 @@ fn run_testnet() -> Result<()> {
                     &NetContract {
                         label: "".to_string(),
                         id: s_ammPair.id.clone(),
-                        address: ammPair.address.0.clone(),
+                        address: ammPair.address.to_string(),
                         code_hash: s_ammPair.code_hash.to_string(),
                     },
                     lp_token_info_msg,
@@ -1158,18 +1280,18 @@ fn run_testnet() -> Result<()> {
                         liquidity_token.address.to_string()
                     );
                     print_header("\n\tLP Token Liquidity - 5000000000");
-                    assert_eq!(total_liquidity.clone(), Uint128(5000000000));
+                    assert_eq!(total_liquidity.clone(), Uint128::new(5000000000));
                 }
                 handle(
                     &StakingMsgHandle::Unstake {
-                        amount: Uint128(50000000),
+                        amount: Uint128::new(50000000),
                         remove_liqudity: Some(true),
                     },
                     &NetContract {
                         label: "".to_string(),
                         id: "".to_string(),
-                        address: staking_contract.address.to_string(),
-                        code_hash: staking_contract.code_hash.to_string(),
+                        address: staking_contract.clone().unwrap().address.to_string(),
+                        code_hash: staking_contract.clone().unwrap().code_hash.clone(),
                     },
                     ACCOUNT_KEY,
                     Some(GAS),
@@ -1185,7 +1307,7 @@ fn run_testnet() -> Result<()> {
                     &NetContract {
                         label: "".to_string(),
                         id: s_ammPair.id.clone(),
-                        address: ammPair.address.0.clone(),
+                        address: ammPair.address.to_string(),
                         code_hash: s_ammPair.code_hash.to_string(),
                     },
                     lp_token_info_msg,
@@ -1206,14 +1328,14 @@ fn run_testnet() -> Result<()> {
                         liquidity_token.address.to_string()
                     );
                     print_header("\n\tLP Token Liquidity - 4950000000");
-                    assert_eq!(total_liquidity.clone(), Uint128(4950000000));
+                    assert_eq!(total_liquidity.clone(), Uint128::new(4950000000));
                 }
 
                 print_header("\n\tIncreaseAllowance - 500000000 for liqudity ");
                 handle(
-                    &snip20::msg::HandleMsg::IncreaseAllowance {
-                        spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-                        amount: Uint128(500000000),
+                    &snip20::ExecuteMsg::IncreaseAllowance {
+                        spender: ammPair.address.to_string(),
+                        amount: Uint128::new(500000000),
                         expiration: None,
                         padding: None,
                     },
@@ -1232,9 +1354,9 @@ fn run_testnet() -> Result<()> {
                 )
                 .unwrap();
                 handle(
-                    &snip20::msg::HandleMsg::IncreaseAllowance {
-                        spender: HumanAddr(String::from(ammPair.address.0.to_string())),
-                        amount: Uint128(500000000),
+                    &snip20::ExecuteMsg::IncreaseAllowance {
+                        spender: ammPair.address.to_string(),
+                        amount: Uint128::new(500000000),
                         expiration: None,
                         padding: None,
                     },
@@ -1257,8 +1379,8 @@ fn run_testnet() -> Result<()> {
                     &AMMPairHandlMsg::AddLiquidityToAMMContract {
                         deposit: TokenPairAmount {
                             pair: test_pair.clone(),
-                            amount_0: Uint128(500000000),
-                            amount_1: Uint128(500000000),
+                            amount_0: Uint128::new(500000000),
+                            amount_1: Uint128::new(500000000),
                         },
                         slippage: None,
                         staking: Some(true),
@@ -1266,7 +1388,7 @@ fn run_testnet() -> Result<()> {
                     &NetContract {
                         label: "".to_string(),
                         id: s_ammPair.id.clone(),
-                        address: ammPair.address.0.clone(),
+                        address: ammPair.address.to_string(),
                         code_hash: s_ammPair.code_hash.to_string(),
                     },
                     ACCOUNT_KEY,
@@ -1283,7 +1405,7 @@ fn run_testnet() -> Result<()> {
                     &NetContract {
                         label: "".to_string(),
                         id: s_ammPair.id.clone(),
-                        address: ammPair.address.0.clone(),
+                        address: ammPair.address.to_string(),
                         code_hash: s_ammPair.code_hash.to_string(),
                     },
                     lp_token_info_msg,
@@ -1305,19 +1427,19 @@ fn run_testnet() -> Result<()> {
                         liquidity_token.address.to_string()
                     );
                     print_header("\n\tLP Token Liquidity - 5449999219");
-                    assert_eq!(total_liquidity, Uint128(5449999219));
+                    assert_eq!(total_liquidity, Uint128::new(5449999219));
                 }
 
                 print_header("\n\tSwap Simulation - Buy 540000SSH");
                 let swap_simulation_msg = RouterQueryMsg::SwapSimulation {
                     offer: TokenAmount {
-                        amount: Uint128(540000),
+                        amount: Uint128::new(540000),
                         token: TokenType::CustomToken {
                             token_code_hash: s_sCRT.code_hash.to_string(),
-                            contract_addr: HumanAddr::from(s_sCRT.address.clone()),
+                            contract_addr: Addr::unchecked(s_sCRT.address.clone()),
                         },
                     },
-                    path: vec![HumanAddr::from(ammPair.address.0.clone())],
+                    path: vec![ammPair.address.clone()],
                 };
 
                 let swap_result_response: RouterQueryResponse = query(
@@ -1339,7 +1461,7 @@ fn run_testnet() -> Result<()> {
                     price,
                 } = swap_result_response
                 {
-                    assert_ne!(result.return_amount, Uint128(0u128));
+                    assert_ne!(result.return_amount, Uint128::new(0u128));
                 }
 
                 print_header("\n\tGet Shade DAO Info with Admin Address");
@@ -1348,7 +1470,7 @@ fn run_testnet() -> Result<()> {
                     &NetContract {
                         label: "".to_string(),
                         id: s_ammPair.id.clone(),
-                        address: ammPair.address.0.clone(),
+                        address: ammPair.address.to_string(),
                         code_hash: s_ammPair.code_hash.to_string(),
                     },
                     get_shade_dao_msg,
@@ -1362,87 +1484,82 @@ fn run_testnet() -> Result<()> {
                     lp_fee,
                 } = shade_dao_response
                 {
-                    assert_ne!(admin_address.to_string(), HumanAddr::default().to_string());
+                    assert_ne!(
+                        admin_address.to_string(),
+                        Addr::unchecked("".to_string()).to_string()
+                    );
                     assert_ne!(
                         shade_dao_address.to_string(),
-                        HumanAddr::default().to_string()
+                        Addr::unchecked("".to_string()).to_string()
                     )
                 }
-                // set viewing key for staker
-                print_header("\n\t Set Viewing Key for Staker - Staking Contract password");
-                handle(
-                    &StakingMsgHandle::SetVKForStaker {
-                        key: "password".to_string(),
-                    },
-                    &NetContract {
-                        label: "".to_string(),
-                        id: "".to_string(),
-                        address: staking_contract.address.to_string(),
-                        code_hash: staking_contract.code_hash.to_string(),
-                    },
-                    ACCOUNT_KEY,
-                    Some(GAS),
-                    Some("test"),
-                    None,
-                    &mut reports,
-                    None,
-                )
-                .unwrap();
 
                 print_header("\n\tGet Claimamble Rewards ");
-                let get_claims_reward_msg = StakingQueryMsg::GetClaimReward {
-                    staker: HumanAddr::from(account.to_string()),
-                    time: get_current_timestamp().unwrap(),
-                    key: "password".to_string(),
+                let get_claims_reward_msg = StakingQueryMsg::WithPermit {
+                    permit: newPermit.clone(),
+                    query: AuthQuery::GetClaimReward {
+                        time: get_current_timestamp().unwrap(),
+                    },
                 };
                 let claims_reward_response: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
                         id: "".to_string(),
-                        address: staking_contract.address.to_string(),
-                        code_hash: staking_contract.code_hash.to_string(),
+                        address: staking_contract.clone().unwrap().address.to_string(),
+                        code_hash: staking_contract.clone().unwrap().code_hash.to_string(),
                     },
                     get_claims_reward_msg,
                     None,
                 )?;
 
-                if let StakingQueryMsgResponse::ClaimReward { 
+                if let StakingQueryMsgResponse::ClaimReward {
                     amount,
-                    reward_token 
-                } = claims_reward_response {
-                    assert_ne!(amount, Uint128(0));
-                    assert_eq!(reward_token.address.to_string(),s_sREWARDSNIP20.address.clone().to_string())
+                    reward_token,
+                } = claims_reward_response
+                {
+                    assert_ne!(amount, Uint128::new(0));
+                    assert_eq!(
+                        reward_token.address.to_string(),
+                        s_sREWARDSNIP20.address.clone().to_string()
+                    )
                 }
 
                 print_header("\n\tGet Staking Contract Config Info");
-                let get_config_msg = StakingQueryMsg::GetConfig {  };
+                let get_config_msg = StakingQueryMsg::GetConfig {};
                 let config_query_response: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
                         id: "".to_string(),
-                        address: staking_contract.address.to_string(),
-                        code_hash: staking_contract.code_hash.to_string(),
+                        address: staking_contract.clone().unwrap().address.to_string(),
+                        code_hash: staking_contract.clone().unwrap().code_hash.to_string(),
                     },
                     get_config_msg,
                     None,
                 )?;
 
-                if let StakingQueryMsgResponse::Config { 
+                if let StakingQueryMsgResponse::Config {
                     reward_token,
                     lp_token,
                     contract_owner,
-                    daily_reward_amount
-                 } = config_query_response {
-                    assert_eq!(reward_token.address.to_string(), s_sREWARDSNIP20.address.clone().to_string());
-                    assert_eq!(reward_token.code_hash.to_string(), s_sREWARDSNIP20.code_hash.clone());                   
-                    assert_eq!(daily_reward_amount,Uint128(3450000000000));                      
+                    daily_reward_amount,
+                } = config_query_response
+                {
+                    assert_eq!(
+                        reward_token.address.to_string(),
+                        s_sREWARDSNIP20.address.clone().to_string()
+                    );
+                    assert_eq!(
+                        reward_token.code_hash.to_string(),
+                        s_sREWARDSNIP20.code_hash.clone()
+                    );
+                    assert_eq!(daily_reward_amount, Uint128::new(3450000000000));
                 }
                 print_header("\n\tGet Estimated LP Token & Total LP Token Liquditiy");
                 let get_estimated_lp_token = AMMPairQueryMsg::GetEstimatedLiquidity {
                     deposit: TokenPairAmount {
                         pair: test_pair.clone(),
-                        amount_0: Uint128(10000000000),
-                        amount_1: Uint128(10000000000),
+                        amount_0: Uint128::new(10000000000),
+                        amount_1: Uint128::new(10000000000),
                     },
                     slippage: None,
                 };
@@ -1450,7 +1567,7 @@ fn run_testnet() -> Result<()> {
                     &NetContract {
                         label: "".to_string(),
                         id: s_ammPair.id.clone(),
-                        address: ammPair.address.0.clone(),
+                        address: ammPair.address.to_string(),
                         code_hash: s_ammPair.code_hash.to_string(),
                     },
                     get_estimated_lp_token,
@@ -1462,20 +1579,21 @@ fn run_testnet() -> Result<()> {
                     total_lp_token,
                 } = estimated_lp_token
                 {
-                    assert_ne!(lp_token, Uint128(0));
-                    assert_ne!(total_lp_token, Uint128(0))
+                    assert_ne!(lp_token, Uint128::new(0));
+                    assert_ne!(total_lp_token, Uint128::new(0))
                 }
                 print_header("\n\tGetStakeLpTokenInfo For Staker");
-                let get_stake_lp_token_info = StakingQueryMsg::GetStakerLpTokenInfo {
-                    key: "password".to_string(),
-                    staker: HumanAddr::from(account.to_string()),
+                let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
+                    permit: newPermit,
+                    query: AuthQuery::GetStakerLpTokenInfo {},
                 };
+
                 let stake_lp_token_info: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
                         id: "".to_string(),
-                        address: staking_contract.address.to_string(),
-                        code_hash: staking_contract.code_hash.to_string(),
+                        address: staking_contract.clone().unwrap().address.to_string(),
+                        code_hash: staking_contract.clone().unwrap().code_hash.to_string(),
                     },
                     get_stake_lp_token_info,
                     None,
@@ -1486,56 +1604,45 @@ fn run_testnet() -> Result<()> {
                     total_staked_lp_token,
                 } = stake_lp_token_info
                 {
-                    assert_ne!(staked_lp_token, Uint128(0));
-                    assert_ne!(total_staked_lp_token, Uint128(0))
+                    assert_ne!(staked_lp_token, Uint128::new(0));
+                    assert_ne!(total_staked_lp_token, Uint128::new(0))
                 }
+                /* TO DO FIX
                 print_header("\n\tGetRewardTokenBalance");
-                let get_balance_reward_token_msg = StakingQueryMsg::GetRewardTokenBalance {
-                    key: String::from(VIEW_KEY),
-                    address: HumanAddr::from(account.to_string()),
-                };
+                let get_balance_reward_token_msg = StakingQueryMsg::WithPermit { permit: newPermit, query: AuthQuery::GetRewardTokenBalance {
+                }};
+
                 let balance_reward_token: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
                         id: "".to_string(),
-                        address: staking_contract.address.to_string(),
-                        code_hash: staking_contract.code_hash.to_string(),
+                        address: staking_contract.clone().unwrap().address.to_string(),
+                        code_hash: staking_contract.clone().unwrap().code_hash.to_string(),
                     },
                     get_balance_reward_token_msg,
                     None,
-                )?;
+                )?;*/
 
-                if let StakingQueryMsgResponse::RewardTokenBalance { 
-                    amount, 
-                    reward_token} = balance_reward_token
+                /*if let StakingQueryMsgResponse::RewardTokenBalance {
+                    amount,
+                    reward_token,
+                } = balance_reward_token
                 {
-                    assert_eq!(reward_token.address.to_string().clone(),s_sREWARDSNIP20.address.clone());
-                    assert_eq!(reward_token.code_hash.clone(),s_sREWARDSNIP20.code_hash.to_string());
-                    assert_ne!(amount, Uint128(0));
-                }
-                print_header("\n\tSet VK for non Staker");
-                handle(
-                    &StakingMsgHandle::SetVKForStaker { key: "password".to_string() },
-                    &NetContract {
-                        label: "".to_string(),
-                        id: "".to_string(),
-                        address: staking_contract.address.to_string(),
-                        code_hash: staking_contract.code_hash.to_string(),
-                    },
-                    STAKER_KEY,
-                    Some(GAS),
-                    Some("test"),
-                    None,
-                    &mut reports,
-                    None,
-                )
-                .unwrap();
-                
+                    assert_eq!(
+                        reward_token.address.to_string().clone(),
+                        s_sREWARDSNIP20.address.clone()
+                    );
+                    assert_eq!(
+                        reward_token.code_hash.clone(),
+                        s_sREWARDSNIP20.code_hash.to_string()
+                    );
+                    assert_ne!(amount, Uint128::new(0));
+                }*/
                 print_header("\n\t GetStakerRewardTokenBalance for Non Staker");
                 // let get_staker_reward_token_balance_msg =
                 //     StakingQueryMsg::GetStakerRewardTokenBalance {
                 //         key: String::from(VIEW_KEY),
-                //         staker: HumanAddr::from(staker_account.to_string()),
+                //         staker: Addr::unchecked(staker_account.to_string()),
                 //     };
                 // let staker_reward_token_balance: StakingQueryMsgResponse = query(
                 //     &NetContract {
@@ -1553,22 +1660,20 @@ fn run_testnet() -> Result<()> {
                 //     total_reward_liquidity,
                 // } = staker_reward_token_balance
                 // {
-                //     assert_ne!(reward_amount, Uint128(0));
-                //     assert_ne!(total_reward_liquidity, Uint128(0));
+                //     assert_ne!(reward_amount, Uint128::new(0));
+                //     assert_ne!(total_reward_liquidity, Uint128::new(0));
                 // }
 
-                print_header("\n\t GetStakerRewardTokenBalance for Staker");
+                /*print_header("\n\t GetStakerRewardTokenBalance for Staker");
                 let get_staker_reward_token_balance_msg =
-                    StakingQueryMsg::GetStakerRewardTokenBalance {
-                        key: String::from(VIEW_KEY),
-                        staker: HumanAddr::from(account.to_string()),
-                    };
+                StakingQueryMsg::WithPermit { permit: newPermit.clone(), query: AuthQuery::GetStakerRewardTokenBalance {
+                    }};
                 let staker_reward_token_balance: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
                         id: "".to_string(),
-                        address: staking_contract.address.to_string(),
-                        code_hash: staking_contract.code_hash.to_string(),
+                        address: staking_contract.clone().unwrap().address.to_string(),
+                        code_hash: staking_contract.clone().unwrap().code_hash.to_string(),
                     },
                     get_staker_reward_token_balance_msg,
                     None,
@@ -1577,14 +1682,20 @@ fn run_testnet() -> Result<()> {
                 if let StakingQueryMsgResponse::StakerRewardTokenBalance {
                     reward_amount,
                     total_reward_liquidity,
-                    reward_token
+                    reward_token,
                 } = staker_reward_token_balance
                 {
-                    assert_ne!(reward_amount, Uint128(0));
-                    assert_ne!(total_reward_liquidity, Uint128(0));
-                    assert_eq!(reward_token.address.to_string(), s_sREWARDSNIP20.address.clone());
-                    assert_eq!(reward_token.code_hash.clone(), s_sREWARDSNIP20.code_hash.to_string());
-                }
+                    assert_ne!(reward_amount, Uint128::new(0));
+                    assert_ne!(total_reward_liquidity, Uint128::new(0));
+                    assert_eq!(
+                        reward_token.address.to_string(),
+                        s_sREWARDSNIP20.address.clone()
+                    );
+                    assert_eq!(
+                        reward_token.code_hash.clone(),
+                        s_sREWARDSNIP20.code_hash.to_string()
+                    );
+                }*/
             }
         } else {
             assert!(false, "Query returned unexpected response")
@@ -1627,7 +1738,7 @@ fn run_test_deploy() -> Result<()> {
             lp_fee: Fee::new(8, 100),
             shade_dao_fee: Fee::new(2, 100),
             shade_dao_address: ContractLink {
-                address: HumanAddr(String::from(shade_dao.to_string())),
+                address: Addr::unchecked(String::from(shade_dao.to_string())),
                 code_hash: "".to_string(),
             },
         },
@@ -1668,12 +1779,9 @@ fn run_test_deploy() -> Result<()> {
 
             let router_msg = RouterInitMsg {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
-                factory_address: ContractLink {
-                    address: HumanAddr(String::from(factory_contract.address)),
-                    code_hash: factory_contract.code_hash,
-                },
                 entropy: to_binary(&"".to_string()).unwrap(),
                 viewing_key: Some(ViewingKey::from(VIEW_KEY).to_string()),
+                pair_contract_code_hash: s_ammPair.code_hash.to_string(),
             };
 
             let router_contract = init(
@@ -1696,14 +1804,14 @@ fn run_test_deploy() -> Result<()> {
 }
 
 pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Uint128 {
-    let msg = snip20::msg::QueryMsg::Balance {
-        address: HumanAddr::from(from),
+    let msg = snip20::QueryMsg::Balance {
+        address: from,
         key: view_key,
     };
 
-    let balance: snip20::msg::QueryAnswer = query(contract, &msg, None).unwrap();
+    let balance: snip20::QueryAnswer = query(contract, &msg, None).unwrap();
 
-    if let snip20::msg::QueryAnswer::Balance { amount } = balance {
+    if let snip20::QueryAnswer::Balance { amount } = balance {
         return amount;
     }
     Uint128::zero()

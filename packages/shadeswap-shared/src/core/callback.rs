@@ -1,51 +1,27 @@
 
 
-use cosmwasm_std::{Binary, CosmosMsg, WasmMsg, HumanAddr, CanonicalAddr};
+use cosmwasm_std::{Binary, CosmosMsg, WasmMsg, CanonicalAddr, Addr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{ContractLink, Canonize, Humanize};
+use super::{ContractLink};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 /// Info needed to have the other contract respond.
-pub struct Callback<A> {
+pub struct Callback {
     /// The message to call.
     pub msg: Binary,
     /// Info about the contract requesting the callback.
-    pub contract: ContractLink<A>
+    pub contract: ContractLink
 }
 
-impl Canonize for Callback<HumanAddr> 
-{
-    type Output = Callback<CanonicalAddr>;
-
-    fn canonize(self, api: &impl cosmwasm_std::Api) -> cosmwasm_std::StdResult<Self::Output> {
-        Ok(Callback{
-            msg: self.msg,
-            contract: self.contract.canonize(api)?,
-        })
-    }
-}
-
-impl Humanize for Callback<CanonicalAddr> 
-{
-    type Output = Callback<HumanAddr>;
-
-    fn humanize(self, api: &impl cosmwasm_std::Api) -> cosmwasm_std::StdResult<Self::Output> {
-        Ok(Callback{
-            msg: self.msg,
-            contract: self.contract.humanize(api)?,
-        })
-    }
-}
-
-impl Into<CosmosMsg> for Callback<HumanAddr> {
+impl Into<CosmosMsg> for Callback {
     fn into(self) -> CosmosMsg {
         CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: self.contract.address,
-            callback_code_hash: self.contract.code_hash,
+            contract_addr: self.contract.address.into_string(),
+            code_hash: self.contract.code_hash,
             msg: self.msg,
-            send: vec![]
+            funds: vec![]
         })
     }
 }

@@ -68,7 +68,7 @@ server-download:
 
 # Starts the docker server / private testnet
 server-start:
-	docker run -it --rm -p 9091:9091 -p 26657:26657 -p 1317:1317 -p 5000:5000 -v $$(pwd):/root/code --name shade-testnet cryptobrokersglobal/localsecret:v1.4.0-beta.11
+	docker run -it --rm -p 9091:9091 -p 26657:26657 -p 1317:1317 -p 5000:5000 -v $$(pwd):/root/code --name shade-testnet cryptobrokersglobal/localsecret:v1.4.1-beta.8
 
 # Connects to the docker server
 server-connect:

@@ -455,7 +455,7 @@ pub fn load_trade_history_query(
     deps: Deps,
     pagination: Pagination,
 ) -> StdResult<Vec<TradeHistory>> {
-    let count = trade_count_r(deps.storage).load()?;
+    let count = trade_count_r(deps.storage).may_load()?.unwrap_or(0u64);
 
     if pagination.start >= count {
         return Ok(vec![]);

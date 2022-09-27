@@ -21,7 +21,7 @@ pub const BLOCK_SIZE: usize = 256;
 pub use utils::asset::Contract;
 pub use serde;
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
 pub struct Pagination {
     pub start: u64,
     pub limit: u8,

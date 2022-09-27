@@ -84,7 +84,6 @@ fn run_testnet() -> Result<()> {
     print_header("\n\t Set Viewing Key for Staker - Staking Contract password");
     print_header(&to_binary(&QueryData {}).unwrap().to_base64());
 
-
     type TestPermit = Permit<PermitData>;
     //secretd tx sign-doc file --from a
     let newPermit = TestPermit{
@@ -98,8 +97,6 @@ fn run_testnet() -> Result<()> {
         account_number: Some(Uint128::zero()),
         memo: Some("".to_string())
     };
-
-
 
     // print_header("Initializing sSCRT");
     // let (s_sSINIT, s_sCRT) = init_snip20(
@@ -299,11 +296,11 @@ fn run_testnet() -> Result<()> {
             &mut reports,
             None,
         )?;
-        
-    assert_eq!(
-        get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-        Uint128::new(1000000000000)
-    );
+
+        assert_eq!(
+            get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(1000000000000)
+        );
     }
 
     print_header("\n\tInitializing Factory Contract");
@@ -637,8 +634,6 @@ fn run_testnet() -> Result<()> {
             )
             .unwrap();
 
-            
-
             {
                 let trade_count_info_msg = AMMPairQueryMsg::GetTradeCount {};
                 let trade_count_info_query: AMMPairQueryMsgResponse = query(
@@ -652,15 +647,34 @@ fn run_testnet() -> Result<()> {
                     None,
                 )?;
 
-                    
-                if let AMMPairQueryMsgResponse::GetTradeCount {
-                    count
-                } = trade_count_info_query
-                {
+                if let AMMPairQueryMsgResponse::GetTradeCount { count } = trade_count_info_query {
                     assert_eq!(count, 0u64);
+                } else {
+                    panic!("Trade count couldnt pass")
                 }
-                else
-                {
+            }
+
+            {
+                let trade_count_info_msg = AMMPairQueryMsg::GetTradeHistory {
+                    pagination: Pagination {
+                        start: 0u64,
+                        limit: 10u8,
+                    },
+                };
+                let trade_count_info_query: AMMPairQueryMsgResponse = query(
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.to_string(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    },
+                    trade_count_info_msg,
+                    None,
+                )?;
+
+                if let AMMPairQueryMsgResponse::GetTradeHistory { data } = trade_count_info_query {
+                    assert_eq!(data.len(), 0u32  as usize);
+                } else {
                     panic!("Trade count couldnt pass")
                 }
             }
@@ -735,18 +749,39 @@ fn run_testnet() -> Result<()> {
                     None,
                 )?;
 
-                    
-                if let AMMPairQueryMsgResponse::GetTradeCount {
-                    count
-                } = trade_count_info_query
-                {
+                if let AMMPairQueryMsgResponse::GetTradeCount { count } = trade_count_info_query {
                     assert_eq!(count, 1u64);
-                }
-                else
-                {
+                } else {
                     panic!("Trade count couldnt pass")
                 }
             }
+
+            
+            {
+                let trade_count_info_msg = AMMPairQueryMsg::GetTradeHistory {
+                    pagination: Pagination {
+                        start: 0u64,
+                        limit: 10u8,
+                    },
+                };
+                let trade_count_info_query: AMMPairQueryMsgResponse = query(
+                    &NetContract {
+                        label: "".to_string(),
+                        id: s_ammPair.id.clone(),
+                        address: ammPair.address.to_string(),
+                        code_hash: s_ammPair.code_hash.to_string(),
+                    },
+                    trade_count_info_msg,
+                    None,
+                )?;
+
+                if let AMMPairQueryMsgResponse::GetTradeHistory { data } = trade_count_info_query {
+                    assert_eq!(data.len(), 1u32 as usize);
+                } else {
+                    panic!("Trade count couldnt pass")
+                }
+            }
+
             let mut old_shd_balance =
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             let mut old_scrt_balance =
@@ -1449,19 +1484,23 @@ fn run_testnet() -> Result<()> {
                     lp_fee,
                 } = shade_dao_response
                 {
-                    assert_ne!(admin_address.to_string(), Addr::unchecked("".to_string()).to_string());
+                    assert_ne!(
+                        admin_address.to_string(),
+                        Addr::unchecked("".to_string()).to_string()
+                    );
                     assert_ne!(
                         shade_dao_address.to_string(),
                         Addr::unchecked("".to_string()).to_string()
                     )
                 }
 
-
                 print_header("\n\tGet Claimamble Rewards ");
-                let get_claims_reward_msg = StakingQueryMsg::WithPermit { permit: newPermit.clone(), query: AuthQuery::GetClaimReward {
-                    time: get_current_timestamp().unwrap()
-                }};
-                
+                let get_claims_reward_msg = StakingQueryMsg::WithPermit {
+                    permit: newPermit.clone(),
+                    query: AuthQuery::GetClaimReward {
+                        time: get_current_timestamp().unwrap(),
+                    },
+                };
                 let claims_reward_response: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
@@ -1544,8 +1583,10 @@ fn run_testnet() -> Result<()> {
                     assert_ne!(total_lp_token, Uint128::new(0))
                 }
                 print_header("\n\tGetStakeLpTokenInfo For Staker");
-                let get_stake_lp_token_info = StakingQueryMsg::WithPermit { permit: newPermit, query: AuthQuery::GetStakerLpTokenInfo {
-                }};
+                let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
+                    permit: newPermit,
+                    query: AuthQuery::GetStakerLpTokenInfo {},
+                };
 
                 let stake_lp_token_info: StakingQueryMsgResponse = query(
                     &NetContract {

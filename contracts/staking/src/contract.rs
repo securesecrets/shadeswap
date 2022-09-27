@@ -86,7 +86,7 @@ fn receiver_callback(
 
     let config = config_r(deps.storage).load()?;
     match from_binary(&msg)? {
-        InvokeMsg::Stake { from, amount } => {
+        InvokeMsg::Stake { from } => {
             if config.lp_token.address != info.sender {
                 return Err(StdError::generic_err("Sender was not LP Token".to_string()));
             }

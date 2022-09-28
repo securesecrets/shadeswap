@@ -105,42 +105,42 @@ pub fn register_lp_token(
     // store config against Smart contract address
     config_w(deps.storage).save(&config.clone())?;
 
-    let mut messages = Vec::new();
+    //let mut messages = Vec::new();
     // register pair contract for LP receiver
-    messages.push(register_receive(
+    //messages.push();
+
+    let mut response = Response::new().add_message(register_receive(
         env.contract.code_hash.clone(),
         None,
         &lp_token_address.clone(),
     )?);
 
-    let mut response = Response::new().add_messages(messages);
-
-    // match config.staking_contract_init {
-    //     Some(c) => {
-    //         response = response.add_submessage(SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Instantiate {
-    //             code_id: c.contract_info.id,
-    //             label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
-    //             msg: to_binary(&StakingInitMsg {
-    //                 staking_amount: c.amount,
-    //                 reward_token: c.reward_token.clone(),
-    //                 pair_contract: ContractLink {
-    //                     address: env.contract.address.clone(),
-    //                     code_hash: env.contract.code_hash.clone(),
-    //                 },
-    //                 prng_seed: config.prng_seed.clone(),
-    //                 lp_token: ContractLink {
-    //                     address: lp_token_address.address.clone(),
-    //                     code_hash: lp_token_address.code_hash.clone(),
-    //                 },
-    //             })?,
-    //             code_hash: c.contract_info.code_hash.clone(),
-    //             funds: vec![],
-    //         }), INSTANTIATE_STAKING_CONTRACT_REPLY_ID));
-    //     }
-    //     _ => {
-    //         ();
-    //     }
-    // }
+    match config.staking_contract_init {
+        Some(c) => {
+            response = response.add_submessage(SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Instantiate {
+                code_id: c.contract_info.id,
+                label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
+                msg: to_binary(&StakingInitMsg {
+                    staking_amount: c.amount,
+                    reward_token: c.reward_token.clone(),
+                    pair_contract: ContractLink {
+                        address: env.contract.address.clone(),
+                        code_hash: env.contract.code_hash.clone(),
+                    },
+                    prng_seed: config.prng_seed.clone(),
+                    lp_token: ContractLink {
+                        address: lp_token_address.address.clone(),
+                        code_hash: lp_token_address.code_hash.clone(),
+                    },
+                })?,
+                code_hash: c.contract_info.code_hash.clone(),
+                funds: vec![],
+            }), INSTANTIATE_STAKING_CONTRACT_REPLY_ID));
+        }
+        _ => {
+            ();
+        }
+    }
 
     Ok(response)
 }

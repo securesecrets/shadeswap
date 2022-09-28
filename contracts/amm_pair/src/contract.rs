@@ -320,26 +320,27 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
         (INSTANTIATE_LP_TOKEN_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
             Some(x) => {
                 let contract_address = String::from_utf8(x.to_vec())?;
+                let config = config_r(deps.storage).load()?;
                 register_lp_token(
                     deps,
                     _env,
                     Contract {
                         address: Addr::unchecked(contract_address),
-                        code_hash: "".to_string(),
+                        code_hash: config.lp_token.code_hash,
                     },
-                )//;
-                //Ok(Response::default())
+                )
             }
             None => Err(StdError::generic_err(format!("Unknown reply id"))),
         },
         (INSTANTIATE_STAKING_CONTRACT_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
             Some(x) => {
                 let contract_address = String::from_utf8(x.to_vec())?;
+                let config = config_r(deps.storage).load()?;
                 set_staking_contract(
                     deps.storage,
                     Some(ContractLink {
                         address: deps.api.addr_validate(&contract_address)?,
-                        code_hash: "".to_string(),
+                        code_hash: config.staking_contract_init.ok_or(StdError::generic_err("Staking contract does not match.".to_string()))?.contract_info.code_hash
                     }),
                 )
             }

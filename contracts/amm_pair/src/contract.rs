@@ -65,17 +65,10 @@ pub fn instantiate(
             enable_redeem: Some(false),
             enable_mint: Some(true),
             enable_burn: Some(true),
-        }),
-        callback: Some(Callback {
-            msg: to_binary(&ExecuteMsg::OnLpTokenInitAddr {})?,
-            contract: ContractLink {
-                address: env.contract.address.clone(),
-                code_hash: env.contract.code_hash.clone(),
-            },
-        }),
+        })
     };
 
-    response = response.add_message(CosmosMsg::Wasm(WasmMsg::Instantiate {
+    response = response.add_submessage(SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
         msg: to_binary(&init_snip20_msg)?,
         label: format!(
@@ -84,7 +77,7 @@ pub fn instantiate(
         ),
         code_hash: msg.lp_token_contract.code_hash.clone(),
         funds: vec![],
-    }));
+    }), INSTANTIATE_LP_TOKEN_REPLY_ID));
 
     match msg.callback {
         Some(c) => {
@@ -183,26 +176,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 router_link,
                 callback_signature,
             )
-        }
-        ExecuteMsg::SetStakingContract { contract } => {
-            return set_staking_contract(
-                deps,
-                Some(ContractLink {
-                    address: contract.address,
-                    code_hash: contract.code_hash,
-                }),
-            );
-        }
-        ExecuteMsg::OnLpTokenInitAddr => {
-            let config_settings = config_r(deps.storage).load()?;
-            return register_lp_token(
-                deps,
-                env,
-                Contract {
-                    address: info.sender,
-                    code_hash: config_settings.lp_token.code_hash,
-                },
-            );
         }
     }
 }
@@ -343,39 +316,35 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[entry_point]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
-    Ok(Response::default())
+    match (msg.id, msg.result) {
+        (INSTANTIATE_LP_TOKEN_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
+            Some(x) => {
+                let contract_address = String::from_utf8(x.to_vec())?;
+                register_lp_token(
+                    deps,
+                    _env,
+                    Contract {
+                        address: Addr::unchecked(contract_address),
+                        code_hash: "".to_string(),
+                    },
+                )//;
+                //Ok(Response::default())
+            }
+            None => Err(StdError::generic_err(format!("Unknown reply id"))),
+        },
+        (INSTANTIATE_STAKING_CONTRACT_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
+            Some(x) => {
+                let contract_address = String::from_utf8(x.to_vec())?;
+                set_staking_contract(
+                    deps.storage,
+                    Some(ContractLink {
+                        address: deps.api.addr_validate(&contract_address)?,
+                        code_hash: "".to_string(),
+                    }),
+                )
+            }
+            None => Err(StdError::generic_err(format!("Unknown reply id"))),
+        },
+        _ => Err(StdError::generic_err(format!("Unknown reply id"))),
+    }
 }
-//     match (msg.id, msg.result) {
-//         (INSTANTIATE_LP_TOKEN_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
-//             Some(x) => {
-//                 let contract_address = String::from_utf8(x.to_vec())?;
-//                 register_lp_token(
-//                     deps,
-//                     _env,
-//                     Contract {
-//                         address: Addr::unchecked(contract_address),
-//                         code_hash: "".to_string(),
-//                     },
-//                 )?;
-//                 Ok(Response::default())
-//             }
-//             None => Err(StdError::generic_err(format!("Unknown reply id"))),
-//         },
-//         (INSTANTIATE_STAKING_CONTRACT_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
-//             Some(x) => {
-//                 let contract_address = String::from_utf8(x.to_vec())?;
-//                 set_staking_contract(
-//                     deps,
-//                     _env,
-//                     Some(ContractLink {
-//                         address: Addr::unchecked(contract_address),
-//                         code_hash: "".to_string(),
-//                     }),
-//                 )?;
-//                 Ok(Response::default())
-//             }
-//             None => Err(StdError::generic_err(format!("Unknown reply id"))),
-//         },
-//         _ => Err(StdError::generic_err(format!("Unknown reply id"))),
-//     }
-// }

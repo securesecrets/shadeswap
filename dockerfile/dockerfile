@@ -1,4 +1,4 @@
-FROM ghcr.io/scrtlabs/localsecret:v1.4.1-beta.8
+FROM ghcr.io/scrtlabs/localsecret:v1.4.0-beta.14
 
 RUN curl https://sh.rustup.rs -sSf |  sh -s -- -y
 

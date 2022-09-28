@@ -40,17 +40,6 @@ pub fn instantiate(
     response.data = Some(env.contract.address.as_bytes().into());
 
     Ok(response
-        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: msg.pair_contract.address.to_string(),
-            code_hash: msg.pair_contract.code_hash.clone(),
-            msg: to_binary(&AmmPairExecuteMsg::SetStakingContract {
-                contract: ContractLink {
-                    address: env.contract.address.clone(),
-                    code_hash: env.contract.code_hash.clone(),
-                },
-            })?,
-            funds: vec![],
-        }))
         .add_attributes(vec![
             Attribute::new("staking_contract_addr", env.contract.address),
             Attribute::new("reward_token", msg.reward_token.to_string()),

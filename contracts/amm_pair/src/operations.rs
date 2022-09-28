@@ -8,7 +8,7 @@ use std::{
 use cosmwasm_std::{
     to_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
     MessageInfo, QueryRequest, Response, StdError, StdResult, Storage, Uint128, Uint256, WasmMsg,
-    WasmQuery,
+    WasmQuery, SubMsg,
 };
 use shadeswap_shared::{
     amm_pair::AMMSettings,
@@ -38,7 +38,7 @@ use crate::{
     state::{
         config_r, config_w, trade_count_r, trade_count_w, trade_history_r, trade_history_w,
         whitelist_r, whitelist_w, Config, PAGINATION_LIMIT,
-    },
+    }, contract::INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
 };
 
 // WHITELIST
@@ -113,34 +113,36 @@ pub fn register_lp_token(
         &lp_token_address.clone(),
     )?);
 
-    match config.staking_contract_init {
-        Some(c) => {
-            messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
-                code_id: c.contract_info.id,
-                label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
-                msg: to_binary(&StakingInitMsg {
-                    staking_amount: c.amount,
-                    reward_token: c.reward_token.clone(),
-                    pair_contract: ContractLink {
-                        address: env.contract.address.clone(),
-                        code_hash: env.contract.code_hash.clone(),
-                    },
-                    prng_seed: config.prng_seed.clone(),
-                    lp_token: ContractLink {
-                        address: lp_token_address.address.clone(),
-                        code_hash: lp_token_address.code_hash.clone(),
-                    },
-                })?,
-                code_hash: c.contract_info.code_hash.clone(),
-                funds: vec![],
-            }));
-        }
-        _ => {
-            ();
-        }
-    }
+    let mut response = Response::new().add_messages(messages);
 
-    Ok(Response::new().add_messages(messages))
+    // match config.staking_contract_init {
+    //     Some(c) => {
+    //         response = response.add_submessage(SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Instantiate {
+    //             code_id: c.contract_info.id,
+    //             label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
+    //             msg: to_binary(&StakingInitMsg {
+    //                 staking_amount: c.amount,
+    //                 reward_token: c.reward_token.clone(),
+    //                 pair_contract: ContractLink {
+    //                     address: env.contract.address.clone(),
+    //                     code_hash: env.contract.code_hash.clone(),
+    //                 },
+    //                 prng_seed: config.prng_seed.clone(),
+    //                 lp_token: ContractLink {
+    //                     address: lp_token_address.address.clone(),
+    //                     code_hash: lp_token_address.code_hash.clone(),
+    //                 },
+    //             })?,
+    //             code_hash: c.contract_info.code_hash.clone(),
+    //             funds: vec![],
+    //         }), INSTANTIATE_STAKING_CONTRACT_REPLY_ID));
+    //     }
+    //     _ => {
+    //         ();
+    //     }
+    // }
+
+    Ok(response)
 }
 
 pub fn register_pair_token(
@@ -321,14 +323,14 @@ pub fn swap(
 }
 
 pub fn set_staking_contract(
-    deps: DepsMut,
+    storage: &mut dyn Storage,
     staking_contract: Option<ContractLink>,
 ) -> StdResult<Response> {
     match staking_contract.clone() {
         Some(contract) => {
-            let config = config_r(deps.storage).load()?;
+            let config = config_r(storage).load()?;
 
-            config_w(deps.storage).save(&Config {
+            config_w(storage).save(&Config {
                 factory_contract: config.factory_contract,
                 lp_token: config.lp_token,
                 staking_contract: staking_contract,

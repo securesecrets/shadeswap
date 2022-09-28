@@ -171,11 +171,7 @@ pub mod amm_pair {
         },
         SetCustomPairFee {
             custom_fee: Option<CustomFee>,
-        },
-        SetStakingContract {
-            contract: ContractLink,
-        },
-        OnLpTokenInitAddr,
+        }
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -482,7 +478,6 @@ pub mod lp_token {
         pub decimals: u8,
         pub initial_balances: Option<Vec<InitialBalance>>,
         pub prng_seed: Binary,
-        pub config: Option<InitConfig>,
-        pub callback: Option<Callback>,
+        pub config: Option<InitConfig>
     }
 }

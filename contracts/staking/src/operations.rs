@@ -546,11 +546,7 @@ pub fn try_proxy_stake(
                     }
                 }
 
-                for addr in remove {
-                    if current_whitelist.contains(&addr) {
-                        current_whitelist.retain(|a| a.ne(&addr));
-                    }
-                }
+                current_whitelist.retain(|a| !remove.contains(a));
 
                 whitelisted_proxy_stakers_w(deps.storage).save(&current_whitelist)?;
                 Ok(Response::default().add_attribute("action", "whitelist_proxy_stakers_update"))

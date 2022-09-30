@@ -57,19 +57,12 @@ pub fn calculate_staker_shares(storage: &dyn Storage, amount: Uint128) -> StdRes
 }
 
 pub fn stake(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     amount: Uint128,
     from: Addr,
 ) -> StdResult<Response> {
-    // this is receiver for LP Token send to staking contract ->
-    let config = config_r(deps.storage).load()?;
-    if config.lp_token.address != info.sender {
-        return Err(StdError::generic_err(
-            "Token sent is not LP Token".to_string(),
-        ));
-    }
     // calculate staking for existing stakers without increasing amount
     let current_timestamp = Uint128::from((env.block.time.seconds() * 1000) as u128);
     claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
@@ -96,7 +89,7 @@ pub fn stake(
             caller.as_bytes(),
             &StakingInfo {
                 staker: caller.clone(),
-                amount: amount,
+                amount,
                 last_time_updated: current_timestamp,
             },
         )?;

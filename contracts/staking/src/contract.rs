@@ -5,15 +5,17 @@ use cosmwasm_std::{
 use shadeswap_shared::{
     core::{admin_w, ContractLink},
     msg::amm_pair::ExecuteMsg as AmmPairExecuteMsg,
-    staking::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, AuthQuery, QueryData}, query_auth::helpers::{authenticate_permit, PermitAuthentication},
+    query_auth::helpers::{authenticate_permit, PermitAuthentication},
+    staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
 };
 
 use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staker_reward_info,
-        get_staking_contract_owner, get_staking_stake_lp_token_info, set_view_key, stake, unstake,
+        get_staking_contract_owner, get_staking_stake_lp_token_info, set_view_key, stake,
+        try_proxy_stake, unstake,
     },
-    state::{config_r, config_w, prng_seed_w, stakers_r, Config},
+    state::{config_r, config_w, prng_seed_w, stakers_r, whitelisted_proxy_stakers_w, Config},
 };
 
 pub const BLOCK_SIZE: usize = 256;
@@ -22,19 +24,20 @@ pub const BLOCK_SIZE: usize = 256;
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InitMsg,
 ) -> StdResult<Response> {
     let config = Config {
-        contract_owner: _info.sender.clone(),
+        contract_owner: info.sender.clone(),
         daily_reward_amount: msg.staking_amount,
         reward_token: msg.reward_token.clone(),
         lp_token: msg.lp_token,
-        authenticator: None
+        authenticator: None,
     };
     config_w(deps.storage).save(&config)?;
-    admin_w(deps.storage).save(&_info.sender)?;
+    admin_w(deps.storage).save(&info.sender)?;
     prng_seed_w(deps.storage).save(&msg.prng_seed.as_slice().to_vec())?;
+    whitelisted_proxy_stakers_w(deps.storage).save(&vec![])?;
 
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
@@ -68,7 +71,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::Unstake {
             amount,
             remove_liqudity,
-        } => unstake(deps, env, info, amount, remove_liqudity)
+        } => unstake(deps, env, info, amount, remove_liqudity),
+        ExecuteMsg::ProxyStake(msg) => try_proxy_stake(deps, env, info, msg),
     }
 }
 
@@ -101,25 +105,21 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetConfig {} => get_config(deps),
         QueryMsg::GetContractOwner {} => todo!(),
         QueryMsg::WithPermit { permit, query } => {
-            let res: PermitAuthentication<QueryData> = authenticate_permit(deps, permit, &deps.querier, None)?;
+            let res: PermitAuthentication<QueryData> =
+                authenticate_permit(deps, permit, &deps.querier, None)?;
 
             if res.revoked {
                 return Err(StdError::generic_err("".to_string()));
             }
 
             auth_queries(deps, env, query, res.sender)
-        },
+        }
     }
 }
 
 pub fn auth_queries(deps: Deps, env: Env, msg: AuthQuery, user: Addr) -> StdResult<Binary> {
     match msg {
-        AuthQuery::GetClaimReward { time } => {
-            get_claim_reward_for_user(deps, user, time)
-        },
-        AuthQuery::GetStakerLpTokenInfo { } => {
-            get_staking_stake_lp_token_info(deps, user)
-        }
+        AuthQuery::GetClaimReward { time } => get_claim_reward_for_user(deps, user, time),
+        AuthQuery::GetStakerLpTokenInfo {} => get_staking_stake_lp_token_info(deps, user),
     }
 }
-

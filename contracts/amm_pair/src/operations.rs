@@ -43,7 +43,7 @@ use crate::{
 
 // WHITELIST
 pub fn add_whitelist_address(storage: &mut dyn Storage, address: Addr) -> StdResult<()> {
-    let mut unwrap_data = match whitelist_r(storage).may_load(){
+    let mut unwrap_data = match whitelist_r(storage).may_load() {
         Ok(v) => v.unwrap_or(Vec::new()),
         Err(err) => Vec::new(),
     };
@@ -509,7 +509,7 @@ pub fn calculate_swap_result(
     let mut lp_fee_amount = Uint128::zero();
     let mut shade_dao_fee_amount = Uint128::zero();
     // calculation fee
-    let discount_fee =  is_address_in_whitelist(deps.storage, recipient)?;
+    let discount_fee = is_address_in_whitelist(deps.storage, recipient)?;
     if discount_fee == false {
         match &config.custom_fee {
             Some(f) => {
@@ -555,7 +555,7 @@ pub fn add_address_to_whitelist(
     add_whitelist_address(storage, address.clone())?;
     Ok(Response::default().add_attributes(vec![
         Attribute::new("action", "save_address_to_whitelist"),
-        Attribute::new("whitelist_address", address.as_str().clone()),
+        Attribute::new("whitelist_address", address),
     ]))
 }
 
@@ -564,7 +564,7 @@ pub fn remove_address_from_whitelist(
     list: Vec<Addr>,
     env: Env,
 ) -> StdResult<Response> {
-    remove_whitelist_address(storage, list.clone())?;
+    remove_whitelist_address(storage, list)?;
     Ok(Response::default().add_attribute("action", "remove_address_from_whitelist"))
 }
 

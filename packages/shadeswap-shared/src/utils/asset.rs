@@ -112,8 +112,6 @@ impl From<ContractInfo> for RawContract {
 
 #[derive(Hash, Eq)]
 #[cw_serde]
-/// In the process of being deprecated for [cosmwasm_std::ContractInfo] so use that
-/// instead when possible.
 pub struct Contract {
     pub address: Addr,
     pub code_hash: String,

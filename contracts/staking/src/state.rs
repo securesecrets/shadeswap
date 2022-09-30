@@ -1,9 +1,13 @@
-use cosmwasm_std::{Addr, Uint128, Storage, Decimal256};
-use cosmwasm_storage::{singleton, Singleton, ReadonlySingleton, singleton_read, bucket_read, bucket, ReadonlyBucket, Bucket};
-use serde::{Serialize, Deserialize};
-use shadeswap_shared::{core::{TokenType, ContractLink, ViewingKey}, Contract};
-
-
+use cosmwasm_std::{Addr, Decimal256, Storage, Uint128};
+use cosmwasm_storage::{
+    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
+    Singleton,
+};
+use serde::{Deserialize, Serialize};
+use shadeswap_shared::{
+    core::{ContractLink, TokenType, ViewingKey},
+    Contract,
+};
 
 pub static CONFIG: &[u8] = b"CONFIG";
 pub static STAKERS: &[u8] = b"LIST_STAKERS";
@@ -15,27 +19,29 @@ pub static STAKER_VK: &[u8] = b"STAKER_VK";
 pub static TOTAL_STAKERS: &[u8] = b"TOTAL_STAKERS";
 pub static TOTAL_STAKED: &[u8] = b"TOTAL_STAKED";
 pub static STAKER_INDEX: &[u8] = b"STAKER_INDEX";
+/// Whitelisted contracts that can stake and unstake on behalf of users while maintaining custody of the LP tokens
+pub static WHITELISTED_PROXY_STAKERS: &[u8] = b"WHITELISTED_PROXY_STAKERS";
 
-#[derive(Serialize, Deserialize,  PartialEq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct Config {
     pub contract_owner: Addr,
     pub daily_reward_amount: Uint128,
     pub reward_token: TokenType,
     pub lp_token: ContractLink,
-    pub authenticator: Option<Contract>
+    pub authenticator: Option<Contract>,
 }
 
-#[derive(Serialize, Deserialize,  PartialEq, Debug)]
-pub struct StakingInfo{
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct StakingInfo {
     pub staker: Addr,
     pub amount: Uint128,
     pub last_time_updated: Uint128,
 }
 
-#[derive(Serialize, Deserialize,  PartialEq, Debug)]
-pub struct ClaimRewardsInfo{
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct ClaimRewardsInfo {
     pub amount: Uint128,
-    pub last_time_claimed: Uint128
+    pub last_time_claimed: Uint128,
 }
 
 pub fn config_w(storage: &mut dyn Storage) -> Singleton<Config> {
@@ -110,4 +116,10 @@ pub fn total_staked_r(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
     singleton_read(storage, TOTAL_STAKED)
 }
 
+pub fn whitelisted_proxy_stakers_w(storage: &mut dyn Storage) -> Singleton<Vec<Addr>> {
+    singleton(storage, WHITELISTED_PROXY_STAKERS)
+}
 
+pub fn whitelisted_proxy_stakers_r(storage: &dyn Storage) -> ReadonlySingleton<Vec<Addr>> {
+    singleton_read(storage, WHITELISTED_PROXY_STAKERS)
+}

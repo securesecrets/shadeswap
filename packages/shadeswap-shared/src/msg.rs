@@ -33,7 +33,7 @@ pub mod router {
         pub prng_seed: Binary,
         pub entropy: Binary,
         pub viewing_key: Option<String>,
-        pub pair_contract_code_hash: String
+        pub pair_contract_code_hash: String,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -81,7 +81,7 @@ pub mod router {
         },
         GetConfig {
             pair_contract_code_hash: String,
-        }
+        },
     }
 }
 
@@ -193,7 +193,7 @@ pub mod amm_pair {
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        GetConfig{},
+        GetConfig {},
         GetPairInfo {},
         GetTradeHistory {
             pagination: Pagination,
@@ -266,13 +266,13 @@ pub mod amm_pair {
             lp_token: Uint128,
             total_lp_token: Uint128,
         },
-        GetConfig{
+        GetConfig {
             factory_contract: ContractLink,
             lp_token: ContractLink,
             staking_contract: Option<ContractLink>,
             pair: TokenPair,
-            custom_fee: Option<CustomFee>
-        }
+            custom_fee: Option<CustomFee>,
+        },
     }
 }
 
@@ -354,11 +354,11 @@ pub mod factory {
 }
 
 pub mod staking {
-    use crate::{core::TokenType, query_auth::QueryPermit};
+    use crate::{core::TokenType, query_auth::QueryPermit, Contract};
 
     use super::*;
     use cosmwasm_schema::cw_serde;
-    use cosmwasm_std::Addr;
+    use cosmwasm_std::{Addr, ContractInfo};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
@@ -386,7 +386,26 @@ pub mod staking {
             from: Addr,
             msg: Option<Binary>,
             amount: Uint128,
-        }
+        },
+        ProxyStake(ProxyStakeMsg),
+    }
+
+    #[cw_serde]
+    pub enum ProxyStakeMsg {
+        UpdateWhitelist {
+            add: Vec<Addr>,
+            remove: Vec<Addr>,
+        },
+        Stake {
+            token: Contract,
+            amount: Uint128,
+            user: Addr,
+        },
+        Unstake {
+            token: Contract,
+            amount: Uint128,
+            user: Addr,
+        },
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -403,17 +422,14 @@ pub mod staking {
         WithPermit {
             permit: QueryPermit,
             query: AuthQuery,
-        }
+        },
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
     #[serde(rename_all = "snake_case")]
     pub enum AuthQuery {
-        GetStakerLpTokenInfo {
-        },
-        GetClaimReward {
-            time: Uint128,
-        }
+        GetStakerLpTokenInfo {},
+        GetClaimReward { time: Uint128 },
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -444,6 +460,7 @@ pub mod staking {
             lp_token: ContractLink,
             daily_reward_amount: Uint128,
             contract_owner: Addr,
+            whitelisted_proxy_stakers: Vec<Addr>,
         },
     }
 }

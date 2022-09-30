@@ -15,16 +15,7 @@ exclude = [
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[profile.release]
-opt-level = 3
-debug = false
-rpath = false
-lto = true
-debug-assertions = false
-codegen-units = 1
-panic = 'abort'
-incremental = false
-overflow-checks = true
+
 
 [features]
 default = []
@@ -36,7 +27,7 @@ serde = { version = "1.0.103", default-features = false, features = ["derive", "
 schemars = "0.8.9"
 cosmwasm-std = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
 cosmwasm-storage = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
-cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e" }
+cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", rev = "1e05e7e" }
 snip20-reference-impl = { path = "../../contracts/snip20"}
 sha2 = { version = "0.9.1", default-features = false }
 subtle = { version = "2.2.3", default-features = false }

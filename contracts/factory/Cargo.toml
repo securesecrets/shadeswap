@@ -15,23 +15,10 @@ exclude = [
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[profile.release]
-opt-level = 3
-debug = true
-rpath = true
-lto = true
-debug-assertions = true
-codegen-units = 1
-panic = 'abort'
-incremental = true
-overflow-checks = true
-
 [features]
 default = []
 # for quicker tests, cargo test --lib
 # for more explicit tests, cargo test --features=backtraces
-
-
 
 [dependencies]
 snafu = { version = "0.7.1" }
@@ -46,4 +33,4 @@ shadeswap-shared = {path = "../../packages/shadeswap-shared"}
 secret-multi-test = { git = "https://github.com/securesecrets/secret-plus-utils", version = "0.13.4" }
 
 [dev-dependencies]
-cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e" }
+cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", rev = "1e05e7e" }

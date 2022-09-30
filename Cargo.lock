@@ -6,7 +6,7 @@ version = 3
 name = "amm_pair"
 version = "0.1.0"
 dependencies = [
- "cosmwasm-schema",
+ "cosmwasm-schema 1.0.0",
  "cosmwasm-std",
  "cosmwasm-storage",
  "schemars 0.8.10",
@@ -81,7 +81,7 @@ version = "0.1.0"
 source = "git+https://github.com/securesecrets/better-secret-math#78e1a9b770626e2b4df036ba17803a22c9427d63"
 dependencies = [
  "btr-macros",
- "cosmwasm-schema",
+ "cosmwasm-schema 1.1.1",
  "cosmwasm-std",
  "derive-from-ext",
  "ethnum",
@@ -202,14 +202,36 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-schema"
-version = "1.1.1"
-source = "git+https://github.com/CosmWasm/cosmwasm#c3b02c8b63bc2e8daae1bca539717dc0a41a7d2d"
+version = "1.0.0"
+source = "git+https://github.com/CosmWasm/cosmwasm?rev=1e05e7e#1e05e7eeac406b4e9f15e0700f8997a7baf0c7f6"
 dependencies = [
- "cosmwasm-schema-derive",
+ "cosmwasm-schema-derive 1.0.0",
  "schemars 0.8.10",
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "cosmwasm-schema"
+version = "1.1.1"
+source = "git+https://github.com/CosmWasm/cosmwasm#c3b02c8b63bc2e8daae1bca539717dc0a41a7d2d"
+dependencies = [
+ "cosmwasm-schema-derive 1.1.1",
+ "schemars 0.8.10",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "cosmwasm-schema-derive"
+version = "1.0.0"
+source = "git+https://github.com/CosmWasm/cosmwasm?rev=1e05e7e#1e05e7eeac406b4e9f15e0700f8997a7baf0c7f6"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -415,7 +437,7 @@ dependencies = [
 name = "factory"
 version = "0.1.0"
 dependencies = [
- "cosmwasm-schema",
+ "cosmwasm-schema 1.0.0",
  "cosmwasm-std",
  "cosmwasm-storage",
  "schemars 0.8.10",
@@ -581,7 +603,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.12.3",
  "bincode2",
- "cosmwasm-schema",
+ "cosmwasm-schema 1.0.0",
  "cosmwasm-std",
  "cosmwasm-storage",
  "rand_chacha 0.2.2",
@@ -715,7 +737,7 @@ version = "0.1.0"
 source = "git+https://github.com/securesecrets/query-authentication?branch=cosmwasm_v1_upgrade#e2ead5e85dc2ac4f77b2cbf86a90d166bdbb5950"
 dependencies = [
  "bech32",
- "cosmwasm-schema",
+ "cosmwasm-schema 1.1.1",
  "cosmwasm-std",
  "remain",
  "ripemd160",
@@ -821,7 +843,7 @@ dependencies = [
 name = "router"
 version = "0.1.0"
 dependencies = [
- "cosmwasm-schema",
+ "cosmwasm-schema 1.0.0",
  "cosmwasm-std",
  "cosmwasm-storage",
  "schemars 0.8.10",
@@ -1162,7 +1184,7 @@ name = "shadeswap-shared"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "cosmwasm-schema",
+ "cosmwasm-schema 1.0.0",
  "cosmwasm-std",
  "cosmwasm-storage",
  "query-authentication",
@@ -1236,7 +1258,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.12.3",
  "bincode2",
- "cosmwasm-schema",
+ "cosmwasm-schema 1.0.0",
  "cosmwasm-std",
  "cosmwasm-storage",
  "rand_chacha 0.2.2",
@@ -1263,7 +1285,7 @@ dependencies = [
 name = "staking"
 version = "0.1.0"
 dependencies = [
- "cosmwasm-schema",
+ "cosmwasm-schema 1.0.0",
  "cosmwasm-std",
  "cosmwasm-storage",
  "query-authentication",

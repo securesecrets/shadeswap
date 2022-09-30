@@ -550,6 +550,7 @@ pub fn try_proxy_stake(
             amount,
             user,
         } => {
+            require_whitelisted_proxy_staker(storage, &info.sender)?;
             require_lp_token(storage, token)?;
             stake(deps, env, info, amount, user)
         }
@@ -558,6 +559,7 @@ pub fn try_proxy_stake(
             amount,
             user,
         } => {
+            require_whitelisted_proxy_staker(storage, &info.sender)?;
             require_lp_token(storage, token)?;
             // unstake uses MessageInfo to know who to stake for
             let new_info = MessageInfo {
@@ -576,5 +578,17 @@ pub fn require_lp_token(storage: &dyn Storage, token: Contract) -> StdResult<()>
         Ok(())
     } else {
         Err(StdError::generic_err(format!("Token of address {} and code hash {} does not equal the LP token address {} and code hash {} registered in the staking contract.", token.address, token.code_hash, config.lp_token.address, config.lp_token.code_hash)))
+    }
+}
+
+pub fn require_whitelisted_proxy_staker(storage: &dyn Storage, sender: &Addr) -> StdResult<()> {
+    let whitelist = whitelisted_proxy_stakers_r(storage).load()?;
+    if whitelist.contains(&sender) {
+        Ok(())
+    } else {
+        Err(StdError::generic_err(format!(
+            "Sender {} is not in the whitelist of proxy stakers.",
+            sender.clone()
+        )))
     }
 }

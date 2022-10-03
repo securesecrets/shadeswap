@@ -1,42 +1,38 @@
-use shadeswap_shared::core::{Callback, ViewingKey};
+use schemars::JsonSchema;
+use shadeswap_shared::viewing_keys::ViewingKey;
 use colored::*;
 use rand::{distributions::Alphanumeric, Rng};
 use secretcli::cli_types::StoredContract;
 use secretcli::secretcli::{init, handle, Report};
 use secretcli::{cli_types::NetContract, secretcli::query};
 use serde::{Serialize, Deserialize};
+use snip20_reference_impl::contract;
 use std::fmt::Display;
 use std::fs;
-use shadeswap_shared::snip20::InitialBalance;
 use cosmwasm_std::{
-    Binary, Uint128, Env, Addr, MessageInfo, to_binary
+    Binary, HumanAddr, Uint128, Env
 };
-use schemars::JsonSchema;
-
 use shadeswap_shared::{
-    amm_pair::{AMMPair, AMMSettings},
-    core::{ContractInstantiationInfo, ContractLink},
+    amm_pair::{AMMPair},
     msg::{
         amm_pair::{
-            ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
-            QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
+            HandleMsg as AMMPairHandlMsg,
         },
         factory::{
-            ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg,
-            QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
+            HandleMsg as FactoryHandleMsg, QueryMsg as FactoryQueryMsg,
+            QueryResponse as FactoryQueryResponse, InitMsg as FactoryInitMsg
         },
         router::{
-            ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
-            QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
-        },
-        staking::{
-            ExecuteMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
-            QueryResponse as StakingQueryMsgResponse,
+            HandleMsg as RouterHandleMsg,
         },
     },
     stake_contract::StakingContractInit,
-    Pagination,
+    Pagination, TokenPair, TokenPairAmount, TokenType,
 };
+use shadeswap_shared::snip20_reference_impl::msg::{
+    InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg, InitialBalance,
+};
+
 use serde_json::Result;
 // Smart contracts
 pub const SNIP20_FILE: &str = "../../compiled/snip20.wasm.gz";
@@ -46,8 +42,8 @@ pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
 pub const ROUTER_FILE: &str = "../../compiled/router.wasm.gz";
 pub const STAKING_FILE: &str = "../../compiled/staking.wasm.gz";
 
-pub const STORE_GAS: &str = "100000000";
-pub const GAS: &str = "8000000";
+pub const STORE_GAS: &str = "10000000";
+pub const GAS: &str = "800000";
 pub const VIEW_KEY: &str = "password";
 pub const ACCOUNT_KEY: &str = "a";
 pub const STAKER_KEY: &str = "b";
@@ -105,8 +101,6 @@ pub fn store_struct<T: serde::Serialize>(path: &str, data: &T) {
     .expect(&format!("Could not store {}", path));
 }
 
-
-
 /// This type represents optional configuration values which can be overridden.
 /// All values are optional and have defaults which are more private by default,
 /// but can be overridden if necessary
@@ -154,8 +148,8 @@ impl InitConfig {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 pub struct InitialAllowance {
-    pub owner: Addr,
-    pub spender: Addr,
+    pub owner: HumanAddr,
+    pub spender: HumanAddr,
     pub amount: Uint128,
     pub expiration: Option<u64>,
 }
@@ -163,25 +157,18 @@ pub struct InitialAllowance {
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct InitMsg {
     pub name: String,
-    pub admin: Option<Addr>,
+    pub admin: Option<HumanAddr>,
     pub symbol: String,
     pub decimals: u8,
     pub initial_balances: Option<Vec<InitialBalance>>,
-    pub initial_allowances: Option<Vec<InitialAllowance>>,
     pub prng_seed: Binary,
     pub config: Option<InitConfig>,
-    pub callback: Option<Callback>
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
-pub struct InstantiateMsgSnip20 {
-    pub name: String,
-    pub admin: Option<Addr>,
-    pub symbol: String,
-    pub decimals: u8,
-    pub initial_balances: Option<Vec<InitialBalance>>,
-    pub prng_seed: Binary,
-    pub config: Option<InitConfig>
+impl InitMsg {
+    pub fn config(&self) -> InitConfig {
+        self.config.clone().unwrap_or_default()
+    }
 }
 
 
@@ -192,8 +179,10 @@ pub fn init_snip20(
     config: Option<InitConfig>,
     reports: &mut Vec<Report>,
     account_key: &str,
-    customizedSnip20File: Option<&str>
+    customizedSnip20File: Option<&str>,
+    backend: &str
 ) -> Result<(InitMsg, NetContract)> {
+    
     let init_msg = InitMsg {
         name: name.to_string(),
         admin: None,
@@ -201,48 +190,10 @@ pub fn init_snip20(
         decimals: decimals,
         initial_balances: None,
         prng_seed: Default::default(),
-        config: config,
-        initial_allowances: None,
-        callback: None,
-    };
-
-    
-
-    let s_sToken = init(
-        &init_msg,
-        customizedSnip20File.unwrap_or(SNIP20_FILE),
-        &*generate_label(8),
-        account_key,
-        Some(STORE_GAS),
-        Some(GAS),
-        Some("test"),
-        reports,
-    )?;
-    Ok((init_msg, s_sToken))
-}
-
-pub fn init_snip20_cli(
-    name: String,
-    symbol: String, 
-    decimals: u8,
-    config: Option<InitConfig>,
-    reports: &mut Vec<Report>,
-    account_key: &str,
-    customizedSnip20File: Option<&str>,
-    backend: &str
-) -> Result<(InstantiateMsgSnip20, NetContract)> {
-    let init_msg = InstantiateMsgSnip20 {
-        name: name.to_string(),
-        admin: None,
-        symbol: symbol.to_string(),
-        decimals: decimals,
-        initial_balances: None,
-        prng_seed: to_binary(&"".to_string()).unwrap(),
         config: config
     };
-    
-
-    let s_sToken = init(
+     
+    let snip_20 = init(
         &init_msg,
         customizedSnip20File.unwrap_or(SNIP20_FILE),
         &*generate_label(8),
@@ -252,26 +203,11 @@ pub fn init_snip20_cli(
         Some(backend),
         reports,
     )?;
-    Ok((init_msg, s_sToken))
-}
-
-pub fn create_viewing_key(env: &Env, info: &MessageInfo, seed: Binary, entroy: Binary) -> String {
-    ViewingKey::new(&env, info, seed.as_slice(), entroy.as_slice()).to_string()
+    Ok((init_msg, snip_20))
 }
 
 
-pub fn init_contract_factory(account_name: &str, backend: &str, 
-    file_path: &str, msg: &FactoryInitMsg,
-    reports: &mut Vec<Report>) -> Result<NetContract> {    
-    let contract = init(
-        &msg,
-        file_path,
-        &*generate_label(8),
-        account_name,
-        Some(STORE_GAS),
-        Some(GAS),
-        Some(backend),
-        reports,
-    )?;
-    Ok(contract)
+
+pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
+    ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
 }

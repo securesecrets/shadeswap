@@ -160,8 +160,7 @@ pub struct TokenInfo {
 }
 /// Returns a StdResult<TokenInfo> from performing TokenInfo query
 pub fn token_info(querier: &QuerierWrapper, contract: &Contract) -> StdResult<TokenInfo> {
-    let answer: QueryAnswer = QueryMsg::TokenInfo {}.query(querier, contract)?;
-
+    let answer: QueryAnswer = QueryMsg::TokenInfo {}.query(querier, contract)?;  
     match answer {
         QueryAnswer::TokenInfo {
             name,

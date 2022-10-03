@@ -714,8 +714,7 @@ pub fn add_liquidity(
         &[deposit.amount_0, deposit.amount_1],
         &pool_balances,
     )?;
-
-    println!("{:?}", lp_token.address.clone());
+   
     let pair_contract_pool_liquidity = query_liquidity_pair_contract(deps.as_ref(), &lp_token)?;
     let mut lp_tokens: Uint128 = Uint128::zero();
     if pair_contract_pool_liquidity == Uint128::zero() {
@@ -744,49 +743,64 @@ pub fn add_liquidity(
     // check if user wants add his LP token to Staking
     match staking {
         Some(s) => {
-            // check if the Staking Contract has been set for AMM Pairs
-            match staking_contract {
-                Some(stake) => {
-                    add_to_staking = true;
-                    pair_messages.push(mint_msg(
-                        env.contract.address.clone(),
-                        lp_tokens,
-                        None,
-                        None,
-                        &Contract {
-                            address: lp_token.address.clone(),
-                            code_hash: lp_token.code_hash.clone(),
-                        },
-                    )?);
-                    let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
-                        from: info.sender.clone()
-                    })
-                    .unwrap();
-                    // SEND LP Token to Staking Contract with Staking Message
-                    let msg = to_binary(&SNIP20ExecuteMsg::Send {
-                        recipient: stake.address.to_string(),
-                        recipient_code_hash: Some(stake.code_hash.clone()),
-                        amount: lp_tokens,
-                        msg: Some(invoke_msg.clone()),
-                        memo: None,
-                        padding: None,
-                    })?;
-                    pair_messages.push(
-                        WasmMsg::Execute {
-                            contract_addr: lp_token.address.to_string(),
-                            code_hash: lp_token.code_hash.clone(),
-                            msg,
-                            funds: vec![],
-                        }
-                        .into(),
-                    );
-                }
-                None => {
-                    return Err(StdError::generic_err(
-                        "Staking Contract has not been set for AMM Pairs",
-                    ))
+            if s {
+                // check if the Staking Contract has been set for AMM Pairs
+                match staking_contract {
+                    Some(stake) => {
+                        add_to_staking = true;
+                        pair_messages.push(mint_msg(
+                            env.contract.address.clone(),
+                            lp_tokens,
+                            None,
+                            None,
+                            &Contract {
+                                address: lp_token.address.clone(),
+                                code_hash: lp_token.code_hash.clone(),
+                            },
+                        )?);
+                        let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
+                            from: info.sender.clone()
+                        })
+                        .unwrap();
+                        // SEND LP Token to Staking Contract with Staking Message
+                        let msg = to_binary(&SNIP20ExecuteMsg::Send {
+                            recipient: stake.address.to_string(),
+                            recipient_code_hash: Some(stake.code_hash.clone()),
+                            amount: lp_tokens,
+                            msg: Some(invoke_msg.clone()),
+                            memo: None,
+                            padding: None,
+                        })?;
+                        pair_messages.push(
+                            WasmMsg::Execute {
+                                contract_addr: lp_token.address.to_string(),
+                                code_hash: lp_token.code_hash.clone(),
+                                msg,
+                                funds: vec![],
+                            }
+                            .into(),
+                        );
+                    }
+                    None => {
+                        return Err(StdError::generic_err(
+                            "Staking Contract has not been set for AMM Pairs",
+                        ))
+                    }
                 }
             }
+            else{
+                add_to_staking = false;
+                pair_messages.push(mint_msg(
+                    info.sender.clone(),
+                    lp_tokens,
+                    None,
+                    None,
+                    &Contract {
+                        address: lp_token.address.clone(),
+                        code_hash: lp_token.code_hash.clone(),
+                    },
+                )?);
+            }        
         }
         None => {
             add_to_staking = false;
@@ -841,7 +855,7 @@ fn assert_slippage_acceptance(
     Ok(())
 }
 
-fn query_liquidity_pair_contract(deps: Deps, lp_token_link: &ContractLink) -> StdResult<Uint128> {
+fn query_liquidity_pair_contract(deps: Deps, lp_token_link: &ContractLink) -> StdResult<Uint128> {   
     let result = token_info(
         &deps.querier,
         &Contract {

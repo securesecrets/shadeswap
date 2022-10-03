@@ -5,17 +5,20 @@ use shadeswap_shared::{
             create_viewing_key, ContractLink,
             TokenAmount, TokenType,
         },
-        msg::amm_pair::{InitMsg}
+        msg::amm_pair::{InitMsg, ExecuteMsg}
     };
 use crate::state::{{Config}};    
 use serde::Deserialize;
 use serde::Serialize;
 use cosmwasm_std::testing::{mock_env, mock_info,MOCK_CONTRACT_ADDR};
-pub const FACTORY_CONTRACT_ADDRESS: &str = "FACTORY_CONTRACT_ADDRESS";
-pub const CUSTOM_TOKEN_1: &str = "CUSTOM_TOKEN_1";
-pub const CUSTOM_TOKEN_2: &str = "CUSTOM_TOKEN_2";
-pub const CONTRACT_ADDRESS: &str = "CONTRACT_ADDRESS";
-pub const LP_TOKEN_ADDRESS: &str = "LP_TOKEN_ADDRESS";
+pub const CONTRACT_ADDRESS: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
+pub const LP_TOKEN: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
+pub const CUSTOM_TOKEN_1: &str = "secret13q9rgw3ez5mf808vm6k0naye090hh0m5fe2436";
+pub const CUSTOM_TOKEN_2: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
+pub const STAKING_CONTRACT: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
+pub const FACTORY_CONTRACT_ADDRESS:& str = "secret1nulgwu6es24us9urgyvms7y02txyg0s02msgzw";
+pub const SENDER:& str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
+
 use crate::help_math::calculate_and_print_price;
 use cosmwasm_std::{
     to_binary, Addr, DepsMut, Env, StdError, StdResult, Uint128
@@ -25,11 +28,14 @@ use crate::state::config_r;
 
 #[cfg(test)]
 pub mod tests {
+    use shadeswap_shared::core::{TokenPair, TokenPairAmount};
+    use shadeswap_shared::stake_contract::StakingContractInit;
+
     use super::*;
     use super::help_test_lib::{mk_token_pair, mk_amm_settings, make_init_config};   
     use crate::contract::{instantiate};
-    use crate::operations::{swap, add_whitelist_address, is_address_in_whitelist, add_address_to_whitelist, calculate_hash};
-    use crate::state::{trade_count_r};
+    use crate::operations::{swap, add_whitelist_address, is_address_in_whitelist, add_address_to_whitelist, calculate_hash, add_liquidity};
+    use crate::state::{trade_count_r, config_w};
     use crate::test::help_test_lib::{mock_dependencies, mk_custom_token_amount, mk_native_token_pair, mock_custom_env};
    
 
@@ -64,12 +70,12 @@ pub mod tests {
         let test_view_key = create_viewing_key(&env, &mock_info.clone(), seed.clone(),entropy.clone());
         // load config
         let config = config_r(deps.as_mut().storage).load()?;
-        let contract_add_token_0 = match(config.pair.0) {
+        let contract_add_token_0 = match config.pair.0 {
             TokenType::CustomToken { contract_addr, token_code_hash } => contract_addr.to_string(),
             TokenType::NativeToken { denom } => "".to_string()
         };
         assert_eq!(contract_add_token_0, CUSTOM_TOKEN_1);
-        let contract_add_token_1 = match(config.pair.1) {
+        let contract_add_token_1 = match config.pair.1 {
             TokenType::CustomToken { contract_addr, token_code_hash } => contract_addr.to_string(),
             TokenType::NativeToken { denom } => "".to_string()
         };
@@ -137,6 +143,57 @@ pub mod tests {
         let address_c =  Addr::unchecked("TESTC".to_string());
         add_whitelist_address(deps.as_mut().storage, address_a.clone())?;                    
         add_whitelist_address(deps.as_mut().storage, address_b.clone())?;
+        Ok(())
+    }
+
+    #[test]
+    fn assert_add_liquidity_with_staking_success()-> StdResult<()>{
+        let seed = to_binary(&"SEED".to_string())?;
+        let entropy = to_binary(&"ENTROPY".to_string())?;
+        let mut deps = mock_dependencies(&[]);
+        let mut deps_api = mock_dependencies(&[]);
+        let mut env = mock_env();
+        let mock_info = mock_info(SENDER,&[]);
+        env.block.height = 200_000;
+        env.contract.address = Addr::unchecked(CONTRACT_ADDRESS.to_string());
+        let token_pair = mk_token_pair();
+        let msg = InitMsg {
+            pair: token_pair,
+            lp_token_contract: ContractInstantiationInfo{
+                  code_hash: "CODE_HASH".to_string(),
+                  id :0
+            },
+            factory_info: ContractLink {
+                address: Addr::unchecked(FACTORY_CONTRACT_ADDRESS),
+                code_hash: "FACTORYADDR_HASH".to_string()
+            },
+            prng_seed: seed.clone(),
+            entropy: entropy.clone(),
+            admin: Some(mock_info.sender.clone()),           
+            staking_contract: None,
+            custom_fee: None,
+            callback: None,
+        };     
+        
+        let deposit = TokenPairAmount{ 
+            pair: mk_token_pair(), 
+            amount_0: Uint128::from(100u128), 
+            amount_1: Uint128::from(100u128), 
+        };
+        assert!(instantiate(deps.as_mut(), env.clone(),mock_info.clone(), msg).is_ok()); 
+        let mut config = config_r(deps.as_mut().storage).load()?;
+        config.staking_contract = Some(ContractLink { 
+            address: deps_api.as_mut().api.addr_validate(STAKING_CONTRACT)?, 
+            code_hash: "".to_string() 
+        });
+        config.lp_token = ContractLink { 
+            address: deps_api.as_mut().api.addr_validate(LP_TOKEN)?, 
+            code_hash: "".to_string() 
+        };
+        config_w(deps.as_mut().storage).save(&config)?;
+        let response = add_liquidity(deps.as_mut(), env, &mock_info.clone(), deposit, None, Some(true))?;    
+        assert_eq!(response.attributes[0].value, "false");    
+        assert_eq!(response.attributes[3].value, "100");     
         Ok(())
     }
 
@@ -502,12 +559,12 @@ pub mod tests_calculation_price_and_fee{
 
 pub mod help_test_lib {
     use super::*;   
-    use cosmwasm_std::{Coin, OwnedDeps, Empty, from_slice, SystemResult, SystemError, BlockInfo, Timestamp, ContractInfo, TransactionInfo, BalanceResponse};
+    use cosmwasm_std::{Coin, OwnedDeps, Empty, from_slice, SystemResult, SystemError, BlockInfo, Timestamp, ContractInfo, TransactionInfo, BalanceResponse, from_binary};
     use cosmwasm_std::testing::{MockStorage, MockApi, MockQuerierCustomHandlerResult, BankQuerier};
     use serde::de::DeserializeOwned;   
     use shadeswap_shared::core::{Fee, TokenPair, CustomFee};
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-    use shadeswap_shared::snip20::QueryAnswer;
+    use shadeswap_shared::snip20::{QueryAnswer, QueryMsg};
     use shadeswap_shared::snip20::manager::Balance;
     use shadeswap_shared::stake_contract::StakingContractInit;   
     use crate::contract::{instantiate, query};
@@ -731,7 +788,7 @@ pub mod help_test_lib {
                                 _ => {
                                     let response : &str= &address.to_string();
                                     println!("{}", response);
-                                    unimplemented!("wrong tt address")   
+                                    unimplemented!("unimplemented {}",address.as_str())   
                                 }                      
 
                             }
@@ -767,11 +824,21 @@ pub mod help_test_lib {
                                     let balance = to_binary(&QueryAnswer::Balance { amount: Uint128::from(10000u128)}).unwrap();
                                     QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
                                 },
+                                LP_TOKEN => {                                   
+                                    let balance = to_binary(&QueryAnswer::TokenInfo { 
+                                        name: "LPTOKEN".to_string(), 
+                                        symbol: "LPT".to_string(), 
+                                        decimals: 8, 
+                                        total_supply: Some(Uint128::new(10000000)) 
+                                    }).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))                                    
+                                },
                                 _ => {
                                     let response : &str= &contract_addr.to_string();
                                     println!("{}", response);
-                                    unimplemented!("wrong address")
+                                    unimplemented!("unimplemented")
                                 },
+
                             }
                         },
                         cosmwasm_std::WasmQuery::ContractInfo { contract_addr } => todo!(),

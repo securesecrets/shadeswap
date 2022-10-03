@@ -1,21 +1,21 @@
 use serde::de::DeserializeOwned;
 use shadeswap_shared::msg::staking::InvokeMsg;
 
-pub const CONTRACT_ADDRESS: &str = "CONTRACT_ADDRESS";
-pub const LP_TOKEN: &str = "LP_TOKEN";
-pub const REWARD_TOKEN: &str = "REWARD_TOKEN";
-pub const STAKING_CONTRACT_ADDRESS: &str = "STAKING_CONTRACT_ADDRESS";
+pub const CONTRACT_ADDRESS: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
+pub const LP_TOKEN: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
+pub const STAKER_A: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
+pub const STAKER_B: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
+pub const STAKER_C:& str = "secret1nulgwu6es24us9urgyvms7y02txyg0s02msgzw";
+pub const SENDER:& str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 
 #[cfg(test)]
 pub mod tests {
     use super::*;
     use cosmwasm_std::{BankQuery, AllBalanceResponse, to_vec, Coin, StdResult, BalanceResponse, from_binary, StdError, QueryRequest, Empty, Uint128, to_binary, QuerierResult, from_slice, Querier, testing::{MockApi, MockStorage, mock_info}, MessageInfo, BlockInfo, Env, Api, Storage, WasmQuery, Addr, Decimal};
-    use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  ExecuteMsg}}, core::{ContractLink, TokenType}};    
+    use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  ExecuteMsg}}, core::{ContractLink, TokenType}, c_std::{Deps, OwnedDeps, CustomQuery}};    
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-    use crate::{test::test_help_lib::{mock_custom_env, make_init_config, mock_dependencies, mock_custom_env_b}, state::{Config, claim_reward_info_r, ClaimRewardsInfo}, operations::{calculate_staker_shares, stake, get_total_stakers_count, claim_rewards_for_all_stakers, calculate_staking_reward}};
-    use serde::Deserialize;
-    use serde::Serialize; 
-    
+    use crate::{test::test_help_lib::{mock_custom_env, make_init_config, mock_dependencies, MockQuerier}, state::{Config, claim_reward_info_r, ClaimRewardsInfo, last_reward_time_r, stakers_r}, operations::{calculate_staker_shares, stake, get_total_stakers_count, claim_rewards_for_all_stakers, calculate_staking_reward, unstake}};
+ 
     #[test]
     fn assert_init_config() -> StdResult<()> {   
         let mut deps = mock_dependencies(&[]);  
@@ -23,7 +23,7 @@ pub mod tests {
         let config: Config = make_init_config(deps.as_mut(), env, Uint128::from(100u128))?;        
         assert_eq!(config.daily_reward_amount, Uint128::from(100u128));
         assert_eq!(config.reward_token, TokenType::CustomToken{
-            contract_addr: Addr::unchecked(CONTRACT_ADDRESS),
+            contract_addr: deps.as_mut().api.addr_validate(CONTRACT_ADDRESS)?,
             token_code_hash: CONTRACT_ADDRESS.to_string(),
         });
         Ok(())
@@ -33,9 +33,9 @@ pub mod tests {
     fn assert_calculate_user_share_first_return_100() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS,1571797523, 1524);
-        let config: Config = make_init_config(deps.as_mut(), env, Uint128::from(100u128))?;       
+        let _config: Config = make_init_config(deps.as_mut(), env, Uint128::from(100u128))?;       
         let user_shares = calculate_staker_shares(deps.as_mut().storage, Uint128::from(100u128))?;
-        assert_eq!(user_shares, Decimal::zero());
+        assert_eq!(user_shares, Decimal::one());
         Ok(())
     }
 
@@ -44,11 +44,12 @@ pub mod tests {
     // share = 500/1500 = 0.33333333333333333
     #[test]
     fn assert_calculate_user_share_already_return_() -> StdResult<()>{
-        let mut deps = mock_dependencies(&[]);
+        let mut deps: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]).into();
         let env = mock_custom_env(CONTRACT_ADDRESS,1571797523, 1524);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
-        let stake = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1500u128),Addr::unchecked("Staker"))?;       
+        let mut deps_owned:  OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]).into();
+        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _stake = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1500u128),deps_owned.as_mut().api.addr_validate(STAKER_A)?)?;       
         let user_shares = calculate_staker_shares(deps.as_mut().storage, Uint128::from(500u128))?;
         assert_eq!(user_shares, Decimal::from_atomics(Uint128::new(333333333333333333), 18).unwrap());
         Ok(())
@@ -58,15 +59,42 @@ pub mod tests {
     fn assert_get_total_stakers_count_return_3() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS,1571797523, 1524);
-        let env_b = mock_custom_env(CONTRACT_ADDRESS,1571797854, 1534);
+        let _env_b = mock_custom_env(CONTRACT_ADDRESS,1571797854, 1534);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
-        let stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),Addr::unchecked("StakerA"))?;    
-        let stake_b = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1500u128),Addr::unchecked("StakerB"))?;       
-        let stake_c = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1700u128),Addr::unchecked("StakerC"))?;   
-        let stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),Addr::unchecked("StakerA"))?;           
+        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let mut deps_owned:  OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
+        let _stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),deps_owned.as_mut().api.addr_validate(STAKER_A)?)?;    
+        let _stake_b = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1500u128),deps_owned.as_mut().api.addr_validate(STAKER_B)?)?;       
+        let _stake_c = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1700u128),deps_owned.as_mut().api.addr_validate(STAKER_C)?)?;   
+        let _stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),deps_owned.as_mut().api.addr_validate(STAKER_A)?)?;           
         let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
         assert_eq!(total_stakers_count, Uint128::from(3u128));
+        Ok(())
+    }
+
+    #[test]
+    fn assert_unstake_set_claimable_to_zero() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(CONTRACT_ADDRESS,1571797523, 1524);
+        let env_b = mock_custom_env(CONTRACT_ADDRESS,1571797854, 1534);
+        let stake_mock_info = mock_info(LP_TOKEN, &[]);
+        let unstake_mock_info = mock_info(STAKER_A, &[]);
+        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let mut deps_owned:  OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
+        let _stake_a = stake(deps.as_mut(), env.clone(),stake_mock_info.clone(), Uint128::from(1000u128),deps_owned.as_mut().api.addr_validate(STAKER_A)?)?;    
+        let _stake_b = stake(deps.as_mut(), env.clone(),stake_mock_info.clone(), Uint128::from(1500u128),deps_owned.as_mut().api.addr_validate(STAKER_B)?)?;       
+        let _stake_c = stake(deps.as_mut(), env.clone(),stake_mock_info.clone(), Uint128::from(1700u128),deps_owned.as_mut().api.addr_validate(STAKER_C)?)?;   
+        let _unstake_a = unstake (deps.as_mut(), env.clone(),unstake_mock_info.clone(), Uint128::from(1000u128), Some(true))?;           
+        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
+        let claim_reward_info_a: ClaimRewardsInfo  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
+        let staker_info = stakers_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes());
+        match staker_info {
+            Ok(_) => todo!(),
+            Err(err) => assert_eq!(err.to_string(), "staking::state::StakingInfo not found".to_string()),
+        }
+        assert_eq!(total_stakers_count, Uint128::from(3u128));
+        assert_eq!(claim_reward_info_a.amount, Uint128::zero());
+        assert_eq!(claim_reward_info_a.last_time_claimed, Uint128::new(1524000));
         Ok(())
     }
 
@@ -76,14 +104,19 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS,15000000, 1500);
         let env_b = mock_custom_env(CONTRACT_ADDRESS,16000000, 1534);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
-        let stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),Addr::unchecked("StakerA"))?;    
-        let stake_b = stake(deps.as_mut(), env_b.clone(),mock_info.clone(), Uint128::from(1500u128),Addr::unchecked("StakerB"))?;    
-        claim_rewards_for_all_stakers(deps.as_mut().storage,Uint128::from(16000000u128))?;
-        let claim_reward_info_a: ClaimRewardsInfo  = claim_reward_info_r(deps.as_mut().storage).load(Addr::unchecked("StakerA").as_bytes())?;
-        let claim_reward_info_b: ClaimRewardsInfo  = claim_reward_info_r(deps.as_mut().storage).load(Addr::unchecked("StakerB").as_bytes())?;
-        assert_eq!(claim_reward_info_a.amount, Uint128::from(22222u128));
-        assert_eq!(claim_reward_info_b.amount, Uint128::from(33333u128));
+        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let mut deps_owned:  OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
+        let _stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),deps_owned.as_mut().api.addr_validate(STAKER_A)?)?;    
+        let _stake_b = stake(deps.as_mut(), env_b.clone(),mock_info.clone(), Uint128::from(1500u128),deps_owned.as_mut().api.addr_validate(STAKER_B)?)?;    
+        claim_rewards_for_all_stakers(deps.as_mut().storage, Uint128::from(16000000u128))?;
+        let claim_reward_info_a: ClaimRewardsInfo  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
+        let claim_reward_info_b: ClaimRewardsInfo  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_B)?.as_bytes())?;
+        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
+        let last_timestamp = last_reward_time_r(deps.as_mut().storage).load().unwrap();
+        assert_eq!(total_stakers_count, Uint128::from(2u128));
+        assert_eq!(last_timestamp, Uint128::from(16000000u128));
+        assert_eq!(claim_reward_info_a.amount, Uint128::from(20256u128));
+        assert_eq!(claim_reward_info_b.amount, Uint128::from(30137u128));
         assert_eq!(claim_reward_info_a.last_time_claimed, Uint128::from(16000000u128));
         assert_eq!(claim_reward_info_b.last_time_claimed, Uint128::from(16000000u128));
         Ok(())
@@ -99,12 +132,13 @@ pub mod tests {
     #[test]
     fn assert_calculate_staking_reward() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
-        let env = mock_custom_env(CONTRACT_ADDRESS,15000000, 1500);
-        let env_b = mock_custom_env(CONTRACT_ADDRESS,16000000, 1534);
+        let env = mock_custom_env(LP_TOKEN,15000000, 1500);
+        let env_b = mock_custom_env(LP_TOKEN,16000000, 1534);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
-        let stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),Addr::unchecked("StakerA"))?;    
-        let stake_b = stake(deps.as_mut(), env_b.clone(),mock_info.clone(), Uint128::from(1500u128),Addr::unchecked("StakerB"))?;   
+        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let mut deps_owned:  OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
+        let _stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),deps_owned.as_mut().api.addr_validate(STAKER_A)?)?;    
+        let _stake_b = stake(deps.as_mut(), env_b.clone(),mock_info.clone(), Uint128::from(1500u128),deps_owned.as_ref().api.addr_validate(STAKER_B)?)?;   
         let last_timestamp = Uint128::from(15000000u128);
         let current_timestamp  = Uint128::from(16000000u128);
         let staking_reward = calculate_staking_reward(deps.as_mut().storage, Uint128::from(1000u128),last_timestamp, current_timestamp)?;
@@ -115,13 +149,14 @@ pub mod tests {
     #[test]
     fn assert_staking_first_time_store_timestamp() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
-        let env = mock_custom_env_b(CONTRACT_ADDRESS,15000000, 1500);        
+        let env = mock_custom_env(CONTRACT_ADDRESS, 1500,15000000);        
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
-        let stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),Addr::unchecked("StakerA"))?;    
-        let claim_reward_info_b: ClaimRewardsInfo  = claim_reward_info_r(deps.as_mut().storage).load(Addr::unchecked("StakerA").as_bytes())?;
+        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let mut deps_owned:  OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
+        stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),deps_owned.as_mut().api.addr_validate(STAKER_A)?)?;    
+        let claim_reward_info_b: ClaimRewardsInfo  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
         assert_eq!(claim_reward_info_b.amount, Uint128::zero());
-        assert_eq!(claim_reward_info_b.last_time_claimed, Uint128::from(15000000u128));       
+        assert_eq!(claim_reward_info_b.last_time_claimed, Uint128::from(15000000000u128));       
         Ok(())
     }
 }
@@ -141,15 +176,15 @@ pub mod test_help_lib{
             amount: Uint128
         ) -> StdResult<Config> 
     {    
-        let info = mock_info("Sender", &[]);
+        let info = mock_info(SENDER, &[]);
         let msg = InitMsg {
             staking_amount: amount.clone(),         
             reward_token: TokenType::CustomToken{
-                contract_addr: Addr::unchecked(CONTRACT_ADDRESS),
+                contract_addr: deps.api.addr_validate(CONTRACT_ADDRESS)?,
                 token_code_hash: CONTRACT_ADDRESS.to_string(),
             },           
             pair_contract: ContractLink {
-                address: Addr::unchecked(CONTRACT_ADDRESS),
+                address: deps.api.addr_validate(CONTRACT_ADDRESS)?,
                 code_hash: "".to_string().clone(),
             },
             prng_seed: to_binary(&"prng")?,
@@ -157,7 +192,7 @@ pub mod test_help_lib{
         };         
         assert!(instantiate(deps.branch(), env.clone(),info.clone(), msg).is_ok());
         let mut config = config_r(deps.storage).load()?;
-        config.lp_token = ContractLink{ address: Addr::unchecked(LP_TOKEN), code_hash: "".to_string() };
+        config.lp_token = ContractLink{ address: deps.api.addr_validate(LP_TOKEN)?, code_hash: "".to_string() };
         config_w(deps.storage).save(&config)?;
         Ok(config)
     }
@@ -166,7 +201,7 @@ pub mod test_help_lib{
         Env {
             block: BlockInfo {
                 height: height,
-                time: Timestamp::from_nanos(time),
+                time: Timestamp::from_seconds(time),
                 chain_id: "pulsar-2".to_string(),
             },
             transaction: Some(TransactionInfo { index: 3 }),
@@ -175,27 +210,11 @@ pub mod test_help_lib{
                 code_hash: "".to_string(),
             },
         }
-    }
-
-    pub fn mock_custom_env_b(address: &str, height: u64, time: u64) -> Env {
-        Env {
-            block: BlockInfo {
-                height: height,
-                time: Timestamp::from_seconds(15000),
-                chain_id: "pulsar-2".to_string(),
-            },
-            transaction: Some(TransactionInfo { index: 3 }),
-            contract: ContractInfo {
-                address: Addr::unchecked(address),
-                code_hash: "".to_string(),
-            },
-        }
-    }
+    }  
 
     pub fn mock_dependencies(
-        contract_balance: &[Coin],
-      ) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
-        let contract_addr = Addr::unchecked(CONTRACT_ADDRESS);
+        _contract_balance: &[Coin],
+      ) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {        
         OwnedDeps {
           storage: MockStorage::default(),
           api: MockApi::default(),
@@ -219,13 +238,13 @@ pub mod test_help_lib{
             match &request {
                 QueryRequest::Bank(msg) => {
                     match msg {
-                        cosmwasm_std::BankQuery::Balance { address, denom } => {
+                        cosmwasm_std::BankQuery::Balance { address, denom:_ } => {
                             match address.as_str() {
-                                CUSTOM_TOKEN_2 => {
+                                _custom_token_2 => {
                                     let balance = to_binary(&QueryAnswer::Balance { amount: Uint128::from(1000u128)}).unwrap();
                                     QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
                                 },
-                                FACTORY_CONTRACT_ADDRESS => {
+                                _factory_contract_address => {
                                     let balance = to_binary(&BalanceResponse{
                                         amount: Coin{
                                             denom: "uscrt".into(),
@@ -234,7 +253,7 @@ pub mod test_help_lib{
                                     }).unwrap();                                  
                                     QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
                                 },
-                                CUSTOM_TOKEN_1 => {
+                                _custom_token_1 => {
                                     let balance = to_binary(&BalanceResponse{
                                         amount: Coin{
                                             denom: "uscrt".into(),
@@ -246,37 +265,35 @@ pub mod test_help_lib{
                                 _ => {
                                     let response : &str= &address.to_string();
                                     println!("{}", response);
-                                    unimplemented!("wrong tt address")   
+                                    unimplemented!("{} not implemented", address.as_str()) 
                                 }                      
 
                             }
                         },
-                        cosmwasm_std::BankQuery::AllBalances { address } => todo!(),
+                        cosmwasm_std::BankQuery::AllBalances { address:_ } => todo!(),
                         _ => todo!(),
                     }
                 },
                 QueryRequest::Custom(_) => todo!(),
                 QueryRequest::Wasm(msg) =>{ 
                     match msg {
-                        cosmwasm_std::WasmQuery::Smart { contract_addr, code_hash, msg } => {
+                        cosmwasm_std::WasmQuery::Smart { contract_addr, code_hash:_, msg:_ } => {
                             match contract_addr.as_str(){                              
-                                CUSTOM_TOKEN_1 => {
+                                _custom_token_1 => {
                                     let balance = to_binary(&QueryAnswer::Balance { amount: Uint128::from(10000u128)}).unwrap();
                                     QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
                                 },
-                                CUSTOM_TOKEN_2 => {
+                                _custom_token_2 => {
                                     let balance = to_binary(&QueryAnswer::Balance { amount: Uint128::from(10000u128)}).unwrap();
                                     QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
                                 },
-                                _ => {
-                                    let response : &str= &contract_addr.to_string();
-                                    println!("{}", response);
-                                    unimplemented!("wrong address")
+                                _ => {                                                             
+                                    unimplemented!("{} not implemented", contract_addr.as_str().to_owned()) 
                                 },
                             }
                         },
-                        cosmwasm_std::WasmQuery::ContractInfo { contract_addr } => todo!(),
-                        cosmwasm_std::WasmQuery::Raw { key, contract_addr } => todo!(),
+                        cosmwasm_std::WasmQuery::ContractInfo { contract_addr:_ } => unimplemented!("unimplemented"),
+                        cosmwasm_std::WasmQuery::Raw { key:_, contract_addr: _ } => unimplemented!("unimplemented"),
                         _ => todo!(),
                     }
                 },

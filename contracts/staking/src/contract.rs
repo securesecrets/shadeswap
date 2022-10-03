@@ -11,7 +11,7 @@ use shadeswap_shared::{
 use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staker_reward_info,
-        get_staking_contract_owner, get_staking_stake_lp_token_info, set_view_key, stake, unstake,
+        get_staking_stake_lp_token_info, stake, unstake,
     },
     state::{config_r, config_w, prng_seed_w, stakers_r, Config},
 };

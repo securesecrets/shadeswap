@@ -34,7 +34,6 @@ use shadeswap_shared::{
 };
 
 use crate::{
-    help_math::{calculate_and_print_price, multiply, substraction},
     state::{
         config_r, config_w, trade_count_r, trade_count_w, trade_history_r, trade_history_w,
         whitelist_r, whitelist_w, Config, PAGINATION_LIMIT,
@@ -54,7 +53,7 @@ pub fn remove_whitelist_address(
     storage: &mut dyn Storage,
     address_to_remove: Vec<Addr>,
 ) -> StdResult<()> {
-    let mut addresses = whitelist_r(storage).load()?;
+    let mut addresses = whitelist_r(storage).load().unwrap();
     for address in address_to_remove {
         addresses.retain(|x| x != &address);
     }
@@ -62,7 +61,7 @@ pub fn remove_whitelist_address(
 }
 
 pub fn is_address_in_whitelist(storage: &dyn Storage, address: Addr) -> StdResult<bool> {
-    let addrs = whitelist_r(storage).may_load()?;
+    let addrs = whitelist_r(storage).may_load().unwrap();
     match addrs {
         Some(a) => {
             if a.contains(&address) {
@@ -87,7 +86,7 @@ fn store_trade_history(deps: DepsMut, trade_history: &TradeHistory) -> StdResult
         Err(_) => 0,
     };
     let update_count = count + 1;
-    trade_count_w(deps.storage).save(&update_count)?;
+    trade_count_w(deps.storage).save(&update_count).unwrap();
     trade_history_w(deps.storage).save(update_count.to_string().as_bytes(), &trade_history)
 }
 
@@ -96,7 +95,7 @@ pub fn register_lp_token(
     env: Env,
     lp_token_address: Contract,
 ) -> StdResult<Response> {
-    let mut config = config_r(deps.storage).load()?;
+    let mut config = config_r(deps.storage).load().unwrap();
 
     config.lp_token = ContractLink {
         address: lp_token_address.address.clone(),
@@ -130,7 +129,7 @@ pub fn register_lp_token(
                         address: lp_token_address.address.clone(),
                         code_hash: lp_token_address.code_hash.clone(),
                     },
-                })?,
+                }).unwrap(),
                 code_hash: c.contract_info.code_hash.clone(),
                 funds: vec![],
             }));
@@ -162,7 +161,7 @@ pub fn register_pair_token(
                 address: contract_addr.clone(),
                 code_hash: token_code_hash.to_string(),
             },
-        )?);
+        ).unwrap());
         messages.push(register_receive(
             env.contract.code_hash.clone(),
             None,
@@ -170,7 +169,7 @@ pub fn register_pair_token(
                 address: contract_addr.clone(),
                 code_hash: token_code_hash.to_string(),
             },
-        )?);
+        ).unwrap());
     }
 
     Ok(())
@@ -182,8 +181,8 @@ pub fn query_calculate_price(
     offer: TokenAmount,
     exclude_fee: Option<bool>,
 ) -> StdResult<SwapInfo> {
-    let config_settings = config_r(deps.storage).load()?;
-    let amm_settings = query_factory_amm_settings(deps, config_settings.factory_contract.clone())?;
+    let config_settings = config_r(deps.storage).load().unwrap();
+    let amm_settings = query_factory_amm_settings(deps, config_settings.factory_contract.clone()).unwrap();
     let swap_result = calculate_swap_result(
         deps,
         &env,
@@ -192,7 +191,7 @@ pub fn query_calculate_price(
         &offer,
         Addr::unchecked("".to_string()),
         exclude_fee,
-    )?;
+    ).unwrap();
     Ok(swap_result)
 }
 
@@ -326,18 +325,9 @@ pub fn set_staking_contract(
 ) -> StdResult<Response> {
     match staking_contract.clone() {
         Some(contract) => {
-            let config = config_r(deps.storage).load()?;
-
-            config_w(deps.storage).save(&Config {
-                factory_contract: config.factory_contract,
-                lp_token: config.lp_token,
-                staking_contract: staking_contract,
-                pair: config.pair,
-                viewing_key: config.viewing_key,
-                custom_fee: config.custom_fee,
-                staking_contract_init: config.staking_contract_init,
-                prng_seed: config.prng_seed,
-            })?;
+            let mut config = config_r(deps.storage).load()?;
+            config.staking_contract = staking_contract;
+            config_w(deps.storage).save(&config)?;
 
             // send lp contractLink to staking contract
             Ok(Response::new()
@@ -409,40 +399,8 @@ pub fn get_estimated_lp_token(
             .pair
             .query_balances(deps, env.contract.address.to_string(), viewing_key.0)?;
 
-    assert_slippage_acceptance(
-        slippage,
-        &[deposit.amount_0, deposit.amount_1],
-        &pool_balances,
-    )?;
-
     let pair_contract_pool_liquidity = query_liquidity_pair_contract(deps, &lp_token)?;
-    let lp_tokens: Uint128;
-    if pair_contract_pool_liquidity == Uint128::zero() {
-        // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
-        // x and y is amount of token0 and token1 provided
-        let deposit_token0_amount = deposit.amount_0;
-        let deposit_token1_amount = deposit.amount_1;
-        let mul_value_amount = deposit_token0_amount * Decimal::new(deposit_token1_amount);
-        // let mul_val_string = &mul_value_amount.to_string();
-        let math_lp_tokens = Uint128::from_str(&mul_value_amount.to_string())?;
-        let sqrt_result = Decimal::from_atomics(math_lp_tokens, 0).unwrap().sqrt();
-        lp_tokens = Uint128::from(sqrt_result.atomics().u128());
-    } else {
-        // Total % of Pool
-        let total_share = pair_contract_pool_liquidity;
-        // Deposit amounts of the tokens
-        let deposit_token0_amount = deposit.amount_0;
-        let deposit_token1_amount = deposit.amount_1;
-
-        // get token pair balance
-        let token0_pool = pool_balances[0];
-        let token1_pool = pool_balances[1];
-        // Calcualte new % of Pool
-        let percent_token0_pool = deposit_token0_amount.multiply_ratio(total_share, token0_pool);
-        let percent_token1_pool = deposit_token1_amount.multiply_ratio(total_share, token1_pool);
-        lp_tokens = std::cmp::min(percent_token0_pool, percent_token1_pool)
-    };
-
+    let lp_tokens = assert_slippage_and_calculate_lptoken(slippage, &deposit, pool_balances, &lp_token, pair_contract_pool_liquidity)?;   
     let response_msg = QueryMsgResponse::EstimatedLiquidity {
         lp_token: lp_tokens,
         total_lp_token: pair_contract_pool_liquidity,
@@ -508,17 +466,14 @@ pub fn calculate_swap_result(
     let mut lp_fee_amount = Uint128::zero();
     let mut shade_dao_fee_amount = Uint128::zero();
     // calculation fee
-    let discount_fee =  is_address_in_whitelist(deps.storage, recipient)?;
-    if discount_fee == false {
-        match &config.custom_fee {
-            Some(f) => {
-                lp_fee_amount = calculate_fee(offer.amount, f.lp_fee)?;
-                shade_dao_fee_amount = calculate_fee(offer.amount, f.shade_dao_fee)?;
-            }
-            None => {
-                lp_fee_amount = calculate_fee(offer.amount, lp_fee)?;
-                shade_dao_fee_amount = calculate_fee(offer.amount, shade_dao_fee)?;
-            }
+    match &config.custom_fee {
+        Some(f) => {
+            lp_fee_amount = calculate_fee(offer.amount, f.lp_fee)?;
+            shade_dao_fee_amount = calculate_fee(offer.amount, f.shade_dao_fee)?;
+        }
+        None => {
+            lp_fee_amount = calculate_fee(offer.amount, lp_fee)?;
+            shade_dao_fee_amount = calculate_fee(offer.amount, shade_dao_fee)?;
         }
     }
     // total fee
@@ -542,7 +497,7 @@ pub fn calculate_swap_result(
         shade_dao_fee_amount: shade_dao_fee_amount,
         total_fee_amount: total_fee_amount,
         result: result_swap,
-        price: calculate_and_print_price(swap_amount, amount, token_index)?,
+        price: Decimal::from_ratio(swap_amount, amount).to_string(),
     })
 }
 
@@ -601,7 +556,7 @@ pub fn remove_liquidity(
         ..
     } = config;
 
-    let liquidity_pair_contract = query_liquidity_pair_contract(deps.as_ref(), &lp_token)?;
+    let liquidity_pair_contract = query_liquidity_pair_contract(deps.as_ref(), &lp_token).unwrap();
     let pool_balances = pair.query_balances(
         deps.as_ref(),
         env.contract.address.to_string(),
@@ -709,35 +664,9 @@ pub fn add_liquidity(
         }
     }
 
-    assert_slippage_acceptance(
-        slippage,
-        &[deposit.amount_0, deposit.amount_1],
-        &pool_balances,
-    )?;
-   
-    let pair_contract_pool_liquidity = query_liquidity_pair_contract(deps.as_ref(), &lp_token)?;
-    let mut lp_tokens: Uint128 = Uint128::zero();
-    if pair_contract_pool_liquidity == Uint128::zero() {
-        // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
-        // x and y is amount of token0 and token1 provided
-        let deposit_token0_amount = Uint256::from(deposit.amount_0);
-        let deposit_token1_amount = Uint256::from(deposit.amount_1);
-        lp_tokens = Uint128::try_from(sqrt(deposit_token0_amount * deposit_token1_amount)?)?
-    } else {
-        // Total % of Pool
-        let total_share = pair_contract_pool_liquidity;
-        // Deposit amounts of the tokens
-        let deposit_token0_amount = deposit.amount_0;
-        let deposit_token1_amount = deposit.amount_1;
-
-        // get token pair balance
-        let token0_pool = pool_balances[0];
-        let token1_pool = pool_balances[1];
-        // Calcualte new % of Pool
-        let percent_token0_pool = deposit_token0_amount.multiply_ratio(total_share, token0_pool);
-        let percent_token1_pool = deposit_token1_amount.multiply_ratio(total_share, token1_pool);
-        lp_tokens = std::cmp::min(percent_token0_pool, percent_token1_pool)
-    };
+    let pair_contract_pool_liquidity = query_liquidity_pair_contract(deps.as_ref(), &lp_token).unwrap();
+    println!("total pool amount {}",pair_contract_pool_liquidity);
+    let lp_tokens = assert_slippage_and_calculate_lptoken(slippage, &deposit, pool_balances, &lp_token, pair_contract_pool_liquidity)?;   
 
     let mut add_to_staking = false;
     // check if user wants add his LP token to Staking
@@ -827,6 +756,39 @@ pub fn add_liquidity(
         ]))
 }
 
+fn assert_slippage_and_calculate_lptoken(slippage: Option<Decimal>, deposit: &TokenPairAmount, pool_balances: [Uint128; 2], lp_token: &ContractLink,
+    pair_contract_pool_liquidity: Uint128) -> Result<Uint128, StdError> {
+    assert_slippage_acceptance(
+        slippage,
+        &[deposit.amount_0, deposit.amount_1],
+        &pool_balances,
+    )?;
+   
+    let mut lp_tokens: Uint128 = Uint128::zero();
+    if pair_contract_pool_liquidity == Uint128::zero() {
+        // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
+        // x and y is amount of token0 and token1 provided
+        let deposit_token0_amount = Uint256::from(deposit.amount_0);
+        let deposit_token1_amount = Uint256::from(deposit.amount_1);
+        lp_tokens = Uint128::try_from(sqrt(deposit_token0_amount * deposit_token1_amount).unwrap()).unwrap();        
+    } else {
+        // Total % of Pool
+        let total_share = pair_contract_pool_liquidity;
+        // Deposit amounts of the tokens
+        let deposit_token0_amount = deposit.amount_0;
+        let deposit_token1_amount = deposit.amount_1;
+
+        // get token pair balance
+        let token0_pool = pool_balances[0];
+        let token1_pool = pool_balances[1];
+        // Calcualte new % of Pool
+        let percent_token0_pool = deposit_token0_amount.multiply_ratio(total_share, token0_pool);
+        let percent_token1_pool = deposit_token1_amount.multiply_ratio(total_share, token1_pool);
+        lp_tokens = std::cmp::min(percent_token0_pool, percent_token1_pool);
+    };
+    Ok(lp_tokens)
+}
+
 fn assert_slippage_acceptance(
     slippage: Option<Decimal>,
     deposits: &[Uint128; 2],
@@ -836,16 +798,11 @@ fn assert_slippage_acceptance(
         return Ok(());
     }
 
-    let slippage_amount = substraction(Decimal::one(), slippage.unwrap())?;
-
-    if multiply(
-        Decimal::from_ratio(deposits[0], deposits[1]),
-        slippage_amount,
-    ) > Decimal::from_ratio(pools[0], pools[1])
-        || multiply(
-            Decimal::from_ratio(deposits[1], deposits[0]),
-            slippage_amount,
-        ) > Decimal::from_ratio(pools[1], pools[0])
+    let slippage_amount = Decimal::one() - slippage.unwrap();
+    if Decimal::from_ratio(deposits[0], deposits[1]).checked_mul(slippage_amount).unwrap()
+     > Decimal::from_ratio(pools[0], pools[1])
+        || Decimal::from_ratio(deposits[1], deposits[0]).checked_mul(slippage_amount).unwrap()
+      > Decimal::from_ratio(pools[1], pools[0])
     {
         return Err(StdError::generic_err(
             "Operation exceeds max slippage acceptance",

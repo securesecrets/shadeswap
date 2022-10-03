@@ -13,13 +13,13 @@ use serde::Serialize;
 use cosmwasm_std::testing::{mock_env, mock_info,MOCK_CONTRACT_ADDR};
 pub const CONTRACT_ADDRESS: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 pub const LP_TOKEN: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
+pub const LP_TOKEN_B: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy4";
 pub const CUSTOM_TOKEN_1: &str = "secret13q9rgw3ez5mf808vm6k0naye090hh0m5fe2436";
 pub const CUSTOM_TOKEN_2: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 pub const STAKING_CONTRACT: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 pub const FACTORY_CONTRACT_ADDRESS:& str = "secret1nulgwu6es24us9urgyvms7y02txyg0s02msgzw";
 pub const SENDER:& str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 
-use crate::help_math::calculate_and_print_price;
 use cosmwasm_std::{
     to_binary, Addr, DepsMut, Env, StdError, StdResult, Uint128
 };
@@ -183,16 +183,16 @@ pub mod tests {
         assert!(instantiate(deps.as_mut(), env.clone(),mock_info.clone(), msg).is_ok()); 
         let mut config = config_r(deps.as_mut().storage).load()?;
         config.staking_contract = Some(ContractLink { 
-            address: deps_api.as_mut().api.addr_validate(STAKING_CONTRACT)?, 
+            address: deps_api.as_mut().api.addr_validate(STAKING_CONTRACT).unwrap(), 
             code_hash: "".to_string() 
         });
         config.lp_token = ContractLink { 
-            address: deps_api.as_mut().api.addr_validate(LP_TOKEN)?, 
+            address: deps_api.as_mut().api.addr_validate(LP_TOKEN_B).unwrap(), 
             code_hash: "".to_string() 
         };
         config_w(deps.as_mut().storage).save(&config)?;
         let response = add_liquidity(deps.as_mut(), env, &mock_info.clone(), deposit, None, Some(true))?;    
-        assert_eq!(response.attributes[0].value, "false");    
+        assert_eq!(response.attributes[0].value, "true");    
         assert_eq!(response.attributes[3].value, "100");     
         Ok(())
     }
@@ -303,9 +303,9 @@ pub mod tests_calculation_price_and_fee{
 
      #[test]
     fn assert_calculate_and_print_price() -> StdResult<()>{
-        let result_a = calculate_and_print_price(Uint128::from(99u128), Uint128::from(100u128),0)?;
-        let result_b = calculate_and_print_price(Uint128::from(58u128), Uint128::from(124u128),1)?;
-        let result_c = calculate_and_print_price(Uint128::from(158u128), Uint128::from(124u128),0)?;
+        let result_a = Decimal::from_ratio(Uint128::from(99u128), Uint128::from(100u128)).to_string();
+        let result_b = Decimal::from_ratio(Uint128::from(58u128), Uint128::from(124u128)).to_string();
+        let result_c = Decimal::from_ratio(Uint128::from(158u128), Uint128::from(124u128)).to_string();
         assert_eq!(result_a, "0.99".to_string());
         assert_eq!(result_b, "0.467741935483870967".to_string());
         assert_eq!(result_c, "1.274193548387096774".to_string());
@@ -334,7 +334,7 @@ pub mod tests_calculation_price_and_fee{
         let amm_settings = mk_amm_settings_a();
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
         let token_pair = mk_token_pair_test_calculation_price_fee();
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee)?;           
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
         let expected_amount: u128 = 1666;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, &amm_settings, &config,
@@ -352,7 +352,7 @@ pub mod tests_calculation_price_and_fee{
         let amm_settings = mk_amm_settings_a();
         let env = mock_env();
         let token_pair = mk_token_pair_test_calculation_price_fee();
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee)?;           
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
         let expected_amount: u128 = 1624;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, &amm_settings, &config,
@@ -371,7 +371,7 @@ pub mod tests_calculation_price_and_fee{
         let mut deps = mock_dependencies(&[]);
         let amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee)?;           
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
         let env = mock_env();
         let expected_amount: u128 = 1539;
@@ -387,7 +387,7 @@ pub mod tests_calculation_price_and_fee{
         let custom_fee: Option<CustomFee> = None;
         let mut deps = mock_dependencies(&[]);
         let token_pair = mk_native_token_pair_test_calculation_price_fee();
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None)?;       
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;       
         let address_a = Addr::unchecked("TESTA".to_string());
         let token_amount = mk_custom_token_amount_test_calculation_price_fee(Uint128::from(2000u128), config.pair.clone());   
         let amm_settings = shadeswap_shared::amm_pair::AMMSettings {
@@ -414,17 +414,18 @@ pub mod tests_calculation_price_and_fee{
         let mut deps = mock_dependencies(&[]);
         let amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None)?;         
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None,Some(LP_TOKEN.to_string()))?;         
         let offer_amount: u128 = 2000;
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
-        let expected_amount: u128 = 1666;           
+        let expected_amount: u128 = 1624;     
+        let expected_lp_fee: u128 = 40;      
         let address_a = Addr::unchecked("TESTA".to_string());
         add_whitelist_address(deps.as_mut().storage, address_a.clone())?;    
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(), &env,&amm_settings, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
             address_a.clone(), None)?;
-        assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
-        assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
+        assert_eq!(Uint128::new(expected_amount), swap_result.result.return_amount);
+        assert_eq!(Uint128::new(expected_lp_fee), swap_result.lp_fee_amount);
         Ok(())
     }
 
@@ -434,7 +435,7 @@ pub mod tests_calculation_price_and_fee{
         let mut deps = mock_dependencies(&[]);
         let amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None)?;         
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None,Some(LP_TOKEN.to_string()))?;         
         let offer_amount: u128 = 2000;
         let expected_amount: u128 = 16666;           
         let address_a = Addr::unchecked("TESTA".to_string());
@@ -464,7 +465,7 @@ pub mod tests_calculation_price_and_fee{
         let mut deps = mock_dependencies(&[]);
         let amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None)?;         
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None,Some(LP_TOKEN.to_string()))?;         
         let offer_amount: u128 = 2000;          
         let address_a = "TESTA".to_string();
         let token = config.pair.clone();  
@@ -495,7 +496,7 @@ pub mod tests_calculation_price_and_fee{
         let mut deps = mock_dependencies(&[]);
         let amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None)?;         
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;         
         let offer_amount: u128 = 2000;          
         let mock_info = mock_info("Sender", &[]);
         let address_a = Addr::unchecked("TESTA".to_string());
@@ -529,7 +530,7 @@ pub mod tests_calculation_price_and_fee{
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let env = mock_env();
         let mock_info = mock_info("Sender", &[]);
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None)?;        
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None, Some(LP_TOKEN.to_string()))?;        
         let offer_amount: u128 = 2000;          
         let address_a = "TESTA".to_string();
         let token = config.pair.clone();  
@@ -683,28 +684,7 @@ pub mod help_test_lib {
         }
     }
 
-    pub fn mock_config(env: Env) -> StdResult<Config>
-    {    
-        let seed = to_binary(&"SEED".to_string())?;
-        let entropy = to_binary(&"ENTROPY".to_string())?;
-        let mk_info = mock_info("sender", &[]);
-
-        Ok(Config {       
-            factory_contract: mock_contract_link(FACTORY_CONTRACT_ADDRESS.to_string()),
-            lp_token: mock_contract_link("LPTOKEN".to_string()),
-            staking_contract: Some(mock_contract_link(MOCK_CONTRACT_ADDR.to_string())),
-            pair:      mk_token_pair(),
-            viewing_key:  create_viewing_key(&env, &mk_info.clone(), seed.clone(), entropy.clone()),
-            custom_fee: None,
-            staking_contract_init: Some(StakingContractInit{ 
-                contract_info: ContractInstantiationInfo { code_hash:"".to_string(), id: 1 }, 
-                amount: Uint128::from(1000u128), 
-                reward_token: TokenType::CustomToken { contract_addr: Addr::unchecked("".to_string()), token_code_hash: "".to_string() },
-            }),
-            prng_seed: to_binary(&"to_string".to_string())?,
-        })
-    }
-
+ 
     pub fn mock_contract_link(address: String)-> ContractLink{
         ContractLink{
             address: Addr::unchecked(address.clone()),
@@ -786,9 +766,7 @@ pub mod help_test_lib {
                                     QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
                                 },
                                 _ => {
-                                    let response : &str= &address.to_string();
-                                    println!("{}", response);
-                                    unimplemented!("unimplemented {}",address.as_str())   
+                                    unimplemented!() 
                                 }                      
 
                             }
@@ -833,16 +811,23 @@ pub mod help_test_lib {
                                     }).unwrap();
                                     QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))                                    
                                 },
-                                _ => {
-                                    let response : &str= &contract_addr.to_string();
-                                    println!("{}", response);
-                                    unimplemented!("unimplemented")
+                                LP_TOKEN_B =>{
+                                    let balance = to_binary(&QueryAnswer::TokenInfo { 
+                                        name: "LPTOKEN".to_string(), 
+                                        symbol: "LPT".to_string(), 
+                                        decimals: 8, 
+                                        total_supply: Some(Uint128::new(0)) 
+                                    }).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                _ => {  
+                                    unimplemented!() 
                                 },
 
                             }
                         },
-                        cosmwasm_std::WasmQuery::ContractInfo { contract_addr } => todo!(),
-                        cosmwasm_std::WasmQuery::Raw { key, contract_addr } => todo!(),
+                        cosmwasm_std::WasmQuery::ContractInfo { contract_addr:_ } => todo!(),
+                        cosmwasm_std::WasmQuery::Raw { key:_, contract_addr:_ } => todo!(),
                         _ => todo!(),
                     }
                 },
@@ -856,10 +841,12 @@ pub mod help_test_lib {
         mut deps: DepsMut, 
         token_pair: TokenPair,
         custom_fee: Option<CustomFee>,
+        lp_token_addr: Option<String>
     ) 
     -> StdResult<Config> {    
         let seed = to_binary(&"SEED".to_string())?;
         let entropy = to_binary(&"ENTROPY".to_string())?;
+        let mut deps_api = mock_dependencies(&[]);
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);  
         /// let mut deps = mock_dependencies(&[]);
         let mock_info = mock_info("CONTRACT_ADDRESS",&[]);
@@ -882,7 +869,12 @@ pub mod help_test_lib {
         };         
         let temp_deps = deps.branch();
         assert!(instantiate(temp_deps, env.clone(),mock_info, msg).is_ok());
-        let config = config_r(deps.storage).load()?;    // set staking contract        
+        let mut config = config_r(deps.storage).load()?;    // set staking contract        
+        config.lp_token = ContractLink{
+            address: deps_api.as_mut().api.addr_validate(&lp_token_addr.unwrap()).unwrap(),
+            code_hash: "".to_string(),
+        };
+        config_w(deps.storage).save(&config).unwrap();
         Ok(config)
     }
 
@@ -919,5 +911,5 @@ pub mod help_test_lib {
             }
         );
         pair
-    }    
+    }       
 }

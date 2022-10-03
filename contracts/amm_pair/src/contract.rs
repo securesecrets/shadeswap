@@ -135,20 +135,13 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         } => add_liquidity(deps, env, &info, deposit, slippage, staking),
         ExecuteMsg::SetCustomPairFee { custom_fee } => {
             apply_admin_guard(&info.sender, deps.storage)?;
-            let config = config_r(deps.storage).load()?;
-            config_w(deps.storage).save(&Config {
-                factory_contract: config.factory_contract,
-                lp_token: config.lp_token,
-                staking_contract: config.staking_contract,
-                pair: config.pair,
-                viewing_key: config.viewing_key,
-                custom_fee: custom_fee,
-                staking_contract_init: config.staking_contract_init,
-                prng_seed: config.prng_seed,
-            })?;
+            let mut config = config_r(deps.storage).load()?;
+            config.custom_fee = custom_fee;
+            config_w(deps.storage).save(&config)?;
             Ok(Response::default())
         }
         ExecuteMsg::SetAMMPairAdmin { admin } => {
+            apply_admin_guard(&info.sender, deps.storage)?;
             set_admin_guard(deps.storage, info, admin)
         }
         ExecuteMsg::AddWhiteListAddress { address } => {
@@ -185,6 +178,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             )
         }
         ExecuteMsg::SetStakingContract { contract } => {
+            apply_admin_guard(&info.sender, deps.storage)?;
             return set_staking_contract(
                 deps,
                 Some(ContractLink {
@@ -243,7 +237,7 @@ fn receiver_callback(
                                 config,
                                 from,
                                 Some(
-                                    to.ok_or_else(|| StdError::generic_err("".to_string()))?
+                                    to.ok_or_else(|| StdError::generic_err("Unknown recipient".to_string()))?
                                 ),
                                 offer,
                                 expected_return,
@@ -256,11 +250,11 @@ fn receiver_callback(
                 }
             }
 
-            Err(StdError::generic_err("".to_string()))
+            Err(StdError::generic_err("Unsupported token.".to_string()))
         }
         InvokeMsg::RemoveLiquidity { from } => {
             if config.lp_token.address != info.sender {
-                return Err(StdError::generic_err("".to_string()));
+                return Err(StdError::generic_err("Unauthorized.".to_string()));
             }
             match from {
                 Some(address) => remove_liquidity(deps, env, amount, address),

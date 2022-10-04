@@ -29,6 +29,7 @@ pub const STAKING_FILE: &str = "../../compiled/staking.wasm.gz";
 pub const STORE_GAS: &str = "100000000";
 pub const GAS: &str = "5000000";
 pub const VIEW_KEY: &str = "password";
+pub const API_KEY: &str = "api_key";
 pub const ACCOUNT_KEY: &str = "a";
 pub const STAKER_KEY: &str = "b";
 pub const SHADE_DAO_KEY: &str = "c";

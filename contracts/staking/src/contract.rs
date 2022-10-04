@@ -5,7 +5,7 @@ use cosmwasm_std::{
 use shadeswap_shared::{
     core::{admin_w, ContractLink},
     msg::amm_pair::ExecuteMsg as AmmPairExecuteMsg,
-    staking::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, AuthQuery, QueryData}, query_auth::helpers::{authenticate_permit, PermitAuthentication},
+    staking::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, AuthQuery, QueryData}, query_auth::helpers::{authenticate_permit, PermitAuthentication}, utils::{pad_response_result, pad_query_result},
 };
 
 use crate::{
@@ -49,6 +49,7 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+    pad_response_result(
     match msg {
         ExecuteMsg::Receive {
             from, amount, msg, ..
@@ -58,7 +59,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             amount,
             remove_liqudity,
         } => unstake(deps, env, info, amount, remove_liqudity)
-    }
+    }, BLOCK_SIZE)
 }
 
 fn receiver_callback(
@@ -74,6 +75,7 @@ fn receiver_callback(
     })?;
 
     let config = config_r(deps.storage).load()?;
+    pad_response_result(
     match from_binary(&msg)? {
         InvokeMsg::Stake { from } => {
             if config.lp_token.address != info.sender {
@@ -81,12 +83,12 @@ fn receiver_callback(
             }
             stake(deps, env, info, amount, from)
         }
-    }
+    }, BLOCK_SIZE)
 }
 
 #[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
+    pad_query_result(match msg {
         QueryMsg::GetConfig {} => get_config(deps),
         QueryMsg::GetContractOwner {} => todo!(),
         QueryMsg::WithPermit { permit, query } => {
@@ -98,7 +100,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
             auth_queries(deps, env, query, res.sender)
         },
-    }
+    }, BLOCK_SIZE)
 }
 
 pub fn auth_queries(deps: Deps, env: Env, msg: AuthQuery, user: Addr) -> StdResult<Binary> {

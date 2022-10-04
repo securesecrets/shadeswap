@@ -2,6 +2,7 @@ use cosmwasm_std::to_binary;
 use cosmwasm_std::Addr;
 use cosmwasm_std::BalanceResponse;
 use cosmwasm_std::Uint128;
+use network_integration::utils::API_KEY;
 use network_integration::utils::InitConfig;
 use network_integration::utils::{
     generate_label, init_snip20, print_contract, print_header, print_warning,
@@ -176,6 +177,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
             id: s_lp.id.clone().parse::<u64>().unwrap(),
         },
         prng_seed: to_binary(&"".to_string()).unwrap(),
+        api_key: API_KEY.to_string(),
     };
 
     let factory_contract = init(
@@ -544,6 +546,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
             id: s_lp.id.clone().parse::<u64>().unwrap(),
         },
         prng_seed: to_binary(&"".to_string()).unwrap(),
+        api_key: API_KEY.to_string(),
     };
 
     let factory_contract = init(

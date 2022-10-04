@@ -50,22 +50,12 @@ pub fn add_whitelist_address(storage: &mut dyn Storage, address: Addr) -> StdRes
     unwrap_data.push(address);
     whitelist_w(storage).save(&unwrap_data)
 }
-pub fn remove_whitelist_address(
-    storage: &mut dyn Storage,
-    address_to_remove: Vec<Addr>,
-) -> StdResult<()> {
-    let mut addresses = whitelist_r(storage).load()?;
-    for address in address_to_remove {
-        addresses.retain(|x| x != &address);
-    }
-    whitelist_w(storage).save(&addresses)
-}
 
-pub fn is_address_in_whitelist(storage: &dyn Storage, address: Addr) -> StdResult<bool> {
+pub fn is_address_in_whitelist(storage: &dyn Storage, address: &Addr) -> StdResult<bool> {
     let addrs = whitelist_r(storage).may_load()?;
     match addrs {
         Some(a) => {
-            if a.contains(&address) {
+            if a.contains(address) {
                 return Ok(true);
             } else {
                 return Ok(false);
@@ -103,7 +93,7 @@ pub fn register_lp_token(
         code_hash: lp_token_address.code_hash.clone(),
     };
     // store config against Smart contract address
-    config_w(deps.storage).save(&config.clone())?;
+    config_w(deps.storage).save(&config)?;
 
     //let mut messages = Vec::new();
     // register pair contract for LP receiver
@@ -185,14 +175,14 @@ pub fn query_calculate_price(
     exclude_fee: Option<bool>,
 ) -> StdResult<SwapInfo> {
     let config_settings = config_r(deps.storage).load()?;
-    let amm_settings = query_factory_amm_settings(deps, config_settings.factory_contract.clone())?;
+    let amm_settings = query_factory_amm_settings(deps, &config_settings.factory_contract)?;
     let swap_result = calculate_swap_result(
         deps,
         &env,
         &amm_settings,
         &config_settings,
         &offer,
-        Addr::unchecked("".to_string()),
+        None,
         exclude_fee,
     )?;
     Ok(swap_result)
@@ -210,14 +200,14 @@ pub fn swap(
     callback_signature: Option<Binary>,
 ) -> StdResult<Response> {
     let swaper_receiver = recipient.unwrap_or(sender);
-    let amm_settings = query_factory_amm_settings(deps.as_ref(), config.factory_contract.clone())?;
+    let amm_settings = query_factory_amm_settings(deps.as_ref(), &config.factory_contract)?;
     let swap_result = calculate_swap_result(
         deps.as_ref(),
         &env,
         &amm_settings,
         &config,
         &offer,
-        swaper_receiver.clone(),
+        Some(&swaper_receiver),
         None,
     )?;
 
@@ -287,8 +277,7 @@ pub fn swap(
         direction: action.to_string(),
         lp_fee_amount: swap_result.lp_fee_amount,
         total_fee_amount: swap_result.total_fee_amount,
-        shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
-        trader: trader_hash_address.to_string(),
+        shade_dao_fee_amount: swap_result.shade_dao_fee_amount
     };
 
     store_trade_history(deps, &trade_history)?;
@@ -297,7 +286,7 @@ pub fn swap(
         Some(r) => {
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: r.address.to_string(),
-                code_hash: router_link.clone().unwrap().code_hash,
+                code_hash: r.code_hash.to_string(),
                 funds: vec![],
                 msg: to_binary(&RouterExecuteMsg::SwapCallBack {
                     last_token_out: TokenAmount {
@@ -326,35 +315,21 @@ pub fn set_staking_contract(
     storage: &mut dyn Storage,
     staking_contract: Option<ContractLink>,
 ) -> StdResult<Response> {
-    match staking_contract.clone() {
-        Some(contract) => {
-            let config = config_r(storage).load()?;
+    let mut config = config_w(storage).load()?;
 
-            config_w(storage).save(&Config {
-                factory_contract: config.factory_contract,
-                lp_token: config.lp_token,
-                staking_contract: staking_contract,
-                pair: config.pair,
-                viewing_key: config.viewing_key,
-                custom_fee: config.custom_fee,
-                staking_contract_init: config.staking_contract_init,
-                prng_seed: config.prng_seed,
-            })?;
+    config.staking_contract = staking_contract;
 
-            // send lp contractLink to staking contract
-            Ok(Response::new()
-                .add_attribute("action", "set_staking_contract")
-                .add_attribute("contract_address", contract.address.clone())
-                .add_attribute("contract_hash", contract.code_hash.clone()))
-        }
-        None => Err(StdError::generic_err("No staking contract set.")),
-    }
+    config_w(storage).save(&config)?;
+
+    // send lp contractLink to staking contract
+    Ok(Response::new()
+        .add_attribute("action", "set_staking_contract"))
 }
 
 pub fn get_shade_dao_info(deps: Deps) -> StdResult<Binary> {
     let config_settings = config_r(deps.storage).load()?;
     let admin = admin_r(deps.storage).load()?;
-    let amm_settings = query_factory_amm_settings(deps, config_settings.factory_contract.clone())?;
+    let amm_settings = query_factory_amm_settings(deps, &config_settings.factory_contract)?;
     let shade_dao_info = QueryMsgResponse::ShadeDAOInfo {
         shade_dao_address: amm_settings.shade_dao_address.address.to_string(),
         shade_dao_fee: amm_settings.shade_dao_fee.clone(),
@@ -366,14 +341,14 @@ pub fn get_shade_dao_info(deps: Deps) -> StdResult<Binary> {
 
 pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Binary> {
     let config_settings = config_r(deps.storage).load()?;
-    let amm_settings = query_factory_amm_settings(deps, config_settings.factory_contract.clone())?;
+    let amm_settings = query_factory_amm_settings(deps, &config_settings.factory_contract)?;
     let swap_result = calculate_swap_result(
         deps,
         &env,
         &amm_settings,
         &config_settings,
         &offer,
-        Addr::unchecked(""),
+        None,
         None,
     )?;
     let simulation_result = QueryMsgResponse::SwapSimulation {
@@ -487,7 +462,7 @@ pub fn calculate_swap_result(
     settings: &AMMSettings,
     config: &Config,
     offer: &TokenAmount,
-    recipient: Addr,
+    recipient: Option<&Addr>,
     exclude_fee: Option<bool>,
 ) -> StdResult<SwapInfo> {
     if !config.pair.contains(&offer.token) {
@@ -510,16 +485,18 @@ pub fn calculate_swap_result(
     let mut lp_fee_amount = Uint128::zero();
     let mut shade_dao_fee_amount = Uint128::zero();
     // calculation fee
-    let discount_fee =  is_address_in_whitelist(deps.storage, recipient)?;
-    if discount_fee == false {
-        match &config.custom_fee {
-            Some(f) => {
-                lp_fee_amount = calculate_fee(offer.amount, f.lp_fee)?;
-                shade_dao_fee_amount = calculate_fee(offer.amount, f.shade_dao_fee)?;
-            }
-            None => {
-                lp_fee_amount = calculate_fee(offer.amount, lp_fee)?;
-                shade_dao_fee_amount = calculate_fee(offer.amount, shade_dao_fee)?;
+    if let Some(r) = recipient {
+        let discount_fee =  is_address_in_whitelist(deps.storage, r)?;
+        if discount_fee == false {
+            match &config.custom_fee {
+                Some(f) => {
+                    lp_fee_amount = calculate_fee(offer.amount, f.lp_fee)?;
+                    shade_dao_fee_amount = calculate_fee(offer.amount, f.shade_dao_fee)?;
+                }
+                None => {
+                    lp_fee_amount = calculate_fee(offer.amount, lp_fee)?;
+                    shade_dao_fee_amount = calculate_fee(offer.amount, shade_dao_fee)?;
+                }
             }
         }
     }
@@ -552,19 +529,22 @@ pub fn add_address_to_whitelist(
     storage: &mut dyn Storage,
     address: Addr,
 ) -> StdResult<Response> {
-    add_whitelist_address(storage, address.clone())?;
+    add_whitelist_address(storage, address)?;
     Ok(Response::default().add_attributes(vec![
-        Attribute::new("action", "save_address_to_whitelist"),
-        Attribute::new("whitelist_address", address.as_str().clone()),
+        Attribute::new("action", "save_address_to_whitelist")
     ]))
 }
 
-pub fn remove_address_from_whitelist(
+pub fn remove_addresses_from_whitelist(
     storage: &mut dyn Storage,
-    list: Vec<Addr>,
+    addresses_to_remove: Vec<Addr>,
     env: Env,
 ) -> StdResult<Response> {
-    remove_whitelist_address(storage, list.clone())?;
+    let mut addresses = whitelist_r(storage).load()?;
+    for address in addresses_to_remove {
+        addresses.retain(|x| x != &address);
+    }
+    whitelist_w(storage).save(&addresses)?;
     Ok(Response::default().add_attribute("action", "remove_address_from_whitelist"))
 }
 
@@ -717,7 +697,6 @@ pub fn add_liquidity(
         &pool_balances,
     )?;
 
-    println!("{:?}", lp_token.address.clone());
     let pair_contract_pool_liquidity = query_liquidity_pair_contract(deps.as_ref(), &lp_token)?;
     let mut lp_tokens: Uint128 = Uint128::zero();
     if pair_contract_pool_liquidity == Uint128::zero() {
@@ -854,24 +833,47 @@ fn query_liquidity_pair_contract(deps: Deps, lp_token_link: &ContractLink) -> St
 
     //If this happens, the LP token has been incorrectly configured
     if result.total_supply.is_none() {
-        unreachable!("LP token has no available supply.");
+        return Err(StdError::generic_err("LP token has no available supply."));
     }
 
     Ok(result.total_supply.unwrap())
 }
 
-fn query_factory_amm_settings(deps: Deps, factory: ContractLink) -> StdResult<AMMSettings> {
+fn query_factory_amm_settings(deps: Deps, factory: &ContractLink) -> StdResult<AMMSettings> {
     let result: FactoryQueryResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: factory.address.into_string(),
+            contract_addr: factory.address.to_string(),
             msg: to_binary(&FactoryQueryMsg::GetAMMSettings {})?,
-            code_hash: factory.code_hash,
+            code_hash: factory.code_hash.to_string(),
         }))?;
 
     match result {
         FactoryQueryResponse::GetAMMSettings { settings } => Ok(settings),
         _ => Err(StdError::generic_err(
             "An error occurred while trying to retrieve factory settings.",
+        )),
+    }
+}
+
+pub fn query_factory_authorize_api_key(deps: Deps, factory: &ContractLink, api_key: String) -> StdResult<bool>{
+
+    let result: FactoryQueryResponse =
+        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+            contract_addr: factory.address.to_string(),
+            msg: to_binary(&FactoryQueryMsg::AuthorizeApiKey { api_key: api_key })?,
+            code_hash: factory.code_hash.to_string(),
+        }))?;
+
+    match result {
+        FactoryQueryResponse::AuthorizeApiKey { authorized } => 
+        {   if !authorized {
+            return Err(StdError::generic_err(
+                "Authorization failed, key is incorrect.",
+            ))}
+            Ok(authorized)
+        },
+        _ => Err(StdError::generic_err(
+            "Authorization failed, could not query factory successfully.",
         )),
     }
 }
@@ -887,7 +889,7 @@ pub fn query_liquidity(deps: Deps, lp_token_info: &ContractLink) -> StdResult<Ui
 
     //If this happens, the LP token has been incorrectly configured
     if result.total_supply.is_none() {
-        unreachable!("LP token has no available supply.");
+        return Err(StdError::generic_err("LP token has no available supply."));
     }
 
     Ok(result.total_supply.unwrap())

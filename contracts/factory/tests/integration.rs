@@ -39,6 +39,7 @@ fn factory_integration_tests() {
             id: 0u64,
         },
         prng_seed: to_binary(&"".to_string()).unwrap(),
+        api_key: "api_key".to_string(),
     };
     let counter_contract_code_id = router.store_code(contract_counter());
 

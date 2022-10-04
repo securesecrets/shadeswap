@@ -109,16 +109,9 @@ pub fn instantiate(
     MintersStore::save(deps.storage, minters)?;
 
     ViewingKey::set_seed(deps.storage, &prng_seed_hashed);
-    let response = Response::new();
-    match msg.callback {
-        Some(m) => Ok(response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: m.contract.address.to_string(),
-            code_hash: m.contract.code_hash,
-            msg: m.msg,
-            funds: vec![],
-        }))),
-        None => Err(StdError::generic_err("LP Token should have a callback".to_string()))
-    }
+    let mut response = Response::new();
+    response.data = Some(env.contract.address.as_bytes().into());
+    Ok(response)
 }
 
 fn pad_response(response: StdResult<Response>) -> StdResult<Response> {
@@ -1631,8 +1624,7 @@ mod tests {
             decimals: 8,
             initial_balances: Some(initial_balances),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
-            config: None,
-            callback: None,
+            config: None
         };
 
         (instantiate(deps.as_mut(), env, info, init_msg), deps)
@@ -1676,8 +1668,7 @@ mod tests {
             decimals: 8,
             initial_balances: Some(initial_balances),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
-            config: Some(init_config),
-            callback: None,
+            config: Some(init_config)
         };
 
         (instantiate(deps.as_mut(), env, info, init_msg), deps)
@@ -3713,8 +3704,7 @@ mod tests {
                 amount: init_supply,
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
-            config: Some(init_config),
-            callback: None,
+            config: Some(init_config)
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(
@@ -3781,8 +3771,7 @@ mod tests {
                 amount: init_supply,
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
-            config: Some(init_config),
-            callback: None,
+            config: Some(init_config)
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(
@@ -3852,8 +3841,7 @@ mod tests {
                 amount: init_supply,
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
-            config: Some(init_config),
-            callback: None,
+            config: Some(init_config)
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(
@@ -3911,8 +3899,7 @@ mod tests {
                 amount: init_supply,
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
-            config: Some(init_config),
-            callback: None,
+            config: Some(init_config)
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(
@@ -3970,8 +3957,7 @@ mod tests {
                 amount: init_supply,
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
-            config: Some(init_config),
-            callback: None,
+            config: Some(init_config)
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(
@@ -4017,8 +4003,7 @@ mod tests {
                 amount: init_supply,
             }]),
             prng_seed: Binary::from("lolz fun yay".as_bytes()),
-            config: None,
-            callback: None,
+            config: None
         };
         let init_result = instantiate(deps.as_mut(), env, info, init_msg);
         assert!(

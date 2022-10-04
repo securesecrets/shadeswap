@@ -7,8 +7,8 @@ use cosmwasm_std::{
     Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
 };
 use shadeswap_shared::{
-    amm_pair::{generate_pair_key, AMMPair},
-    core::{admin_r, apply_admin_guard, Callback, ContractLink, TokenPair},
+    amm_pair::{generate_pair_key, AMMPair, AMMSettings},
+    core::{admin_r, apply_admin_guard, Callback, ContractLink, TokenPair, ContractInstantiationInfo},
     msg::{
         amm_pair::InitMsg as AMMPairInitMsg,
         factory::{ExecuteMsg, InitMsg, QueryMsg, QueryResponse},
@@ -40,11 +40,7 @@ pub fn add_amm_pairs(storage: &mut dyn Storage, amm_pairs: Vec<AMMPair>) -> StdR
             None => {
                 let total_count_singleton = total_amm_pairs_r(storage);
                 let current_count = total_count_singleton.may_load()?;
-                let mut next_count = 0;
-                match current_count {
-                    Some(c) => next_count = c,
-                    None => (),
-                }
+                let next_count = current_count.unwrap_or(0);
                 amm_pair_keys_w(storage).save(&new_key, &amm_pair.address)?;
                 amm_pairs_w(storage).save(&next_count.to_string().as_bytes(), &amm_pair)?;
                 total_amm_pairs_w(storage).save(&(next_count + 1))?;
@@ -76,15 +72,11 @@ pub fn query_amm_pair_address(deps: &Deps, pair: TokenPair) -> StdResult<Binary>
     })
 }
 
-pub fn set_config(deps: DepsMut, _env: Env, msg: ExecuteMsg) -> StdResult<Response> {
-    if let ExecuteMsg::SetConfig {
-        pair_contract,
-        lp_token_contract,
-        amm_settings,
-    } = msg
-    {
-        let storage = config_r(deps.storage);
-        let mut config = storage.load()?;
+pub fn set_config(pair_contract: Option<ContractInstantiationInfo>,
+    lp_token_contract: Option<ContractInstantiationInfo>,
+    amm_settings: Option<AMMSettings>
+    , storage: &mut dyn Storage) -> StdResult<Response> {
+        let mut config = config_r(storage).load()?;
         if let Some(new_value) = pair_contract {
             config.pair_contract = new_value;
         }
@@ -97,12 +89,9 @@ pub fn set_config(deps: DepsMut, _env: Env, msg: ExecuteMsg) -> StdResult<Respon
             config.amm_settings = new_value;
         }
 
-        config_w(deps.storage).save(&config)?;
+        config_w(storage).save(&config)?;
 
         Ok(Response::default())
-    } else {
-        unreachable!()
-    }
 }
 
 pub fn create_pair(
@@ -115,8 +104,6 @@ pub fn create_pair(
     staking_contract: Option<StakingContractInit>,
 ) -> StdResult<Response> {
     let config = config_r(deps.storage).load()?;
-    println!("create_pair caller {}", &sender);
-    apply_admin_guard(&sender, deps.storage)?;
     let admin = admin_r(deps.storage).load()?;
     let signature = create_signature(&env, info)?;
     ephemeral_storage_w(deps.storage).save(&NextPairKey {

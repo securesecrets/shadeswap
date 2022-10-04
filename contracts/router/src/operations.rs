@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    to_binary, Addr, Binary, CosmosMsg, DepsMut, Env, Response, StdError, StdResult, Uint128, WasmMsg, Coin, Deps, QuerierWrapper, QueryRequest, WasmQuery, Uint256, MessageInfo,
+    to_binary, Addr, Binary, CosmosMsg, DepsMut, Env, Response, StdError, StdResult, Uint128, WasmMsg, Coin, Deps, QuerierWrapper, QueryRequest, WasmQuery, Uint256, MessageInfo, Storage,
 };
 use shadeswap_shared::{
     core::{ContractLink, TokenAmount, TokenType, ContractInstantiationInfo, TokenPair, ViewingKey},
@@ -13,7 +13,7 @@ use shadeswap_shared::{
 };
 
 use crate::{
-    state::{config_r, epheral_storage_r, epheral_storage_w, CurrentSwapInfo},
+    state::{config_r, epheral_storage_r, epheral_storage_w, CurrentSwapInfo, config_w},
 };
 
 pub fn refresh_tokens(
@@ -219,6 +219,14 @@ fn get_trade_with_callback(
         }
     };
     return Ok(messages);
+}
+
+pub fn update_viewing_key(storage: &mut dyn Storage,  viewing_key: String) -> StdResult<Response>
+{
+    let mut config = config_w(storage).load()?;
+    config.viewing_key = viewing_key;
+    config_w(storage).save(&config)?;
+    Ok(Response::default())
 }
 
 pub fn query_pair_contract_config(

@@ -35,7 +35,8 @@ pub fn set_admin_guard(
     storage: &mut dyn Storage,
     info: MessageInfo,
     admin: Addr
-) -> StdResult<Response>{      
+) -> StdResult<Response>{
+    apply_admin_guard(&info.sender, storage)?;
     admin_w(storage).save(&admin)?;
     Ok(Response::default())
 }

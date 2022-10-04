@@ -1,13 +1,15 @@
 use cosmwasm_std::{
-    entry_point, from_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128, to_binary,
+    entry_point, from_binary, to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, Uint128,
 };
+use shadeswap_shared::utils::{pad_query_result, pad_response_result};
 use shadeswap_shared::{core::admin_w, router::InitMsg};
 use shadeswap_shared::{
     core::{ContractLink, TokenAmount, TokenType},
     router::{ExecuteMsg, InvokeMsg, QueryMsg},
 };
 
+use crate::operations::update_viewing_key;
 use crate::{
     operations::{
         create_viewing_key, next_swap, query_pair_contract_config, refresh_tokens, swap_simulation,
@@ -24,62 +26,68 @@ const BLOCK_SIZE: usize = 256;
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InitMsg,
 ) -> StdResult<Response> {
     config_w(deps.storage).save(&Config {
         viewing_key: msg.viewing_key.unwrap_or(create_viewing_key(
             &env,
-            &_info,
-            msg.prng_seed.clone(),
-            msg.entropy.clone(),
+            &info,
+            msg.prng_seed,
+            msg.entropy,
         )),
         pair_contract_code_hash: msg.pair_contract_code_hash,
     })?;
 
-    admin_w(deps.storage).save(&_info.sender.clone())?;
+    admin_w(deps.storage).save(&info.sender)?;
     Ok(Response::default())
 }
 
 #[entry_point]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
-    match msg {
-        ExecuteMsg::Receive {
-            from, amount, msg, ..
-        } => receiver_callback(deps, env, info, from, amount, msg),
-        ExecuteMsg::SwapTokensForExact {
-            offer,
-            expected_return,
-            path,
-            recipient,
-        } => {
-            if !offer.token.is_native_token() {
-                return Err(StdError::generic_err(
-                    "Sent a non-native token. Should use the receive interface in SNIP20.",
-                ));
-            }
-            offer.assert_sent_native_token_balance(&info)?;
-            let sender = info.sender.clone();
-            swap_tokens_for_exact_tokens(
-                deps,
-                env,
-                info,
+    pad_response_result(
+        match msg {
+            ExecuteMsg::Receive {
+                from, amount, msg, ..
+            } => receiver_callback(deps, env, info, from, amount, msg),
+            ExecuteMsg::SwapTokensForExact {
                 offer,
                 expected_return,
-                &path,
-                sender,
+                path,
                 recipient,
-            )
-        }
-        ExecuteMsg::SwapCallBack {
-            last_token_out,
-            signature,
-        } => next_swap(deps, env, last_token_out, signature),
-        ExecuteMsg::RegisterSNIP20Token {
-            token_addr,
-            token_code_hash,
-        } => refresh_tokens(deps, env, token_addr, token_code_hash),
-    }
+            } => {
+                if !offer.token.is_native_token() {
+                    return Err(StdError::generic_err(
+                        "Sent a non-native token. Should use the receive interface in SNIP20.",
+                    ));
+                }
+                offer.assert_sent_native_token_balance(&info)?;
+                let sender = info.sender.clone();
+                swap_tokens_for_exact_tokens(
+                    deps,
+                    env,
+                    info,
+                    offer,
+                    expected_return,
+                    &path,
+                    sender,
+                    recipient,
+                )
+            }
+            ExecuteMsg::SwapCallBack {
+                last_token_out,
+                signature,
+            } => next_swap(deps, env, last_token_out, signature),
+            ExecuteMsg::RegisterSNIP20Token {
+                token_addr,
+                token_code_hash,
+            } => refresh_tokens(deps, env, token_addr, token_code_hash),
+            ExecuteMsg::UpdateViewingKey { viewing_key } => {
+                update_viewing_key(deps.storage, viewing_key)
+            }
+        },
+        BLOCK_SIZE,
+    )
 }
 
 fn receiver_callback(
@@ -90,58 +98,70 @@ fn receiver_callback(
     amount: Uint128,
     msg: Option<Binary>,
 ) -> StdResult<Response> {
-    match msg {
-        Some(content) => match from_binary(&content)? {
-            InvokeMsg::SwapTokensForExact {
-                expected_return,
-                paths,
-                recipient,
-            } => {
-                let config = config_r(deps.storage).load()?;
-                let pair_config = query_pair_contract_config(
-                    &deps.querier,
-                    ContractLink {
-                        address: paths[0].clone(),
-                        code_hash: config.pair_contract_code_hash,
-                    },
-                )?;
-                for token in pair_config.pair.into_iter() {
-                    match token {
-                        TokenType::CustomToken { contract_addr, .. } => {
-                            if *contract_addr == info.sender {
-                                let offer = TokenAmount {
-                                    token: token.clone(),
-                                    amount,
-                                };
+    pad_response_result(
+        if let Some(content) = msg {
+            match from_binary(&content)? {
+                InvokeMsg::SwapTokensForExact {
+                    expected_return,
+                    paths,
+                    recipient,
+                } => {
+                    let config = config_r(deps.storage).load()?;
+                    let pair_config = query_pair_contract_config(
+                        &deps.querier,
+                        ContractLink {
+                            address: paths[0].clone(),
+                            code_hash: config.pair_contract_code_hash,
+                        },
+                    )?;
+                    for token in pair_config.pair.into_iter() {
+                        match token {
+                            TokenType::CustomToken { contract_addr, .. } => {
+                                if *contract_addr == info.sender {
+                                    let offer = TokenAmount {
+                                        token: token.clone(),
+                                        amount,
+                                    };
 
-                                return swap_tokens_for_exact_tokens(
-                                    deps,
-                                    env,
-                                    info,
-                                    offer,
-                                    expected_return,
-                                    &paths,
-                                    from,
-                                    recipient,
-                                );
+                                    return swap_tokens_for_exact_tokens(
+                                        deps,
+                                        env,
+                                        info,
+                                        offer,
+                                        expected_return,
+                                        &paths,
+                                        from,
+                                        recipient,
+                                    );
+                                }
                             }
+                            _ => continue,
                         }
-                        _ => continue,
                     }
+                    return Err(StdError::generic_err(
+                        "No matching token in pair".to_string(),
+                    ));
                 }
-                Err(StdError::generic_err("".to_string()))
+                _ => {
+                    return Err(StdError::generic_err(
+                        "Invoke does not contain the given function.".to_string(),
+                    ))
+                }
             }
+        } else {
+            Ok(Response::default())
         },
-        None => Ok(Response::default()),
-    }
+        BLOCK_SIZE,
+    )
 }
 
 #[entry_point]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::SwapSimulation { offer, path } => swap_simulation(deps, path, offer),
-        QueryMsg::GetConfig {} => {
-            return Ok(to_binary(&config_r(deps.storage).load()?)?)
-        }
-    }
+    pad_query_result(
+        match msg {
+            QueryMsg::SwapSimulation { offer, path } => swap_simulation(deps, path, offer),
+            QueryMsg::GetConfig {} => return Ok(to_binary(&config_r(deps.storage).load()?)?),
+        },
+        BLOCK_SIZE,
+    )
 }

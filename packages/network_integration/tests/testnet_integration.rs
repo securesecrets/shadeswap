@@ -3,6 +3,7 @@ use cosmwasm_std::Addr;
 use cosmwasm_std::BalanceResponse;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Uint128;
+use network_integration::utils::API_KEY;
 use network_integration::utils::InitConfig;
 use query_authentication::permit::Permit;
 use query_authentication::transaction::PermitSignature;
@@ -323,6 +324,7 @@ fn run_testnet() -> Result<()> {
             id: s_lp.id.clone().parse::<u64>().unwrap(),
         },
         prng_seed: to_binary(&"".to_string()).unwrap(),
+        api_key: API_KEY.to_string(),
     };
 
     let factory_contract = init(
@@ -660,6 +662,7 @@ fn run_testnet() -> Result<()> {
                         start: 0u64,
                         limit: 10u8,
                     },
+                    api_key: API_KEY.to_string(),
                 };
                 let trade_count_info_query: AMMPairQueryMsgResponse = query(
                     &NetContract {
@@ -763,6 +766,7 @@ fn run_testnet() -> Result<()> {
                         start: 0u64,
                         limit: 10u8,
                     },
+                    api_key: API_KEY.to_string(),
                 };
                 let trade_count_info_query: AMMPairQueryMsgResponse = query(
                     &NetContract {
@@ -1138,7 +1142,7 @@ fn run_testnet() -> Result<()> {
             if let AMMPairQueryMsgResponse::EstimatedPrice { estimated_price } =
                 estimated_price_query
             {
-                assert_eq!(estimated_price, "0.9".to_string());
+                assert_eq!(estimated_price, "1".to_string());
             }
 
             print_header("\n\tGet LP Token for AMM Pair");
@@ -1747,6 +1751,7 @@ fn run_test_deploy() -> Result<()> {
             id: s_lp.id.clone().parse::<u64>().unwrap(),
         },
         prng_seed: to_binary(&"".to_string()).unwrap(),
+        api_key: API_KEY.to_string(),
     };
 
     let factory_contract = init(

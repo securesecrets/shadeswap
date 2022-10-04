@@ -2,8 +2,8 @@ use crate::{
     operations::{
         add_address_to_whitelist, get_estimated_lp_token, get_shade_dao_info,
         load_trade_history_query, query_calculate_price, query_liquidity, register_lp_token,
-        remove_address_from_whitelist, remove_liquidity, set_staking_contract, swap,
-        swap_simulation,add_liquidity, register_pair_token
+        remove_liquidity, set_staking_contract, swap,
+        swap_simulation,add_liquidity, register_pair_token, remove_addresses_from_whitelist, query_factory_authorize_api_key
     },
     state::{config_r, config_w, trade_count_r, whitelist_r, whitelist_w, Config},
 };
@@ -15,12 +15,12 @@ use cosmwasm_std::{
 use shadeswap_shared::{
     core::{
         admin_r, admin_w, apply_admin_guard, create_viewing_key, set_admin_guard, Callback,
-        ContractLink, TokenAmount, TokenType,
+        ContractLink, TokenAmount, TokenType, ViewingKey,
     },
     lp_token::{InitConfig, InstantiateMsg},
     msg::amm_pair::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse},
     msg::staking::InitMsg as StakingInitMsg,
-    Contract,
+    Contract, utils::{pad_response_result, pad_query_result},
 };
 
 
@@ -65,17 +65,10 @@ pub fn instantiate(
             enable_redeem: Some(false),
             enable_mint: Some(true),
             enable_burn: Some(true),
-        }),
-        callback: Some(Callback {
-            msg: to_binary(&ExecuteMsg::OnLpTokenInitAddr {})?,
-            contract: ContractLink {
-                address: env.contract.address.clone(),
-                code_hash: env.contract.code_hash.clone(),
-            },
-        }),
+        })
     };
 
-    response = response.add_message(CosmosMsg::Wasm(WasmMsg::Instantiate {
+    response = response.add_submessage(SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
         msg: to_binary(&init_snip20_msg)?,
         label: format!(
@@ -84,7 +77,7 @@ pub fn instantiate(
         ),
         code_hash: msg.lp_token_contract.code_hash.clone(),
         funds: vec![],
-    }));
+    }), INSTANTIATE_LP_TOKEN_REPLY_ID));
 
     match msg.callback {
         Some(c) => {
@@ -95,7 +88,7 @@ pub fn instantiate(
                 funds: vec![],
             }))
         }
-        None => println!("No callback given"),
+        None => (),
     }
 
     let config = Config {
@@ -116,7 +109,7 @@ pub fn instantiate(
 
     match msg.admin {
         Some(admin) => admin_w(deps.storage).save(&admin)?,
-        None => println!("No admin given"),
+        None => (),
     }
 
     Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
@@ -124,6 +117,7 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+    pad_response_result(
     match msg {
         ExecuteMsg::Receive {
             from, amount, msg, ..
@@ -150,7 +144,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         }
         ExecuteMsg::RemoveWhitelistAddresses { addresses } => {
             apply_admin_guard(&info.sender, deps.storage)?;
-            remove_address_from_whitelist(deps.storage, addresses, env)
+            remove_addresses_from_whitelist(deps.storage, addresses, env)
         }
         ExecuteMsg::SwapTokens {
             offer,
@@ -177,28 +171,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 callback_signature,
             )
         }
-        ExecuteMsg::SetStakingContract { contract } => {
-            apply_admin_guard(&info.sender, deps.storage)?;
-            return set_staking_contract(
-                deps,
-                Some(ContractLink {
-                    address: contract.address,
-                    code_hash: contract.code_hash,
-                }),
-            );
-        }
-        ExecuteMsg::OnLpTokenInitAddr => {
-            let config_settings = config_r(deps.storage).load()?;
-            return register_lp_token(
-                deps,
-                env,
-                Contract {
-                    address: info.sender,
-                    code_hash: config_settings.lp_token.code_hash,
-                },
-            );
-        }
-    }
+    }, BLOCK_SIZE)
 }
 
 fn receiver_callback(
@@ -209,12 +182,15 @@ fn receiver_callback(
     amount: Uint128,
     msg: Option<Binary>,
 ) -> StdResult<Response> {
+    
     let msg = msg.ok_or_else(|| {
         StdError::generic_err("Receiver callback \"msg\" parameter cannot be empty.")
     })?;
 
     let config = config_r(deps.storage).load()?;
     let from_caller = from.clone();
+    
+    pad_response_result(
     match from_binary(&msg)? {
         InvokeMsg::SwapTokens {
             to,
@@ -237,7 +213,7 @@ fn receiver_callback(
                                 config,
                                 from,
                                 Some(
-                                    to.ok_or_else(|| StdError::generic_err("Unknown recipient".to_string()))?
+                                    to.ok_or_else(|| StdError::generic_err("No recipient sent with invoke.".to_string()))?
                                 ),
                                 offer,
                                 expected_return,
@@ -250,22 +226,23 @@ fn receiver_callback(
                 }
             }
 
-            Err(StdError::generic_err("Unsupported token.".to_string()))
+            Err(StdError::generic_err("No matching token in pair".to_string()))
         }
         InvokeMsg::RemoveLiquidity { from } => {
             if config.lp_token.address != info.sender {
-                return Err(StdError::generic_err("Unauthorized.".to_string()));
+                return Err(StdError::generic_err("LP Token was not sent to remove liquidity.".to_string()));
             }
             match from {
                 Some(address) => remove_liquidity(deps, env, amount, address),
                 None => remove_liquidity(deps, env, amount, from_caller),
             }
         }
-    }
+    }, BLOCK_SIZE)
 }
 
 #[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    pad_query_result(
     match msg {
         QueryMsg::GetPairInfo {} => {
             let config = config_r(deps.storage).load()?;
@@ -285,7 +262,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 contract_version: AMM_PAIR_CONTRACT_VERSION,
             })
         }
-        QueryMsg::GetTradeHistory { pagination } => {
+        QueryMsg::GetTradeHistory { api_key, pagination } => {
+            let config = config_r(deps.storage).load()?;
+            query_factory_authorize_api_key(deps, &config.factory_contract, api_key)?;
             let data = load_trade_history_query(deps, pagination)?;
             to_binary(&QueryMsgResponse::GetTradeHistory { data })
         }
@@ -332,44 +311,42 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 custom_fee: config.custom_fee,
             });
         }
-    }
+    },BLOCK_SIZE)
 }
 
 #[entry_point]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
-    Ok(Response::default())
+    pad_response_result(
+    match (msg.id, msg.result) {
+        (INSTANTIATE_LP_TOKEN_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
+            Some(x) => {
+                let contract_address = deps.api.addr_validate(&String::from_utf8(x.to_vec())?)?;
+                let config = config_r(deps.storage).load()?;
+                register_lp_token(
+                    deps,
+                    _env,
+                    Contract {
+                        address: contract_address,
+                        code_hash: config.lp_token.code_hash,
+                    },
+                )
+            }
+            None => Err(StdError::generic_err(format!("Unknown reply id"))),
+        },
+        (INSTANTIATE_STAKING_CONTRACT_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
+            Some(x) => {
+                let contract_address = String::from_utf8(x.to_vec())?;
+                let config = config_r(deps.storage).load()?;
+                set_staking_contract(
+                    deps.storage,
+                    Some(ContractLink {
+                        address: deps.api.addr_validate(&contract_address)?,
+                        code_hash: config.staking_contract_init.ok_or(StdError::generic_err("Staking contract does not match.".to_string()))?.contract_info.code_hash
+                    }),
+                )
+            }
+            None => Err(StdError::generic_err(format!("Unknown reply id"))),
+        },
+        _ => Err(StdError::generic_err(format!("Unknown reply id"))),
+    },BLOCK_SIZE)
 }
-//     match (msg.id, msg.result) {
-//         (INSTANTIATE_LP_TOKEN_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
-//             Some(x) => {
-//                 let contract_address = String::from_utf8(x.to_vec())?;
-//                 register_lp_token(
-//                     deps,
-//                     _env,
-//                     Contract {
-//                         address: Addr::unchecked(contract_address),
-//                         code_hash: "".to_string(),
-//                     },
-//                 )?;
-//                 Ok(Response::default())
-//             }
-//             None => Err(StdError::generic_err(format!("Unknown reply id"))),
-//         },
-//         (INSTANTIATE_STAKING_CONTRACT_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
-//             Some(x) => {
-//                 let contract_address = String::from_utf8(x.to_vec())?;
-//                 set_staking_contract(
-//                     deps,
-//                     _env,
-//                     Some(ContractLink {
-//                         address: Addr::unchecked(contract_address),
-//                         code_hash: "".to_string(),
-//                     }),
-//                 )?;
-//                 Ok(Response::default())
-//             }
-//             None => Err(StdError::generic_err(format!("Unknown reply id"))),
-//         },
-//         _ => Err(StdError::generic_err(format!("Unknown reply id"))),
-//     }
-// }

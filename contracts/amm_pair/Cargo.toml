@@ -28,6 +28,7 @@ rpath = true
 
 [features]
 default = []
+backtraces = ["cosmwasm-std/backtraces"]
 # for quicker tests, cargo test --lib
 # # for more explicit tests, cargo test --features=backtraces
 
@@ -39,9 +40,13 @@ serde = {version = "1.0.114", default-features = false, features = [
   "derive",
   "alloc",
 ]}
+cw-storage-plus = "0.15.0"
+cw2 = "0.15.0"
+
 shadeswap-shared = {path = "../../packages/shadeswap-shared"}
 snafu = {version = "0.7.1"}
 secret-multi-test = { git = "https://github.com/securesecrets/secret-plus-utils", version = "0.13.4" }
 
 [dev-dependencies]
 cosmwasm-schema = {git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e"}
+cw-multi-test = "0.13.2"

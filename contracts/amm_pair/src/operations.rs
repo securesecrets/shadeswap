@@ -8,7 +8,7 @@ use std::{
 use cosmwasm_std::{
     to_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
     MessageInfo, QueryRequest, Response, StdError, StdResult, Storage, Uint128, Uint256, WasmMsg,
-    WasmQuery, SubMsg,
+    WasmQuery, SubMsg, QuerierWrapper,
 };
 use shadeswap_shared::{
     amm_pair::AMMSettings,
@@ -267,7 +267,6 @@ pub fn swap(
     if index == 1 {
         action = "SELL".to_string();
     }
-    let trader_hash_address = calculate_hash(&swaper_receiver.to_string());
     let trade_history = TradeHistory {
         price: swap_result.price,
         amount_in: swap_result.result.return_amount,
@@ -332,9 +331,9 @@ pub fn get_shade_dao_info(deps: Deps) -> StdResult<Binary> {
     let amm_settings = query_factory_amm_settings(deps, &config_settings.factory_contract)?;
     let shade_dao_info = QueryMsgResponse::ShadeDAOInfo {
         shade_dao_address: amm_settings.shade_dao_address.address.to_string(),
-        shade_dao_fee: amm_settings.shade_dao_fee.clone(),
+        shade_dao_fee: amm_settings.shade_dao_fee,
         admin_address: admin.to_string(),
-        lp_fee: amm_settings.lp_fee.clone(),
+        lp_fee: amm_settings.lp_fee,
     };
     to_binary(&shade_dao_info)
 }
@@ -794,6 +793,21 @@ pub fn add_liquidity(
         ]))
 }
 
+pub fn update_viewing_key(env: Env, deps: DepsMut, viewing_key: String) -> StdResult<Response>{
+    let mut config = config_r(deps.storage).load()?;
+
+    let mut messages = vec![];
+    let new_viewing_key = ViewingKey(viewing_key);
+    register_pair_token(&env, &mut messages, &config.pair.0, &new_viewing_key)?;
+    register_pair_token(&env, &mut messages, &config.pair.1, &new_viewing_key)?;
+
+    config.viewing_key = new_viewing_key;
+    config_w(deps.storage).save(&config)?;
+    let mut response = Response::new();
+    response = response.add_messages(messages);
+    Ok(response)
+}
+
 fn assert_slippage_acceptance(
     slippage: Option<Decimal>,
     deposits: &[Uint128; 2],
@@ -820,6 +834,23 @@ fn assert_slippage_acceptance(
     }
 
     Ok(())
+}
+
+pub fn query_token_symbol(querier: QuerierWrapper, token: &TokenType) -> StdResult<String> {
+
+    match token {
+        TokenType::CustomToken { contract_addr, token_code_hash } => {
+            return Ok(token_info(
+                &querier,
+                &Contract {
+                    address: contract_addr.clone(),
+                    code_hash: token_code_hash.clone(),
+                },
+            )?.symbol);
+        },
+        TokenType::NativeToken { denom } => Ok("SCRT".to_string()),
+    }
+    
 }
 
 fn query_liquidity_pair_contract(deps: Deps, lp_token_link: &ContractLink) -> StdResult<Uint128> {

@@ -59,10 +59,7 @@ pub mod router {
         RegisterSNIP20Token {
             token_addr: Addr,
             token_code_hash: String,
-        },
-        UpdateViewingKey {
-            viewing_key: String,
-        },
+        }
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -173,6 +170,9 @@ pub mod amm_pair {
         },
         SetCustomPairFee {
             custom_fee: Option<CustomFee>,
+        },
+        SetViewingKey {
+            viewing_key: String
         },
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
@@ -301,12 +301,14 @@ pub mod factory {
             pair_contract: Option<ContractInstantiationInfo>,
             lp_token_contract: Option<ContractInstantiationInfo>,
             amm_settings: Option<AMMSettings>,
-            api_key: String,
+            api_key: Option<String>,
         },
         CreateAMMPair {
             pair: TokenPair,
             entropy: Binary,
             staking_contract: Option<StakingContractInit>,
+            // This is used to optionally register the token
+            router_contract: Option<ContractLink>
         },
         AddAMMPairs {
             amm_pairs: Vec<AMMPair>,

@@ -1576,7 +1576,7 @@ fn is_valid_symbol(symbol: &str) -> bool {
     let mut cond = Vec::new();
     cond.push(b'A'..=b'Z');
     cond.push(b'a'..=b'z');
-    let special = vec![b'-'];
+    let special = vec![b'-', b' ',b'/'];
 
     len_is_valid
         && symbol

@@ -40,6 +40,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 pair,
                 entropy,
                 staking_contract,
+                router_contract,
             } => {
                 apply_admin_guard(&info.sender, deps.storage)?;
                 create_pair(
@@ -50,6 +51,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     info.sender.clone(),
                     entropy,
                     staking_contract,
+                    router_contract
                 )
             }
             ExecuteMsg::SetConfig {
@@ -59,7 +61,13 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 api_key,
             } => {
                 apply_admin_guard(&info.sender, deps.storage)?;
-                set_config(pair_contract, lp_token_contract, amm_settings, deps.storage)
+                set_config(
+                    pair_contract,
+                    lp_token_contract,
+                    amm_settings,
+                    deps.storage,
+                    api_key,
+                )
             }
             ExecuteMsg::AddAMMPairs { amm_pairs } => {
                 apply_admin_guard(&info.sender, deps.storage)?;
@@ -122,11 +130,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     address: admin_address.to_string(),
                 })
             }
-            QueryMsg::AuthorizeApiKey { api_key } => 
-            {
+            QueryMsg::AuthorizeApiKey { api_key } => {
                 let config = config_r(deps.storage).load()?;
-                to_binary(&QueryResponse::AuthorizeApiKey { authorized: config.api_key == ViewingKey(api_key)})
-            },
+                to_binary(&QueryResponse::AuthorizeApiKey {
+                    authorized: config.api_key == ViewingKey(api_key),
+                })
+            }
         },
         BLOCK_SIZE,
     )

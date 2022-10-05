@@ -340,6 +340,28 @@ fn run_testnet() -> Result<()> {
 
     print_contract(&factory_contract);
 
+
+    print_header("\n\tInitializing Router");
+
+    let router_msg = RouterInitMsg {
+        prng_seed: to_binary(&"".to_string()).unwrap(),
+        entropy: to_binary(&"".to_string()).unwrap(),
+        viewing_key: Some(ViewingKey::from(VIEW_KEY).to_string()),
+        pair_contract_code_hash: s_ammPair.code_hash.clone(),
+    };
+
+    let router_contract = init(
+        &router_msg,
+        ROUTER_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+    print_contract(&router_contract);
+
     print_header("\n\tInitializing New Pair Contract (SNIP20/SNIP20) via Factory");
 
     let test_pair = TokenPair(
@@ -370,6 +392,7 @@ fn run_testnet() -> Result<()> {
                         token_code_hash: s_sREWARDSNIP20.code_hash.to_string(),
                     },
                 }),
+                router_contract: Some(ContractLink{ address: Addr::unchecked(router_contract.address.clone()), code_hash: router_contract.code_hash.clone() })
             },
             &factory_contract,
             ACCOUNT_KEY,
@@ -394,12 +417,16 @@ fn run_testnet() -> Result<()> {
         },
     );
 
+
+
+
     {
         handle(
             &FactoryExecuteMsg::CreateAMMPair {
                 pair: test_native_pair.clone(),
                 entropy: to_binary(&"".to_string()).unwrap(),
                 staking_contract: None,
+                router_contract: None
                 // staking_contract: Some(StakingContractInit {
                 //     contract_info: ContractInstantiationInfo{
                 //         code_hash: staking_contract.code_hash.to_string(),
@@ -583,27 +610,6 @@ fn run_testnet() -> Result<()> {
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
                 Uint128::new(1000000000000 - 10000000000)
             );
-
-            print_header("\n\tInitializing Router");
-
-            let router_msg = RouterInitMsg {
-                prng_seed: to_binary(&"".to_string()).unwrap(),
-                entropy: to_binary(&"".to_string()).unwrap(),
-                viewing_key: Some(ViewingKey::from(VIEW_KEY).to_string()),
-                pair_contract_code_hash: s_ammPair.code_hash.clone(),
-            };
-
-            let router_contract = init(
-                &router_msg,
-                ROUTER_FILE,
-                &*generate_label(8),
-                ACCOUNT_KEY,
-                Some(STORE_GAS),
-                Some(GAS),
-                Some("test"),
-                &mut reports,
-            )?;
-            print_contract(&router_contract);
             print_header("\n\tRegistering Tokens");
 
             handle(

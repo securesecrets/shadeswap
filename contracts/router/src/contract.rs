@@ -81,10 +81,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             ExecuteMsg::RegisterSNIP20Token {
                 token_addr,
                 token_code_hash,
-            } => refresh_tokens(deps, env, token_addr, token_code_hash),
-            ExecuteMsg::UpdateViewingKey { viewing_key } => {
-                update_viewing_key(deps.storage, viewing_key)
-            }
+            } => refresh_tokens(deps, env, token_addr, token_code_hash)
         },
         BLOCK_SIZE,
     )

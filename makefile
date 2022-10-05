@@ -87,3 +87,5 @@ build-deploy:
 
 deploy:
 	cargo run ./target/debug/deploy
+
+

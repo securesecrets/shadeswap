@@ -145,7 +145,7 @@ pub mod factory_lib{
         Pagination, c_std::{Addr, to_binary},
     };
 
-    use crate::utils::{init_contract_factory, STORE_GAS, GAS};
+    use crate::utils::{init_contract_factory, STORE_GAS, GAS, API_KEY};
     
     pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
     pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
@@ -187,6 +187,7 @@ pub mod factory_lib{
                 id: lp_token.id.clone().parse::<u64>().unwrap()
             },
             prng_seed:  to_binary(&"".to_string()).unwrap(),
+            api_key: todo!(),
         };
         
         let factory_contract = init_contract_factory(
@@ -471,6 +472,7 @@ pub mod amm_pair_lib{
                             token_code_hash: reward_contract_code_hash.to_string(),
                         },
                     }),
+                    router_contract: None,
                 },
                 &factory_contract,
                 account_name,
@@ -513,7 +515,8 @@ pub mod amm_pair_lib{
                 &FactoryExecuteMsg::CreateAMMPair {
                     pair: pairs.clone(),
                     entropy: to_binary(&"".to_string()).unwrap(),           
-                    staking_contract: None
+                    staking_contract: None,
+                    router_contract: None,
                 },
                 &factory_contract,
                 account_name,

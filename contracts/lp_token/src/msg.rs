@@ -2,7 +2,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use shadeswap_shared::core::Callback;
+
 
 use crate::batch;
 use crate::transaction_history::{RichTx, Tx};

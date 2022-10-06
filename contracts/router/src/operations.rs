@@ -7,7 +7,7 @@ use cosmwasm_std::{
 use shadeswap_shared::{
     amm_pair::AMMSettings,
     core::{
-        ContractInstantiationInfo, ContractLink, TokenAmount, TokenPair, TokenType, ViewingKey,
+        ContractInstantiationInfo, ContractLink, TokenAmount, TokenPair, TokenType
     },
     msg::amm_pair::{
         ExecuteMsg as AMMPairExecuteMsg, InvokeMsg as AMMPairInvokeMsg,
@@ -401,8 +401,4 @@ fn register_pair_token(
     }
 
     Ok(())
-}
-
-pub fn create_viewing_key(env: &Env, info: &MessageInfo, seed: Binary, entroy: Binary) -> String {
-    ViewingKey::new(&env, info, seed.as_slice(), entroy.as_slice()).to_string()
 }

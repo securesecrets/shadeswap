@@ -6,22 +6,20 @@ use crate::{
         remove_addresses_from_whitelist, remove_liquidity, set_staking_contract, swap,
         swap_simulation, update_viewing_key,
     },
-    state::{config_r, config_w, trade_count_r, whitelist_r, whitelist_w, Config},
+    state::{config_r, config_w, trade_count_r, whitelist_r, Config},
 };
 
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Reply, ReplyOn, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
+    Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
 };
 use shadeswap_shared::{
     core::{
-        admin_r, admin_w, apply_admin_guard, create_viewing_key, set_admin_guard, Callback,
-        ContractLink, TokenAmount, TokenType, ViewingKey,
+        admin_r, admin_w, apply_admin_guard, create_viewing_key, set_admin_guard,
+        ContractLink, TokenAmount, TokenType,
     },
     lp_token::{InitConfig, InstantiateMsg},
     msg::amm_pair::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse},
-    msg::staking::InitMsg as StakingInitMsg,
-    snip20::helpers::token_info,
     utils::{pad_query_result, pad_response_result},
     Contract,
 };
@@ -143,7 +141,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 config_w(deps.storage).save(&config)?;
                 Ok(Response::default())
             }
-            ExecuteMsg::SetAMMPairAdmin { admin } => set_admin_guard(deps.storage, info, admin),
+            ExecuteMsg::SetAdmin { admin } => set_admin_guard(deps.storage, info, admin),
             ExecuteMsg::AddWhiteListAddress { address } => {
                 apply_admin_guard(&info.sender, deps.storage)?;
                 add_address_to_whitelist(deps.storage, address)
@@ -289,7 +287,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             }
             QueryMsg::GetAdmin {} => {
                 let admin_address = admin_r(deps.storage).load()?;
-                to_binary(&QueryMsgResponse::GetAdminAddress {
+                to_binary(&QueryMsgResponse::GetAdmin {
                     address: admin_address,
                 })
             }

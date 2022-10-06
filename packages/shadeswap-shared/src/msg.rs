@@ -1,9 +1,7 @@
 use crate::core::ContractInstantiationInfo;
 use crate::core::ContractLink;
-use cosmwasm_std::{
-    from_binary, Api, Binary, Env, Querier, Response, StdError, StdResult, Storage,
-};
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::Binary;
+use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +15,7 @@ pub mod router {
     use cosmwasm_std::Addr;
 
     use super::{amm_pair::SwapResult, *};
-    use crate::core::{ContractLink, TokenAmount, ViewingKey};
+    use crate::core::TokenAmount;
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub enum InvokeMsg {
@@ -32,7 +30,6 @@ pub mod router {
     pub struct InitMsg {
         pub prng_seed: Binary,
         pub entropy: Binary,
-        pub viewing_key: Option<String>,
         pub pair_contract_code_hash: String,
     }
 
@@ -59,7 +56,7 @@ pub mod router {
         RegisterSNIP20Token {
             token_addr: Addr,
             token_code_hash: String,
-        }
+        },
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -88,13 +85,11 @@ pub mod router {
 pub mod amm_pair {
     use super::*;
     use crate::{
-        amm_pair::AMMSettings,
         core::{
             Callback, ContractInstantiationInfo, ContractLink, CustomFee, Fee, TokenAmount,
             TokenPair, TokenPairAmount,
         },
-        stake_contract::StakingContractInit,
-        Pagination,
+        Pagination, staking::StakingContractInit,
     };
     use cosmwasm_std::{Addr, Decimal};
     use schemars::JsonSchema;
@@ -165,14 +160,14 @@ pub mod amm_pair {
         RemoveWhitelistAddresses {
             addresses: Vec<Addr>,
         },
-        SetAMMPairAdmin {
+        SetAdmin {
             admin: Addr,
         },
         SetCustomPairFee {
             custom_fee: Option<CustomFee>,
         },
         SetViewingKey {
-            viewing_key: String
+            viewing_key: String,
         },
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
@@ -236,7 +231,7 @@ pub mod amm_pair {
         GetTradeCount {
             count: u64,
         },
-        GetAdminAddress {
+        GetAdmin {
             address: Addr,
         },
         GetClaimReward {
@@ -279,7 +274,8 @@ pub mod factory {
     use super::*;
     use crate::amm_pair::AMMPair;
     use crate::core::TokenPair;
-    use crate::stake_contract::StakingContractInit;
+    use crate::Contract;
+    use crate::staking::StakingContractInit;
     use crate::{amm_pair::AMMSettings, Pagination};
     use cosmwasm_std::Addr;
     use schemars::JsonSchema;
@@ -292,6 +288,8 @@ pub mod factory {
         pub lp_token_contract: ContractInstantiationInfo,
         pub prng_seed: Binary,
         pub api_key: String,
+        //Set the default authenticator for all permits on the contracts
+        pub authenticator: Option<Contract>,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -308,12 +306,12 @@ pub mod factory {
             entropy: Binary,
             staking_contract: Option<StakingContractInit>,
             // This is used to optionally register the token
-            router_contract: Option<ContractLink>
+            router_contract: Option<ContractLink>,
         },
         AddAMMPairs {
             amm_pairs: Vec<AMMPair>,
         },
-        SetFactoryAdmin {
+        SetAdmin {
             admin: Addr,
         },
         RegisterAMMPair {
@@ -332,14 +330,12 @@ pub mod factory {
             pair_contract: ContractInstantiationInfo,
             amm_settings: AMMSettings,
             lp_token_contract: ContractInstantiationInfo,
+            authenticator: Option<Contract>,
         },
         GetAMMPairAddress {
             address: String,
         },
-        GetAMMSettings {
-            settings: AMMSettings,
-        },
-        GetAdminAddress {
+        GetAdmin {
             address: String,
         },
         AuthorizeApiKey {
@@ -353,7 +349,6 @@ pub mod factory {
         // GetCount returns the current count as a json-encoded number
         ListAMMPairs { pagination: Pagination },
         GetAMMPairAddress { pair: TokenPair },
-        GetAMMSettings,
         GetConfig,
         GetAdmin,
         AuthorizeApiKey { api_key: String },
@@ -361,13 +356,20 @@ pub mod factory {
 }
 
 pub mod staking {
-    use crate::{core::TokenType, query_auth::QueryPermit};
+    use crate::{core::TokenType, query_auth::QueryPermit, Contract};
 
     use super::*;
     use cosmwasm_schema::cw_serde;
     use cosmwasm_std::Addr;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
+    pub struct StakingContractInit {
+        pub contract_info: ContractInstantiationInfo,
+        pub amount: Uint128,
+        pub reward_token: TokenType,
+    }
 
     #[cw_serde]
     pub struct QueryData {}
@@ -379,6 +381,9 @@ pub mod staking {
         pub pair_contract: ContractLink,
         pub prng_seed: Binary,
         pub lp_token: ContractLink,
+        //Used for permits
+        pub authenticator: Option<Contract>,
+        pub admin: Addr,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -393,6 +398,12 @@ pub mod staking {
             from: Addr,
             msg: Option<Binary>,
             amount: Uint128,
+        },
+        SetAuthenticator {
+            authenticator: Option<Contract>,
+        },
+        SetAdmin {
+            admin: Addr,
         },
     }
 
@@ -411,6 +422,7 @@ pub mod staking {
             permit: QueryPermit,
             query: AuthQuery,
         },
+        GetAdmin {},
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
@@ -447,7 +459,10 @@ pub mod staking {
             reward_token: ContractLink,
             lp_token: ContractLink,
             daily_reward_amount: Uint128,
-            contract_owner: Addr,
+            amm_pair: Addr,
+        },
+        GetAdmin {
+            admin: Addr,
         },
     }
 }
@@ -455,7 +470,7 @@ pub mod staking {
 pub mod lp_token {
     use cosmwasm_std::Addr;
 
-    use crate::{core::Callback, snip20::InitialBalance};
+    use crate::snip20::InitialBalance;
 
     use super::*;
 

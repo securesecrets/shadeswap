@@ -6,7 +6,7 @@
         * Messages
             * [AddWhiteListAddress](#AddWhiteListAddress)
             * [RemoveWhitelistAddresses](#RemoveWhitelistAddresses)   
-            * [SetAMMPairAdmin](#SetAMMPairAdmin)     
+            * [SetAdmin](#SetAdmin)     
             * [SetCustomPairFee](#SetCustomPairFee)                
     * [User](#User)
         * Messages       

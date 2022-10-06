@@ -1,5 +1,4 @@
 use crate::{
-    contract::INSTANTIATE_REPLY_ID,
     state::{
         amm_pair_keys_r, amm_pair_keys_w, amm_pairs_r, amm_pairs_w, config_r, config_w,
         ephemeral_storage_w, prng_seed_r, total_amm_pairs_r, total_amm_pairs_w, NextPairKey,
@@ -7,18 +6,18 @@ use crate::{
     },
 };
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Api, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Querier,
-    Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
+    to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Response, StdError, StdResult, Storage, WasmMsg,
 };
 use shadeswap_shared::{
     amm_pair::{generate_pair_key, AMMPair, AMMSettings},
     core::{admin_r, Callback, ContractInstantiationInfo, ContractLink, TokenPair, ViewingKey},
     msg::{
         amm_pair::InitMsg as AMMPairInitMsg,
-        factory::{ExecuteMsg, InitMsg, QueryMsg, QueryResponse},
+        factory::{ExecuteMsg, QueryResponse},
         router::ExecuteMsg as RouterExecuteMsg,
+    staking::StakingContractInit,
     },
-    stake_contract::StakingContractInit,
     Pagination,
 };
 
@@ -60,14 +59,6 @@ pub fn list_pairs(deps: Deps, pagination: Pagination) -> StdResult<Binary> {
     let amm_pairs = load_amm_pairs(deps, pagination)?;
 
     to_binary(&QueryResponse::ListAMMPairs { amm_pairs })
-}
-
-pub fn query_amm_settings(deps: Deps) -> StdResult<Binary> {
-    let config = config_r(deps.storage).load()?;
-
-    Ok(to_binary(&QueryResponse::GetAMMSettings {
-        settings: config.amm_settings,
-    })?)
 }
 
 pub fn query_amm_pair_address(deps: &Deps, pair: TokenPair) -> StdResult<Binary> {

@@ -34,8 +34,8 @@ use shadeswap_shared::{
         router::{
             ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg
         },
+        staking::StakingContractInit,
     },
-    stake_contract::StakingContractInit,
     Pagination,
 };
 
@@ -178,6 +178,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
         },
         prng_seed: to_binary(&"".to_string()).unwrap(),
         api_key: API_KEY.to_string(),
+        authenticator: None,
     };
 
     let factory_contract = init(
@@ -211,7 +212,6 @@ fn redeploy_infra() -> serde_json::Result<()> {
             let router_msg = RouterInitMsg {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
                 entropy: to_binary(&"".to_string()).unwrap(),
-                viewing_key: Some(VIEW_KEY.to_string()),
                 pair_contract_code_hash: s_amm_pair.code_hash.clone(),
             };
 
@@ -388,6 +388,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
     }
 }
 
+#[allow(dead_code)]
 fn deploy_fresh() -> serde_json::Result<()> {
     let mut reports = vec![];
     print_warning("SENT");
@@ -548,6 +549,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
         },
         prng_seed: to_binary(&"".to_string()).unwrap(),
         api_key: API_KEY.to_string(),
+        authenticator: None,
     };
 
     let factory_contract = init(
@@ -581,7 +583,6 @@ fn deploy_fresh() -> serde_json::Result<()> {
             let router_msg = RouterInitMsg {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
                 entropy: to_binary(&"".to_string()).unwrap(),
-                viewing_key: Some(VIEW_KEY.to_string()),
                 pair_contract_code_hash: s_amm_pair.code_hash.clone(),
             };
 

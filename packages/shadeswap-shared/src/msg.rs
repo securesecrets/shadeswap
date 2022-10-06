@@ -33,7 +33,7 @@ pub mod router {
         pub prng_seed: Binary,
         pub entropy: Binary,
         pub viewing_key: Option<String>,
-        pub pair_contract_code_hash: String
+        pub pair_contract_code_hash: String,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -59,7 +59,7 @@ pub mod router {
         RegisterSNIP20Token {
             token_addr: Addr,
             token_code_hash: String,
-        },
+        }
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -81,7 +81,7 @@ pub mod router {
         },
         GetConfig {
             pair_contract_code_hash: String,
-        }
+        },
     }
 }
 
@@ -124,7 +124,6 @@ pub mod amm_pair {
         pub lp_fee_amount: Uint128,
         pub shade_dao_fee_amount: Uint128,
         pub height: u64,
-        pub trader: String,
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
@@ -172,10 +171,9 @@ pub mod amm_pair {
         SetCustomPairFee {
             custom_fee: Option<CustomFee>,
         },
-        SetStakingContract {
-            contract: ContractLink,
+        SetViewingKey {
+            viewing_key: String
         },
-        OnLpTokenInitAddr,
     }
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -193,9 +191,10 @@ pub mod amm_pair {
     #[derive(Serialize, Deserialize, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        GetConfig{},
+        GetConfig {},
         GetPairInfo {},
         GetTradeHistory {
+            api_key: String,
             pagination: Pagination,
         },
         GetWhiteListAddress {},
@@ -266,13 +265,13 @@ pub mod amm_pair {
             lp_token: Uint128,
             total_lp_token: Uint128,
         },
-        GetConfig{
+        GetConfig {
             factory_contract: ContractLink,
             lp_token: ContractLink,
             staking_contract: Option<ContractLink>,
             pair: TokenPair,
-            custom_fee: Option<CustomFee>
-        }
+            custom_fee: Option<CustomFee>,
+        },
     }
 }
 
@@ -292,6 +291,7 @@ pub mod factory {
         pub amm_settings: AMMSettings,
         pub lp_token_contract: ContractInstantiationInfo,
         pub prng_seed: Binary,
+        pub api_key: String,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -301,11 +301,14 @@ pub mod factory {
             pair_contract: Option<ContractInstantiationInfo>,
             lp_token_contract: Option<ContractInstantiationInfo>,
             amm_settings: Option<AMMSettings>,
+            api_key: Option<String>,
         },
         CreateAMMPair {
             pair: TokenPair,
             entropy: Binary,
             staking_contract: Option<StakingContractInit>,
+            // This is used to optionally register the token
+            router_contract: Option<ContractLink>
         },
         AddAMMPairs {
             amm_pairs: Vec<AMMPair>,
@@ -339,6 +342,9 @@ pub mod factory {
         GetAdminAddress {
             address: String,
         },
+        AuthorizeApiKey {
+            authorized: bool,
+        },
     }
 
     #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
@@ -350,6 +356,7 @@ pub mod factory {
         GetAMMSettings,
         GetConfig,
         GetAdmin,
+        AuthorizeApiKey { api_key: String },
     }
 }
 
@@ -386,7 +393,7 @@ pub mod staking {
             from: Addr,
             msg: Option<Binary>,
             amount: Uint128,
-        }
+        },
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -403,17 +410,14 @@ pub mod staking {
         WithPermit {
             permit: QueryPermit,
             query: AuthQuery,
-        }
+        },
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
     #[serde(rename_all = "snake_case")]
     pub enum AuthQuery {
-        GetStakerLpTokenInfo {
-        },
-        GetClaimReward {
-            time: Uint128,
-        }
+        GetStakerLpTokenInfo {},
+        GetClaimReward { time: Uint128 },
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -483,6 +487,5 @@ pub mod lp_token {
         pub initial_balances: Option<Vec<InitialBalance>>,
         pub prng_seed: Binary,
         pub config: Option<InitConfig>,
-        pub callback: Option<Callback>,
     }
 }

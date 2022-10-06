@@ -36,7 +36,6 @@ pub fn set_admin_guard(
     info: MessageInfo,
     admin: Addr
 ) -> StdResult<Response>{
-    let sender = info.sender.to_string();
     apply_admin_guard(&info.sender, storage)?;
     admin_w(storage).save(&admin)?;
     Ok(Response::default())

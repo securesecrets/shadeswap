@@ -121,10 +121,10 @@ pub mod tests {
         let address_a =  Addr::unchecked("TESTA".to_string());
         let address_b =  Addr::unchecked("TESTB".to_string());
         add_address_to_whitelist(deps.as_mut().storage, address_a.clone())?;        
-        let is_stalker_a = is_address_in_whitelist(deps.as_mut().storage, address_a.clone())?;
+        let is_stalker_a = is_address_in_whitelist(deps.as_mut().storage, &address_a)?;
         assert_eq!(true, is_stalker_a);        
         add_address_to_whitelist(deps.as_mut().storage, address_b.clone())?;
-        let is_stalker_b = is_address_in_whitelist(deps.as_mut().storage, address_b.clone())?;
+        let is_stalker_b = is_address_in_whitelist(deps.as_mut().storage, &address_b)?;
         assert_eq!(true, is_stalker_b);     
         Ok(())
     }
@@ -150,9 +150,9 @@ pub mod tests {
         add_whitelist_address(&mut deps.storage, address_a.clone())?;
         add_whitelist_address(&mut deps.storage, address_b.clone())?;
         add_whitelist_address(&mut deps.storage, address_c.clone())?;
-        let is_addr = is_address_in_whitelist(&mut deps.storage, address_b.clone())?;  
+        let is_addr = is_address_in_whitelist(&mut deps.storage, &address_b)?;  
         assert_eq!(true, is_addr);      
-        let is_addr = is_address_in_whitelist(&mut deps.storage, Addr::unchecked("TESTD".to_string()).clone())?;  
+        let is_addr = is_address_in_whitelist(&mut deps.storage, &Addr::unchecked("TESTD".to_string()).clone())?;  
         assert_eq!(false, is_addr);   
         Ok(())
     }
@@ -282,7 +282,7 @@ pub mod tests_calculation_price_and_fee{
         let expected_amount: u128 = 1666;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, &amm_settings, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-            Addr::unchecked("Test".to_string().clone()), Some(true));
+            Some(&Addr::unchecked("Test".to_string())), Some(true));
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -300,7 +300,7 @@ pub mod tests_calculation_price_and_fee{
         let expected_amount: u128 = 1624;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, &amm_settings, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-             Addr::unchecked("Test".to_string().clone()), None);
+             Some(&Addr::unchecked("Test".to_string().clone())), None);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -320,7 +320,7 @@ pub mod tests_calculation_price_and_fee{
         let expected_amount: u128 = 1539;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(), &env, &amm_settings, &config, 
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-         Addr::unchecked("Test".to_string().clone()), None);
+         Some(&Addr::unchecked("Test".to_string().clone())), None);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -344,7 +344,7 @@ pub mod tests_calculation_price_and_fee{
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
         assert_eq!(config.factory_contract.address.as_str(), FACTORY_CONTRACT_ADDRESS.clone());
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, &amm_settings, &config, &token_amount,
-         address_a, None)?;
+         Some(&address_a), None)?;
         assert_eq!(swap_result.result.return_amount, Uint128::from(159663u128));
         assert_eq!(swap_result.lp_fee_amount, Uint128::from(40u128));
         assert_eq!(swap_result.shade_dao_fee_amount, Uint128::from(60u128));
@@ -365,7 +365,7 @@ pub mod tests_calculation_price_and_fee{
         add_whitelist_address(deps.as_mut().storage, address_a.clone())?;    
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(), &env,&amm_settings, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-            address_a.clone(), None)?;
+            Some(&address_a.clone()), None)?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
         assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
         Ok(())
@@ -536,7 +536,7 @@ pub mod help_test_lib {
             admin: Some(mock_info.sender.clone()),      
             staking_contract: None,
             custom_fee: None,
-            callback: None,
+            callback: None
         };         
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let config = config_r(&deps.storage).load()?;

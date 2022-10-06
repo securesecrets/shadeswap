@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings},
-    core::{ContractInstantiationInfo, TokenPair},
+    core::{ContractInstantiationInfo, TokenPair, ViewingKey},
     msg::factory::InitMsg
 };
 
@@ -22,7 +22,8 @@ pub const PAGINATION_LIMIT: u8 = 30;
 pub struct Config {
     pub pair_contract: ContractInstantiationInfo,
     pub amm_settings: AMMSettings,
-    pub lp_token_contract: ContractInstantiationInfo
+    pub lp_token_contract: ContractInstantiationInfo,
+    pub api_key: ViewingKey
 }
 
 impl Config {
@@ -31,6 +32,7 @@ impl Config {
             pair_contract: msg.pair_contract,
             amm_settings: msg.amm_settings,
             lp_token_contract: msg.lp_token_contract,
+            api_key: ViewingKey(msg.api_key)
         }
     }
 }

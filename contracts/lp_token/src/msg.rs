@@ -24,8 +24,7 @@ pub struct InstantiateMsg {
     pub decimals: u8,
     pub initial_balances: Option<Vec<InitialBalance>>,
     pub prng_seed: Binary,
-    pub config: Option<InitConfig>,
-    pub callback: Option<Callback>
+    pub config: Option<InitConfig>
 }
 
 impl InstantiateMsg {

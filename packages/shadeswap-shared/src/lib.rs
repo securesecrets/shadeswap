@@ -1,7 +1,6 @@
 pub mod msg;
 pub use msg::*;
 pub mod amm_pair;
-pub mod stake_contract;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 pub use sha2;

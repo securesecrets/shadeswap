@@ -73,9 +73,9 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
 
         let account_name = args[2].clone();
         let backend = args[3].clone(); 
-        let viewing_key = args[4].clone();    
+        let _viewing_key = args[4].clone();    
         let code_hash = args[5].clone(); 
-        let router: NetContract = create_router_contract(code_hash.clone(), &account_name, &backend, &viewing_key, reports)?;
+        let router: NetContract = create_router_contract(code_hash.clone(), &account_name, &backend,  reports)?;
         print_contract_details_cli(router, "Router".to_string());
     }
 
@@ -86,7 +86,7 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
 
         let account_name = args[2].clone();
         let backend = args[3].clone();     
-        let router: StoredContract = store_amm_pair(&account_name, &backend,  reports)?;
+        let router: StoredContract = store_amm_pair(&account_name, &backend)?;
         print_stored_contract_details_cli(router, "Router".to_string());
     }
 
@@ -143,7 +143,7 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
 
         let account_name = args[2].clone();
         let backend = args[3].clone();     
-        let router: StoredContract = store_staking_contract(&account_name, &backend,  reports)?;
+        let router: StoredContract = store_staking_contract(&account_name, &backend)?;
         print_stored_contract_details_cli(router, "Staking".to_string());
     }
 

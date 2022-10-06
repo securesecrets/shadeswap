@@ -1,7 +1,7 @@
-use cosmwasm_std::{Api, CanonicalAddr, StdResult, Storage, Addr, Binary};
+use cosmwasm_std::{Storage, Addr, Binary};
 use cosmwasm_storage::{singleton, singleton_read, Singleton, ReadonlySingleton, Bucket, ReadonlyBucket, bucket, bucket_read};
 use serde::{Deserialize, Serialize};
-use shadeswap_shared::{msg::amm_pair::TradeHistory, core::{ContractLink, TokenPair, CustomFee, ViewingKey}, stake_contract::StakingContractInit};
+use shadeswap_shared::{msg::amm_pair::TradeHistory, core::{ContractLink, TokenPair, CustomFee, ViewingKey}, staking::StakingContractInit};
 
 pub const PAGINATION_LIMIT: u8 = 30;
 pub static CONFIG: &[u8] = b"config";

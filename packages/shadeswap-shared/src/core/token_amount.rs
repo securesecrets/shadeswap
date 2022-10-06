@@ -1,12 +1,6 @@
 use cosmwasm_std::{Uint128, MessageInfo};
 use cosmwasm_std::{
-    from_binary,
-    Api,
-    Binary,
-    Querier,
-    StdError,
-    StdResult,
-    Storage, Env, Response
+    StdResult
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

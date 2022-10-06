@@ -1,8 +1,8 @@
 // This should be callback from Snip20 Receiver
 // needs to check for the amount
 
-use std::convert;
-use std::ops::Add;
+
+
 
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
 
@@ -18,24 +18,22 @@ use shadeswap_shared::staking::QueryResponse;
 use shadeswap_shared::{
     core::{ContractLink, ViewingKey},
     msg::amm_pair::InvokeMsg as AmmPairInvokeMsg,
-    snip20::helpers::register_receive,
     Contract,
 };
 
 use crate::state::{
-    claim_reward_info_r, claim_reward_info_w, config_r, config_w, stakers_r, stakers_vk_r,
-    stakers_vk_w, stakers_w, total_staked_r, ClaimRewardsInfo, StakingInfo, total_staked_w, total_stakers_r, total_stakers_w, staker_index_w, staker_index_r, last_reward_time_claimed_w, Config,
+    claim_reward_info_r, claim_reward_info_w, config_r, stakers_r,
+    stakers_vk_w, stakers_w, total_staked_r, ClaimRewardsInfo, StakingInfo, total_staked_w, total_stakers_r, total_stakers_w, staker_index_w, staker_index_r, last_reward_time_claimed_w, Config, config_w,
 };
 
 pub fn set_view_key(
     deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
+    info: &MessageInfo,
     key: String,
 ) -> StdResult<Response> {
     let caller = info.sender.clone();
     let staker_vk = ViewingKey(key);
-    stakers_vk_w(deps.storage).save(caller.as_bytes(), &staker_vk);
+    stakers_vk_w(deps.storage).save(caller.as_bytes(), &staker_vk)?;
     Ok(Response::new().add_attributes(vec![
         Attribute::new("action", "set_view_key"),
         Attribute::new("staker", caller.to_string()),
@@ -49,7 +47,7 @@ pub fn calculate_staker_shares(
 {
     let total_staking_amount: Uint128 = match total_staked_r(storage).may_load() {
         Ok(it) => it.unwrap_or(Uint128::zero()),
-        Err(err) => Uint128::zero(),
+        Err(_err) => Uint128::zero(),
     };   
     if total_staking_amount.is_zero() {
         return Ok(Decimal::zero())
@@ -60,7 +58,7 @@ pub fn calculate_staker_shares(
 }
 
 pub fn stake(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     amount: Uint128,
@@ -168,6 +166,14 @@ pub fn claim_rewards(deps: DepsMut, info: MessageInfo, env: Env) -> StdResult<Re
     ]))
 }
 
+pub fn update_authenticator(storage: &mut dyn Storage, authenticator: Option<Contract>) -> StdResult<Response>
+{
+    let mut config = config_r(storage).load()?;
+    config.authenticator = authenticator;
+    config_w(storage).save(&config)?;
+    Ok(Response::default())
+}
+
 // Total Available Rewards = Daily_Rewards / 24*60*60*1000 * (current_date_time - last_calculated_date_time).miliseconds()
 // User Incremental Rewards = Total Available Rewards * Staked Percentage
 // User Total Rewards = User Owed Rewards + (User Incremental Rewards)
@@ -179,7 +185,7 @@ pub fn claim_rewards_for_all_stakers(storage: &mut dyn Storage, current_timestam
     {
         // load staker address
         let staker_address: Addr = staker_index_r(storage).load(&index.to_be_bytes())?;
-        let mut staker_info = match stakers_r(storage).may_load(staker_address.as_bytes()).unwrap(){
+        let staker_info = match stakers_r(storage).may_load(staker_address.as_bytes()).unwrap(){
             Some(staking_info) => staking_info,
             None =>  StakingInfo{ amount: Uint128::zero(), staker: Addr::unchecked(""), last_time_updated: Uint128::zero() }
         };
@@ -201,31 +207,6 @@ pub fn claim_rewards_for_all_stakers(storage: &mut dyn Storage, current_timestam
     Ok(())
 }
 
-// pub fn set_lp_token(deps: DepsMut, env: Env, lp_token: ContractLink) -> StdResult<Response> {
-//     let mut config = config_r(deps.storage).load()?;
-
-//     if config.lp_token.address != Addr::unchecked("".to_string()) {
-//         return Err(StdError::generic_err(
-//             "LP Token has already been added.".to_string(),
-//         ));
-//     }
-//     config.lp_token = lp_token.clone();
-//     let mut messages = Vec::new();
-//     // register pair contract for LP receiver
-//     messages.push(register_receive(
-//         env.contract.code_hash.clone(),
-//         None,
-//         &Contract {
-//             address: lp_token.address.clone(),
-//             code_hash: lp_token.code_hash.clone(),
-//         },
-//     )?);
-
-//     //store lp_token
-//     config_w(deps.storage).save(&config)?;
-//     Ok(Response::new().add_attributes(vec![Attribute::new("action", "set_lp_token")]))
-// }
-
 pub fn calculate_staking_reward(
     storage: &dyn Storage,
     amount: Uint128,
@@ -236,7 +217,7 @@ pub fn calculate_staking_reward(
     let config: Config = config_r(storage).load()?;
     let seconds = Uint128::new(24u128 * 60u128 * 60u128 * 1000u128);   
     if last_timestamp < current_timestamp {
-        let time_dif = (current_timestamp - last_timestamp);
+        let time_dif = current_timestamp - last_timestamp;
         let total_available_reward = config.daily_reward_amount.multiply_ratio(time_dif, seconds);
         let converted_total_reward = Decimal::from_atomics(total_available_reward, 0).unwrap();  
         let result = converted_total_reward.checked_mul(percentage)?;
@@ -295,7 +276,7 @@ pub fn get_config(deps: Deps) -> StdResult<Binary> {
             },
             lp_token: config.lp_token.clone(),
             daily_reward_amount: config.daily_reward_amount.clone(),
-            contract_owner: config.contract_owner.clone(),
+            amm_pair: config.amm_pair.clone(),
         };
         return to_binary(&response);
     } else {
@@ -317,13 +298,6 @@ pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Bi
     to_binary(&response_msg)
 }
 
-pub fn get_staking_contract_owner(deps: Deps, env: Env) -> StdResult<Binary> {
-    let config = config_r(deps.storage).load()?;
-    to_binary(&QueryResponse::ContractOwner {
-        address: env.contract.address.to_string(),
-    })
-}
-
 pub fn get_claim_reward_for_user(
     deps: Deps,
     staker: Addr,
@@ -339,7 +313,7 @@ pub fn get_claim_reward_for_user(
             address: contract_addr.clone(),
             code_hash: token_code_hash,
         },
-        TokenType::NativeToken { denom } => ContractLink {
+        TokenType::NativeToken { denom: _ } => ContractLink {
             address: Addr::unchecked("".to_string()),
             code_hash: "".to_string(),
         },
@@ -391,11 +365,11 @@ pub fn unstake(
         return Err(StdError::generic_err("Staking Amount is higher then actual staking amount".to_string()));
     }
     // if amount is the same as current staking amount remove staker from list
-    let diff_amount = (staker_info.amount - amount);
+    let diff_amount = staker_info.amount - amount;
     if diff_amount == Uint128::zero() {
         stakers_w(deps.storage).remove(caller.as_bytes());
     } else {
-        staker_info.amount = (staker_info.amount - amount);
+        staker_info.amount = staker_info.amount - amount;
         staker_info.last_time_updated = current_timestamp;
         stakers_w(deps.storage).save(caller.as_bytes(), &staker_info)?;
     }
@@ -431,7 +405,7 @@ pub fn unstake(
         })
         .unwrap();
         let msg = to_binary(&snip20::ExecuteMsg::Send {
-            recipient: config.contract_owner.to_string(),
+            recipient: config.amm_pair.to_string(),
             recipient_code_hash: None,
             amount: amount,
             msg: Some(remove_liquidity_msg.clone()),

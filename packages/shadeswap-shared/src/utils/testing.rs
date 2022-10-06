@@ -1,7 +1,7 @@
 
-use secret_multi_test::{App, BankKeeper, Contract, ContractWrapper, Executor};
+use secret_multi_test::{App};
 use cosmwasm_std::{
-    to_binary, Addr, Empty, Binary, ContractInfo, StdResult, QueryRequest, WasmQuery,
+    Binary, ContractInfo, StdResult, QueryRequest, WasmQuery,
 };
 use serde::de::DeserializeOwned;
 

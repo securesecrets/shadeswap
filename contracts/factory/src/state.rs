@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings},
     core::{ContractInstantiationInfo, TokenPair, ViewingKey},
-    msg::factory::InitMsg
+    msg::factory::InitMsg, Contract
 };
 
 const AMM_PAIRS_KEYS: &[u8] = b"amm_pair_keys";
@@ -23,7 +23,8 @@ pub struct Config {
     pub pair_contract: ContractInstantiationInfo,
     pub amm_settings: AMMSettings,
     pub lp_token_contract: ContractInstantiationInfo,
-    pub api_key: ViewingKey
+    pub api_key: ViewingKey,
+    pub authenticator: Option<Contract>
 }
 
 impl Config {
@@ -32,7 +33,8 @@ impl Config {
             pair_contract: msg.pair_contract,
             amm_settings: msg.amm_settings,
             lp_token_contract: msg.lp_token_contract,
-            api_key: ViewingKey(msg.api_key)
+            api_key: ViewingKey(msg.api_key),
+            authenticator: msg.authenticator,
         }
     }
 }

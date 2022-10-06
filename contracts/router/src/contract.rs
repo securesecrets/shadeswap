@@ -9,10 +9,10 @@ use shadeswap_shared::{
     router::{ExecuteMsg, InvokeMsg, QueryMsg},
 };
 
-use crate::operations::update_viewing_key;
+
 use crate::{
     operations::{
-        create_viewing_key, next_swap, query_pair_contract_config, refresh_tokens, swap_simulation,
+        next_swap, query_pair_contract_config, refresh_tokens, swap_simulation,
         swap_tokens_for_exact_tokens,
     },
     state::{config_r, config_w, Config},
@@ -21,21 +21,17 @@ use crate::{
 /// Pad handle responses and log attributes to blocks
 /// of 256 bytes to prevent leaking info based on response size
 const BLOCK_SIZE: usize = 256;
+const SHADE_ROUTER_KEY: &str = "SHADE_ROUTER_KEY";
 
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     msg: InitMsg,
 ) -> StdResult<Response> {
     config_w(deps.storage).save(&Config {
-        viewing_key: msg.viewing_key.unwrap_or(create_viewing_key(
-            &env,
-            &info,
-            msg.prng_seed,
-            msg.entropy,
-        )),
+        viewing_key: SHADE_ROUTER_KEY.to_string(),
         pair_contract_code_hash: msg.pair_contract_code_hash,
     })?;
 
@@ -138,11 +134,6 @@ fn receiver_callback(
                     return Err(StdError::generic_err(
                         "No matching token in pair".to_string(),
                     ));
-                }
-                _ => {
-                    return Err(StdError::generic_err(
-                        "Invoke does not contain the given function.".to_string(),
-                    ))
                 }
             }
         } else {

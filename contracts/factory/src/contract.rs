@@ -1,6 +1,6 @@
 use crate::{
     operations::{
-        add_amm_pairs, create_pair, list_pairs, query_amm_pair_address, query_amm_settings,
+        add_amm_pairs, create_pair, list_pairs, query_amm_pair_address,
         register_amm_pair, set_config,
     },
     state::{config_r, config_w, ephemeral_storage_r, ephemeral_storage_w, prng_seed_w, Config},
@@ -51,7 +51,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     info.sender.clone(),
                     entropy,
                     staking_contract,
-                    router_contract
+                    router_contract,
                 )
             }
             ExecuteMsg::SetConfig {
@@ -73,7 +73,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 apply_admin_guard(&info.sender, deps.storage)?;
                 add_amm_pairs(deps.storage, amm_pairs)
             }
-            ExecuteMsg::SetFactoryAdmin { admin } => {
+            ExecuteMsg::SetAdmin { admin } => {
                 apply_admin_guard(&info.sender, deps.storage)?;
                 admin_w(deps.storage).save(&admin)?;
                 Ok(Response::default())
@@ -113,20 +113,21 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     pair_contract,
                     amm_settings,
                     lp_token_contract,
-                    api_key,
+                    api_key: _,
+                    authenticator,
                 } = config_r(deps.storage).load()?;
                 to_binary(&QueryResponse::GetConfig {
                     pair_contract,
                     amm_settings,
                     lp_token_contract,
+                    authenticator,
                 })
             }
             QueryMsg::ListAMMPairs { pagination } => list_pairs(deps, pagination),
             QueryMsg::GetAMMPairAddress { pair } => query_amm_pair_address(&deps, pair),
-            QueryMsg::GetAMMSettings {} => query_amm_settings(deps),
             QueryMsg::GetAdmin {} => {
                 let admin_address = admin_r(deps.storage).load()?;
-                to_binary(&QueryResponse::GetAdminAddress {
+                to_binary(&QueryResponse::GetAdmin {
                     address: admin_address.to_string(),
                 })
             }

@@ -2,7 +2,7 @@ use cosmwasm_std::{
     entry_point, from_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response,
     StdError, StdResult, Uint128, to_binary};
 use shadeswap_shared::{
-    core::{admin_w, apply_admin_guard, admin_r},
+    core::{admin_w, apply_admin_guard, admin_r, ContractLink},
     query_auth::helpers::{authenticate_permit, PermitAuthentication},
     staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
     utils::{pad_query_result, pad_response_result},
@@ -14,7 +14,7 @@ use shadeswap_shared::staking::QueryResponse;
 use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staking_stake_lp_token_info,
-        stake, unstake, update_authenticator,
+        stake, unstake, update_authenticator, set_reward_token, store_init_reward_token_and_timestamp,
     },
     state::{config_r, config_w, prng_seed_w, Config},
 };
@@ -78,7 +78,10 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 admin_w(deps.storage).save(&admin)?;
                 Ok(Response::default())
             },
-            ExecuteMsg::SetRewardToken { reward_token, amount, valid_to } => set_reward_token(deps, info, reward_token,amount, valid_to)
+            ExecuteMsg::SetRewardToken { reward_token, amount, valid_to } => {
+                apply_admin_guard(&info.sender, deps.storage)?;
+                set_reward_token(deps, info, reward_token,amount, valid_to)
+            }
         },
         BLOCK_SIZE,
     )

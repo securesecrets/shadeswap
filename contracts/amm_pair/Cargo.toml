@@ -33,9 +33,9 @@ serde = {version = "1.0.114", default-features = false, features = [
 # cw2 = "0.15.0"
 
 shadeswap-shared = {path = "../../packages/shadeswap-shared"}
-staking =  {path = "../../contracts/staking"}
-snip20-reference-impl = {path ="../../contracts/snip20"}
-lp-token = {path ="../../contracts/lp_token"}
+# staking =  {path = "../../contracts/staking"}
+# snip20-reference-impl = {path ="../../contracts/snip20"}
+# lp-token = {path ="../../contracts/lp_token"}
 snafu = {version = "0.7.1"}
 secret-multi-test = { git = "https://github.com/securesecrets/secret-plus-utils", version = "0.13.4" }
 [dev-dependencies]

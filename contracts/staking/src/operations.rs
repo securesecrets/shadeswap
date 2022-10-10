@@ -22,7 +22,7 @@ use crate::state::{
     claim_reward_info_r, claim_reward_info_w, config_r, stakers_r, 
     stakers_w, total_staked_r, ClaimRewardsInfo, StakingInfo, total_staked_w,
     total_stakers_r, total_stakers_w, staker_index_w, staker_index_r, last_reward_time_claimed_w,
-    reward_token_r, reward_token_w, RewardTokenInfo, reward_token_list_r, last_reward_time_r, reward_token_list_w,
+    reward_token_r, reward_token_w, RewardTokenInfo, reward_token_list_r, last_reward_time_r, reward_token_list_w, config_w,
 };
 
 pub fn calculate_staker_shares(
@@ -58,7 +58,7 @@ pub fn store_init_reward_token_and_timestamp(
         &RewardTokenInfo{ 
             reward_token: reward_token.to_owned(), 
             amount: emission_amount, 
-            valid_to: Uint128::new(3747905010u128)
+            valid_to: Uint128::new(3747905010000u128)
     }).unwrap();       
     last_reward_time_claimed_w(storage).save(&current_timestamp).unwrap();
     Ok(())
@@ -70,8 +70,7 @@ pub fn set_reward_token(
     reward_token: ContractLink,
     amount: Uint128,
     valid_to: Uint128,
-) -> StdResult<Response>{
-    apply_admin_guard(&info.sender, deps.storage).unwrap();
+) -> StdResult<Response>{  
     let reward_token_info: RewardTokenInfo = RewardTokenInfo {
         amount: amount,
         reward_token: reward_token.to_owned(),
@@ -348,6 +347,14 @@ pub fn get_config(deps: Deps) -> StdResult<Binary> {
     }
 }
 
+pub fn update_authenticator(storage: &mut dyn Storage, authenticator: Option<Contract>) -> StdResult<Response>
+{
+    let mut config = config_r(storage).load()?;
+    config.authenticator = authenticator;
+    config_w(storage).save(&config)?;
+    Ok(Response::default())
+}
+
 pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Binary> {
     let staker_info = stakers_r(deps.storage).load(&staker.as_bytes())?;
     let response_msg = QueryResponse::StakerLpTokenInfo {
@@ -422,7 +429,7 @@ pub fn unstake(
         })
         .unwrap();
         let msg = snip20::ExecuteMsg::Send {
-            recipient: config.contract_owner.to_string(),
+            recipient: config.amm_pair.to_string(),
             recipient_code_hash: None,
             amount: amount,
             msg: Some(remove_liquidity_msg.clone()),

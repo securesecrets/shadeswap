@@ -34,7 +34,7 @@ use crate::{
     state::{
         config_r, config_w, trade_count_r, trade_count_w, trade_history_r, trade_history_w,
         whitelist_r, whitelist_w, Config, PAGINATION_LIMIT,
-    },
+    }, contract::INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
 };
 
 // WHITELIST
@@ -816,7 +816,7 @@ pub fn query_token_symbol(querier: QuerierWrapper, token: &TokenType) -> StdResu
         TokenType::CustomToken {
             contract_addr,
             token_code_hash,
-        } => {
+        } => {            
             return Ok(token_info(
                 &querier,
                 &Contract {

@@ -9,14 +9,11 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
- "lp-token",
  "schemars 0.8.10",
  "secret-multi-test",
  "serde",
  "shadeswap-shared",
  "snafu 0.7.1",
- "snip20-reference-impl",
- "staking",
 ]
 
 [[package]]

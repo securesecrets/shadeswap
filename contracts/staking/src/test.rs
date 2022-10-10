@@ -68,7 +68,7 @@ pub mod tests {
         let _stake_b = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1500u128),deps_owned.as_mut().api.addr_validate(STAKER_B)?)?;       
         let _stake_c = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1700u128),deps_owned.as_mut().api.addr_validate(STAKER_C)?)?;   
         let _stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),deps_owned.as_mut().api.addr_validate(STAKER_A)?)?;           
-        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
+        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage)?;
         assert_eq!(total_stakers_count, Uint128::from(3u128));
         Ok(())
     }
@@ -86,7 +86,7 @@ pub mod tests {
         let _stake_b = stake(deps.as_mut(), env.clone(),stake_mock_info.clone(), Uint128::from(1500u128),deps_owned.as_mut().api.addr_validate(STAKER_B)?)?;       
         let _stake_c = stake(deps.as_mut(), env.clone(),stake_mock_info.clone(), Uint128::from(1700u128),deps_owned.as_mut().api.addr_validate(STAKER_C)?)?;   
         let _unstake_a = unstake (deps.as_mut(), env.clone(),unstake_mock_info.clone(), Uint128::from(1000u128), Some(true))?;           
-        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
+        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage)?;
         let claim_reward_info_a: Vec<ClaimRewardsInfo>  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
         let staker_info = stakers_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes());
         match staker_info {
@@ -118,7 +118,7 @@ pub mod tests {
         }
 
         // Assert Total Staker Count = 1m Total Staker Amount = 1000, Index - 0
-        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
+        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage)?;
         assert_eq!(total_stakers_count, Uint128::one());
         let index = staker_index_r(deps.as_mut().storage).load(&Uint128::zero().to_be_bytes()).unwrap();
         assert_eq!(index, deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap());
@@ -146,7 +146,7 @@ pub mod tests {
         claim_rewards_for_all_stakers(deps.as_mut().storage, Uint128::from(1600000000u128)).unwrap();
         let claim_reward_info_a: Vec<ClaimRewardsInfo>  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
         let claim_reward_info_b: Vec<ClaimRewardsInfo>  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_B)?.as_bytes())?;
-        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
+        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage)?;
         let last_timestamp = last_reward_time_r(deps.as_mut().storage).load().unwrap();
         assert_eq!(total_stakers_count, Uint128::new(2u128));
         assert_eq!(last_timestamp, Uint128::new(1600000000u128));

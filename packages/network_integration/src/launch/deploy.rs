@@ -361,7 +361,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
                                 amount_0: Uint128::from(200000000000u64),
                                 amount_1: Uint128::from(1000000000u64),
                             },
-                            slippage: None,
+                            expected_return: None,
 
                             staking: None,
                         },
@@ -732,7 +732,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 amount_0: Uint128::from(200000000000u64),
                                 amount_1: Uint128::from(1000000000u64),
                             },
-                            slippage: None,
+                            expected_return: None,
 
                             staking: None,
                         },

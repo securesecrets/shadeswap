@@ -45,7 +45,7 @@ pub fn instantiate(
         TokenType::NativeToken { denom:_} =>  return Err(StdError::generic_err("Invalid Token Type for Reward Token".to_string())),
     };
     let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
-    store_init_reward_token_and_timestamp(deps.storage, reward_token_address.to_owned(),msg.staking_amount,current_timestamp).unwrap();
+    store_init_reward_token_and_timestamp(deps.storage, reward_token_address.to_owned(),msg.staking_amount,current_timestamp)?;
 
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());

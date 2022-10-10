@@ -137,7 +137,7 @@ pub mod amm_pair {
     pub enum ExecuteMsg {
         AddLiquidityToAMMContract {
             deposit: TokenPairAmount,
-            slippage: Option<Decimal>,
+            expected_return: Option<Uint128>,
             staking: Option<bool>,
         },
         SwapTokens {

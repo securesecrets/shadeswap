@@ -30,7 +30,7 @@ pub fn calculate_staker_shares(
     amount: Uint128
 ) -> StdResult<Decimal>
 {
-    let total_staking_amount: Uint128 = match total_staked_r(storage).may_load().unwrap() {
+    let total_staking_amount: Uint128 = match total_staked_r(storage).may_load()? {
         Some(staking_amount) => staking_amount,
         None => Uint128::zero(),
     };   
@@ -52,15 +52,15 @@ pub fn store_init_reward_token_and_timestamp(
     // store reward token to the list
     let mut reward_token_list: Vec<Addr> = Vec::new();
     reward_token_list.push(reward_token.address.to_owned());
-    reward_token_list_w(storage).save(&reward_token_list).unwrap();
+    reward_token_list_w(storage).save(&reward_token_list)?;
     reward_token_w(storage).save(
         &reward_token.address.as_bytes(),
         &RewardTokenInfo{ 
             reward_token: reward_token.to_owned(), 
             amount: emission_amount, 
             valid_to: Uint128::new(3747905010000u128)
-    }).unwrap();       
-    last_reward_time_claimed_w(storage).save(&current_timestamp).unwrap();
+    })?;       
+    last_reward_time_claimed_w(storage).save(&current_timestamp)?;
     Ok(())
 }
 
@@ -76,12 +76,12 @@ pub fn set_reward_token(
         reward_token: reward_token.to_owned(),
         valid_to: valid_to
     };
-    let mut reward_list_token = reward_token_list_r(deps.storage).load().unwrap();
+    let mut reward_list_token = reward_token_list_r(deps.storage).load()?;
     let result = reward_list_token.iter().find(|&x| x.to_owned() == reward_token.address.to_owned());   
     if result == None {
         reward_list_token.push(reward_token.address.to_owned());
     }
-    reward_token_w(deps.storage).save(&reward_token.address.as_bytes(), &reward_token_info).unwrap();    
+    reward_token_w(deps.storage).save(&reward_token.address.as_bytes(), &reward_token_info)?;    
 
     Ok(Response::new().add_attributes(vec![
         Attribute::new("action", "set_reward_token"),
@@ -107,13 +107,13 @@ pub fn stake(
     }
 
     // check if this is first time staking
-    let mut stakers_count = get_total_stakers_count(deps.storage);
+    let mut stakers_count = get_total_stakers_count(deps.storage)?;
     // calculate staking for existing stakers without increasing amount    
     let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
     claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
 
     // set the new total stake amount
-    let mut total_stake_amount = match total_staked_r(deps.storage).may_load().unwrap() {
+    let mut total_stake_amount = match total_staked_r(deps.storage).may_load()? {
         Some(total_amount) => total_amount,
         None => Uint128::zero(),
     };
@@ -123,7 +123,7 @@ pub fn stake(
    
     let caller = from.to_owned();
     // check if caller exist
-    match stakers_r(deps.storage).may_load(caller.as_bytes()).unwrap(){
+    match stakers_r(deps.storage).may_load(caller.as_bytes())?{
         Some(mut stake_info) => {
             stake_info.amount += amount;
             stake_info.last_time_updated = current_timestamp;
@@ -155,11 +155,11 @@ pub fn stake(
 
 pub fn get_total_stakers_count(
     storage: &dyn Storage
-) -> Uint128 
+) -> StdResult<Uint128> 
 {    
-    return match total_stakers_r(storage).may_load().unwrap(){
-        Some(count) => count,
-        None => Uint128::zero()
+    return match total_stakers_r(storage).may_load()?{
+        Some(count) => Ok(count),
+        None => Ok(Uint128::zero())
     };
 }
 
@@ -197,7 +197,7 @@ fn process_all_claimable_rewards(storage: &mut dyn Storage, receiver: String, cu
             claim_reward.reward_token_code_hash.to_owned(),
             &msg,
             vec![]
-        ).unwrap().into();
+        )?.into();
 
         messages.push(coms_msg);
         claim_reward.amount = Uint128::zero();
@@ -214,12 +214,12 @@ fn process_all_claimable_rewards(storage: &mut dyn Storage, receiver: String, cu
 // storage: &mut dyn Storage,
 pub fn claim_rewards_for_all_stakers(storage: &mut dyn Storage, current_timestamp: Uint128) -> StdResult<()> {
     // TO DO FIX THISclaim_rewards
-    let stakers_count = get_total_stakers_count(storage);   
-    let last_claimed_timestamp = last_reward_time_r(storage).load().unwrap();
+    let stakers_count = get_total_stakers_count(storage)?;   
+    let last_claimed_timestamp = last_reward_time_r(storage).load()?;
     for i in 0..stakers_count.u128() {
         // load staker address        
         let staker_address: Addr = staker_index_r(storage).load(&i.to_be_bytes())?;   
-        let staker_info = match stakers_r(storage).may_load(staker_address.as_bytes()).unwrap(){
+        let staker_info = match stakers_r(storage).may_load(staker_address.as_bytes())?{
             Some(staking_info) => staking_info,
             None =>  StakingInfo{ amount: Uint128::zero(), staker: staker_address.to_owned(), last_time_updated: Uint128::zero() }
         };   
@@ -229,9 +229,9 @@ pub fn claim_rewards_for_all_stakers(storage: &mut dyn Storage, current_timestam
         for reward_token in reward_token_list.iter(){
             // calculate reward amount for each reward token
            
-            let reward = calculate_staking_reward(staker_info.amount,staker_share, last_claimed_timestamp, current_timestamp, reward_token.amount).unwrap();
+            let reward = calculate_staking_reward(staker_info.amount,staker_share, last_claimed_timestamp, current_timestamp, reward_token.amount)?;
             // load any existing claimable reward for specfi
-            save_claimable_amount_staker_by_reward_token(storage,reward,staker_address.to_owned(),reward_token.reward_token.to_owned(), current_timestamp).unwrap();    
+            save_claimable_amount_staker_by_reward_token(storage,reward,staker_address.to_owned(),reward_token.reward_token.to_owned(), current_timestamp)?;    
         }
     }
     last_reward_time_claimed_w(storage).save(&current_timestamp)?;
@@ -241,10 +241,10 @@ pub fn claim_rewards_for_all_stakers(storage: &mut dyn Storage, current_timestam
 
 pub fn get_actual_reward_tokens(storage: &dyn Storage, current_timestamp: Uint128) -> StdResult<Vec<RewardTokenInfo>> {   
     let mut list_token: Vec<RewardTokenInfo> = Vec::new();
-    let reward_list = reward_token_list_r(storage).load().unwrap();      
+    let reward_list = reward_token_list_r(storage).load()?;      
     for addr in &reward_list{
         // load total reward token
-        let reward_token: RewardTokenInfo = reward_token_r(storage).load(addr.as_bytes()).unwrap();       
+        let reward_token: RewardTokenInfo = reward_token_r(storage).load(addr.as_bytes())?;       
         if current_timestamp <= reward_token.valid_to {
            list_token.push(reward_token.to_owned())
         }
@@ -253,7 +253,7 @@ pub fn get_actual_reward_tokens(storage: &dyn Storage, current_timestamp: Uint12
 }
 
 pub fn get_all_claimable_reward_for_staker(storage: &dyn Storage, staker_address: Addr) -> StdResult<Vec<ClaimRewardsInfo>>{
-    let claim_info = match claim_reward_info_r(storage).may_load(staker_address.as_bytes()).unwrap(){
+    let claim_info = match claim_reward_info_r(storage).may_load(staker_address.as_bytes())?{
         Some(claim_reward_info) => claim_reward_info,
         None => Vec::new()
     };
@@ -261,7 +261,7 @@ pub fn get_all_claimable_reward_for_staker(storage: &dyn Storage, staker_address
 }
 
 pub fn find_claimable_reward_for_staker_by_reward_token(storage: &dyn Storage, staker_address: Addr, reward_token: ContractLink) -> StdResult<ClaimRewardsInfo>{
-    let all_claimable_reward = get_all_claimable_reward_for_staker(storage, staker_address).unwrap();
+    let all_claimable_reward = get_all_claimable_reward_for_staker(storage, staker_address)?;
     let result =  match all_claimable_reward.iter().find(|&x| x.reward_token_addr == reward_token.address.to_owned()){
         Some(clm) => clm.to_owned(),
         None => ClaimRewardsInfo { 
@@ -275,7 +275,7 @@ pub fn find_claimable_reward_for_staker_by_reward_token(storage: &dyn Storage, s
 }
 
 pub fn find_claimable_reward_index_for_staker(storage: &dyn Storage, staker_address: Addr, reward_token: ContractLink) -> StdResult<Option<usize>>{
-    let all_claimable_reward = get_all_claimable_reward_for_staker(storage, staker_address).unwrap();
+    let all_claimable_reward = get_all_claimable_reward_for_staker(storage, staker_address)?;
     return Ok(all_claimable_reward.iter().position(|x| x.reward_token_addr == reward_token.address))
 }
 
@@ -287,9 +287,9 @@ pub fn save_claimable_amount_staker_by_reward_token(
     reward_token: ContractLink,
     timestamp: Uint128
 ) -> StdResult<()>{   
-    let mut list_claimable_reward = get_all_claimable_reward_for_staker(storage, staker_address.to_owned()).unwrap();
-    let claimable_reward_index = find_claimable_reward_index_for_staker(storage, staker_address.to_owned(), reward_token.to_owned()).unwrap();
-    let mut claimable_reward = find_claimable_reward_for_staker_by_reward_token(storage, staker_address.to_owned(), reward_token.to_owned()).unwrap();    
+    let mut list_claimable_reward = get_all_claimable_reward_for_staker(storage, staker_address.to_owned())?;
+    let claimable_reward_index = find_claimable_reward_index_for_staker(storage, staker_address.to_owned(), reward_token.to_owned())?;
+    let mut claimable_reward = find_claimable_reward_for_staker_by_reward_token(storage, staker_address.to_owned(), reward_token.to_owned())?;    
     match claimable_reward_index{
         Some(index) => {
             list_claimable_reward[index].amount += amount;
@@ -376,9 +376,9 @@ pub fn get_claim_reward_for_user(
     let percentage = calculate_staker_shares(deps.storage, staker_info.amount)?; 
     for reward_token in reward_token_list.iter(){
         // calculate reward amount for each reward token
-        let reward = calculate_staking_reward(staker_info.amount, percentage,staker_info.last_time_updated,time, reward_token.amount).unwrap();
+        let reward = calculate_staking_reward(staker_info.amount, percentage,staker_info.last_time_updated,time, reward_token.amount)?;
         // load any existing claimable reward for specif user
-        let claimable_reward = find_claimable_reward_for_staker_by_reward_token(deps.storage, staker.to_owned(), reward_token.reward_token.to_owned()).unwrap();
+        let claimable_reward = find_claimable_reward_for_staker_by_reward_token(deps.storage, staker.to_owned(), reward_token.reward_token.to_owned())?;
         result_list.push(ClaimableInfo{
             token_address: reward_token.reward_token.address.to_owned(),
             amount: claimable_reward.amount + reward,
@@ -427,7 +427,7 @@ pub fn unstake(
         let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity {
             from: Some(caller.clone()),
         })
-        .unwrap();
+        ?;
         let msg = snip20::ExecuteMsg::Send {
             recipient: config.amm_pair.to_string(),
             recipient_code_hash: None,
@@ -442,7 +442,7 @@ pub fn unstake(
             config.lp_token.code_hash.clone(),
             &msg,
             vec![]
-        ).unwrap().into();
+        )?.into();
 
         messages.push(coms_msg);
     } else {
@@ -459,7 +459,7 @@ pub fn unstake(
             config.lp_token.code_hash.clone(),
             &msg,
             vec![]
-        ).unwrap().into();
+        )?.into();
 
         messages.push(coms_msg);
     }
@@ -494,7 +494,7 @@ pub fn create_send_msg(
 
 
 pub fn is_address_already_staker(deps: Deps, address: Addr) -> StdResult<bool> {
-    let addrs = stakers_r(deps.storage).may_load(address.as_bytes()).unwrap();
+    let addrs = stakers_r(deps.storage).may_load(address.as_bytes())?;
     match addrs {
         Some(_) => Ok(true),
         None => Ok(false),

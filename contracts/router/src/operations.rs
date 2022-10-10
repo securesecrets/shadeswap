@@ -198,8 +198,7 @@ fn get_trade_with_callback(
                             code_hash: env.contract.code_hash.clone(),
                         }),
                         callback_signature: Some(signature),
-                    })
-                    .unwrap(),
+                    })?,
                 ),
                 padding: None,
                 recipient_code_hash: None,

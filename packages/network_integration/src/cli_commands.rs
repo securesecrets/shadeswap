@@ -556,7 +556,7 @@ pub mod amm_pair_lib{
                         amount_0: amount_0,
                         amount_1: amount_1,
                     },
-                    slippage: None,
+                    expected_return: None,
                     staking: staking
                 },
                 &pair_contract,

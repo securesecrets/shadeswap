@@ -67,7 +67,7 @@ pub fn instantiate(
             enable_burn: Some(true),
         })
     };
-
+  
     response = response.add_submessage(SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: msg.lp_token_contract.id,
         msg: to_binary(&init_snip20_msg)?,
@@ -106,12 +106,10 @@ pub fn instantiate(
     };
 
     config_w(deps.storage).save(&config)?;
-
     match msg.admin {
         Some(admin) => admin_w(deps.storage).save(&admin)?,
         None => (),
-    }
-
+    }   
     Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
 }
 

@@ -7,13 +7,14 @@ use shadeswap_shared::{
     msg::amm_pair::ExecuteMsg as AmmPairExecuteMsg,
     staking::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, AuthQuery, QueryData}, query_auth::helpers::{authenticate_permit, PermitAuthentication}, utils::{pad_response_result, pad_query_result},
 };
+use shadeswap_shared::core::TokenType;
 
 use crate::{
     operations::{
-        claim_rewards, get_claim_reward_for_user, get_config, get_staker_reward_info,
-        get_staking_stake_lp_token_info, stake, unstake,
+        claim_rewards, get_claim_reward_for_user, get_config, 
+        get_staking_stake_lp_token_info, stake, unstake, set_reward_token, store_init_reward_token_and_timestamp
     },
-    state::{config_r, config_w, prng_seed_w, stakers_r, Config},
+    state::{config_r, config_w, prng_seed_w, stakers_r, Config, RewardTokenInfo, last_reward_time_claimed_w},
 };
 
 pub const BLOCK_SIZE: usize = 256;
@@ -26,9 +27,9 @@ pub fn instantiate(
     msg: InitMsg,
 ) -> StdResult<Response> {
     let config = Config {
-        contract_owner: _info.sender.clone(),
+        contract_owner: _info.sender.to_owned(),
         daily_reward_amount: msg.staking_amount,
-        reward_token: msg.reward_token.clone(),
+        reward_token: msg.reward_token.to_owned(),
         lp_token: msg.lp_token,
         authenticator: None
     };
@@ -36,13 +37,20 @@ pub fn instantiate(
     admin_w(deps.storage).save(&_info.sender)?;
     prng_seed_w(deps.storage).save(&msg.prng_seed.as_slice().to_vec())?;
 
+    // store reward token to the list
+    let reward_token_address: ContractLink = match msg.reward_token {
+        TokenType::CustomToken { contract_addr, token_code_hash } => ContractLink{ address:contract_addr.to_owned(), code_hash: token_code_hash.to_owned()},
+        TokenType::NativeToken { denom } =>  return Err(StdError::generic_err("Invalid Token Type for Reward Token".to_string())),
+    };
+    let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
+    store_init_reward_token_and_timestamp(deps.storage, reward_token_address.to_owned(),msg.staking_amount,current_timestamp).unwrap();
+
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
-
     Ok(response
         .add_attributes(vec![
             Attribute::new("staking_contract_addr", env.contract.address),
-            Attribute::new("reward_token", msg.reward_token.to_string()),
+            Attribute::new("reward_token", reward_token_address.address.to_string()),
             Attribute::new("daily_reward_amount", msg.staking_amount),
         ]))
 }
@@ -58,7 +66,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::Unstake {
             amount,
             remove_liqudity,
-        } => unstake(deps, env, info, amount, remove_liqudity)
+        } => unstake(deps, env, info, amount, remove_liqudity),
+        ExecuteMsg::SetRewardToken { reward_token, amount, valid_to } => set_reward_token(deps, env, info, reward_token,amount, valid_to)
     }, BLOCK_SIZE)
 }
 

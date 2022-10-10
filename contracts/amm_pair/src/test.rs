@@ -409,7 +409,7 @@ pub mod tests_calculation_price_and_fee{
         Ok(())
     }
 
-        #[test]
+    #[test]
     fn assert_initial_swap_with_zero_fee_for_whitelist_address()-> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
         let amm_settings = mk_amm_settings_a();

@@ -174,7 +174,7 @@ pub fn query_calculate_price(
     exclude_fee: Option<bool>,
 ) -> StdResult<SwapInfo> {
     let config_settings = config_r(deps.storage).load().unwrap();
-    let amm_settings = query_factory_amm_settings(deps, config_settings.factory_contract.clone()).unwrap();
+    let amm_settings = query_factory_amm_settings(deps, &config_settings.factory_contract.clone()).unwrap();
     let swap_result = calculate_swap_result(
         deps,
         &env,

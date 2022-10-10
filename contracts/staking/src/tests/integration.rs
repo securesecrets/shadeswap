@@ -1,7 +1,8 @@
-use amm_pair::contract::{execute, instantiate, query, reply};
-use snip20_reference_impl::contract::{execute as snip20_execute, instantiate as snip20_instantiate, query as  snip20_query};
-use staking::contract::{execute as staking_execute, instantiate as staking_instantiate, query as staking_query};
-use lp_token::contract::{execute as lp_execute, instantiate as lp_instantiate, query as lp_query};
+use staking::contract::{execute, instantiate, query, reply};
+// use snip20_reference_impl::contract::{execute as snip20_execute, instantiate as snip20_instantiate, query as  snip20_query};
+// use staking::contract::{execute as staking_execute, instantiate as staking_instantiate, query as staking_query};
+// use lp_token::contract::{execute as lp_execute, instantiate as lp_instantiate, query as lp_query};
+
 use secret_multi_test::{App, BankKeeper, Contract, ContractWrapper, Executor};
 use shadeswap_shared::{
     msg::amm_pair::{{QueryMsg, QueryMsgResponse}},
@@ -33,11 +34,6 @@ pub fn snip20_contract_store() -> Box<dyn Contract<Empty>> {
     Box::new(contract)
 } 
 
-pub fn factory_contract_store() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(snip20_execute, snip20_instantiate, snip20_query).with_reply(reply);
-    Box::new(contract)
-} 
-
 pub fn lp_token_contract_store() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(lp_execute, lp_instantiate, lp_query); //.with_reply(reply);
     Box::new(contract)
@@ -51,7 +47,7 @@ pub const OWNER: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-pub fn amm_pair_integration_tests() {
+pub fn staking_integration_tests() {
     use cosmwasm_std::Uint128;
     use shadeswap_shared::{core::{TokenType, TokenPair}, snip20::{InstantiateMsg, InitConfig}, stake_contract::StakingContractInit};
 
@@ -115,6 +111,8 @@ pub fn amm_pair_integration_tests() {
         _ => panic!("Query Responsedoes not match")
     }
 }
+
+
 
 pub mod integration_help_lib{   
     use cosmwasm_std::{Addr, ContractInfo};

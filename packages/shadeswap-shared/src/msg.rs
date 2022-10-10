@@ -140,7 +140,7 @@ pub mod amm_pair {
         pub custom_fee: Option<CustomFee>,
         pub callback: Option<Callback>,
     }
-    #[derive(Serialize, Deserialize, JsonSchema)]
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum ExecuteMsg {
         AddLiquidityToAMMContract {
@@ -175,7 +175,7 @@ pub mod amm_pair {
             custom_fee: Option<CustomFee>,
         },
     }
-    #[derive(Serialize, Deserialize, JsonSchema)]
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
         SwapTokens {
@@ -188,7 +188,7 @@ pub mod amm_pair {
             from: Option<Addr>,
         },
     }
-    #[derive(Serialize, Deserialize, JsonSchema)]
+    #[derive(Serialize, Deserialize, JsonSchema,  Clone, Debug)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         GetConfig {},
@@ -359,7 +359,7 @@ pub mod factory {
 }
 
 pub mod staking {
-    use crate::{core::TokenType, query_auth::QueryPermit};
+    use crate::{core::TokenType, query_auth::QueryPermit, stake_contract::ClaimableInfo};
 
     use super::*;
     use cosmwasm_schema::cw_serde;
@@ -392,6 +392,11 @@ pub mod staking {
             msg: Option<Binary>,
             amount: Uint128,
         },
+        SetRewardToken {
+            reward_token: ContractLink,
+            amount: Uint128,
+            valid_to: Uint128
+        }
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -400,7 +405,7 @@ pub mod staking {
         Stake { from: Addr },
     }
 
-    #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
+    #[derive(Serialize, Deserialize, Debug, Clone,JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         GetContractOwner {},
@@ -418,12 +423,11 @@ pub mod staking {
         GetClaimReward { time: Uint128 },
     }
 
-    #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
+    #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryResponse {
-        ClaimReward {
-            amount: Uint128,
-            reward_token: ContractLink,
+        ClaimRewards {
+            claimable_rewards: Vec<ClaimableInfo>
         },
         ContractOwner {
             address: String,
@@ -457,7 +461,7 @@ pub mod lp_token {
 
     use super::*;
 
-    #[derive(Serialize, Deserialize, JsonSchema)]
+    #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
     pub struct InitConfig {
         /// Indicates whether the total supply is public or should be kept secret.
         /// default: False
@@ -476,7 +480,7 @@ pub mod lp_token {
         pub enable_burn: Option<bool>,
     }
 
-    #[derive(Serialize, Deserialize, JsonSchema)]
+    #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
     pub struct InstantiateMsg {
         pub name: String,
         pub admin: Option<Addr>,

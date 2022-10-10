@@ -340,7 +340,7 @@ pub fn get_config(deps: Deps) -> StdResult<Binary> {
             },
             lp_token: config.lp_token.clone(),
             daily_reward_amount: config.daily_reward_amount.clone(),
-            contract_owner: config.contract_owner.clone(),
+            amm_pair: config.amm_pair.clone(),
         };
         return to_binary(&response);
     } else {

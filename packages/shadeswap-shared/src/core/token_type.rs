@@ -1,14 +1,11 @@
 use crate::snip20::ExecuteMsg::Send;
 use cosmwasm_std::{
-    from_binary, to_binary, Api, BankMsg, Binary, CanonicalAddr, Coin, CosmosMsg, Env, Querier,
-    Response, StdError, StdResult, Storage, Uint128, WasmMsg, MessageInfo, DepsMut, Addr, Deps,
+    to_binary, BankMsg, Coin, CosmosMsg, StdError, StdResult, Uint128, WasmMsg, MessageInfo, Addr, Deps,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use crate::contract_interfaces::snip20::helpers::{balance_query};
 use crate::utils::asset::Contract;
-
-const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -86,7 +83,7 @@ impl TokenType {
 
     pub fn create_send_msg(
         &self,
-        sender: String,
+        _sender: String,
         recipient: String,
         amount: Uint128,
     ) -> StdResult<CosmosMsg> {

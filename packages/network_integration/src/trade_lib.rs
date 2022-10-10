@@ -4,8 +4,6 @@ pub mod trade_lib{
     use secretcli::cli_types::NetContract;
     use shadeswap_shared::core::TokenPair;
 
-    use super::*;
-
 
     pub fn create_token_pair() -> TokenPair{
         let token_pair: TokenPair = TokenPair(

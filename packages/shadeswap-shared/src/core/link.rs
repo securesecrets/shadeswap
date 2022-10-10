@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, CanonicalAddr, Env};
+use cosmwasm_std::{Addr, Env};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 pub type CodeId = u64;

@@ -179,7 +179,7 @@ pub fn init_snip20(
     config: Option<InitConfig>,
     reports: &mut Vec<Report>,
     account_key: &str,
-    customizedSnip20File: Option<&str>,
+    customized_snip20_file: Option<&str>,
     backend: &str
 ) -> Result<(InitMsg, NetContract)> {
     
@@ -195,7 +195,7 @@ pub fn init_snip20(
      
     let snip_20 = init(
         &init_msg,
-        customizedSnip20File.unwrap_or(SNIP20_FILE),
+        customized_snip20_file.unwrap_or(SNIP20_FILE),
         &*generate_label(8),
         account_key,
         Some(STORE_GAS),

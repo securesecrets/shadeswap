@@ -6,18 +6,6 @@ pub mod snip20_lib{
     use snip20_reference_impl::msg::QueryAnswer;
 
     use crate::utils::{InitConfig, init_snip20_cli, GAS};
-    use shadeswap_shared::{
-        amm_pair::{AMMPair, AMMSettings},
-        core::{ContractInstantiationInfo, ContractLink},
-        msg::{          
-            router::{
-                ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
-                QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
-            }          
-        },
-        stake_contract::StakingContractInit,
-        Pagination,
-    };
     use cosmwasm_std::Addr;
     pub const SNIP20_FILE: &str = "../../compiled/snip20.wasm.gz";
     
@@ -73,19 +61,19 @@ pub mod snip20_lib{
     }
 
     fn set_viewing_key(
-        viewingKey: &str, 
-        netContract: &NetContract, 
+        viewing_key: &str, 
+        net_contract: &NetContract, 
         reports: &mut Vec<Report>,
         account_name: &str,
         backend: &str) ->io::Result<()>{
         let msg = snip20_reference_impl::msg::ExecuteMsg::SetViewingKey {
-            key: String::from(viewingKey),
+            key: String::from(viewing_key),
             padding: None,
         };
     
         handle(
             &msg,
-            &netContract,
+            &net_contract,
             account_name,
             Some(GAS),
             Some(backend),
@@ -121,31 +109,17 @@ pub mod factory_lib{
     use cosmwasm_std::Uint128;
     use secretcli::{cli_types::NetContract, secretcli::{Report, store_and_return_contract, handle}};
     use shadeswap_shared::{
-        amm_pair::{AMMPair, AMMSettings},
+        amm_pair::{AMMSettings},
         core::{ContractInstantiationInfo, ContractLink, Fee},
         msg::{
-            amm_pair::{
-                ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
-                QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
-            },
             factory::{
-                ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg,
-                QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
-            },
-            router::{
-                ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
-                QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
-            },
-            staking::{
-                ExecuteMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
-                QueryResponse as StakingQueryMsgResponse,
+                InitMsg as FactoryInitMsg,
             },
         },
-        stake_contract::StakingContractInit,
-        Pagination, c_std::{Addr, to_binary},
+        c_std::{Addr, to_binary},
     };
 
-    use crate::utils::{init_contract_factory, STORE_GAS, GAS};
+    use crate::utils::{init_contract_factory, STORE_GAS, GAS, API_KEY};
     
     pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
     pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
@@ -187,6 +161,8 @@ pub mod factory_lib{
                 id: lp_token.id.clone().parse::<u64>().unwrap()
             },
             prng_seed:  to_binary(&"".to_string()).unwrap(),
+            api_key: API_KEY.to_string(),
+            authenticator: None,
         };
         
         let factory_contract = init_contract_factory(
@@ -269,33 +245,16 @@ pub mod factory_lib{
 pub mod router_lib{
     use std::io;
 
-    use secretcli::{cli_types::NetContract, secretcli::{Report, store_and_return_contract, init, handle}};
+    use secretcli::{cli_types::NetContract, secretcli::{Report, init, handle}};
     use shadeswap_shared::{
-        amm_pair::{AMMPair, AMMSettings},
-        core::{ContractInstantiationInfo, ContractLink, Fee, ViewingKey},
         msg::{
-            amm_pair::{
-                ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
-                QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
-            },
-            factory::{
-                ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg,
-                QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
-            },
             router::{
-                ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
-                QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
+                ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg
             },
-            staking::{
-                ExecuteMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
-                QueryResponse as StakingQueryMsgResponse,
-            },
-        },
-        stake_contract::StakingContractInit,
-        Pagination, c_std::{Addr, to_binary},
+        },c_std::{Addr, to_binary},
     };
 
-    use crate::utils::{init_contract_factory, STORE_GAS, GAS, generate_label};
+    use crate::utils::{STORE_GAS, GAS, generate_label};
     
     pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
     pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
@@ -305,14 +264,12 @@ pub mod router_lib{
     pub fn create_router_contract(code_hash: String,
         account_name: &str,
         backend: &str,
-        viewing_key: &str,
         reports: &mut Vec<Report>) -> io::Result<NetContract>
         {
             println!("Creating New Router Contract with Pair Code Hash {}", code_hash.clone());
             let router_msg = RouterInitMsg {
                 prng_seed: to_binary(&"".to_string()).unwrap(),      
                 entropy: to_binary(&"".to_string()).unwrap(),
-                viewing_key: Some(ViewingKey::from(viewing_key).to_string()),
                 pair_contract_code_hash: code_hash,
             };
         
@@ -371,32 +328,22 @@ pub mod amm_pair_lib{
     use cosmwasm_std::Uint128;
     use secretcli::{
         cli_types::{NetContract, StoredContract},
-        secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
+        secretcli::{handle, query, store_and_return_contract, Report},
     };
 
     use std::io;
     use shadeswap_shared::{
-        amm_pair::{AMMPair, AMMSettings},
-        core::{ContractInstantiationInfo, ContractLink, Fee, TokenType, TokenPair, TokenPairAmount},
+        core::{ContractInstantiationInfo, TokenType, TokenPair, TokenPairAmount},
         msg::{
             amm_pair::{
-                ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
-                QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
+                ExecuteMsg as AMMPairHandlMsg
             },
             factory::{
-                ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg,
+                ExecuteMsg as FactoryExecuteMsg,
                 QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
             },
-            router::{
-                ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
-                QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
-            },
-            staking::{
-                ExecuteMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
-                QueryResponse as StakingQueryMsgResponse,
-            },
+            staking::StakingContractInit,
         },
-        stake_contract::StakingContractInit,
         Pagination, c_std::{Addr, to_binary},
     };
 
@@ -409,8 +356,7 @@ pub mod amm_pair_lib{
     pub const STAKING_FILE: &str = "../../compiled/staking.wasm.gz";
 
     pub fn store_amm_pair(account_name: &str,
-        backend: &str,
-        reports: &mut Vec<Report>) -> io::Result<StoredContract> 
+        backend: &str) -> io::Result<StoredContract> 
         {   
             println!("Storing AMM Pair Contract");
             let stored_amm_pairs = store_and_return_contract(AMM_PAIR_FILE, account_name, 
@@ -419,8 +365,7 @@ pub mod amm_pair_lib{
         }
 
     pub fn store_staking_contract(account_name: &str,
-        backend: &str,
-        reports: &mut Vec<Report>) -> io::Result<StoredContract> 
+        backend: &str) -> io::Result<StoredContract> 
         {   
             println!("Storing Staking Contract");
             let stored_amm_pairs = store_and_return_contract(AMM_PAIR_FILE, account_name, 
@@ -454,7 +399,7 @@ pub mod amm_pair_lib{
                 },
             );
 
-            let staking_contract = store_staking_contract(&account_name, &backend, reports)?;
+            let staking_contract = store_staking_contract(&account_name, &backend)?;
            
             handle(
                 &FactoryExecuteMsg::CreateAMMPair {
@@ -471,6 +416,7 @@ pub mod amm_pair_lib{
                             token_code_hash: reward_contract_code_hash.to_string(),
                         },
                     }),
+                    router_contract: None,
                 },
                 &factory_contract,
                 account_name,
@@ -513,7 +459,8 @@ pub mod amm_pair_lib{
                 &FactoryExecuteMsg::CreateAMMPair {
                     pair: pairs.clone(),
                     entropy: to_binary(&"".to_string()).unwrap(),           
-                    staking_contract: None
+                    staking_contract: None,
+                    router_contract: None,
                 },
                 &factory_contract,
                 account_name,
@@ -543,12 +490,9 @@ pub mod amm_pair_lib{
             };
             let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
             if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
-                for pair in amm_pairs.iter()
-                {
-                    for i in 0..amm_pairs.len() {
-                        println!("{:?}", amm_pairs[i]); 
-                    }
-                }          
+                for i in 0..amm_pairs.len() {
+                    println!("{:?}", amm_pairs[i]); 
+                }
             }
         
             Ok(())
@@ -556,19 +500,19 @@ pub mod amm_pair_lib{
 
         pub fn get_token_type(pairs: TokenPair) -> io::Result<(String,String)>{
             let token_0_address = match pairs.0 {
-                TokenType::CustomToken { contract_addr, token_code_hash } =>{
+                TokenType::CustomToken { contract_addr, token_code_hash: _ } =>{
                     contract_addr.clone().to_string()
                 },
-                TokenType::NativeToken { denom } => {
+                TokenType::NativeToken { denom: _ } => {
                     "".to_string()
                 }
             };
         
             let token_1_address = match pairs.1 {
-                TokenType::CustomToken { contract_addr, token_code_hash } =>{
+                TokenType::CustomToken { contract_addr, token_code_hash: _ } =>{
                     contract_addr.clone().to_string()
                 },
-                TokenType::NativeToken { denom } => {
+                TokenType::NativeToken { denom: _ } => {
                     "".to_string()
                 }
             };

@@ -7,7 +7,7 @@ pub fn sha_256(data: &[u8]) -> [u8; SHA256_HASH_SIZE] {
     hasher.update(data);
     let hash = hasher.finalize();
 
-    let mut result = [0u8; 32];
+    let mut result = [0u8; SHA256_HASH_SIZE];
     result.copy_from_slice(hash.as_slice());
     result
 }

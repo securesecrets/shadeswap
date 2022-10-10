@@ -1,5 +1,5 @@
-use serde::de::DeserializeOwned;
-use shadeswap_shared::msg::staking::InvokeMsg;
+
+
 
 pub const CONTRACT_ADDRESS: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 pub const LP_TOKEN: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
@@ -216,7 +216,7 @@ pub mod test_help_lib{
     use super::*;
     use cosmwasm_std::{Uint128, DepsMut, Env, StdResult, Addr, testing::{mock_info, MockStorage, MockApi}, BlockInfo, TransactionInfo, ContractInfo, Timestamp, to_binary, OwnedDeps, Coin, Querier, QuerierResult, BalanceResponse, from_slice, Empty, QueryRequest};
     use serde::{Deserialize, Serialize};
-    use shadeswap_shared::{staking::InitMsg, core::{TokenType, ContractLink, Fee}, snip20::{QueryAnswer, manager::Balance}};
+    use shadeswap_shared::{staking::InitMsg, core::{TokenType, ContractLink}, snip20::{QueryAnswer, manager::Balance}};
 
     use crate::{state::{Config, config_r, config_w}, contract::instantiate};
 
@@ -239,6 +239,8 @@ pub mod test_help_lib{
             },
             prng_seed: to_binary(&"prng")?,
             lp_token: ContractLink { address: Addr::unchecked("".to_string()), code_hash: "".to_string() },
+            authenticator: None,
+            admin: Addr::unchecked("Sender"),
         };         
         assert!(instantiate(deps.branch(), env.clone(),info.clone(), msg).is_ok());
         let mut config = config_r(deps.storage).load()?;

@@ -1,12 +1,5 @@
 use cosmwasm_std::{
-    from_binary,
-    Api,
-    Binary,
-    Querier,
-    StdError,
-    StdResult,
-    Storage, Env, Response, 
-    CanonicalAddr, Addr
+    Addr
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

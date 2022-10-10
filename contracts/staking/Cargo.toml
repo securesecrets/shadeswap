@@ -15,17 +15,6 @@ exclude = [
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[profile.release]
-opt-level = 3
-debug = false
-rpath = false
-lto = true
-debug-assertions = false
-codegen-units = 1
-panic = 'abort'
-incremental = false
-overflow-checks = true
-
 [features]
 default = []
 # for quicker tests, cargo test --lib
@@ -47,4 +36,4 @@ query-authentication = { git = "https://github.com/securesecrets/query-authentic
 secret-multi-test = { git = "https://github.com/securesecrets/secret-plus-utils", version = "0.13.4" }
 
 [dev-dependencies]
-cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e" }
+cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm"}

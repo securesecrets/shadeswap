@@ -1,6 +1,6 @@
 
 
-use cosmwasm_std::{Binary, CosmosMsg, WasmMsg, CanonicalAddr, Addr};
+use cosmwasm_std::{Binary, CosmosMsg, WasmMsg};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

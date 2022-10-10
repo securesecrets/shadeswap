@@ -2,7 +2,7 @@
 /// https://github.com/SecretFoundation/SNIPs/blob/master/SNIP-20.md
 use cosmwasm_std::{
     entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult, Storage, Uint128, WasmMsg,
+    MessageInfo, Response, StdError, StdResult, Storage, Uint128,
 };
 
 use crate::batch;
@@ -1576,7 +1576,7 @@ fn is_valid_symbol(symbol: &str) -> bool {
     let mut cond = Vec::new();
     cond.push(b'A'..=b'Z');
     cond.push(b'a'..=b'z');
-    let special = vec![b'-'];
+    let special = vec![b'-', b' ',b'/'];
 
     len_is_valid
         && symbol

@@ -1,10 +1,9 @@
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Addr, Attribute, Binary, CosmosMsg, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
+    entry_point, from_binary, Addr, Attribute, Binary, Deps, DepsMut, Env,
+    MessageInfo, Response, StdError, StdResult, Uint128, 
 };
 use shadeswap_shared::{
     core::{admin_w, ContractLink},
-    msg::amm_pair::ExecuteMsg as AmmPairExecuteMsg,
     staking::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, AuthQuery, QueryData}, query_auth::helpers::{authenticate_permit, PermitAuthentication}, utils::{pad_response_result, pad_query_result},
 };
 use shadeswap_shared::core::TokenType;
@@ -14,7 +13,7 @@ use crate::{
         claim_rewards, get_claim_reward_for_user, get_config, 
         get_staking_stake_lp_token_info, stake, unstake, set_reward_token, store_init_reward_token_and_timestamp
     },
-    state::{config_r, config_w, prng_seed_w, stakers_r, Config, RewardTokenInfo, last_reward_time_claimed_w},
+    state::{config_r, config_w, prng_seed_w, Config},
 };
 
 pub const BLOCK_SIZE: usize = 256;
@@ -40,7 +39,7 @@ pub fn instantiate(
     // store reward token to the list
     let reward_token_address: ContractLink = match msg.reward_token {
         TokenType::CustomToken { contract_addr, token_code_hash } => ContractLink{ address:contract_addr.to_owned(), code_hash: token_code_hash.to_owned()},
-        TokenType::NativeToken { denom } =>  return Err(StdError::generic_err("Invalid Token Type for Reward Token".to_string())),
+        TokenType::NativeToken { denom:_} =>  return Err(StdError::generic_err("Invalid Token Type for Reward Token".to_string())),
     };
     let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
     store_init_reward_token_and_timestamp(deps.storage, reward_token_address.to_owned(),msg.staking_amount,current_timestamp).unwrap();
@@ -67,7 +66,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             amount,
             remove_liqudity,
         } => unstake(deps, env, info, amount, remove_liqudity),
-        ExecuteMsg::SetRewardToken { reward_token, amount, valid_to } => set_reward_token(deps, env, info, reward_token,amount, valid_to)
+        ExecuteMsg::SetRewardToken { reward_token, amount, valid_to } => set_reward_token(deps, info, reward_token,amount, valid_to)
     }, BLOCK_SIZE)
 }
 
@@ -102,17 +101,16 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::GetContractOwner {} => todo!(),
         QueryMsg::WithPermit { permit, query } => {
             let res: PermitAuthentication<QueryData> = authenticate_permit(deps, permit, &deps.querier, None)?;
-
             if res.revoked {
                 return Err(StdError::generic_err("".to_string()));
             }
 
-            auth_queries(deps, env, query, res.sender)
+            auth_queries(deps, query, res.sender)
         },
     }, BLOCK_SIZE)
 }
 
-pub fn auth_queries(deps: Deps, env: Env, msg: AuthQuery, user: Addr) -> StdResult<Binary> {
+pub fn auth_queries(deps: Deps, msg: AuthQuery, user: Addr) -> StdResult<Binary> {
     match msg {
         AuthQuery::GetClaimReward { time } => {
             get_claim_reward_for_user(deps, user, time)

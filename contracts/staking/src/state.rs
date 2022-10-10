@@ -4,7 +4,6 @@ use serde::{Serialize, Deserialize};
 use shadeswap_shared::{core::{TokenType, ContractLink, ViewingKey}, Contract};
 
 
-
 pub static CONFIG: &[u8] = b"CONFIG";
 pub static STAKERS: &[u8] = b"LIST_STAKERS";
 pub static STAKING_INFO: &[u8] = b"STAKING_INFO";

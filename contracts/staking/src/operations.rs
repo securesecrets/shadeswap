@@ -1,7 +1,5 @@
 // This should be callback from Snip20 Receiver
 // needs to check for the amount
-use std::ops::Add;
-
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
 
 use cosmwasm_std::{
@@ -10,22 +8,21 @@ use cosmwasm_std::{
 };
 use cosmwasm_std::{Binary, QuerierWrapper};
 use shadeswap_shared::stake_contract::ClaimableInfo;
-use snafu::Backtrace;
 use shadeswap_shared::core::{TokenType, apply_admin_guard};
 use shadeswap_shared::snip20;
 use shadeswap_shared::snip20::helpers::token_info;
-use shadeswap_shared::staking::{QueryResponse, ExecuteMsg};
+use shadeswap_shared::staking::{QueryResponse};
 use shadeswap_shared::{
-    core::{ContractLink, ViewingKey},
+    core::{ContractLink},
     msg::amm_pair::InvokeMsg as AmmPairInvokeMsg,
     Contract,
 };
 
 use crate::state::{
-    claim_reward_info_r, claim_reward_info_w, config_r, config_w, stakers_r, stakers_vk_r,
-    stakers_vk_w, stakers_w, total_staked_r, ClaimRewardsInfo, StakingInfo, total_staked_w,
+    claim_reward_info_r, claim_reward_info_w, config_r, stakers_r, 
+    stakers_w, total_staked_r, ClaimRewardsInfo, StakingInfo, total_staked_w,
     total_stakers_r, total_stakers_w, staker_index_w, staker_index_r, last_reward_time_claimed_w,
-    Config, reward_token_r, reward_token_w, RewardTokenInfo, reward_token_list_r, last_reward_time_r, reward_token_list_w,
+    reward_token_r, reward_token_w, RewardTokenInfo, reward_token_list_r, last_reward_time_r, reward_token_list_w,
 };
 
 pub fn calculate_staker_shares(
@@ -62,14 +59,13 @@ pub fn store_init_reward_token_and_timestamp(
             reward_token: reward_token.to_owned(), 
             amount: emission_amount, 
             valid_to: Uint128::new(3747905010u128)
-    });       
+    }).unwrap();       
     last_reward_time_claimed_w(storage).save(&current_timestamp).unwrap();
     Ok(())
 }
 
 pub fn set_reward_token(
     deps: DepsMut,
-    env: Env,
     info: MessageInfo,
     reward_token: ContractLink,
     amount: Uint128,
@@ -170,7 +166,6 @@ pub fn get_total_stakers_count(
 
 pub fn claim_rewards(deps: DepsMut, info: MessageInfo, env: Env) -> StdResult<Response> {
     let receiver = info.sender.clone();
-    let mut list_claimable_rewards = claim_reward_info_r(deps.storage).load(&receiver.as_bytes())?;
     let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
     let mut messages: Vec<CosmosMsg> = Vec::new();
 
@@ -250,8 +245,7 @@ pub fn get_actual_reward_tokens(storage: &dyn Storage, current_timestamp: Uint12
     let reward_list = reward_token_list_r(storage).load().unwrap();      
     for addr in &reward_list{
         // load total reward token
-        let reward_token: RewardTokenInfo = reward_token_r(storage).load(addr.as_bytes()).unwrap();
-        println!(" current timestamp {} valid to {}",current_timestamp,reward_token.valid_to );
+        let reward_token: RewardTokenInfo = reward_token_r(storage).load(addr.as_bytes()).unwrap();       
         if current_timestamp <= reward_token.valid_to {
            list_token.push(reward_token.to_owned())
         }
@@ -368,25 +362,9 @@ pub fn get_claim_reward_for_user(
     staker: Addr,
     time: Uint128,
 ) -> StdResult<Binary> {
-    // load stakers
-    let config = config_r(deps.storage).load()?;
-    let reward_token_info = match config.reward_token.clone() {
-        TokenType::CustomToken {
-            contract_addr,
-            token_code_hash,
-        } => ContractLink {
-            address: contract_addr.clone(),
-            code_hash: token_code_hash,
-        },
-        TokenType::NativeToken { denom:_ } => ContractLink {
-            address: Addr::unchecked("".to_string()),
-            code_hash: "".to_string(),
-        },
-    };
-   
+    // load stakers 
     let mut result_list: Vec<ClaimableInfo> = Vec::new();
-    let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;
-    let unpaid_claim_list = claim_reward_info_r(deps.storage).load(staker.as_bytes())?;
+    let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;   
     let reward_token_list: Vec<RewardTokenInfo> = get_actual_reward_tokens(deps.storage, time)?;
     let percentage = calculate_staker_shares(deps.storage, staker_info.amount)?; 
     for reward_token in reward_token_list.iter(){
@@ -413,8 +391,7 @@ pub fn unstake(
 ) -> StdResult<Response> {
     let caller = info.sender.clone();
     let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
-    let mut staker_info = stakers_r(deps.storage).load(caller.as_bytes())?;   
-    let config = config_r(deps.storage).load()?;   
+    let mut staker_info = stakers_r(deps.storage).load(caller.as_bytes())?; 
     // claim rewards
     claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
     // remove staker
@@ -484,26 +461,6 @@ pub fn unstake(
         Attribute::new("amount", amount),
         Attribute::new("staker", caller.as_str()),
     ]))
-}
-
-fn query_total_reward_liquidity(
-    querier: &QuerierWrapper,
-    reward_token_info: &ContractLink,
-) -> StdResult<Uint128> {
-    let result = token_info(
-        querier,
-        &Contract {
-            address: reward_token_info.address.clone(),
-            code_hash: reward_token_info.code_hash.clone(),
-        },
-    )?;
-
-    //If this happens, the LP token has been incorrectly configured
-    if result.total_supply.is_none() {
-        StdError::GenericErr{msg: "Reward token has no available supply.".to_string() };
-    }
-
-    Ok(result.total_supply.unwrap())
 }
 
 pub fn create_send_msg(

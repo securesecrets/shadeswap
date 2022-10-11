@@ -5,9 +5,8 @@
     * [User](#User)
         * Messages       
             * [ClaimRewards](#ClaimRewards)
-            * [SetVKForStaker](#SetVKForStaker)   
             * [SetVKForStaker](#SetVKForStaker)            
-            * [SetRewardToken](#SetRewardToken)    
+            * [Unstake](#Unstake)    
         * Queries
             * [GetConfig](#GetConfig)
             * [GetContractOwner](#GetContractOwner)
@@ -197,25 +196,6 @@ Set viewing key for staker
 |---------|-----------|-----------------------------------------------|----------|
 | key | String |  Seed for viewing key          | no       |
 
-
-##### Response
-```json
-{
-  "complete_task": {
-    "status": "success"
-  }
-}
-```
-
-#### SetRewardToken
-Set either new reward token or update existing with emission_rate and valid to
-
-##### Request
-| Name    | Type      | Description                                   | optional |
-|---------|-----------|-----------------------------------------------|----------|
-| reward_token | ContractLink |  Reward Token Contract Link         | no       |
-| amount | Uint128 |  Emission Rate                                 | no       |
-| valid_to | Uint128 |  Timestamp till Reward Token is valid - milliseconds       | no       |
 
 ##### Response
 ```json

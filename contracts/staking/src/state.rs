@@ -4,6 +4,7 @@ use serde::{Serialize, Deserialize};
 use shadeswap_shared::{core::{TokenType, ContractLink, ViewingKey}, Contract};
 
 
+
 pub static CONFIG: &[u8] = b"CONFIG";
 pub static STAKERS: &[u8] = b"LIST_STAKERS";
 pub static STAKING_INFO: &[u8] = b"STAKING_INFO";
@@ -14,8 +15,6 @@ pub static STAKER_VK: &[u8] = b"STAKER_VK";
 pub static TOTAL_STAKERS: &[u8] = b"TOTAL_STAKERS";
 pub static TOTAL_STAKED: &[u8] = b"TOTAL_STAKED";
 pub static STAKER_INDEX: &[u8] = b"STAKER_INDEX";
-pub static REWARD_TOKEN_INFO: &[u8] = b"REWARD_TOKEN_INFO";
-pub static REWARD_TOKEN_LIST: &[u8] = b"REWARD_TOKEN_LIST";
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct Config {
@@ -33,24 +32,10 @@ pub struct StakingInfo{
     pub last_time_updated: Uint128,
 }
 
-#[derive(Serialize, Deserialize, Clone,  PartialEq, Debug)]
-pub struct RewardTokenInfo{
-    pub reward_token: ContractLink,
-    pub amount: Uint128,
-    pub valid_to: Uint128,
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
-pub struct RewardTokenInfoList{
-    pub list_tokens: Vec<Addr>
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+#[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct ClaimRewardsInfo{
     pub amount: Uint128,
-    pub last_time_claimed: Uint128,
-    pub reward_token_addr: Addr,
-    pub reward_token_code_hash: String
+    pub last_time_claimed: Uint128
 }
 
 pub fn config_w(storage: &mut dyn Storage) -> Singleton<Config> {
@@ -77,11 +62,11 @@ pub fn last_reward_time_r(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
     singleton_read(storage, LAST_REWARD_TIME_CLAIMED)
 }
 
-pub fn claim_reward_info_w(storage: &mut dyn Storage) -> Bucket<Vec<ClaimRewardsInfo>> {
+pub fn claim_reward_info_w(storage: &mut dyn Storage) -> Bucket<ClaimRewardsInfo> {
     bucket(storage, CLAIM_REWARDS)
 }
 
-pub fn claim_reward_info_r(storage: &dyn Storage) -> ReadonlyBucket<Vec<ClaimRewardsInfo>> {
+pub fn claim_reward_info_r(storage: &dyn Storage) -> ReadonlyBucket<ClaimRewardsInfo> {
     bucket_read(storage, CLAIM_REWARDS)
 }
 
@@ -125,18 +110,4 @@ pub fn total_staked_r(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
     singleton_read(storage, TOTAL_STAKED)
 }
 
-pub fn reward_token_w(storage: &mut dyn Storage) -> Bucket<RewardTokenInfo> {
-    bucket(storage, REWARD_TOKEN_INFO)
-}
 
-pub fn reward_token_r(storage: &dyn Storage) -> ReadonlyBucket<RewardTokenInfo> {
-    bucket_read(storage, REWARD_TOKEN_INFO)
-}
-
-pub fn reward_token_list_w(storage: &mut dyn Storage) -> Singleton<Vec<Addr>> {
-    singleton(storage, REWARD_TOKEN_LIST)
-}
-
-pub fn reward_token_list_r(storage: &dyn Storage) -> ReadonlySingleton<Vec<Addr>> {
-    singleton_read(storage, REWARD_TOKEN_LIST)
-}

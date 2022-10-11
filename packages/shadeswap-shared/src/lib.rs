@@ -9,7 +9,7 @@ pub mod core;
 pub mod utils;
 pub mod contract_interfaces;
 pub use contract_interfaces::*;
-pub mod stake_contract;
+
 // Forward important libs to avoid constantly importing them in the cargo crates, could help reduce compile times
 pub mod c_std {
     pub use cosmwasm_std::*;

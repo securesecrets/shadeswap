@@ -736,7 +736,7 @@ pub mod help_test_lib {
                     code_hash: "".to_string(),
                     id: 1,
                 },
-                amount: Uint128::from(1000u128),
+                daily_reward_amount: Uint128::from(1000u128),
                 reward_token: TokenType::CustomToken {
                     contract_addr: Addr::unchecked("".to_string()),
                     token_code_hash: "".to_string(),

@@ -384,7 +384,7 @@ fn run_testnet() -> Result<()> {
                         code_hash: staking_contract.code_hash.to_string(),
                         id: staking_contract.id.clone().parse::<u64>().unwrap(),
                     },
-                    amount: Uint128::new(3450000000000u128),
+                    daily_reward_amount: Uint128::new(3450000000000u128),
                     reward_token: TokenType::CustomToken {
                         contract_addr: Addr::unchecked(s_sREWARDSNIP20.address.clone()),
                         token_code_hash: s_sREWARDSNIP20.code_hash.to_string(),

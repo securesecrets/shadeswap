@@ -106,7 +106,7 @@ pub fn register_lp_token(
                     code_id: c.contract_info.id,
                     label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
                     msg: to_binary(&StakingInitMsg {
-                        staking_amount: c.amount,
+                        daily_reward_amount: c.daily_reward_amount,
                         reward_token: c.reward_token.clone(),
                         pair_contract: ContractLink {
                             address: env.contract.address.clone(),

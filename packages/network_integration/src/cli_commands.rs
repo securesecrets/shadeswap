@@ -410,7 +410,7 @@ pub mod amm_pair_lib{
                             code_hash: staking_contract.code_hash.to_string(),
                             id: staking_contract.id.clone().parse::<u64>().unwrap(),
                         },
-                        amount: Uint128::from(reward_amount),
+                        daily_reward_amount: Uint128::from(reward_amount),
                         reward_token: TokenType::CustomToken {
                             contract_addr: Addr::unchecked(reward_contract_address.clone()),
                             token_code_hash: reward_contract_code_hash.to_string(),

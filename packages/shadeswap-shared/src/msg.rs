@@ -367,7 +367,7 @@ pub mod staking {
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
     pub struct StakingContractInit {
         pub contract_info: ContractInstantiationInfo,
-        pub amount: Uint128,
+        pub daily_reward_amount: Uint128,
         pub reward_token: TokenType,
     }
 
@@ -376,7 +376,7 @@ pub mod staking {
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
-        pub staking_amount: Uint128,
+        pub daily_reward_amount: Uint128,
         pub reward_token: TokenType,
         pub pair_contract: ContractLink,
         pub prng_seed: Binary,
@@ -401,7 +401,7 @@ pub mod staking {
         },
         SetRewardToken {
             reward_token: ContractLink,
-            amount: Uint128,
+            daily_reward_amount: Uint128,
             valid_to: Uint128
         },
         SetAuthenticator {

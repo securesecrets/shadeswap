@@ -2,7 +2,6 @@ use std::{
     collections::hash_map::DefaultHasher,
     convert::TryFrom,
     hash::{Hash, Hasher},
-    str::FromStr,
 };
 
 use cosmwasm_std::{
@@ -182,8 +181,7 @@ pub fn query_calculate_price(
         &env,
         &amm_settings,
         &config_settings,
-        &offer,
-        None,
+        &offer,        
         exclude_fee,
     )?;
     Ok(swap_result)
@@ -208,7 +206,6 @@ pub fn swap(
         &amm_settings,
         &config,
         &offer,
-        Some(&swaper_receiver),
         None,
     )?;
 
@@ -356,8 +353,7 @@ pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Bi
         &amm_settings,
         &config_settings,
         &offer,
-        None,
-        None,
+        None    
     )?;
     let simulation_result = QueryMsgResponse::SwapSimulation {
         total_fee_amount: swap_result.total_fee_amount,
@@ -442,7 +438,6 @@ pub fn calculate_swap_result(
     settings: &AMMSettings,
     config: &Config,
     offer: &TokenAmount,
-    recipient: Option<&Addr>,
     exclude_fee: Option<bool>,
 ) -> StdResult<SwapInfo> {
     if !config.pair.contains(&offer.token) {

@@ -9,13 +9,13 @@ use crate::viewing_key_obj::ViewingKeyObj;
 use cosmwasm_std::{Addr, Binary, StdError, StdResult, Uint128};
 use secret_toolkit::permit::Permit;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct InitialBalance {
     pub address: Addr,
     pub amount: Uint128,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
 pub struct InstantiateMsg {
     pub name: String,
     pub admin: Option<Addr>,

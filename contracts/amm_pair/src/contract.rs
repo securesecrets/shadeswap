@@ -113,12 +113,10 @@ pub fn instantiate(
     };
 
     config_w(deps.storage).save(&config)?;
-
     match msg.admin {
         Some(admin) => admin_w(deps.storage).save(&admin)?,
         None => (),
-    }
-
+    }   
     Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
 }
 

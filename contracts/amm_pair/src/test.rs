@@ -201,6 +201,68 @@ pub mod tests {
     }
 
     #[test]
+    fn assert_swap_native_snip20_without_router_success() -> StdResult<()> {
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
+        let token_pair = mk_native_token_pair();
+        let config = make_init_config(mk_native_token_pair().clone())?;
+        let address_a = Addr::unchecked("TESTA".to_string());
+        assert_eq!(
+            config.factory_contract.address.as_str(),
+            FACTORY_CONTRACT_ADDRESS.clone()
+        );
+        let native_swap = swap(
+            deps.as_mut(),
+            env,
+            config,
+            address_a.clone(),
+            None,
+            mk_custom_token_amount(Uint128::from(1000u128), token_pair.clone()),
+            None,
+            None,
+            None,
+        )?;
+        let offer_amount = &native_swap.clone().attributes[2];
+        assert_eq!(offer_amount.value, 65420.to_string());
+        assert_eq!(native_swap.messages.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn assert_swap_native_snip20_with_router_without_signature_throws_error() -> StdResult<()> {
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
+        let token_pair = mk_native_token_pair();
+        let config = make_init_config(mk_native_token_pair().clone())?;
+        let address_a = Addr::unchecked("TESTA".to_string());
+        let router_contract = ContractLink {
+            address: Addr::unchecked("router".to_string()),
+            code_hash: "".to_string(),
+        };
+        assert_eq!(
+            config.factory_contract.address.as_str(),
+            FACTORY_CONTRACT_ADDRESS.clone()
+        );
+        let native_swap = swap(
+            deps.as_mut(),
+            env,
+            config,
+            address_a.clone(),
+            None,
+            mk_custom_token_amount(Uint128::from(1000u128), token_pair.clone()),
+            None,
+            Some(router_contract),
+            None,
+        );
+        match native_swap.unwrap_err() {
+            e =>  assert_eq!(e, StdError::generic_err(
+                "Callback signature needs to be passed with router contract.",
+            )),
+        }       
+        Ok(())
+    }
+
+    #[test]
     fn assert_query_get_amm_pairs_success() -> StdResult<()> {
         let _deps = mock_dependencies(&[]);
         let _env = mock_env();
@@ -210,31 +272,6 @@ pub mod tests {
         let _offer_amount: u128 = 34028236692093846346337460;
         let _expected_amount: u128 = 34028236692093846346337460;
         let _address_a = "TESTA".to_string();
-        // handle(
-        //     &mut deps,
-        //     env,
-        //     ExecuteMsg::AddWhiteListAddress {
-        //         address: Addr::unchecked(address_a.clone())
-        //     },
-        // )
-        // .unwrap();
-
-        // let result = query(
-        //     deps.as_mut().as_ref(),
-        //     env,
-        //     QueryMsg::GetWhiteListAddress {
-        //     },
-        // )
-        // .unwrap();
-
-        // let response: QueryMsgResponse = from_binary(&result).unwrap();
-
-        // match response {
-        //     QueryMsgResponse::GetWhiteListAddress { addresses: stored } => {
-        //         assert_eq!(1, stored.len())
-        //     }
-        //     _ => panic!("QueryResponse::ListExchanges"),
-        // }
         Ok(())
     }
 
@@ -312,7 +349,7 @@ pub mod tests_calculation_price_and_fee {
         let expected_amount: u128 = 1666;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, &amm_settings, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-            Some(&Addr::unchecked("Test".to_string())), Some(true));
+             Some(true));
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -330,7 +367,7 @@ pub mod tests_calculation_price_and_fee {
         let expected_amount: u128 = 1624;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, &amm_settings, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-             Some(&Addr::unchecked("Test".to_string().clone())), None);
+             None);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -350,7 +387,7 @@ pub mod tests_calculation_price_and_fee {
         let expected_amount: u128 = 1539;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(), &env, &amm_settings, &config, 
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-         Some(&Addr::unchecked("Test".to_string().clone())), None);
+         None);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -374,7 +411,7 @@ pub mod tests_calculation_price_and_fee {
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
         assert_eq!(config.factory_contract.address.as_str(), FACTORY_CONTRACT_ADDRESS.clone());
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, &amm_settings, &config, &token_amount,
-         Some(&address_a), None)?;
+         None)?;
         assert_eq!(swap_result.result.return_amount, Uint128::from(159663u128));
         assert_eq!(swap_result.lp_fee_amount, Uint128::from(40u128));
         assert_eq!(swap_result.shade_dao_fee_amount, Uint128::from(60u128));
@@ -395,7 +432,7 @@ pub mod tests_calculation_price_and_fee {
         add_whitelist_address(deps.as_mut().storage, address_a.clone())?;    
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(), &env,&amm_settings, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-            Some(&address_a.clone()), None)?;
+            None)?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
         assert_eq!(Uint128::new(40u128), swap_result.lp_fee_amount);
         Ok(())
@@ -463,15 +500,11 @@ pub mod tests_calculation_price_and_fee {
     }
 
     #[test]
-    fn assert_slippage_add_liqudity_with_wrong_ration_throw_error() -> StdResult<()>{
+    fn assert_slippage_add_liqudity_with_less_expected_throw_error() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
-        let amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;         
-        let offer_amount: u128 = 2000;          
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;              
         let mock_info = mock_info("Sender", &[]);
-        let address_a = Addr::unchecked("TESTA".to_string());
-        let token = config.pair.clone();  
         let add_liquidity_with_err = add_liquidity(
             deps.as_mut(),
             mock_env(),
@@ -481,21 +514,21 @@ pub mod tests_calculation_price_and_fee {
                 amount_0: Uint128::from(1000000u128),
                 amount_1: Uint128::from(10000u128)
             },
-            Some(Decimal::percent(20)),
+            Some(Uint128::from(10000001u128)),
             None
         );       
 
         match add_liquidity_with_err {  
             Ok(_) => todo!(),
             Err(e) => assert_eq!(e, StdError::generic_err(
-                "Operation exceeds max slippage acceptance",
+                "Operation returns less then expected (10000001 < 10000000).",
             )),
         }       
         Ok(())
     }
 
     #[test]
-    fn assert_slippage_add_liqudity_with_right_ration_success() -> StdResult<()>{
+    fn assert_slippage_add_liqudity_with_equal_expected_success() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
         let amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
@@ -514,16 +547,58 @@ pub mod tests_calculation_price_and_fee {
                 amount_0: Uint128::from(10000u128),
                 amount_1: Uint128::from(100000u128)
             },
-            Some(Decimal::percent(20)),
+            Some(Uint128::from(10000000u128)),
             None
-        );       
+        )?;       
+        Ok(())
+    }
 
-        match add_liquidity_with_err {  
-            Ok(_) => todo!(),
-            Err(e) => assert_eq!(e, StdError::generic_err(
-                "Operation exceeds max slippage acceptance",
-            )),
-        }       
+    #[test]
+    fn assert_slippage_add_liqudity_with_more_then_expected_test_success() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let amm_settings = mk_amm_settings_a();
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        let env = mock_env();
+        let mock_info = mock_info("Sender", &[]);
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None, Some(LP_TOKEN.to_string()))?;        
+        let offer_amount: u128 = 2000;          
+        let address_a = "TESTA".to_string();
+        let token = config.pair.clone();  
+        let add_liquidity_with_err = add_liquidity(
+            deps.as_mut(),
+            env.clone(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(10000u128),
+                amount_1: Uint128::from(100000u128)
+            },
+            Some(Uint128::from(9999999u128)),
+            None
+        )?;       
+        Ok(())
+    }
+
+    #[test]
+    fn assert_slippage_add_liqudity_with_none_expected_slippage_success() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        let env = mock_env();
+        let mock_info = mock_info("Sender", &[]);
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None, Some(LP_TOKEN.to_string()))?;        
+        let add_liquidity_with_success = add_liquidity(
+            deps.as_mut(),
+            env.clone(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(10000u128),
+                amount_1: Uint128::from(100000u128)
+            },
+            None,
+            None
+        )?;       
+
         Ok(())
     }
 }
@@ -661,7 +736,7 @@ pub mod help_test_lib {
                     code_hash: "".to_string(),
                     id: 1,
                 },
-                amount: Uint128::from(1000u128),
+                daily_reward_amount: Uint128::from(1000u128),
                 reward_token: TokenType::CustomToken {
                     contract_addr: Addr::unchecked("".to_string()),
                     token_code_hash: "".to_string(),

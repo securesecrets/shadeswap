@@ -2,7 +2,7 @@ use crate::{
     operations::{
         add_address_to_whitelist, add_liquidity, get_estimated_lp_token, get_shade_dao_info,
         load_trade_history_query, query_calculate_price, query_factory_authorize_api_key,
-        query_liquidity, query_token_symbol, register_lp_token, register_pair_token,
+        query_total_supply, query_token_symbol, register_lp_token, register_pair_token,
         remove_addresses_from_whitelist, remove_liquidity, set_staking_contract, swap,
         swap_simulation, update_viewing_key,
     },
@@ -129,9 +129,9 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             } => receiver_callback(deps, env, info, from, amount, msg),
             ExecuteMsg::AddLiquidityToAMMContract {
                 deposit,
-                slippage,
+                expected_return,
                 staking,
-            } => add_liquidity(deps, env, &info, deposit, slippage, staking),
+            } => add_liquidity(deps, env, &info, deposit, expected_return, staking),
             ExecuteMsg::SetCustomPairFee { custom_fee } => {
                 apply_admin_guard(&info.sender, deps.storage)?;
                 let mut config = config_r(deps.storage).load()?;
@@ -263,7 +263,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     env.contract.address.to_string(),
                     config.viewing_key.0,
                 )?;
-                let total_liquidity = query_liquidity(deps, &config.lp_token)?;
+                let total_liquidity = query_total_supply(deps, &config.lp_token)?;
                 to_binary(&QueryMsgResponse::GetPairInfo {
                     liquidity_token: config.lp_token,
                     factory: config.factory_contract,

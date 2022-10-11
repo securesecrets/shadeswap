@@ -277,7 +277,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
                                 code_hash: staking_contract.code_hash.to_string(),
                                 id: staking_contract.id.clone().parse::<u64>().unwrap(),
                             },
-                            amount: Uint128::from(100000u128),
+                            daily_reward_amount: Uint128::from(100000u128),
                             reward_token: TokenType::CustomToken {
                                 contract_addr: Addr::unchecked(usdt_contract.address.clone()),
                                 token_code_hash: usdt_contract.code_hash.to_string(),
@@ -361,7 +361,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
                                 amount_0: Uint128::from(200000000000u64),
                                 amount_1: Uint128::from(1000000000u64),
                             },
-                            slippage: None,
+                            expected_return: None,
 
                             staking: None,
                         },
@@ -648,7 +648,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 code_hash: staking_contract.code_hash.to_string(),
                                 id: staking_contract.id.clone().parse::<u64>().unwrap(),
                             },
-                            amount: Uint128::from(100000u128),
+                            daily_reward_amount: Uint128::from(100000u128),
                             reward_token: TokenType::CustomToken {
                                 contract_addr: Addr::unchecked(usdt_contract.address.clone()),
                                 token_code_hash: usdt_contract.code_hash.to_string(),
@@ -732,7 +732,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 amount_0: Uint128::from(200000000000u64),
                                 amount_1: Uint128::from(1000000000u64),
                             },
-                            slippage: None,
+                            expected_return: None,
 
                             staking: None,
                         },

@@ -36,7 +36,7 @@ pub struct StakingInfo{
 #[derive(Serialize, Deserialize, Clone,  PartialEq, Debug)]
 pub struct RewardTokenInfo{
     pub reward_token: ContractLink,
-    pub amount: Uint128,
+    pub daily_reward_amount: Uint128,
     pub valid_to: Uint128,
 }
 
@@ -48,7 +48,6 @@ pub struct RewardTokenInfoList{
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct ClaimRewardsInfo{
     pub amount: Uint128,
-    pub last_time_claimed: Uint128,
     pub reward_token_addr: Addr,
     pub reward_token_code_hash: String
 }

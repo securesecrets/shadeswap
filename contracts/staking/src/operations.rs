@@ -6,11 +6,10 @@ use cosmwasm_std::{
     to_binary, Addr, Attribute, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
     Uint128, Storage, Decimal, wasm_execute, CosmosMsg, WasmMsg,
 };
-use cosmwasm_std::{Binary, QuerierWrapper};
+use cosmwasm_std::{Binary};
 use shadeswap_shared::stake_contract::ClaimableInfo;
-use shadeswap_shared::core::{TokenType, apply_admin_guard};
+use shadeswap_shared::core::{TokenType};
 use shadeswap_shared::snip20;
-use shadeswap_shared::snip20::helpers::token_info;
 use shadeswap_shared::staking::{QueryResponse};
 use shadeswap_shared::{
     core::{ContractLink},

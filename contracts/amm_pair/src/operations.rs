@@ -2,7 +2,6 @@ use std::{
     collections::hash_map::DefaultHasher,
     convert::TryFrom,
     hash::{Hash, Hasher},
-    str::FromStr,
 };
 
 use cosmwasm_std::{
@@ -181,8 +180,7 @@ pub fn query_calculate_price(
         &env,
         &amm_settings,
         &config_settings,
-        &offer,
-        None,
+        &offer,        
         exclude_fee,
     ).unwrap();
     Ok(swap_result)
@@ -207,7 +205,6 @@ pub fn swap(
         &amm_settings,
         &config,
         &offer,
-        Some(&swaper_receiver),
         None,
     )?;
 
@@ -346,8 +343,7 @@ pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Bi
         &amm_settings,
         &config_settings,
         &offer,
-        None,
-        None,
+        None    
     )?;
     let simulation_result = QueryMsgResponse::SwapSimulation {
         total_fee_amount: swap_result.total_fee_amount,
@@ -385,7 +381,7 @@ pub fn get_estimated_lp_token(
             .query_balances(deps, env.contract.address.to_string(), viewing_key.0)?;
 
     let pair_contract_pool_liquidity = query_liquidity_pair_contract(deps, &lp_token)?;
-    let lp_tokens = assert_slippage_and_calculate_lptoken(slippage, &deposit, pool_balances, &lp_token, pair_contract_pool_liquidity)?;   
+    let lp_tokens = assert_slippage_and_calculate_lptoken(slippage, &deposit, pool_balances, pair_contract_pool_liquidity)?;   
     let response_msg = QueryMsgResponse::EstimatedLiquidity {
         lp_token: lp_tokens,
         total_lp_token: pair_contract_pool_liquidity,
@@ -428,7 +424,6 @@ pub fn calculate_swap_result(
     settings: &AMMSettings,
     config: &Config,
     offer: &TokenAmount,
-    recipient: Option<&Addr>,
     exclude_fee: Option<bool>,
 ) -> StdResult<SwapInfo> {
     if !config.pair.contains(&offer.token) {
@@ -650,7 +645,7 @@ pub fn add_liquidity(
 
     let pair_contract_pool_liquidity = query_liquidity_pair_contract(deps.as_ref(), &lp_token).unwrap();
     println!("total pool amount {}",pair_contract_pool_liquidity);
-    let lp_tokens = assert_slippage_and_calculate_lptoken(slippage, &deposit, pool_balances, &lp_token, pair_contract_pool_liquidity)?;   
+    let lp_tokens = assert_slippage_and_calculate_lptoken(slippage, &deposit, pool_balances, pair_contract_pool_liquidity)?;   
 
     let add_to_staking;
     // check if user wants add his LP token to Staking
@@ -740,7 +735,7 @@ pub fn add_liquidity(
         ]))
 }
 
-fn assert_slippage_and_calculate_lptoken(slippage: Option<Decimal>, deposit: &TokenPairAmount, pool_balances: [Uint128; 2], lp_token: &ContractLink,
+fn assert_slippage_and_calculate_lptoken(slippage: Option<Decimal>, deposit: &TokenPairAmount, pool_balances: [Uint128; 2], 
     pair_contract_pool_liquidity: Uint128) -> Result<Uint128, StdError> {
     assert_slippage_acceptance(
         slippage,

@@ -1,12 +1,4 @@
-use cosmwasm_std::{
-    from_binary,
-    Api,
-    Binary,
-    Querier,
-    StdError,
-    StdResult,
-    Storage, Env, Response, Uint128, Addr,
-};
+use cosmwasm_std::{Uint128, Addr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use crate::{core::{ContractInstantiationInfo, TokenType}};

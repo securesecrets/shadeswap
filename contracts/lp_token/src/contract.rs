@@ -110,6 +110,8 @@ pub fn instantiate(
 
     ViewingKey::set_seed(deps.storage, &prng_seed_hashed);
     let mut response = Response::new();
+
+    println!("{}",env.contract.address.to_string());
     response.data = Some(env.contract.address.as_bytes().into());
     Ok(response)
 }
@@ -1729,7 +1731,9 @@ mod tests {
             address: Addr::unchecked("lebron".to_string()),
             amount: Uint128::new(5000),
         }]);
-        assert_eq!(init_result.unwrap(), Response::default());
+        let mut response = Response::new();
+        response.data = Some(Addr::unchecked("cosmos2contract").as_bytes().into());
+        assert_eq!(init_result.unwrap(), response);
 
         let constants = Constants::load(&deps.storage).unwrap();
         assert_eq!(TotalSupplyStore::load(&deps.storage).unwrap(), 5000);
@@ -1765,7 +1769,9 @@ mod tests {
             true,
             0,
         );
-        assert_eq!(init_result.unwrap(), Response::default());
+        let mut response = Response::new();
+        response.data = Some(Addr::unchecked("cosmos2contract").as_bytes().into());
+        assert_eq!(init_result.unwrap(), response);
 
         let constants = Constants::load(&deps.storage).unwrap();
         assert_eq!(TotalSupplyStore::load(&deps.storage).unwrap(), 5000);

@@ -4,25 +4,18 @@ use staking::contract::{execute, instantiate, query, reply};
 // use lp_token::contract::{execute as lp_execute, instantiate as lp_instantiate, query as lp_query};
 
 use secret_multi_test::{App, BankKeeper, Contract, ContractWrapper, Executor};
-use shadeswap_shared::{
-    msg::amm_pair::{{QueryMsg, QueryMsgResponse}},
+use shadeswap_shared::{   
     core::{ContractInstantiationInfo, ContractLink},
     c_std::{QueryRequest, WasmQuery},
-    factory::{InitMsg as FactoryInitMsg, QueryResponse as FactoryQueryResponse, QueryMsg as FactoryQueryMsg}, 
     utils::testing::TestingExt
 };
-use shadeswap_shared::msg::amm_pair::{{InitMsg}};
+use shadeswap_shared::msg::staking::{{InitMsg}};
 use crate::{integration_help_lib::{mk_contract_link, mk_address}};
 use cosmwasm_std::{
     testing::{mock_env, MockApi},
     to_binary, Addr, Empty, Binary, ContractInfo,
 };
 
-
-pub fn amm_pair_contract_store() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new_with_empty(execute, instantiate, query).with_reply(reply);
-    Box::new(contract)
-} 
 
 pub fn staking_contract_store() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new_with_empty(staking_execute, staking_instantiate, staking_query).with_reply(reply);
@@ -45,7 +38,7 @@ pub const TOKEN_B: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy4";
 pub const FACTORY: &str = "secret13q9rgw3ez5mf808vm6k0naye090hh0m5fe2436";
 pub const OWNER: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 
-#[cfg(not(target_arch = "wasm32"))]
+// #[cfg(not(target_arch = "wasm32"))]
 #[test]
 pub fn staking_integration_tests() {
     use cosmwasm_std::Uint128;
@@ -55,39 +48,14 @@ pub fn staking_integration_tests() {
        
     let mut router = App::default();   
 
-    let factory_contract_link = ContractLink{
-        address: mk_address(FACTORY),
-        code_hash: "".to_string(),
-    };    
-  
-    let amm_pair_contract_code_id = router.store_code(amm_pair_contract_store());     
-    let eth_snip20_contract = generate_snip20_contract(&mut router,  "ETH".to_string(),"ETH".to_string(),18);
-    let btc_snip20_contract = generate_snip20_contract(&mut router, "BTC".to_string(),"BTC".to_string(),18);
-    let reward_contract = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18);
+     let reward_contract = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18);
     let snip20_contract_code_id = router.store_code(snip20_contract_store());
     let staking_contract = router.store_code(staking_contract_store());
     let lptoken_contract_code_id = router.store_code(lp_token_contract_store());
 
-    let token_pair = TokenPair(
-        TokenType::CustomToken { contract_addr: eth_snip20_contract.address.to_owned(), token_code_hash: eth_snip20_contract.code_hash.to_owned() },
-        TokenType::CustomToken { contract_addr: btc_snip20_contract.address.to_owned(), token_code_hash: btc_snip20_contract.code_hash.to_owned() }
-    );
-
+    
     let init_msg = InitMsg {
-        pair: token_pair,
-        lp_token_contract: ContractInstantiationInfo { code_hash: lptoken_contract_code_id.code_hash.to_owned(), id: lptoken_contract_code_id.code_id },
-        factory_info: factory_contract_link.to_owned(),
-        prng_seed: to_binary(&"password").unwrap(),
-        entropy: to_binary(&"password").unwrap(),
-        admin: Some(mk_address(&OWNER)),
-        staking_contract: Some(StakingContractInit{ 
-            contract_info:  ContractInstantiationInfo { code_hash: staking_contract.code_hash.to_owned(), id: staking_contract.code_id},
-            amount: Uint128::new(10000), 
-            reward_token: TokenType::CustomToken { contract_addr: reward_contract.address.to_owned(), token_code_hash: reward_contract.code_hash }
-         }),
-        // staking_contract: None,
-        custom_fee: None,
-        callback: None,
+       
     };
 
     let mocked_contract_addr = router

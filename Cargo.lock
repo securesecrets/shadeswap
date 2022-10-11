@@ -1265,12 +1265,14 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "lp-token",
  "query-authentication",
  "schemars 0.8.10",
  "secret-multi-test",
  "serde",
  "shadeswap-shared",
  "snafu 0.7.1",
+ "snip20-reference-impl",
 ]
 
 [[package]]

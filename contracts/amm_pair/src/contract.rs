@@ -2,7 +2,7 @@ use crate::{
     operations::{
         add_address_to_whitelist, add_liquidity, get_estimated_lp_token, get_shade_dao_info,
         load_trade_history_query, query_calculate_price, query_factory_authorize_api_key,
-        query_total_supply, query_token_symbol, register_lp_token, register_pair_token,
+        query_token_symbol, query_total_supply, register_lp_token, register_pair_token,
         remove_addresses_from_whitelist, remove_liquidity, set_staking_contract, swap,
         swap_simulation, update_viewing_key,
     },
@@ -11,17 +11,17 @@ use crate::{
 
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
+    Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg, BankMsg, Coin,
 };
 use shadeswap_shared::{
     core::{
-        admin_r, admin_w, apply_admin_guard, create_viewing_key, set_admin_guard,
-        ContractLink, TokenAmount, TokenType,
+        admin_r, admin_w, apply_admin_guard, create_viewing_key, set_admin_guard, ContractLink,
+        TokenAmount, TokenType,
     },
     lp_token::{InitConfig, InstantiateMsg},
     msg::amm_pair::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse},
     utils::{pad_query_result, pad_response_result},
-    Contract,
+    Contract, snip20::helpers::send_msg,
 };
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
@@ -116,7 +116,7 @@ pub fn instantiate(
     match msg.admin {
         Some(admin) => admin_w(deps.storage).save(&admin)?,
         None => (),
-    }   
+    }
     Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
 }
 
@@ -174,6 +174,33 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 )
             }
             ExecuteMsg::SetViewingKey { viewing_key } => update_viewing_key(env, deps, viewing_key),
+            ExecuteMsg::RecoverFunds {
+                token,
+                amount,
+                to,
+                msg,
+            } => {
+                apply_admin_guard(&info.sender, deps.storage)?;
+                let send_msg = match token {
+                    TokenType::CustomToken { contract_addr, token_code_hash } => vec![send_msg(
+                        to,
+                        amount,
+                        msg,
+                        None,
+                        None,
+                        &Contract{
+                            address: contract_addr,
+                            code_hash: token_code_hash
+                        }
+                    )?],
+                    TokenType::NativeToken { denom } => vec![CosmosMsg::Bank(BankMsg::Send {
+                        to_address: to.to_string(),
+                        amount: vec![Coin::new(amount.u128(), denom)],
+                    })],
+                };
+
+                Ok(Response::new().add_messages(send_msg))
+            }
         },
         BLOCK_SIZE,
     )

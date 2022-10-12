@@ -1,11 +1,11 @@
 use cosmwasm_std::{
     entry_point, Addr, Attribute, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, Uint128, to_binary, Binary, StdError, from_binary};
+    StdResult, Uint128, to_binary, Binary, StdError, from_binary, CosmosMsg, BankMsg, Coin};
 use shadeswap_shared::{
     core::{admin_r, admin_w, apply_admin_guard, ContractLink, TokenType},
     query_auth::helpers::{authenticate_permit, PermitAuthentication},
     staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
-    utils::{pad_query_result, pad_response_result},
+    utils::{pad_query_result, pad_response_result}, snip20::helpers::send_msg, Contract,
 };
 
 use shadeswap_shared::staking::QueryResponse;
@@ -14,7 +14,7 @@ use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staking_stake_lp_token_info,
         set_reward_token, stake, store_init_reward_token_and_timestamp, unstake,
-        update_authenticator,
+        update_authenticator, proxy_stake, proxy_unstake,
     },
     state::{config_r, config_w, prng_seed_w, Config},
 };
@@ -75,6 +75,9 @@ pub fn instantiate(
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     pad_response_result(
         match msg {
+            ExecuteMsg::ProxyUnstake { for_addr, amount } => {
+                proxy_unstake(deps, env, info, for_addr, amount)
+            },
             ExecuteMsg::Receive {
                 from, amount, msg, ..
             } => receiver_callback(deps, env, info, from, amount, msg),
@@ -99,6 +102,33 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             } => {
                 apply_admin_guard(&info.sender, deps.storage)?;
                 set_reward_token(deps, env, info, reward_token, daily_reward_amount, valid_to)
+            },
+            ExecuteMsg::RecoverFunds {
+                token,
+                amount,
+                to,
+                msg,
+            } => {
+                apply_admin_guard(&info.sender, deps.storage)?;
+                let send_msg = match token {
+                    TokenType::CustomToken { contract_addr, token_code_hash } => vec![send_msg(
+                        to,
+                        amount,
+                        msg,
+                        None,
+                        None,
+                        &Contract{
+                            address: contract_addr,
+                            code_hash: token_code_hash
+                        }
+                    )?],
+                    TokenType::NativeToken { denom } => vec![CosmosMsg::Bank(BankMsg::Send {
+                        to_address: to.to_string(),
+                        amount: vec![Coin::new(amount.u128(), denom)],
+                    })],
+                };
+
+                Ok(Response::new().add_messages(send_msg))
             }
         },
         BLOCK_SIZE,
@@ -109,7 +139,7 @@ fn receiver_callback(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    _from: Addr,
+    from: Addr,
     amount: Uint128,
     msg: Option<Binary>,
 ) -> StdResult<Response> {
@@ -125,6 +155,12 @@ fn receiver_callback(
                     return Err(StdError::generic_err("Sender was not LP Token".to_string()));
                 }
                 stake(deps, env, info, amount, from)
+            }
+            InvokeMsg::ProxyStake { for_addr } => {
+                if config.lp_token.address != info.sender {
+                    return Err(StdError::generic_err("Sender was not LP Token".to_string()));
+                }
+                proxy_stake(deps, env, info, amount, from, for_addr)
             }
         },
         BLOCK_SIZE,

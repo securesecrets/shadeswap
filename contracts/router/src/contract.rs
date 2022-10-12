@@ -1,7 +1,10 @@
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, Uint128,
+    StdError, StdResult, Uint128, CosmosMsg, BankMsg, Coin,
 };
+use shadeswap_shared::Contract;
+use shadeswap_shared::core::apply_admin_guard;
+use shadeswap_shared::snip20::helpers::send_msg;
 use shadeswap_shared::utils::{pad_query_result, pad_response_result};
 use shadeswap_shared::{core::admin_w, router::InitMsg};
 use shadeswap_shared::{
@@ -77,7 +80,34 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             ExecuteMsg::RegisterSNIP20Token {
                 token_addr,
                 token_code_hash,
-            } => refresh_tokens(deps, env, token_addr, token_code_hash)
+            } => refresh_tokens(deps, env, token_addr, token_code_hash),
+            ExecuteMsg::RecoverFunds {
+                token,
+                amount,
+                to,
+                msg,
+            } => {
+                apply_admin_guard(&info.sender, deps.storage)?;
+                let send_msg = match token {
+                    TokenType::CustomToken { contract_addr, token_code_hash } => vec![send_msg(
+                        to,
+                        amount,
+                        msg,
+                        None,
+                        None,
+                        &Contract{
+                            address: contract_addr,
+                            code_hash: token_code_hash
+                        }
+                    )?],
+                    TokenType::NativeToken { denom } => vec![CosmosMsg::Bank(BankMsg::Send {
+                        to_address: to.to_string(),
+                        amount: vec![Coin::new(amount.u128(), denom)],
+                    })],
+                };
+
+                Ok(Response::new().add_messages(send_msg))
+            }
         },
         BLOCK_SIZE,
     )

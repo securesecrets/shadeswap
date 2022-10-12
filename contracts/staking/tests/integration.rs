@@ -136,9 +136,9 @@ pub mod integration_help_lib{
         Ok(())
     }
 
-    pub fn send_amount_snip20() -> StdResult<()>{
+    // pub fn send_amount_snip20() -> StdResult<()>{
         
-    } 
+    // } 
     
     pub fn generate_snip20_contract(
         router: &mut App, 

@@ -12,7 +12,7 @@ pub mod tests {
     use secret_multi_test::Contract;
     use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  ExecuteMsg}}, core::{ContractLink, TokenType}, c_std::{Deps, OwnedDeps, CustomQuery}};    
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-    use crate::{test::test_help_lib::{mock_custom_env, make_init_config, mock_dependencies, MockQuerier}, state::{Config, claim_reward_info_r, ClaimRewardsInfo, last_reward_time_r, stakers_r, reward_token_list_r, reward_token_r, RewardTokenInfo, staker_index_w, staker_index_r, total_staked_r}, operations::{calculate_staker_shares, stake, get_total_stakers_count, claim_rewards_for_all_stakers, unstake, calculate_incremental_staking_reward}, contract::instantiate};
+    use crate::{test::test_help_lib::{mock_custom_env, make_init_config, mock_dependencies, MockQuerier}, state::{Config, claim_reward_info_r, ClaimRewardsInfo, last_reward_time_r, stakers_r, reward_token_list_r, reward_token_r, RewardTokenInfo, staker_index_w, staker_index_r, total_staked_r}, operations::{calculate_staker_shares, stake, get_total_stakers_count, claim_rewards_for_all_stakers, unstake, calculate_incremental_staking_reward, set_reward_token}, contract::instantiate};
  
     #[test]
     fn assert_init_config() -> StdResult<()> {   
@@ -205,6 +205,48 @@ pub mod tests {
             Ok(_) => todo!(),
             Err(err) => assert_eq!(err, StdError::not_found("alloc::vec::Vec<staking::state::ClaimRewardsInfo>")),
         }       
+        Ok(())
+    }
+
+    #[test]
+    fn assert_staking_last_time_claim_less_than_valid_to_current_timestamp_less_than_valid_to() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(LP_TOKEN,1500, 16000000);
+        let env_b = mock_custom_env(LP_TOKEN, 1534, 16000000);
+        let mock_info = mock_info(LP_TOKEN, &[]);
+        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let mut deps_owned:  OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
+        let _stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),deps_owned.as_mut().api.addr_validate(STAKER_A)?)?;    
+        let _stake_b = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1500u128),deps_owned.as_ref().api.addr_validate(STAKER_B)?)?;   
+        let current_timestamp  = Uint128::from(17000000u128);
+        claim_rewards_for_all_stakers(deps.as_mut().storage, current_timestamp)?; 
+        let claim_reward_info_a = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap().as_bytes())?;
+        let claim_reward_info_b = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_B).unwrap().as_bytes())?;
+        assert_eq!(claim_reward_info_a[0].amount, Uint128::new(1388888u128));
+        assert_eq!(claim_reward_info_b[0].amount, Uint128::new(2083333u128));
+        Ok(())
+    }
+
+    // last_timestamp = 16000000
+    // current_timestamp = 19000000
+    // valid_to = 17000000
+    #[test]
+    fn assert_staking_last_time_claim_less_than_valid_to_current_timestamp_higher_than_valid_to() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(LP_TOKEN,1500, 16000000);
+        let env_b = mock_custom_env(LP_TOKEN, 1534, 16000000);
+        let mock_info = mock_info(LP_TOKEN, &[]);
+        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let mut deps_owned:  OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
+        let _stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),deps_owned.as_mut().api.addr_validate(STAKER_A)?)?;    
+        let _stake_b = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1500u128),deps_owned.as_ref().api.addr_validate(STAKER_B)?)?;   
+        let current_timestamp  = Uint128::from(17000000u128);
+        set_reward_token(deps, env_b, info, reward_token, daily_reward_amount, Uint128::from(300000u128), Uint128::from(u128))
+        claim_rewards_for_all_stakers(deps.as_mut().storage, current_timestamp)?; 
+        let claim_reward_info_a = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap().as_bytes())?;
+        let claim_reward_info_b = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_B).unwrap().as_bytes())?;
+        assert_eq!(claim_reward_info_a[0].amount, Uint128::new(1388888u128));
+        assert_eq!(claim_reward_info_b[0].amount, Uint128::new(2083333u128));
         Ok(())
     }
 }

@@ -46,3 +46,13 @@ Each contract contains Rust unit and integration tests embedded within the contr
 ```sh
 cargo unit-test
 ```
+
+### CLI 
+
+For CLI please download the latest secretcli and add to your path if Linux
+```
+export PATH=/to/your/secretcli_folder:$PATH
+
+WSL for linux Example
+export PATH=/mnt/d/secretcli:$PATH
+```

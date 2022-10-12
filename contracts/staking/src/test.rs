@@ -1,3 +1,6 @@
+
+
+
 pub const CONTRACT_ADDRESS: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 pub const LP_TOKEN: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 pub const STAKER_A: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
@@ -12,7 +15,7 @@ pub mod tests {
     use secret_multi_test::Contract;
     use shadeswap_shared::{msg::staking::{{InitMsg,QueryMsg,QueryResponse,  ExecuteMsg}}, core::{ContractLink, TokenType}, c_std::{Deps, OwnedDeps, CustomQuery}};    
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse,QueryMsg as FactoryQueryMsg };
-    use crate::{test::test_help_lib::{mock_custom_env, make_init_config, mock_dependencies, MockQuerier}, state::{Config, claim_reward_info_r, ClaimRewardsInfo, last_reward_time_r, stakers_r, reward_token_list_r, reward_token_r, RewardTokenInfo, staker_index_w, staker_index_r, total_staked_r}, operations::{calculate_staker_shares, stake, get_total_stakers_count, claim_rewards_for_all_stakers, unstake, calculate_incremental_staking_reward}, contract::instantiate};
+    use crate::{test::test_help_lib::{mock_custom_env, make_init_config, mock_dependencies, MockQuerier}, state::{Config, claim_reward_info_r, ClaimRewardsInfo, last_reward_time_r, stakers_r, reward_token_list_r, reward_token_r, RewardTokenInfo, staker_index_w, staker_index_r, total_staked_r}, operations::{calculate_staker_shares, stake, get_total_stakers_count, claim_rewards_for_all_stakers, calculate_staking_reward, unstake}, contract::instantiate};
  
     #[test]
     fn assert_init_config() -> StdResult<()> {   
@@ -65,7 +68,7 @@ pub mod tests {
         let _stake_b = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1500u128),deps_owned.as_mut().api.addr_validate(STAKER_B)?)?;       
         let _stake_c = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1700u128),deps_owned.as_mut().api.addr_validate(STAKER_C)?)?;   
         let _stake_a = stake(deps.as_mut(), env.clone(),mock_info.clone(), Uint128::from(1000u128),deps_owned.as_mut().api.addr_validate(STAKER_A)?)?;           
-        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage)?;
+        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
         assert_eq!(total_stakers_count, Uint128::from(3u128));
         Ok(())
     }
@@ -83,12 +86,16 @@ pub mod tests {
         let _stake_b = stake(deps.as_mut(), env.clone(),stake_mock_info.clone(), Uint128::from(1500u128),deps_owned.as_mut().api.addr_validate(STAKER_B)?)?;       
         let _stake_c = stake(deps.as_mut(), env.clone(),stake_mock_info.clone(), Uint128::from(1700u128),deps_owned.as_mut().api.addr_validate(STAKER_C)?)?;   
         let _unstake_a = unstake (deps.as_mut(), env.clone(),unstake_mock_info.clone(), Uint128::from(1000u128), Some(true))?;           
-        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage)?;
+        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
         let claim_reward_info_a: Vec<ClaimRewardsInfo>  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
-        let staker_info = stakers_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
-        assert_eq!(staker_info.last_time_updated, Uint128::new(1524));
+        let staker_info = stakers_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes());
+        match staker_info {
+            Ok(_) => todo!(),
+            Err(err) => assert_eq!(err.to_string(), "staking::state::StakingInfo not found".to_string()),
+        }
         assert_eq!(total_stakers_count, Uint128::from(3u128));
         assert_eq!(claim_reward_info_a[0].amount, Uint128::zero());
+        assert_eq!(claim_reward_info_a[0].last_time_claimed, Uint128::new(1524000));
         Ok(())
     }
 
@@ -111,7 +118,7 @@ pub mod tests {
         }
 
         // Assert Total Staker Count = 1m Total Staker Amount = 1000, Index - 0
-        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage)?;
+        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
         assert_eq!(total_stakers_count, Uint128::one());
         let index = staker_index_r(deps.as_mut().storage).load(&Uint128::zero().to_be_bytes()).unwrap();
         assert_eq!(index, deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap());
@@ -134,33 +141,28 @@ pub mod tests {
         }
 
         let last_claimed_timestamp = last_reward_time_r(deps.as_mut().storage).load().unwrap();
-        assert_eq!(last_claimed_timestamp,Uint128::from(1600000u128));
+        assert_eq!(last_claimed_timestamp,Uint128::from(1600000000u128));
         // timestamp 1600000000
-        claim_rewards_for_all_stakers(deps.as_mut().storage, Uint128::from(1600000u128)).unwrap();
+        claim_rewards_for_all_stakers(deps.as_mut().storage, Uint128::from(1600000000u128)).unwrap();
         let claim_reward_info_a: Vec<ClaimRewardsInfo>  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
         let claim_reward_info_b: Vec<ClaimRewardsInfo>  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_B)?.as_bytes())?;
-        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage)?;
+        let total_stakers_count = get_total_stakers_count(deps.as_mut().storage);
         let last_timestamp = last_reward_time_r(deps.as_mut().storage).load().unwrap();
         assert_eq!(total_stakers_count, Uint128::new(2u128));
-        assert_eq!(last_timestamp, Uint128::new(1600000u128));
+        assert_eq!(last_timestamp, Uint128::new(1600000000u128));
         assert_eq!(claim_reward_info_a[0].amount, Uint128::new(347222u128));
         assert_eq!(claim_reward_info_b[0].amount, Uint128::new(0u128));
-
-        let staker_info_a = stakers_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
-        let staker_info_b = stakers_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_B)?.as_bytes())?;
-        assert_eq!(staker_info_a.last_time_updated, Uint128::new(1600000u128));
-        assert_eq!(staker_info_b.last_time_updated, Uint128::new(1600000u128));
+        assert_eq!(claim_reward_info_a[0].last_time_claimed, Uint128::new(1600000000u128));
+        assert_eq!(claim_reward_info_b[0].last_time_claimed, Uint128::new(1600000000u128));
 
         // move timestamp 1700000000 
-        claim_rewards_for_all_stakers(deps.as_mut().storage, Uint128::from(1700000u128)).unwrap();
+        claim_rewards_for_all_stakers(deps.as_mut().storage, Uint128::from(1700000000u128)).unwrap();
         let claim_reward_info_a: Vec<ClaimRewardsInfo>  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
         let claim_reward_info_b: Vec<ClaimRewardsInfo>  = claim_reward_info_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_B)?.as_bytes())?;
         assert_eq!(claim_reward_info_a[0].amount, Uint128::new(486110u128));
         assert_eq!(claim_reward_info_b[0].amount, Uint128::new(208333u128));
-        let staker_info_a = stakers_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
-        let staker_info_b = stakers_r(deps.as_mut().storage).load(deps_owned.as_mut().api.addr_validate(STAKER_B)?.as_bytes())?;
-        assert_eq!(staker_info_a.last_time_updated, Uint128::new(1700000u128));
-        assert_eq!(staker_info_b.last_time_updated, Uint128::new(1700000u128));
+        assert_eq!(claim_reward_info_a[0].last_time_claimed, Uint128::new(1700000000u128));
+        assert_eq!(claim_reward_info_b[0].last_time_claimed, Uint128::new(1700000000u128));
         Ok(())
     }
 
@@ -186,9 +188,9 @@ pub mod tests {
         let user_shares = calculate_staker_shares(deps.as_mut().storage, Uint128::from(1000u128)).unwrap();
         let reward_tokens = reward_token_list_r(deps.as_mut().storage).load().unwrap();
         let reward_token_info: RewardTokenInfo = reward_token_r(deps.as_mut().storage).load(reward_tokens[0].to_owned().as_bytes()).unwrap();
-        let staking_reward = calculate_incremental_staking_reward(
-            user_shares, last_timestamp, current_timestamp, reward_token_info.daily_reward_amount)?;
-        assert_eq!(staking_reward, Uint128::from(1388888u128));       
+        let staking_reward = calculate_staking_reward(Uint128::from(1000u128),
+            user_shares, last_timestamp, current_timestamp, reward_token_info.amount)?;
+        assert_eq!(staking_reward, Uint128::from(1388u128));       
         Ok(())
     }
 
@@ -221,12 +223,12 @@ pub mod test_help_lib{
     pub fn make_init_config(
             mut deps: DepsMut, 
             env: Env,
-            daily_reward_amount: Uint128
+            amount: Uint128
         ) -> StdResult<Config> 
     {    
         let info = mock_info(SENDER, &[]);
         let msg = InitMsg {
-            daily_reward_amount: daily_reward_amount.clone(),         
+            staking_amount: amount.clone(),         
             reward_token: TokenType::CustomToken{
                 contract_addr: deps.api.addr_validate(CONTRACT_ADDRESS)?,
                 token_code_hash: CONTRACT_ADDRESS.to_string(),

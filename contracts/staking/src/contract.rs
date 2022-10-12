@@ -1,20 +1,20 @@
 use cosmwasm_std::{
-    entry_point, from_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, Uint128, to_binary};
+    entry_point, Addr, Attribute, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult, Uint128, to_binary, Binary, StdError, from_binary, CosmosMsg, BankMsg, Coin};
 use shadeswap_shared::{
-    core::{admin_w, apply_admin_guard, admin_r, ContractLink},
+    core::{admin_r, admin_w, apply_admin_guard, ContractLink, TokenType},
     query_auth::helpers::{authenticate_permit, PermitAuthentication},
     staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
-    utils::{pad_query_result, pad_response_result},
+    utils::{pad_query_result, pad_response_result}, snip20::helpers::send_msg, Contract,
 };
-use shadeswap_shared::core::TokenType;
 
 use shadeswap_shared::staking::QueryResponse;
 
 use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staking_stake_lp_token_info,
-        stake, unstake, update_authenticator, set_reward_token, store_init_reward_token_and_timestamp,
+        set_reward_token, stake, store_init_reward_token_and_timestamp, unstake,
+        update_authenticator, proxy_stake, proxy_unstake,
     },
     state::{config_r, config_w, prng_seed_w, Config},
 };
@@ -28,9 +28,9 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InitMsg,
 ) -> StdResult<Response> {
-    let config = Config {       
+    let config = Config {
         amm_pair: _info.sender.clone(),
-        daily_reward_amount: msg.staking_amount,
+        daily_reward_amount: msg.daily_reward_amount,
         reward_token: msg.reward_token.to_owned(),
         lp_token: msg.lp_token,
         authenticator: msg.authenticator,
@@ -41,26 +41,43 @@ pub fn instantiate(
 
     // store reward token to the list
     let reward_token_address: ContractLink = match msg.reward_token {
-        TokenType::CustomToken { contract_addr, token_code_hash } => ContractLink{ address:contract_addr.to_owned(), code_hash: token_code_hash.to_owned()},
-        TokenType::NativeToken { denom:_} =>  return Err(StdError::generic_err("Invalid Token Type for Reward Token".to_string())),
+        TokenType::CustomToken {
+            contract_addr,
+            token_code_hash,
+        } => ContractLink {
+            address: contract_addr.to_owned(),
+            code_hash: token_code_hash.to_owned(),
+        },
+        TokenType::NativeToken { denom: _ } => {
+            return Err(StdError::generic_err(
+                "Invalid Token Type for Reward Token".to_string(),
+            ))
+        }
     };
     let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
-    store_init_reward_token_and_timestamp(deps.storage, reward_token_address.to_owned(),msg.staking_amount,current_timestamp).unwrap();
+    store_init_reward_token_and_timestamp(
+        deps.storage,
+        reward_token_address.to_owned(),
+        msg.daily_reward_amount,
+        current_timestamp,
+    )?;
 
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
-    Ok(response
-        .add_attributes(vec![
-            Attribute::new("staking_contract_addr", env.contract.address),
-            Attribute::new("reward_token", reward_token_address.address.to_string()),
-            Attribute::new("daily_reward_amount", msg.staking_amount),
-        ]))
+    Ok(response.add_attributes(vec![
+        Attribute::new("staking_contract_addr", env.contract.address),
+        Attribute::new("reward_token", reward_token_address.address.to_string()),
+        Attribute::new("daily_reward_amount", msg.daily_reward_amount),
+    ]))
 }
 
 #[entry_point]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     pad_response_result(
         match msg {
+            ExecuteMsg::ProxyUnstake { for_addr, amount } => {
+                proxy_unstake(deps, env, info, for_addr, amount)
+            },
             ExecuteMsg::Receive {
                 from, amount, msg, ..
             } => receiver_callback(deps, env, info, from, amount, msg),
@@ -77,10 +94,41 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 apply_admin_guard(&info.sender, deps.storage)?;
                 admin_w(deps.storage).save(&admin)?;
                 Ok(Response::default())
-            },
-            ExecuteMsg::SetRewardToken { reward_token, amount, valid_to } => {
+            }
+            ExecuteMsg::SetRewardToken {
+                reward_token,
+                daily_reward_amount,
+                valid_to,
+            } => {
                 apply_admin_guard(&info.sender, deps.storage)?;
-                set_reward_token(deps, info, reward_token,amount, valid_to)
+                set_reward_token(deps, env, info, reward_token, daily_reward_amount, valid_to)
+            },
+            ExecuteMsg::RecoverFunds {
+                token,
+                amount,
+                to,
+                msg,
+            } => {
+                apply_admin_guard(&info.sender, deps.storage)?;
+                let send_msg = match token {
+                    TokenType::CustomToken { contract_addr, token_code_hash } => vec![send_msg(
+                        to,
+                        amount,
+                        msg,
+                        None,
+                        None,
+                        &Contract{
+                            address: contract_addr,
+                            code_hash: token_code_hash
+                        }
+                    )?],
+                    TokenType::NativeToken { denom } => vec![CosmosMsg::Bank(BankMsg::Send {
+                        to_address: to.to_string(),
+                        amount: vec![Coin::new(amount.u128(), denom)],
+                    })],
+                };
+
+                Ok(Response::new().add_messages(send_msg))
             }
         },
         BLOCK_SIZE,
@@ -91,7 +139,7 @@ fn receiver_callback(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    _from: Addr,
+    from: Addr,
     amount: Uint128,
     msg: Option<Binary>,
 ) -> StdResult<Response> {
@@ -107,6 +155,12 @@ fn receiver_callback(
                     return Err(StdError::generic_err("Sender was not LP Token".to_string()));
                 }
                 stake(deps, env, info, amount, from)
+            }
+            InvokeMsg::ProxyStake { for_addr } => {
+                if config.lp_token.address != info.sender {
+                    return Err(StdError::generic_err("Sender was not LP Token".to_string()));
+                }
+                proxy_stake(deps, env, info, amount, from, for_addr)
             }
         },
         BLOCK_SIZE,
@@ -129,8 +183,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 }
 
                 auth_queries(deps, env, query, res.sender)
-            },
-            QueryMsg::GetAdmin { } => to_binary(&QueryResponse::GetAdmin { admin: admin_r(deps.storage).load()?}),
+            }
+            QueryMsg::GetAdmin {} => to_binary(&QueryResponse::GetAdmin {
+                admin: admin_r(deps.storage).load()?,
+            }),
         },
         BLOCK_SIZE,
     )

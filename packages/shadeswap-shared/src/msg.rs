@@ -15,7 +15,7 @@ pub mod router {
     use cosmwasm_std::Addr;
 
     use super::{amm_pair::SwapResult, *};
-    use crate::core::TokenAmount;
+    use crate::core::{TokenAmount, TokenType};
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub enum InvokeMsg {
@@ -57,6 +57,12 @@ pub mod router {
             token_addr: Addr,
             token_code_hash: String,
         },
+        RecoverFunds {
+            token: TokenType,
+            amount: Uint128,
+            to: Addr,
+            msg: Option<Binary>,
+        },
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -87,7 +93,7 @@ pub mod amm_pair {
     use crate::{
         core::{
             Callback, ContractInstantiationInfo, ContractLink, CustomFee, Fee, TokenAmount,
-            TokenPair, TokenPairAmount,
+            TokenPair, TokenPairAmount, TokenType,
         },
         Pagination, staking::StakingContractInit,
     };
@@ -137,7 +143,7 @@ pub mod amm_pair {
     pub enum ExecuteMsg {
         AddLiquidityToAMMContract {
             deposit: TokenPairAmount,
-            slippage: Option<Decimal>,
+            expected_return: Option<Uint128>,
             staking: Option<bool>,
         },
         SwapTokens {
@@ -168,6 +174,12 @@ pub mod amm_pair {
         },
         SetViewingKey {
             viewing_key: String,
+        },
+        RecoverFunds {
+            token: TokenType,
+            amount: Uint128,
+            to: Addr,
+            msg: Option<Binary>,
         },
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -367,7 +379,7 @@ pub mod staking {
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
     pub struct StakingContractInit {
         pub contract_info: ContractInstantiationInfo,
-        pub amount: Uint128,
+        pub daily_reward_amount: Uint128,
         pub reward_token: TokenType,
     }
 
@@ -376,7 +388,7 @@ pub mod staking {
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct InitMsg {
-        pub staking_amount: Uint128,
+        pub daily_reward_amount: Uint128,
         pub reward_token: TokenType,
         pub pair_contract: ContractLink,
         pub prng_seed: Binary,
@@ -390,6 +402,10 @@ pub mod staking {
     #[serde(rename_all = "snake_case")]
     pub enum ExecuteMsg {
         ClaimRewards {},
+        ProxyUnstake {
+            for_addr: Addr,
+            amount: Uint128,
+        },
         Unstake {
             amount: Uint128,
             remove_liqudity: Option<bool>,
@@ -401,7 +417,7 @@ pub mod staking {
         },
         SetRewardToken {
             reward_token: ContractLink,
-            amount: Uint128,
+            daily_reward_amount: Uint128,
             valid_to: Uint128
         },
         SetAuthenticator {
@@ -410,12 +426,21 @@ pub mod staking {
         SetAdmin {
             admin: Addr,
         },
+        RecoverFunds {
+            token: TokenType,
+            amount: Uint128,
+            to: Addr,
+            msg: Option<Binary>,
+        },
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
         Stake { from: Addr },
+        ProxyStake {
+            for_addr: Addr
+        }
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone,JsonSchema, PartialEq)]

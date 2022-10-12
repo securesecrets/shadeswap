@@ -16,6 +16,7 @@ pub static TOTAL_STAKED: &[u8] = b"TOTAL_STAKED";
 pub static STAKER_INDEX: &[u8] = b"STAKER_INDEX";
 pub static REWARD_TOKEN_INFO: &[u8] = b"REWARD_TOKEN_INFO";
 pub static REWARD_TOKEN_LIST: &[u8] = b"REWARD_TOKEN_LIST";
+pub static PROXY_STAKE: &[u8] = b"PROXY_STAKE";
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct Config {
@@ -28,15 +29,20 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct StakingInfo{
-    pub staker: Addr,
     pub amount: Uint128,
+    pub proxy_staked: Uint128,
     pub last_time_updated: Uint128,
+}
+
+#[derive(Serialize, Deserialize,  PartialEq, Debug)]
+pub struct ProxyStakingInfo{
+    pub amount: Uint128
 }
 
 #[derive(Serialize, Deserialize, Clone,  PartialEq, Debug)]
 pub struct RewardTokenInfo{
     pub reward_token: ContractLink,
-    pub amount: Uint128,
+    pub daily_reward_amount: Uint128,
     pub valid_to: Uint128,
 }
 
@@ -48,7 +54,6 @@ pub struct RewardTokenInfoList{
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct ClaimRewardsInfo{
     pub amount: Uint128,
-    pub last_time_claimed: Uint128,
     pub reward_token_addr: Addr,
     pub reward_token_code_hash: String
 }
@@ -69,13 +74,14 @@ pub fn stakers_r(storage: &dyn Storage) -> ReadonlyBucket<StakingInfo> {
     bucket_read(storage, STAKERS)
 }
 
-pub fn last_reward_time_claimed_w(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, LAST_REWARD_TIME_CLAIMED)
+pub fn proxy_staker_info_w(storage: &mut dyn Storage) -> Bucket<ProxyStakingInfo> {
+    bucket(storage, PROXY_STAKE)
 }
 
-pub fn last_reward_time_r(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, LAST_REWARD_TIME_CLAIMED)
+pub fn proxy_staker_info_r(storage: &dyn Storage) -> ReadonlyBucket<ProxyStakingInfo> {
+    bucket_read(storage, PROXY_STAKE)
 }
+
 
 pub fn claim_reward_info_w(storage: &mut dyn Storage) -> Bucket<Vec<ClaimRewardsInfo>> {
     bucket(storage, CLAIM_REWARDS)

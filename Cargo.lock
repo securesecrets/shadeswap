@@ -1210,7 +1210,6 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
- "lp-token",
  "query-authentication",
  "schemars 0.8.11",
  "secret-multi-test",

@@ -1,22 +1,20 @@
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo,
-    Response, StdError, StdResult, Uint128,
-};
-use shadeswap_shared::core::TokenType;
+    entry_point, from_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, Uint128, to_binary};
 use shadeswap_shared::{
-    core::{admin_r, admin_w, apply_admin_guard, ContractLink},
+    core::{admin_w, apply_admin_guard, admin_r, ContractLink},
     query_auth::helpers::{authenticate_permit, PermitAuthentication},
     staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
     utils::{pad_query_result, pad_response_result},
 };
+use shadeswap_shared::core::TokenType;
 
 use shadeswap_shared::staking::QueryResponse;
 
 use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staking_stake_lp_token_info,
-        set_reward_token, stake, store_init_reward_token_and_timestamp, unstake,
-        update_authenticator,
+        stake, unstake, update_authenticator, set_reward_token, store_init_reward_token_and_timestamp,
     },
     state::{config_r, config_w, prng_seed_w, Config},
 };
@@ -30,9 +28,9 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InitMsg,
 ) -> StdResult<Response> {
-    let config = Config {
+    let config = Config {       
         amm_pair: _info.sender.clone(),
-        daily_reward_amount: msg.daily_reward_amount,
+        daily_reward_amount: msg.staking_amount,
         reward_token: msg.reward_token.to_owned(),
         lp_token: msg.lp_token,
         authenticator: msg.authenticator,
@@ -43,34 +41,20 @@ pub fn instantiate(
 
     // store reward token to the list
     let reward_token_address: ContractLink = match msg.reward_token {
-        TokenType::CustomToken {
-            contract_addr,
-            token_code_hash,
-        } => ContractLink {
-            address: contract_addr.to_owned(),
-            code_hash: token_code_hash.to_owned(),
-        },
-        TokenType::NativeToken { denom: _ } => {
-            return Err(StdError::generic_err(
-                "Invalid Token Type for Reward Token".to_string(),
-            ))
-        }
+        TokenType::CustomToken { contract_addr, token_code_hash } => ContractLink{ address:contract_addr.to_owned(), code_hash: token_code_hash.to_owned()},
+        TokenType::NativeToken { denom:_} =>  return Err(StdError::generic_err("Invalid Token Type for Reward Token".to_string())),
     };
     let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
-    store_init_reward_token_and_timestamp(
-        deps.storage,
-        reward_token_address.to_owned(),
-        msg.daily_reward_amount,
-        current_timestamp,
-    )?;
+    store_init_reward_token_and_timestamp(deps.storage, reward_token_address.to_owned(),msg.staking_amount,current_timestamp).unwrap();
 
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
-    Ok(response.add_attributes(vec![
-        Attribute::new("staking_contract_addr", env.contract.address),
-        Attribute::new("reward_token", reward_token_address.address.to_string()),
-        Attribute::new("daily_reward_amount", msg.daily_reward_amount),
-    ]))
+    Ok(response
+        .add_attributes(vec![
+            Attribute::new("staking_contract_addr", env.contract.address),
+            Attribute::new("reward_token", reward_token_address.address.to_string()),
+            Attribute::new("daily_reward_amount", msg.staking_amount),
+        ]))
 }
 
 #[entry_point]
@@ -93,14 +77,10 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 apply_admin_guard(&info.sender, deps.storage)?;
                 admin_w(deps.storage).save(&admin)?;
                 Ok(Response::default())
-            }
-            ExecuteMsg::SetRewardToken {
-                reward_token,
-                daily_reward_amount,
-                valid_to,
-            } => {
+            },
+            ExecuteMsg::SetRewardToken { reward_token, amount, valid_to } => {
                 apply_admin_guard(&info.sender, deps.storage)?;
-                set_reward_token(deps, env, info, reward_token, daily_reward_amount, valid_to)
+                set_reward_token(deps, info, reward_token,amount, valid_to)
             }
         },
         BLOCK_SIZE,
@@ -149,10 +129,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 }
 
                 auth_queries(deps, env, query, res.sender)
-            }
-            QueryMsg::GetAdmin {} => to_binary(&QueryResponse::GetAdmin {
-                admin: admin_r(deps.storage).load()?,
-            }),
+            },
+            QueryMsg::GetAdmin { } => to_binary(&QueryResponse::GetAdmin { admin: admin_r(deps.storage).load()?}),
         },
         BLOCK_SIZE,
     )

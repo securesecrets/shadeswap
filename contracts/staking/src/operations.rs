@@ -16,8 +16,8 @@ use shadeswap_shared::{
 };
 
 use crate::state::{
-    claim_reward_info_r, claim_reward_info_w, config_r, config_w, last_reward_time_claimed_w,
-    last_reward_time_r, reward_token_list_r, reward_token_list_w, reward_token_r, reward_token_w,
+    claim_reward_info_r, claim_reward_info_w, config_r, config_w, 
+    reward_token_list_r, reward_token_list_w, reward_token_r, reward_token_w,
     staker_index_r, staker_index_w, stakers_r, stakers_w, total_staked_r, total_staked_w,
     total_stakers_r, total_stakers_w, ClaimRewardsInfo, RewardTokenInfo, StakingInfo,
 };
@@ -52,8 +52,7 @@ pub fn store_init_reward_token_and_timestamp(
             daily_reward_amount: emission_amount,
             valid_to: Uint128::new(3747905010000u128),
         },
-    )?;
-    last_reward_time_claimed_w(storage).save(&current_timestamp)?;
+    )?;    
     Ok(())
 }
 
@@ -80,7 +79,6 @@ pub fn set_reward_token(
         reward_list_token.push(reward_token.address.to_owned());
     }
     reward_token_w(deps.storage).save(&reward_token.address.as_bytes(), &reward_token_info)?;
-
     Ok(Response::new().add_attributes(vec![
         Attribute::new("action", "set_reward_token"),
         Attribute::new("owner", info.sender.to_string()),
@@ -162,8 +160,7 @@ pub fn claim_rewards(deps: DepsMut, info: MessageInfo, env: Env) -> StdResult<Re
     let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
     let mut messages: Vec<CosmosMsg> = Vec::new();
 
-    // calculate for all also for user
-    claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
+    // calculate for all also for user    
     process_all_claimable_rewards(
         deps.storage,
         receiver.to_string(),
@@ -173,8 +170,7 @@ pub fn claim_rewards(deps: DepsMut, info: MessageInfo, env: Env) -> StdResult<Re
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         Attribute::new("action", "claim_rewards"),
-        Attribute::new("caller", receiver.as_str().clone()),
-        // Attribute::new("reward_amount", claim_amount),
+        Attribute::new("caller", receiver.as_str().clone()),        
     ]))
 }
 
@@ -207,8 +203,8 @@ fn process_all_claimable_rewards(
         messages.push(cosmos_msg);
         claim_reward.amount = Uint128::zero();
     }
-    let mut staker_info = stakers_r(storage).load(receiver.as_bytes())?;
-    staker_info.last_time_updated = timestamp;
+    // let mut staker_info = stakers_r(storage).load(receiver.as_bytes())?;
+    // staker_info.last_time_updated = timestamp;
     claim_reward_info_w(storage).save(receiver.as_bytes(), &claim_reward_tokens)?;
     Ok(())
 }
@@ -221,8 +217,7 @@ pub fn claim_rewards_for_all_stakers(
     storage: &mut dyn Storage,
     current_timestamp: Uint128,
 ) -> StdResult<()> {
-    let stakers_count = get_total_stakers_count(storage)?;
-    let last_claimed_timestamp = last_reward_time_r(storage).load()?;
+    let stakers_count = get_total_stakers_count(storage)?;   
     for i in 0..stakers_count.u128() {
         // load staker address
         let staker_address: Addr = staker_index_r(storage).load(&i.to_be_bytes())?;
@@ -240,18 +235,18 @@ pub fn claim_rewards_for_all_stakers(
             )?
             .amount;
 
-            if last_claimed_timestamp < reward_token.valid_to {
+            if staker_info.last_time_updated < reward_token.valid_to {
                 if current_timestamp < reward_token.valid_to {
                     reward += calculate_incremental_staking_reward(
                         staker_share,
-                        last_claimed_timestamp,
+                        staker_info.last_time_updated,
                         current_timestamp,
                         reward_token.daily_reward_amount,
                     )?;
                 } else {
                     reward += calculate_incremental_staking_reward(
                         staker_share,
-                        last_claimed_timestamp,
+                        staker_info.last_time_updated,
                         reward_token.valid_to,
                         reward_token.daily_reward_amount,
                     )?;
@@ -269,8 +264,7 @@ pub fn claim_rewards_for_all_stakers(
         staker_info.last_time_updated = current_timestamp;
         // Update the stakers information
         stakers_w(storage).save(staker_address.as_bytes(), &staker_info)?;
-    }
-    last_reward_time_claimed_w(storage).save(&current_timestamp)?;
+    }   
     Ok(())
 }
 

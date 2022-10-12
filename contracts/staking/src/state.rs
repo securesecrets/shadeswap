@@ -68,13 +68,6 @@ pub fn stakers_r(storage: &dyn Storage) -> ReadonlyBucket<StakingInfo> {
     bucket_read(storage, STAKERS)
 }
 
-pub fn last_reward_time_claimed_w(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, LAST_REWARD_TIME_CLAIMED)
-}
-
-pub fn last_reward_time_r(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, LAST_REWARD_TIME_CLAIMED)
-}
 
 pub fn claim_reward_info_w(storage: &mut dyn Storage) -> Bucket<Vec<ClaimRewardsInfo>> {
     bucket(storage, CLAIM_REWARDS)

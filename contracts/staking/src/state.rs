@@ -16,6 +16,7 @@ pub static TOTAL_STAKED: &[u8] = b"TOTAL_STAKED";
 pub static STAKER_INDEX: &[u8] = b"STAKER_INDEX";
 pub static REWARD_TOKEN_INFO: &[u8] = b"REWARD_TOKEN_INFO";
 pub static REWARD_TOKEN_LIST: &[u8] = b"REWARD_TOKEN_LIST";
+pub static PROXY_STAKE: &[u8] = b"PROXY_STAKE";
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct Config {
@@ -28,9 +29,14 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct StakingInfo{
-    pub staker: Addr,
     pub amount: Uint128,
+    pub proxy_staked: Uint128,
     pub last_time_updated: Uint128,
+}
+
+#[derive(Serialize, Deserialize,  PartialEq, Debug)]
+pub struct ProxyStakingInfo{
+    pub amount: Uint128
 }
 
 #[derive(Serialize, Deserialize, Clone,  PartialEq, Debug)]
@@ -66,6 +72,14 @@ pub fn stakers_w(storage: &mut dyn Storage) -> Bucket<StakingInfo> {
 
 pub fn stakers_r(storage: &dyn Storage) -> ReadonlyBucket<StakingInfo> {
     bucket_read(storage, STAKERS)
+}
+
+pub fn proxy_staker_info_w(storage: &mut dyn Storage) -> Bucket<ProxyStakingInfo> {
+    bucket(storage, PROXY_STAKE)
+}
+
+pub fn proxy_staker_info_r(storage: &dyn Storage) -> ReadonlyBucket<ProxyStakingInfo> {
+    bucket_read(storage, PROXY_STAKE)
 }
 
 

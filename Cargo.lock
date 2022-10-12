@@ -1216,6 +1216,7 @@ dependencies = [
  "serde",
  "shadeswap-shared",
  "snafu 0.7.2",
+ "snip20-reference-impl",
 ]
 
 [[package]]

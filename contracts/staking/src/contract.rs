@@ -1,10 +1,8 @@
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo,
-    Response, StdError, StdResult, Uint128,
-};
-use shadeswap_shared::core::TokenType;
+    entry_point, Addr, Attribute, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult, Uint128, to_binary, Binary, StdError, from_binary};
 use shadeswap_shared::{
-    core::{admin_r, admin_w, apply_admin_guard, ContractLink},
+    core::{admin_r, admin_w, apply_admin_guard, ContractLink, TokenType},
     query_auth::helpers::{authenticate_permit, PermitAuthentication},
     staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
     utils::{pad_query_result, pad_response_result},

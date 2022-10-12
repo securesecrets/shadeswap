@@ -1,5 +1,5 @@
 [package]
-name = "staking"
+name = "multi-test"
 version = "0.1.0"
 authors = ["Tony <plutonyium@gmail.com>"]
 edition = "2018"
@@ -11,29 +11,27 @@ exclude = [
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [features]
 default = []
-backtraces = ["cosmwasm-std/backtraces"]
-# for quicker tests, cargo test --lib
-# # for more explicit tests, cargo test --features=backtraces
-
+utils = []
 
 [dependencies]
 snafu = { version = "0.7.1" }
-serde = { version = "1.0.114", default-features = false, features = [
-  "derive",
-  "alloc"
-] }
-schemars = "0.8.1"
+serde = { version = "1.0.103", default-features = false, features = ["derive", "alloc"] }
+schemars = "0.8.9"
 cosmwasm-std = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
 cosmwasm-storage = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
-query-authentication = { git = "https://github.com/securesecrets/query-authentication", branch = "cosmwasm_v1_upgrade", optional = true }
-shadeswap-shared = {path = "../../packages/shadeswap-shared"}
-
-[dev-dependencies]
 cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm"}
-snip20-reference-impl = {path ="../../contracts/snip20"}
+snip20-reference-impl = { path = "../../contracts/snip20"}
+sha2 = { version = "0.9.1", default-features = false }
+subtle = { version = "2.2.3", default-features = false }
+rand_chacha = { version = "0.2.2", default-features = false }
+rand_core = { version = "0.5.1", default-features = false }
+chrono = { version = "=0.4.19" }
 secret-multi-test = { git = "https://github.com/securesecrets/secret-plus-utils", version = "0.13.4" }
+
+

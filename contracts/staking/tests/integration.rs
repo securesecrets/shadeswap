@@ -90,7 +90,7 @@ pub fn staking_integration_tests() {
 pub mod integration_help_lib{   
     use cosmwasm_std::{Addr, ContractInfo, StdResult, Uint128};
     use secret_multi_test::{App, Executor};
-    use shadeswap_shared::{msg::amm_pair::InitMsg, core::TokenPair, core::{TokenType, ContractLink}, snip20::{InitConfig, InstantiateMsg}};
+    use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg}, core::TokenPair, core::{TokenType, ContractLink}, snip20::{InitConfig, InstantiateMsg}};
     use crate::{{TOKEN_A, TOKEN_B}, OWNER, snip20_contract_store};      
     use cosmwasm_std::to_binary;
 
@@ -110,6 +110,35 @@ pub mod integration_help_lib{
             address: mk_address(address),
             code_hash: "".to_string(),
         }       
+    }
+
+    pub fn send_snip20(
+        contract: &ContractInfo,
+        stake_contract: &ContractInfo,
+        lp_token: Uint128
+    ) -> StdResult<()>{
+        let invoke_msg = to_binary(&InvokeMsg::Stake {
+            from: info.sender.clone(),
+        })?;
+        // SEND LP Token to Staking Contract with Staking Message
+        let msg = to_binary(&snip20_reference_impl::msg::ExecuteMsg::Send {
+            recipient: stake_contract.address.to_string(),
+            recipient_code_hash: Some(stake_contract.code_hash.clone()),
+            amount: lp_token,
+            msg: Some(invoke_msg),
+            memo: None,
+            padding: None,
+        })?;
+
+        let _ = router.execute_contract(
+            Addr::unchecked(OWNER.to_owned()),
+            &contract.clone(),
+            &msg,
+            &[],
+        )
+        .unwrap();
+
+        Ok(())
     }
 
     pub fn mint_snip20(

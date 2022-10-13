@@ -328,9 +328,7 @@ fn process_all_claimable_rewards(
 
         messages.push(cosmos_msg);
         claim_reward.amount = Uint128::zero();
-    }
-    // let mut staker_info = stakers_r(storage).load(receiver.as_bytes())?;
-    // staker_info.last_time_updated = timestamp;
+    }  
     claim_reward_info_w(storage).save(receiver.as_bytes(), &claim_reward_tokens)?;
     Ok(())
 }

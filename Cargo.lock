@@ -596,6 +596,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "multi-test"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "rand_chacha 0.2.2",
+ "rand_core 0.5.1",
+ "schemars 0.8.10",
+ "secret-multi-test",
+ "serde",
+ "sha2",
+ "snafu 0.7.1",
+ "snip20-reference-impl",
+ "subtle",
+]
+
+[[package]]
 name = "nanoid"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -3,6 +3,7 @@ use snip20_reference_impl::contract::{execute as snip20_execute, instantiate as 
 // use lp_token::contract::{execute as lp_execute, instantiate as lp_instantiate, query as lp_query};
 
 use secret_multi_test::{App, BankKeeper, Contract, ContractWrapper, Executor};
+use multi_test::{{auth_query::execute as auth_execute}};
 use shadeswap_shared::{   
     core::{ContractInstantiationInfo, ContractLink},
     c_std::{QueryRequest, WasmQuery},
@@ -34,25 +35,37 @@ pub fn snip20_contract_store() -> Box<dyn Contract<Empty>> {
 pub const CONTRACT_ADDRESS: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy6";
 pub const TOKEN_A: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 pub const TOKEN_B: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy4";
-pub const FACTORY: &str = "secret13q9rgw3ez5mf808vm6k0naye090hh0m5fe2436";
+pub const SENDER: &str = "secret13q9rgw3ez5mf808vm6k0naye090hh0m5fe2436";
 pub const OWNER: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 pub fn staking_integration_tests() {    
-    use cosmwasm_std::{Uint128, from_binary};
-    use shadeswap_shared::staking::QueryMsg;
+    use cosmwasm_std::{Uint128, from_binary, Coin, BlockInfo, Timestamp, Env};
+    use secret_multi_test::next_block;
+    use shadeswap_shared::staking::{QueryMsg, AuthQuery};
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{core::{TokenType, TokenPair}, snip20::{InstantiateMsg, InitConfig}, stake_contract::StakingContractInit};
-    use crate::integration_help_lib::{generate_snip20_contract, mint_snip20};
+    use crate::integration_help_lib::{generate_snip20_contract, mint_snip20, send_snip20_with_msg};
+   
+    let owner_address = Addr::unchecked(OWNER);
+    let mut router = App::default();  
+  
+    router.init_modules(|router, _, storage| {
+        router
+            .bank
+            .init_balance(storage, &owner_address.clone(), vec![Coin{denom: "uscrt".into(), amount: Uint128::new(1000000000u128)}])
+            .unwrap();
+    });
 
-    let mut router = App::default();   
+    router.update_block(next_block);
+
     let reward_contract = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18).unwrap();
     let snip20_contract_code_id = router.store_code(snip20_contract_store());
     let staking_contract = router.store_code(staking_contract_store());
     let lp_token_contract = generate_snip20_contract(&mut router, "LPT".to_string(),"LPT".to_string(),18).unwrap();
     let init_msg = InitMsg {
-        daily_reward_amount: Uint128::new(50u128),
+        daily_reward_amount: Uint128::new(30000u128),
         reward_token: TokenType::CustomToken { contract_addr:reward_contract.address.to_owned(), token_code_hash: reward_contract.code_hash.to_owned() },
         pair_contract: ContractLink { address: Addr::unchecked("AMMPAIR"), code_hash: "".to_string() },
         prng_seed: to_binary(&"password").unwrap(),
@@ -68,29 +81,48 @@ pub fn staking_integration_tests() {
             &init_msg,
             &[],
             "staking",
-            None,
+            Some(OWNER.to_owned()),
         ).unwrap();
 
     // mint lp token for test
     mint_snip20(&mut router, Uint128::new(1000),Addr::unchecked(OWNER),lp_token_contract.to_owned()).unwrap();
-
+    send_snip20_with_msg(&mut router, &lp_token_contract, &mocked_contract_addr, Uint128::new(1000u128), &owner_address).unwrap();
+    router.update_block(next_block);
     println!("{}", mocked_contract_addr.address.to_string());
-    let query: QueryResponse = router.query_test(mocked_contract_addr,to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
+    let query: QueryResponse = router.query_test(mocked_contract_addr.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
     match query {
         QueryResponse::Config { reward_token, lp_token, daily_reward_amount, amm_pair } => {
-           assert_eq!(daily_reward_amount, Uint128::new(50u128));
+           assert_eq!(daily_reward_amount, Uint128::new(30000u128));
            assert_eq!(lp_token.address.to_owned(), lp_token_contract.address.to_owned());
         },
         _ => panic!("Query Responsedoes not match")
     }
+
+    router.update_block(next_block);
+
+    let msg_get_claimable = to_binary(&AuthQuery::GetClaimReward { time: Uint128::new(1600000000u128) }).unwrap();
+
+    let query: QueryResponse = router.query_test(
+        mocked_contract_addr.to_owned(),
+        to_binary(&QueryMsg::WithPermit { 
+            permit: {}, 
+            query: AuthQuery::GetClaimReward { time: Uint128::new(1600000000u128) } })).unwrap();
+    match query {
+        QueryResponse::ClaimRewards { claimable_rewards  } => {
+           assert_eq!(claimable_rewards.len(),0 );           
+        },
+        _ => panic!("Query Responsedoes not match")
+    }
+
+  
 }
 
 
 
 pub mod integration_help_lib{   
-    use cosmwasm_std::{Addr, ContractInfo, StdResult, Uint128};
+    use cosmwasm_std::{Addr, ContractInfo, StdResult, Uint128, Coin, Binary, WasmMsg};
     use secret_multi_test::{App, Executor};
-    use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg}, core::TokenPair, core::{TokenType, ContractLink}, snip20::{InitConfig, InstantiateMsg}};
+    use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg}, core::TokenPair, core::{TokenType, ContractLink}, snip20::{InitConfig, InstantiateMsg, self}};
     use crate::{{TOKEN_A, TOKEN_B}, OWNER, snip20_contract_store};      
     use cosmwasm_std::to_binary;
 
@@ -112,29 +144,31 @@ pub mod integration_help_lib{
         }       
     }
 
-    pub fn send_snip20(
+    pub fn send_snip20_with_msg(
+        router: &mut App, 
         contract: &ContractInfo,
         stake_contract: &ContractInfo,
-        lp_token: Uint128
+        lp_token: Uint128,
+        staker: &Addr
     ) -> StdResult<()>{
         let invoke_msg = to_binary(&InvokeMsg::Stake {
-            from: info.sender.clone(),
+            from: staker.to_owned(),
         })?;
         // SEND LP Token to Staking Contract with Staking Message
-        let msg = to_binary(&snip20_reference_impl::msg::ExecuteMsg::Send {
-            recipient: stake_contract.address.to_string(),
+        let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
+            recipient: stake_contract.address.to_owned(),
             recipient_code_hash: Some(stake_contract.code_hash.clone()),
             amount: lp_token,
             msg: Some(invoke_msg),
             memo: None,
             padding: None,
-        })?;
+        };
 
         let _ = router.execute_contract(
             Addr::unchecked(OWNER.to_owned()),
             &contract.clone(),
             &msg,
-            &[],
+            &[], // 
         )
         .unwrap();
 
@@ -158,18 +192,14 @@ pub mod integration_help_lib{
             Addr::unchecked(OWNER.to_owned()),
             &contract.clone(),
             &msg,
-            &[],
+            &[Coin{ denom: "uscrt".to_string(), amount: amount}], // Coin{ denom: "uscrt".to_string(), amount: Uint128::new(3000000)}
         )
         .unwrap();
 
         Ok(())
     }
 
-    // pub fn send_amount_snip20() -> StdResult<()>{
-        
-    // } 
-    
-    pub fn generate_snip20_contract(
+      pub fn generate_snip20_contract(
         router: &mut App, 
         name: String, 
         symbol: String, 
@@ -181,7 +211,10 @@ pub mod integration_help_lib{
             admin: Some(OWNER.to_string()),
             symbol: symbol.to_string(),
             decimals: decimal,
-            initial_balances: None,
+            initial_balances: Some(vec![snip20::InitialBalance {
+                address: OWNER.into(),
+                amount: Uint128::from(100000000u128),
+            }]),
             prng_seed: to_binary("password")?,
             config: Some(InitConfig {
                 public_total_supply: Some(true),
@@ -200,7 +233,7 @@ pub mod integration_help_lib{
                 &init_snip20_msg,
                 &[],
                 "token_a",
-                None,
+                Some(OWNER.to_string()),
             ).unwrap();
         Ok(init_snip20_code_id)
     }

@@ -5,7 +5,10 @@ use crate::{
         update_viewing_key,
     },
     query::{self, fee_info},
-    state::{config_r, config_w, trade_count_r, whitelist_r, Config},
+    state::{
+        arbitrage_profit_r, arbitrage_profit_w, arbitrage_volume_r, arbitrage_volume_w, config_r,
+        config_w, trade_count_r, whitelist_r, whitelist_w, Config,
+    },
 };
 
 use cosmwasm_std::{
@@ -16,7 +19,9 @@ use shadeswap_shared::{
     admin::helpers::{validate_admin, AdminPermissions},
     core::{create_viewing_key, TokenAmount, TokenType},
     lp_token::{InitConfig, InstantiateMsg},
-    msg::amm_pair::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse},
+    msg::amm_pair::{
+        ArbitrageStatistics, ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse,
+    },
     snip20::helpers::send_msg,
     utils::{pad_query_result, pad_response_result, try_addr_validate_option},
     Contract,
@@ -103,6 +108,9 @@ pub fn instantiate(
 
     config_w(deps.storage).save(&config)?;
     response.data = Some(env.contract.address.as_bytes().into());
+
+    arbitrage_profit_w(deps.storage).save(&Uint128::zero())?;
+    arbitrage_volume_w(deps.storage).save(&Uint128::zero())?;
 
     Ok(response)
 }
@@ -388,6 +396,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 let count = trade_count_r(deps.storage).may_load()?.unwrap_or(0u64);
                 to_binary(&QueryMsgResponse::GetTradeCount { count })
             }
+            QueryMsg::GetArbitrageStats {} => {
+                let stats = ArbitrageStatistics {
+                    profit: arbitrage_profit_r(deps.storage).load()?,
+                    volume: arbitrage_volume_r(deps.storage).load()?,
+                };
+                to_binary(&QueryMsgResponse::GetArbitrageStats { stats })
+            }
             QueryMsg::SwapSimulation { offer, exclude_fee } => {
                 query::swap_simulation(deps, env, offer, exclude_fee)
             }
@@ -459,10 +474,16 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                 None => Err(StdError::generic_err(format!("Unknown reply id"))),
             },
             (ARBITRAGE_CONTRACT_REPLY_ID, SubMsgResult::Ok(_s)) => {
-                return Ok(Response::new());
+                let arb_profit = Uint128::zero();
+                let arb_volume = Uint128::zero();
+                let new_profit = arbitrage_profit_r(deps.storage).load()? + arb_profit;
+                let new_volume = arbitrage_volume_r(deps.storage).load()? + arb_volume;
+                arbitrage_profit_w(deps.storage).save(&new_profit)?;
+                arbitrage_volume_w(deps.storage).save(&new_volume)?;
+                Ok(Response::new().add_attribute("arbitrage", "true"))
             }
             (ARBITRAGE_CONTRACT_REPLY_ID, SubMsgResult::Err(_s)) => {
-                return Ok(Response::new());
+                Ok(Response::new().add_attribute("arbitrage", "false"))
             }
             _ => Err(StdError::generic_err(format!("Unknown reply id"))),
         },

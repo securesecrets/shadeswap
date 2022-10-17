@@ -23,6 +23,8 @@ use shadeswap_shared::core::ContractInstantiationInfo;
 
 #[cfg(test)]
 pub mod tests {
+    use shadeswap_shared::Contract;
+
     use super::help_test_lib::{make_init_config, mk_amm_settings, mk_token_pair};
     use super::*;
     use crate::contract::instantiate;
@@ -57,7 +59,7 @@ pub mod tests {
             },
             prng_seed: seed.clone(),
             entropy: entropy.clone(),
-            admin: Some(mock_info.sender.clone()),
+            admin_auth: shadeswap_shared::Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
             custom_fee: None,
             callback: None,
@@ -120,7 +122,7 @@ pub mod tests {
             },
             prng_seed: seed.clone(),
             entropy: entropy.clone(),
-            admin: Some(mock_info.sender.clone()),
+            admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
             custom_fee: None,
             callback: None,
@@ -610,6 +612,7 @@ pub mod help_test_lib {
         from_slice, BalanceResponse, BlockInfo, Coin, ContractInfo, Empty, OwnedDeps, Timestamp,
         TransactionInfo,
     };
+    use shadeswap_shared::Contract;
 
     use crate::contract::instantiate;
     use shadeswap_shared::core::{CustomFee, Fee, TokenPair};
@@ -639,7 +642,7 @@ pub mod help_test_lib {
             },
             prng_seed: seed.clone(),
             entropy: entropy.clone(),
-            admin: Some(mock_info.sender.clone()),
+            admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
             custom_fee: None,
             callback: None,
@@ -743,6 +746,7 @@ pub mod help_test_lib {
                 }
             }),
             prng_seed: to_binary(&"to_string".to_string())?,
+            admin_auth: Contract { address: Addr::unchecked(MOCK_CONTRACT_ADDR), code_hash: "".to_string() }
         })
     }
 
@@ -862,7 +866,8 @@ pub mod help_test_lib {
                                 pair_contract: ContractInstantiationInfo { code_hash: "".to_string(), id: 1_u64 },
                                 amm_settings: amm_settings,
                                 lp_token_contract: ContractInstantiationInfo { code_hash: "".to_string(), id: 2_u64 },
-                                authenticator: None
+                                authenticator: None,
+                                admin_auth: Contract { address: Addr::unchecked(MOCK_CONTRACT_ADDR), code_hash: "".to_string() }
                             };
                             QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(
                                 to_binary(&response).unwrap(),
@@ -972,7 +977,7 @@ pub mod help_test_lib {
             },
             prng_seed: seed.clone(),
             entropy: entropy.clone(),
-            admin: Some(mock_info.sender.clone()),          
+            admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },          
             staking_contract: None,
             custom_fee: custom_fee,
             callback: None,

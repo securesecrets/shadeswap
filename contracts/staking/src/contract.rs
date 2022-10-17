@@ -1,20 +1,21 @@
 use cosmwasm_std::{
-    entry_point, Addr, Attribute, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, Uint128, to_binary, Binary, StdError, from_binary, CosmosMsg, BankMsg, Coin};
-use shadeswap_shared::{
-    core::{admin_r, admin_w, apply_admin_guard, ContractLink, TokenType},
-    query_auth::helpers::{authenticate_permit, PermitAuthentication},
-    staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
-    utils::{pad_query_result, pad_response_result}, snip20::helpers::send_msg, Contract,
+    entry_point, from_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Deps,
+    DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128,
 };
-
-use shadeswap_shared::staking::QueryResponse;
+use shadeswap_shared::{
+    core::{ContractLink, TokenType},
+    query_auth::helpers::{authenticate_permit, PermitAuthentication},
+    snip20::helpers::send_msg,
+    staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
+    utils::{pad_query_result, pad_response_result},
+    Contract, admin::helpers::{validate_admin, AdminPermissions},
+};
 
 use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staking_stake_lp_token_info,
-        set_reward_token, stake, store_init_reward_token_and_timestamp, unstake,
-        update_authenticator, proxy_stake, proxy_unstake,
+        proxy_stake, proxy_unstake, set_reward_token, stake, store_init_reward_token_and_timestamp,
+        unstake, update_authenticator,
     },
     state::{config_r, config_w, prng_seed_w, Config},
 };
@@ -34,9 +35,9 @@ pub fn instantiate(
         reward_token: msg.reward_token.to_owned(),
         lp_token: msg.lp_token,
         authenticator: msg.authenticator,
+        admin_auth: msg.admin_auth,
     };
     config_w(deps.storage).save(&config)?;
-    admin_w(deps.storage).save(&_info.sender)?;
     prng_seed_w(deps.storage).save(&msg.prng_seed.as_slice().to_vec())?;
 
     // store reward token to the list
@@ -77,7 +78,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         match msg {
             ExecuteMsg::ProxyUnstake { for_addr, amount } => {
                 proxy_unstake(deps, env, info, for_addr, amount)
-            },
+            }
             ExecuteMsg::Receive {
                 from, amount, msg, ..
             } => receiver_callback(deps, env, info, from, amount, msg),
@@ -87,12 +88,26 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 remove_liqudity,
             } => unstake(deps, env, info, amount, remove_liqudity),
             ExecuteMsg::SetAuthenticator { authenticator } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 update_authenticator(deps.storage, authenticator)
             }
-            ExecuteMsg::SetAdmin { admin } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
-                admin_w(deps.storage).save(&admin)?;
+            ExecuteMsg::SetConfig { admin_auth } => {
+                let mut config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
+                if let Some(admin_auth) = admin_auth {
+                    config.admin_auth = admin_auth;
+                }
                 Ok(Response::default())
             }
             ExecuteMsg::SetRewardToken {
@@ -100,27 +115,42 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 daily_reward_amount,
                 valid_to,
             } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 set_reward_token(deps, env, info, reward_token, daily_reward_amount, valid_to)
-            },
+            }
             ExecuteMsg::RecoverFunds {
                 token,
                 amount,
                 to,
                 msg,
             } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 let send_msg = match token {
-                    TokenType::CustomToken { contract_addr, token_code_hash } => vec![send_msg(
+                    TokenType::CustomToken {
+                        contract_addr,
+                        token_code_hash,
+                    } => vec![send_msg(
                         to,
                         amount,
                         msg,
                         None,
                         None,
-                        &Contract{
+                        &Contract {
                             address: contract_addr,
-                            code_hash: token_code_hash
-                        }
+                            code_hash: token_code_hash,
+                        },
                     )?],
                     TokenType::NativeToken { denom } => vec![CosmosMsg::Bank(BankMsg::Send {
                         to_address: to.to_string(),
@@ -184,9 +214,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
                 auth_queries(deps, env, query, res.sender)
             }
-            QueryMsg::GetAdmin {} => to_binary(&QueryResponse::GetAdmin {
-                admin: admin_r(deps.storage).load()?,
-            }),
         },
         BLOCK_SIZE,
     )

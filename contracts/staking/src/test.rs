@@ -774,7 +774,7 @@ pub mod test_help_lib {
     use shadeswap_shared::{
         core::{ContractLink, TokenType},
         snip20::{manager::Balance, QueryAnswer},
-        staking::InitMsg,
+        staking::InitMsg, Contract,
     };
 
     use crate::{
@@ -820,7 +820,7 @@ pub mod test_help_lib {
                 code_hash: "".to_string(),
             },
             authenticator: None,
-            admin: Addr::unchecked("Sender"),
+            admin_auth: Contract { address: Addr::unchecked("Sender"), code_hash: "".to_string() }
         };
         assert!(instantiate(deps.branch(), env.clone(), info.clone(), msg).is_ok());
         let mut config = config_r(deps.storage).load()?;

@@ -15,7 +15,7 @@ pub mod router {
     use cosmwasm_std::Addr;
 
     use super::{amm_pair::SwapResult, *};
-    use crate::core::{TokenAmount, TokenType};
+    use crate::{core::{TokenAmount, TokenType}, Contract};
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub enum InvokeMsg {
@@ -31,6 +31,7 @@ pub mod router {
         pub prng_seed: Binary,
         pub entropy: Binary,
         pub pair_contract_code_hash: String,
+        pub admin_auth: Contract
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -95,9 +96,9 @@ pub mod amm_pair {
             Callback, ContractInstantiationInfo, ContractLink, CustomFee, Fee, TokenAmount,
             TokenPair, TokenPairAmount, TokenType,
         },
-        Pagination, staking::StakingContractInit,
+        Pagination, staking::StakingContractInit, Contract,
     };
-    use cosmwasm_std::{Addr, Decimal};
+    use cosmwasm_std::{Addr};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
@@ -133,7 +134,7 @@ pub mod amm_pair {
         pub factory_info: ContractLink,
         pub prng_seed: Binary,
         pub entropy: Binary,
-        pub admin: Option<Addr>,
+        pub admin_auth: Contract,
         pub staking_contract: Option<StakingContractInit>,
         pub custom_fee: Option<CustomFee>,
         pub callback: Option<Callback>,
@@ -166,8 +167,8 @@ pub mod amm_pair {
         RemoveWhitelistAddresses {
             addresses: Vec<Addr>,
         },
-        SetAdmin {
-            admin: Addr,
+        SetConfig {
+            admin_auth: Option<Contract>
         },
         SetCustomPairFee {
             custom_fee: Option<CustomFee>,
@@ -206,7 +207,6 @@ pub mod amm_pair {
         },
         GetWhiteListAddress {},
         GetTradeCount {},
-        GetAdmin {},
         GetStakingContract {},
         GetEstimatedPrice {
             offer: TokenAmount,
@@ -217,8 +217,7 @@ pub mod amm_pair {
         },
         GetShadeDaoInfo {},
         GetEstimatedLiquidity {
-            deposit: TokenPairAmount,
-            slippage: Option<Decimal>,
+            deposit: TokenPairAmount
         },
     }
 
@@ -243,9 +242,6 @@ pub mod amm_pair {
         GetTradeCount {
             count: u64,
         },
-        GetAdmin {
-            address: Addr,
-        },
         GetClaimReward {
             amount: Uint128,
         },
@@ -266,7 +262,7 @@ pub mod amm_pair {
             shade_dao_address: String,
             shade_dao_fee: Fee,
             lp_fee: Fee,
-            admin_address: String,
+            admin_auth: Contract,
         },
         EstimatedLiquidity {
             lp_token: Uint128,
@@ -289,7 +285,6 @@ pub mod factory {
     use crate::Contract;
     use crate::staking::StakingContractInit;
     use crate::{amm_pair::AMMSettings, Pagination};
-    use cosmwasm_std::Addr;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
@@ -302,6 +297,7 @@ pub mod factory {
         pub api_key: String,
         //Set the default authenticator for all permits on the contracts
         pub authenticator: Option<Contract>,
+        pub admin_auth: Contract
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -312,6 +308,7 @@ pub mod factory {
             lp_token_contract: Option<ContractInstantiationInfo>,
             amm_settings: Option<AMMSettings>,
             api_key: Option<String>,
+            admin_auth: Option<Contract>,
         },
         CreateAMMPair {
             pair: TokenPair,
@@ -322,9 +319,6 @@ pub mod factory {
         },
         AddAMMPairs {
             amm_pairs: Vec<AMMPair>,
-        },
-        SetAdmin {
-            admin: Addr,
         },
         RegisterAMMPair {
             pair: TokenPair,
@@ -343,11 +337,9 @@ pub mod factory {
             amm_settings: AMMSettings,
             lp_token_contract: ContractInstantiationInfo,
             authenticator: Option<Contract>,
+            admin_auth: Contract,
         },
         GetAMMPairAddress {
-            address: String,
-        },
-        GetAdmin {
             address: String,
         },
         AuthorizeApiKey {
@@ -362,7 +354,6 @@ pub mod factory {
         ListAMMPairs { pagination: Pagination },
         GetAMMPairAddress { pair: TokenPair },
         GetConfig,
-        GetAdmin,
         AuthorizeApiKey { api_key: String },
     }
 }
@@ -395,7 +386,7 @@ pub mod staking {
         pub lp_token: ContractLink,
         //Used for permits
         pub authenticator: Option<Contract>,
-        pub admin: Addr,
+        pub admin_auth: Contract,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -423,8 +414,8 @@ pub mod staking {
         SetAuthenticator {
             authenticator: Option<Contract>,
         },
-        SetAdmin {
-            admin: Addr,
+        SetConfig {
+            admin_auth: Option<Contract>,
         },
         RecoverFunds {
             token: TokenType,
@@ -452,7 +443,6 @@ pub mod staking {
             permit: QueryPermit,
             query: AuthQuery,
         },
-        GetAdmin {},
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq, Clone)]
@@ -489,17 +479,15 @@ pub mod staking {
             lp_token: ContractLink,
             daily_reward_amount: Uint128,
             amm_pair: Addr,
-        },
-        GetAdmin {
-            admin: Addr,
-        },
+            admin_auth: Contract
+        }
     }
 }
 
 pub mod lp_token {
     use cosmwasm_std::Addr;
 
-    use crate::snip20::InitialBalance;
+    use crate::{snip20::InitialBalance};
 
     use super::*;
 

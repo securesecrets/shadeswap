@@ -2,6 +2,7 @@ use cosmwasm_std::to_binary;
 use cosmwasm_std::Addr;
 use cosmwasm_std::BalanceResponse;
 use cosmwasm_std::Uint128;
+use network_integration::utils::ADMIN_FILE;
 use network_integration::utils::InitConfig;
 use network_integration::utils::API_KEY;
 use network_integration::utils::{
@@ -13,6 +14,7 @@ use secretcli::{
     secretcli::{handle, init, query, store_and_return_contract},
 };
 
+use shadeswap_shared::Contract;
 use shadeswap_shared::core::ContractInstantiationInfo;
 use shadeswap_shared::core::Fee;
 use shadeswap_shared::core::TokenPair;
@@ -30,6 +32,9 @@ use shadeswap_shared::{
         },
         router::{ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg},
         staking::StakingContractInit,
+    },
+    contract_interfaces::admin::{
+        InstantiateMsg as AdminInstantiateMsg
     },
     Pagination,
 };
@@ -52,7 +57,7 @@ pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Ui
 
 fn main() -> serde_json::Result<()> {
     //redeploy_infra()?;
-    deploy_fresh();
+    deploy_fresh()?;
     return Ok(());
 }
 
@@ -151,6 +156,33 @@ fn redeploy_infra() -> serde_json::Result<()> {
         Some("test"),
     )?;
 
+    let admin_contract = store_and_return_contract(
+        &ADMIN_FILE.replace("../", ""),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some("test"),
+    )?;
+
+    print_header("\n\tInitializing Admin Contract");
+
+    let admin_msg = AdminInstantiateMsg {
+        super_admin: Some("secret138pqmt4gyyhjrtzj9vnf2k622d5cdvwucr423q".to_string())
+    };
+
+    let admin_contract = init(
+        &admin_msg,
+        &ADMIN_FILE.replace("../", ""),
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+
+    print_contract(&admin_contract);
+    
+
     print_header("\n\tInitializing Factory Contract");
 
     let factory_msg = FactoryInitMsg {
@@ -175,6 +207,8 @@ fn redeploy_infra() -> serde_json::Result<()> {
         prng_seed: to_binary(&"".to_string()).unwrap(),
         api_key: API_KEY.to_string(),
         authenticator: None,
+        admin_auth: Contract { address: Addr::unchecked(admin_contract.address.to_string()), 
+            code_hash: admin_contract.code_hash.clone()}
     };
 
     let factory_contract = init(
@@ -209,6 +243,8 @@ fn redeploy_infra() -> serde_json::Result<()> {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
                 entropy: to_binary(&"".to_string()).unwrap(),
                 pair_contract_code_hash: s_amm_pair.code_hash.clone(),
+                admin_auth: Contract { address: Addr::unchecked(admin_contract.address.to_string()), 
+                    code_hash: admin_contract.code_hash.clone()}
             };
 
             let router_contract = init(
@@ -538,7 +574,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
                 amount: Uint128::new(100000000000000u128),
                 memo: None,
             };
-    
+
             handle(
                 &msg,
                 &usdt_contract,
@@ -557,7 +593,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
                 amount: Uint128::new(100000000000000000000000u128),
                 memo: None,
             };
-    
+
             handle(
                 &msg,
                 &eth_contract,
@@ -576,7 +612,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
                 amount: Uint128::new(100000000000000000u128),
                 memo: None,
             };
-    
+
             handle(
                 &msg,
                 &btc_contract,
@@ -638,6 +674,32 @@ fn deploy_fresh() -> serde_json::Result<()> {
         Some("test"),
     )?;
 
+    let admin_contract = store_and_return_contract(
+        &ADMIN_FILE.replace("../", ""),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some("test"),
+    )?;
+
+    print_header("\n\tInitializing Admin Contract");
+
+    let admin_msg = AdminInstantiateMsg {
+        super_admin: Some("secret138pqmt4gyyhjrtzj9vnf2k622d5cdvwucr423q".to_string())
+    };
+
+    let admin_contract = init(
+        &admin_msg,
+        &ADMIN_FILE.replace("../", ""),
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+
+    print_contract(&admin_contract);
+
     print_header("\n\tInitializing Factory Contract");
 
     let factory_msg = FactoryInitMsg {
@@ -662,6 +724,8 @@ fn deploy_fresh() -> serde_json::Result<()> {
         prng_seed: to_binary(&"".to_string()).unwrap(),
         api_key: API_KEY.to_string(),
         authenticator: None,
+        admin_auth: Contract { address: Addr::unchecked(admin_contract.address.to_string()), 
+            code_hash: admin_contract.code_hash.clone()}
     };
 
     let factory_contract = init(
@@ -696,6 +760,8 @@ fn deploy_fresh() -> serde_json::Result<()> {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
                 entropy: to_binary(&"".to_string()).unwrap(),
                 pair_contract_code_hash: s_amm_pair.code_hash.clone(),
+                admin_auth: Contract { address: Addr::unchecked(admin_contract.address.to_string()), 
+                    code_hash: admin_contract.code_hash.clone()}
             };
 
             let router_contract = init(

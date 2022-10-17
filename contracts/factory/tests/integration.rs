@@ -4,9 +4,10 @@ use cosmwasm_std::{
 use factory::contract::{execute, instantiate, query};
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
 use shadeswap_shared::{
-    core::{ContractInstantiationInfo, ContractLink},
+    core::{ContractInstantiationInfo, ContractLink },
     factory::{InitMsg, QueryResponse, QueryMsg},
-    utils::testing::TestingExt
+    utils::testing::TestingExt,
+    Contract as SContract
 };
 
 pub fn contract_counter() -> Box<dyn Contract<Empty>> {
@@ -40,6 +41,7 @@ fn factory_integration_tests() {
         prng_seed: to_binary(&"".to_string()).unwrap(),
         api_key: "api_key".to_string(),
         authenticator: None,
+        admin_auth: SContract { address: Addr::unchecked(owner.clone()), code_hash: "".to_string() }
     };
     let counter_contract_code_id = router.store_code(contract_counter());
 
@@ -58,7 +60,7 @@ fn factory_integration_tests() {
 
     let query: QueryResponse = router.query_test(mocked_contract_addr,to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
     match query {
-        QueryResponse::GetConfig { pair_contract: _, amm_settings, lp_token_contract: _, authenticator: _ } => {
+        QueryResponse::GetConfig { pair_contract: _, amm_settings, lp_token_contract: _, authenticator: _, admin_auth } => {
             assert_eq!(amm_settings.lp_fee, shadeswap_shared::core::Fee { nom: 2, denom: 100 });
             assert_eq!(amm_settings.shade_dao_fee, shadeswap_shared::core::Fee { nom: 2, denom: 100 });
         },

@@ -9,6 +9,7 @@ use cosmwasm_storage::singleton_read;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use shadeswap_shared::Contract;
 use shadeswap_shared::core::TokenAmount;
 
 pub static CONFIG: &[u8] = b"config";
@@ -19,6 +20,7 @@ pub const EPHEMERAL_STORAGE_KEY: &[u8] = b"ephemeral_storage";
 pub struct Config {
     pub viewing_key: String,
     pub pair_contract_code_hash: String,
+    pub admin_auth: Contract
 }
 
 pub fn config_w(storage: &mut dyn Storage) -> Singleton<Config> {

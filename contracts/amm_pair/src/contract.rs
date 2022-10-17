@@ -10,18 +10,17 @@ use crate::{
 };
 
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg, BankMsg, Coin,
+    entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut,
+    Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
 };
 use shadeswap_shared::{
-    core::{
-        admin_r, admin_w, apply_admin_guard, create_viewing_key, set_admin_guard, ContractLink,
-        TokenAmount, TokenType,
-    },
+    admin::helpers::{validate_admin, AdminPermissions},
+    core::{create_viewing_key, ContractLink, TokenAmount, TokenType},
     lp_token::{InitConfig, InstantiateMsg},
     msg::amm_pair::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse},
+    snip20::helpers::send_msg,
     utils::{pad_query_result, pad_response_result},
-    Contract, snip20::helpers::send_msg,
+    Contract,
 };
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
@@ -110,13 +109,10 @@ pub fn instantiate(
         staking_contract: None,
         staking_contract_init: msg.staking_contract,
         prng_seed: msg.prng_seed,
+        admin_auth: msg.admin_auth,
     };
 
     config_w(deps.storage).save(&config)?;
-    match msg.admin {
-        Some(admin) => admin_w(deps.storage).save(&admin)?,
-        None => (),
-    }
     Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
 }
 
@@ -133,19 +129,35 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 staking,
             } => add_liquidity(deps, env, &info, deposit, expected_return, staking),
             ExecuteMsg::SetCustomPairFee { custom_fee } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
                 let mut config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 config.custom_fee = custom_fee;
                 config_w(deps.storage).save(&config)?;
                 Ok(Response::default())
             }
-            ExecuteMsg::SetAdmin { admin } => set_admin_guard(deps.storage, info, admin),
             ExecuteMsg::AddWhiteListAddress { address } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 add_address_to_whitelist(deps.storage, address)
             }
             ExecuteMsg::RemoveWhitelistAddresses { addresses } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 remove_addresses_from_whitelist(deps.storage, addresses, env)
             }
             ExecuteMsg::SwapTokens {
@@ -174,24 +186,46 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 )
             }
             ExecuteMsg::SetViewingKey { viewing_key } => update_viewing_key(env, deps, viewing_key),
+            ExecuteMsg::SetConfig { admin_auth } => {
+                let mut config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
+                if let Some(admin_auth) = admin_auth {
+                    config.admin_auth = admin_auth;
+                }
+                Ok(Response::default())
+            }
             ExecuteMsg::RecoverFunds {
                 token,
                 amount,
                 to,
                 msg,
             } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 let send_msg = match token {
-                    TokenType::CustomToken { contract_addr, token_code_hash } => vec![send_msg(
+                    TokenType::CustomToken {
+                        contract_addr,
+                        token_code_hash,
+                    } => vec![send_msg(
                         to,
                         amount,
                         msg,
                         None,
                         None,
-                        &Contract{
+                        &Contract {
                             address: contract_addr,
-                            code_hash: token_code_hash
-                        }
+                            code_hash: token_code_hash,
+                        },
                     )?],
                     TokenType::NativeToken { denom } => vec![CosmosMsg::Bank(BankMsg::Send {
                         to_address: to.to_string(),
@@ -309,13 +343,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 query_factory_authorize_api_key(deps, &config.factory_contract, api_key)?;
                 let data = load_trade_history_query(deps, pagination)?;
                 to_binary(&QueryMsgResponse::GetTradeHistory { data })
-            }
-            QueryMsg::GetAdmin {} => {
-                let admin_address = admin_r(deps.storage).load()?;
-                to_binary(&QueryMsgResponse::GetAdmin {
-                    address: admin_address,
-                })
-            }
+            },
             QueryMsg::GetWhiteListAddress {} => {
                 let stored_addr = whitelist_r(deps.storage).load()?;
                 to_binary(&QueryMsgResponse::GetWhiteListAddress {
@@ -340,8 +368,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             }
             QueryMsg::SwapSimulation { offer } => swap_simulation(deps, env, offer),
             QueryMsg::GetShadeDaoInfo {} => get_shade_dao_info(deps),
-            QueryMsg::GetEstimatedLiquidity { deposit, slippage } => {
-                get_estimated_lp_token(deps, env, deposit, slippage)
+            QueryMsg::GetEstimatedLiquidity { deposit } => {
+                get_estimated_lp_token(deps, env, deposit)
             }
             QueryMsg::GetConfig {} => {
                 let config = config_r(deps.storage).load()?;

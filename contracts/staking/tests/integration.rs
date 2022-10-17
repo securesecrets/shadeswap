@@ -6,7 +6,8 @@ use secret_multi_test::{App, BankKeeper, Contract, ContractWrapper, Executor};
 use shadeswap_shared::{   
     core::{ContractInstantiationInfo, ContractLink},
     c_std::{QueryRequest, WasmQuery},
-    utils::testing::TestingExt
+    utils::testing::TestingExt,
+    Contract as SContract
 };
 use shadeswap_shared::msg::staking::{{InitMsg, QueryResponse}};
 use crate::integration_help_lib::{mk_contract_link, mk_address};
@@ -58,7 +59,7 @@ pub fn staking_integration_tests() {
         prng_seed: to_binary(&"password").unwrap(),
         lp_token: ContractLink { address:lp_token_contract.address.to_owned(), code_hash: lp_token_contract.code_hash.to_owned() },
         authenticator: None,
-        admin: Addr::unchecked(OWNER),
+        admin_auth: SContract{ address: Addr::unchecked(OWNER), code_hash: "".to_string() },
     };
 
     let mocked_contract_addr = router
@@ -77,7 +78,7 @@ pub fn staking_integration_tests() {
     println!("{}", mocked_contract_addr.address.to_string());
     let query: QueryResponse = router.query_test(mocked_contract_addr,to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
     match query {
-        QueryResponse::Config { reward_token, lp_token, daily_reward_amount, amm_pair } => {
+        QueryResponse::Config { reward_token, lp_token, daily_reward_amount, amm_pair, admin_auth } => {
            assert_eq!(daily_reward_amount, Uint128::new(50u128));
            assert_eq!(lp_token.address.to_owned(), lp_token_contract.address.to_owned());
         },

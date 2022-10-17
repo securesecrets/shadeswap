@@ -163,6 +163,7 @@ pub mod factory_lib{
             prng_seed:  to_binary(&"".to_string()).unwrap(),
             api_key: API_KEY.to_string(),
             authenticator: None,
+            admin_auth: todo!(),
         };
         
         let factory_contract = init_contract_factory(
@@ -271,6 +272,7 @@ pub mod router_lib{
                 prng_seed: to_binary(&"".to_string()).unwrap(),      
                 entropy: to_binary(&"".to_string()).unwrap(),
                 pair_contract_code_hash: code_hash,
+                admin_auth: todo!(),
             };
         
             let router_contract = init(

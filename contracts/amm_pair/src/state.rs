@@ -1,7 +1,7 @@
 use cosmwasm_std::{Storage, Addr, Binary};
 use cosmwasm_storage::{singleton, singleton_read, Singleton, ReadonlySingleton, Bucket, ReadonlyBucket, bucket, bucket_read};
 use serde::{Deserialize, Serialize};
-use shadeswap_shared::{msg::amm_pair::TradeHistory, core::{ContractLink, TokenPair, CustomFee, ViewingKey}, staking::StakingContractInit};
+use shadeswap_shared::{msg::amm_pair::TradeHistory, core::{ContractLink, TokenPair, CustomFee, ViewingKey}, staking::StakingContractInit, Contract};
 
 pub const PAGINATION_LIMIT: u8 = 30;
 pub static CONFIG: &[u8] = b"config";
@@ -19,7 +19,8 @@ pub struct Config {
     pub viewing_key: ViewingKey,
     pub custom_fee: Option<CustomFee>,
     pub staking_contract_init: Option<StakingContractInit>,
-    pub prng_seed: Binary
+    pub prng_seed: Binary,
+    pub admin_auth: Contract
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

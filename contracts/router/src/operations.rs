@@ -346,6 +346,7 @@ pub fn swap_simulation(deps: Deps, path: Vec<Addr>, offer: TokenAmount) -> StdRe
 pub struct FactoryConfig {
     pub pair_contract: ContractInstantiationInfo,
     pub amm_settings: AMMSettings,
+    pub admin_auth: Contract
 }
 
 pub struct PairConfig {

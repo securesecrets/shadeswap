@@ -24,7 +24,8 @@ pub struct Config {
     pub daily_reward_amount: Uint128,
     pub reward_token: TokenType,
     pub lp_token: ContractLink,
-    pub authenticator: Option<Contract>
+    pub authenticator: Option<Contract>,
+    pub admin_auth: Contract
 }
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]

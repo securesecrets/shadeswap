@@ -11,7 +11,7 @@ use cosmwasm_std::{
 };
 use shadeswap_shared::{
     amm_pair::AMMSettings,
-    core::{admin_r, ContractLink, Fee, TokenAmount, TokenPairAmount, TokenType, ViewingKey},
+    core::{ContractLink, Fee, TokenAmount, TokenPairAmount, TokenType, ViewingKey},
     msg::{
         amm_pair::{QueryMsgResponse, SwapInfo, SwapResult, TradeHistory},
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
@@ -119,7 +119,7 @@ pub fn register_lp_token(
                         },
                         authenticator: factory_config.authenticator,
                         //default to same admin as amm_pair
-                        admin: admin_r(deps.storage).load()?,
+                        admin_auth: config.admin_auth,
                     })?,
                     code_hash: c.contract_info.code_hash.clone(),
                     funds: vec![],
@@ -332,13 +332,12 @@ pub fn set_staking_contract(
 }
 
 pub fn get_shade_dao_info(deps: Deps) -> StdResult<Binary> {
-    let config_settings = config_r(deps.storage).load()?;
-    let admin = admin_r(deps.storage).load()?;
-    let amm_settings = query_factory_config(deps, &config_settings.factory_contract)?.amm_settings;
+    let config = config_r(deps.storage).load()?;
+    let amm_settings = query_factory_config(deps, &config.factory_contract)?.amm_settings;
     let shade_dao_info = QueryMsgResponse::ShadeDAOInfo {
         shade_dao_address: amm_settings.shade_dao_address.address.to_string(),
         shade_dao_fee: amm_settings.shade_dao_fee,
-        admin_address: admin.to_string(),
+        admin_auth: config.admin_auth,
         lp_fee: amm_settings.lp_fee,
     };
     to_binary(&shade_dao_info)
@@ -368,8 +367,7 @@ pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Bi
 pub fn get_estimated_lp_token(
     deps: Deps,
     env: Env,
-    deposit: TokenPairAmount,
-    slippage: Option<Decimal>,
+    deposit: TokenPairAmount
 ) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
     let Config {
@@ -457,8 +455,8 @@ pub fn calculate_swap_result(
     // calculate fee
     let lp_fee = settings.lp_fee;
     let shade_dao_fee = settings.shade_dao_fee;
-    let mut lp_fee_amount = Uint128::zero();
-    let mut shade_dao_fee_amount = Uint128::zero();
+    let lp_fee_amount ;
+    let shade_dao_fee_amount ;
     // calculation fee
     match &config.custom_fee {
         Some(f) => {
@@ -768,7 +766,7 @@ fn calculate_lp_tokens(
     pair_contract_pool_liquidity: Uint128,
 ) -> Result<Uint128, StdError> {
 
-    let mut lp_tokens: Uint128 = Uint128::zero();
+    let lp_tokens: Uint128 ;
     if pair_contract_pool_liquidity == Uint128::zero() {
         // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
         // x and y is amount of token0 and token1 provided
@@ -830,6 +828,7 @@ pub fn query_token_symbol(querier: QuerierWrapper, token: &TokenType) -> StdResu
 struct FactoryConfig {
     amm_settings: AMMSettings,
     authenticator: Option<Contract>,
+    admin_auth: Contract
 }
 
 fn query_factory_config(deps: Deps, factory: &ContractLink) -> StdResult<FactoryConfig> {
@@ -846,9 +845,11 @@ fn query_factory_config(deps: Deps, factory: &ContractLink) -> StdResult<Factory
             amm_settings,
             lp_token_contract: _,
             authenticator,
+            admin_auth
         } => Ok(FactoryConfig {
             amm_settings,
             authenticator,
+            admin_auth
         }),
         _ => Err(StdError::generic_err(
             "An error occurred while trying to retrieve factory settings.",

@@ -1,8 +1,8 @@
 use crate::{
     operations::{
-        add_address_to_whitelist, add_liquidity, register_lp_token,
-        register_pair_token, remove_addresses_from_whitelist, remove_liquidity,
-        set_staking_contract, swap, update_viewing_key,
+        add_address_to_whitelist, add_liquidity, register_lp_token, register_pair_token,
+        remove_addresses_from_whitelist, remove_liquidity, set_staking_contract, swap,
+        update_viewing_key,
     },
     query::{self, fee_info},
     state::{config_r, config_w, trade_count_r, whitelist_r, Config},
@@ -25,6 +25,7 @@ use shadeswap_shared::{
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
 pub const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1u64;
 pub const INSTANTIATE_STAKING_CONTRACT_REPLY_ID: u64 = 2u64;
+pub const ARBITRAGE_CONTRACT_REPLY_ID: u64 = 3u64;
 pub const BLOCK_SIZE: usize = 256;
 
 #[entry_point]
@@ -87,6 +88,7 @@ pub fn instantiate(
     let config = Config {
         factory_contract: msg.factory_info.clone(),
         lp_token: Contract {
+            arbitrage_contract: msg.arbitrage_contract.clone(),
             code_hash: msg.lp_token_contract.code_hash,
             address: Addr::unchecked(""),
         },
@@ -129,6 +131,13 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     &config.admin_auth,
                 )?;
                 config.custom_fee = custom_fee;
+                config_w(deps.storage).save(&config)?;
+                Ok(Response::default())
+            }
+            ExecuteMsg::SetArbitrageContract { arbitrage_contract } => {
+                apply_admin_guard(&info.sender, deps.storage)?;
+                let mut config = config_r(deps.storage).load()?;
+                config.arbitrage_contract = arbitrage_contract;
                 config_w(deps.storage).save(&config)?;
                 Ok(Response::default())
             }
@@ -253,6 +262,7 @@ fn receiver_callback(
             InvokeMsg::SwapTokens {
                 to,
                 expected_return,
+                execute_arbitrage,
             } => {
                 for token in config.pair.into_iter() {
                     match token {
@@ -278,6 +288,7 @@ fn receiver_callback(
                                     checked_to,
                                     offer,
                                     expected_return,
+                                    execute_arbitrage,
                                 );
                             }
                         }
@@ -377,7 +388,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 let count = trade_count_r(deps.storage).may_load()?.unwrap_or(0u64);
                 to_binary(&QueryMsgResponse::GetTradeCount { count })
             }
-            QueryMsg::SwapSimulation { offer, exclude_fee } => query::swap_simulation(deps, env, offer, exclude_fee),
+            QueryMsg::SwapSimulation { offer, exclude_fee } => {
+                query::swap_simulation(deps, env, offer, exclude_fee)
+            }
             QueryMsg::GetShadeDaoInfo {} => query::shade_dao_info(deps, &env),
             QueryMsg::GetEstimatedLiquidity { deposit } => {
                 query::estimated_liquidity(deps, env, &deposit)
@@ -445,6 +458,12 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                 }
                 None => Err(StdError::generic_err(format!("Unknown reply id"))),
             },
+            (ARBITRAGE_CONTRACT_REPLY_ID, SubMsgResult::Ok(_s)) => {
+                return Ok(Response::new());
+            }
+            (ARBITRAGE_CONTRACT_REPLY_ID, SubMsgResult::Err(_s)) => {
+                return Ok(Response::new());
+            }
             _ => Err(StdError::generic_err(format!("Unknown reply id"))),
         },
         BLOCK_SIZE,

@@ -596,7 +596,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "multi-test"
+name = "multi_test"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -1284,6 +1284,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "multi_test",
  "query-authentication",
  "schemars 0.8.10",
  "secret-multi-test",

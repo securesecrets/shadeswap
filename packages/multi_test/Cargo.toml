@@ -1,5 +1,5 @@
 [package]
-name = "multi-test"
+name = "multi_test"
 version = "0.1.0"
 authors = ["Tony <plutonyium@gmail.com>"]
 edition = "2018"

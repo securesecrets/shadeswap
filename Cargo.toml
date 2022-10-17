@@ -8,7 +8,7 @@ members = [
     "contracts/lp_token",
     "contracts/staking",
     "packages/network_integration",
-    "packages/multi-test"
+    "packages/multi_test"
     # "packages/cosmwasm_math_compat",
 ]
 

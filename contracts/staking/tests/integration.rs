@@ -43,10 +43,11 @@ pub const OWNER: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 pub fn staking_integration_tests() {    
     use cosmwasm_std::{Uint128, from_binary, Coin, BlockInfo, Timestamp, Env};
     use secret_multi_test::next_block;
+    use shadeswap_shared::query_auth::QueryPermit;
     use shadeswap_shared::staking::{QueryMsg, AuthQuery};
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{core::{TokenType, TokenPair}, snip20::{InstantiateMsg, InitConfig}, stake_contract::StakingContractInit};
-    use crate::integration_help_lib::{generate_snip20_contract, mint_snip20, send_snip20_with_msg};
+    use crate::integration_help_lib::{generate_snip20_contract, mint_snip20, send_snip20_with_msg, mk_create_permit_data, get_current_timestamp};
    
     let owner_address = Addr::unchecked(OWNER);
     let mut router = App::default();  
@@ -105,8 +106,8 @@ pub fn staking_integration_tests() {
     let query: QueryResponse = router.query_test(
         mocked_contract_addr.to_owned(),
         to_binary(&QueryMsg::WithPermit { 
-            permit: {}, 
-            query: AuthQuery::GetClaimReward { time: Uint128::new(1600000000u128) } })).unwrap();
+            permit:mk_create_permit_data().unwrap(),
+            query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwar() } })).unwrap();
     match query {
         QueryResponse::ClaimRewards { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),0 );           
@@ -122,10 +123,12 @@ pub fn staking_integration_tests() {
 pub mod integration_help_lib{   
     use cosmwasm_std::{Addr, ContractInfo, StdResult, Uint128, Coin, Binary, WasmMsg};
     use secret_multi_test::{App, Executor};
-    use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg}, core::TokenPair, core::{TokenType, ContractLink}, snip20::{InitConfig, InstantiateMsg, self}};
+    use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg}, core::TokenPair, core::{TokenType, ContractLink}, snip20::{InitConfig, InstantiateMsg, self}, query_auth::PermitData};
     use crate::{{TOKEN_A, TOKEN_B}, OWNER, snip20_contract_store};      
     use cosmwasm_std::to_binary;
-
+    
+    type TestPermit = Permit<PermitData>;
+    
     pub fn mk_token_pair() -> TokenPair{
         return TokenPair(
             TokenType::CustomToken { contract_addr: mk_address(TOKEN_A), token_code_hash: "".to_string() },
@@ -142,6 +145,32 @@ pub mod integration_help_lib{
             address: mk_address(address),
             code_hash: "".to_string(),
         }       
+    }
+
+    pub fn get_current_timestamp() -> StdResult<Uint128> {
+        let start = SystemTime::now();
+        let since_the_epoch = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+        Ok(Uint128::from(since_the_epoch.as_millis()))
+    }
+
+    pub fn mk_create_permit_data() 
+    -> StdResult<Permit>
+    {
+        //secretd tx sign-doc file --from a
+        let newPermit = TestPermit{
+            params: PermitData { data: to_binary(&QueryData {}).unwrap(), key: "0".to_string()},
+            chain_id: Some("secretdev-1".to_string()),
+            sequence: Some(Uint128::zero()),
+            signature: PermitSignature {
+                pub_key: PubKey::new(Binary::from_base64(&"A07oJJ9n4TYTnD7ZStYyiPbB3kXOZvqIMkchGmmPRAzf".to_string()).unwrap()),
+                signature: Binary::from_base64(&"bct9+cSJF+m51/be9/Bcc1zwfzYdMGzFMUH4VQl8EW9BuDDok6YEGzw6ZQOmu+rGqlFOfMBGybZbgINjD48rVQ==".to_string()).unwrap(),
+            },
+            account_number: Some(Uint128::zero()),
+            memo: Some("".to_string())
+        };
+        return newPermit;
     }
 
     pub fn send_snip20_with_msg(

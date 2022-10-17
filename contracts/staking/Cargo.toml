@@ -37,4 +37,4 @@ shadeswap-shared = {path = "../../packages/shadeswap-shared"}
 cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm"}
 snip20-reference-impl = {path ="../../contracts/snip20"}
 secret-multi-test = { git = "https://github.com/securesecrets/secret-plus-utils", version = "0.13.4" }
-multi_test = {path = "../../packages/multi-test"}
+multi_test = {path = "../../packages/multi_test"}

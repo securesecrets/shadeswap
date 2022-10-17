@@ -1,23 +1,20 @@
-use shadeswap_shared::core::{Callback, ViewingKey};
 use colored::*;
+use cosmwasm_std::{to_binary, Addr, Binary, Env, MessageInfo, Uint128};
 use rand::{distributions::Alphanumeric, Rng};
+use schemars::JsonSchema;
+use secretcli::cli_types::NetContract;
 use secretcli::cli_types::StoredContract;
-use secretcli::secretcli::{init, handle, Report};
-use secretcli::{cli_types::NetContract, secretcli::query};
-use serde::{Serialize, Deserialize};
+use secretcli::secretcli::{init, Report};
+use serde::{Deserialize, Serialize};
+use shadeswap_shared::core::{Callback, ViewingKey};
+use shadeswap_shared::snip20::InitialBalance;
 use std::fmt::Display;
 use std::fs;
-use cosmwasm_std::{
-    Binary, Uint128, Env, Addr, MessageInfo
-};
-use schemars::JsonSchema;
-
-use shadeswap_shared::{
-    amm_pair::{AMMPair, AMMSettings},
-    contract_interfaces::snip20::{InitConfig as Snip20ComposableConfig, InstantiateMsg as Snip20ComposableMsg, InitialBalance,}
-};
 
 use serde_json::Result;
+use shadeswap_shared::{
+    msg::factory::InitMsg as FactoryInitMsg,
+};
 // Smart contracts
 pub const SNIP20_FILE: &str = "../../compiled/snip20.wasm.gz";
 pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
@@ -27,8 +24,9 @@ pub const ROUTER_FILE: &str = "../../compiled/router.wasm.gz";
 pub const STAKING_FILE: &str = "../../compiled/staking.wasm.gz";
 
 pub const STORE_GAS: &str = "100000000";
-pub const GAS: &str = "5000000";
+pub const GAS: &str = "8000000";
 pub const VIEW_KEY: &str = "password";
+pub const API_KEY: &str = "api_key";
 pub const ACCOUNT_KEY: &str = "a";
 pub const STAKER_KEY: &str = "b";
 pub const SHADE_DAO_KEY: &str = "c";
@@ -57,10 +55,7 @@ pub fn print_contract(contract: &NetContract) {
 }
 
 pub fn print_stored_contract(contract: &StoredContract) {
-    println!(
-        "\tID: {}\n\tHash: {}",
-        contract.id, contract.code_hash
-    );
+    println!("\tID: {}\n\tHash: {}", contract.id, contract.code_hash);
 }
 
 pub fn print_struct<Printable: Serialize>(item: Printable) {
@@ -148,18 +143,28 @@ pub struct InitMsg {
     pub initial_allowances: Option<Vec<InitialAllowance>>,
     pub prng_seed: Binary,
     pub config: Option<InitConfig>,
-    pub callback: Option<Callback>
+    pub callback: Option<Callback>,
 }
 
+#[derive(Serialize, Deserialize, JsonSchema)]
+pub struct InstantiateMsgSnip20 {
+    pub name: String,
+    pub admin: Option<Addr>,
+    pub symbol: String,
+    pub decimals: u8,
+    pub initial_balances: Option<Vec<InitialBalance>>,
+    pub prng_seed: Binary,
+    pub config: Option<InitConfig>,
+}
 
 pub fn init_snip20(
     name: String,
-    symbol: String, 
+    symbol: String,
     decimals: u8,
     config: Option<InitConfig>,
     reports: &mut Vec<Report>,
     account_key: &str,
-    customizedSnip20File: Option<&str>
+    customized_snip20_file: Option<&str>,
 ) -> Result<(InitMsg, NetContract)> {
     let init_msg = InitMsg {
         name: name.to_string(),
@@ -173,9 +178,9 @@ pub fn init_snip20(
         callback: None,
     };
 
-    let s_sToken = init(
+    let s_token = init(
         &init_msg,
-        customizedSnip20File.unwrap_or(SNIP20_FILE),
+        customized_snip20_file.unwrap_or(SNIP20_FILE),
         &*generate_label(8),
         account_key,
         Some(STORE_GAS),
@@ -183,9 +188,62 @@ pub fn init_snip20(
         Some("test"),
         reports,
     )?;
-    Ok((init_msg, s_sToken))
+    Ok((init_msg, s_token))
+}
+
+pub fn init_snip20_cli(
+    name: String,
+    symbol: String,
+    decimals: u8,
+    config: Option<InitConfig>,
+    reports: &mut Vec<Report>,
+    account_key: &str,
+    customized_snip20_file: Option<&str>,
+    backend: &str,
+) -> Result<(InstantiateMsgSnip20, NetContract)> {
+    let init_msg = InstantiateMsgSnip20 {
+        name: name.to_string(),
+        admin: None,
+        symbol: symbol.to_string(),
+        decimals: decimals,
+        initial_balances: None,
+        prng_seed: to_binary(&"".to_string()).unwrap(),
+        config: config,
+    };
+
+    let s_token = init(
+        &init_msg,
+        customized_snip20_file.unwrap_or(SNIP20_FILE),
+        &*generate_label(8),
+        account_key,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some(backend),
+        reports,
+    )?;
+    Ok((init_msg, s_token))
 }
 
 pub fn create_viewing_key(env: &Env, info: &MessageInfo, seed: Binary, entroy: Binary) -> String {
     ViewingKey::new(&env, info, seed.as_slice(), entroy.as_slice()).to_string()
+}
+
+pub fn init_contract_factory(
+    account_name: &str,
+    backend: &str,
+    file_path: &str,
+    msg: &FactoryInitMsg,
+    reports: &mut Vec<Report>,
+) -> Result<NetContract> {
+    let contract = init(
+        &msg,
+        file_path,
+        &*generate_label(8),
+        account_name,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some(backend),
+        reports,
+    )?;
+    Ok(contract)
 }

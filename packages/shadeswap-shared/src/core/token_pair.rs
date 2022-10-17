@@ -1,13 +1,7 @@
 
-use cosmwasm_std::{CanonicalAddr, Uint128, DepsMut, Deps};
+use cosmwasm_std::{Uint128, Deps};
 use cosmwasm_std::{
-    from_binary,
-    Api,
-    Binary,
-    Querier,
-    StdError,
-    StdResult,
-    Storage, Env, Response
+    StdResult
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -102,22 +96,15 @@ impl<'a> Iterator for TokenPairIterator<'a> {
     }
 }
 
-// These are only used for serde, because it doesn't work with struct tuples.
-#[derive(Serialize, Deserialize)]
-struct TokenPairSerde {
-    token_0: TokenType,
-    token_1: TokenType,
-}
-
 impl Serialize for TokenPair {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        TokenPairSerde {
-            token_0: self.0.clone(),
-            token_1: self.1.clone(),
-        }
+        (
+            self.0.clone(),
+            self.1.clone(),
+        )
         .serialize(serializer)
     }
 }
@@ -128,7 +115,7 @@ impl<'de> Deserialize<'de> for TokenPair {
         D: Deserializer<'de>,
     {
         Deserialize::deserialize(deserializer)
-            .map(|TokenPairSerde { token_0, token_1 }| TokenPair(token_0, token_1))
+            .map(|(token_0, token_1)| TokenPair(token_0, token_1))
     }
 }
 

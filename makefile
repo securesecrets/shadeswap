@@ -13,7 +13,7 @@ cat ./$(1).wasm | gzip -n -9 > ${compiled_dir}/$(1).wasm.gz
 rm ./$(1).wasm
 endef
 
-CONTRACTS = staking snip20 lp_token factory amm_pair router 
+CONTRACTS = snip20 lp_token factory amm_pair router staking 
 debug: setup
 	(cd ${contracts_dir}; ${build-debug})
 	@$(MAKE) compress_all
@@ -68,7 +68,7 @@ server-download:
 
 # Starts the docker server / private testnet
 server-start:
-	docker run -it --rm -p 9091:9091 -p 26657:26657 -p 1317:1317 -p 5000:5000 -v $$(pwd):/root/code --name shade-testnet cryptobrokersglobal/localsecret:v1.4.0-beta.11
+	docker run -it --rm -p 9091:9091 -p 26657:26657 -p 1317:1317 -p 5000:5000 -v $$(pwd):/root/code --name shade-testnet cryptobrokersglobal/localsecret:v1.4.0-beta.14
 
 # Connects to the docker server
 server-connect:
@@ -87,3 +87,5 @@ build-deploy:
 
 deploy:
 	cargo run ./target/debug/deploy
+
+

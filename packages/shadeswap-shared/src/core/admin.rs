@@ -1,12 +1,7 @@
 use cosmwasm_std::{
-    from_binary,
-    Api,
-    Binary,
-    Querier,
     StdError,
     StdResult,
-    Storage, Env, Response,
-    Deps, DepsMut, MessageInfo, Addr 
+    Storage, Response, MessageInfo, Addr 
 };
 use cosmwasm_storage::{singleton, Singleton, singleton_read, ReadonlySingleton};
 
@@ -25,7 +20,7 @@ pub fn apply_admin_guard(
     storage: &mut dyn Storage,
 ) -> StdResult<bool> {    
     let admin_address = admin_r(storage).load()?;
-    if caller.as_str() != admin_address.as_str() {
+    if caller != &admin_address {
          return Err(StdError::generic_err("Caller is not admin"))
     }
     return Ok(true)
@@ -36,7 +31,6 @@ pub fn set_admin_guard(
     info: MessageInfo,
     admin: Addr
 ) -> StdResult<Response>{
-    let sender = info.sender.to_string();
     apply_admin_guard(&info.sender, storage)?;
     admin_w(storage).save(&admin)?;
     Ok(Response::default())

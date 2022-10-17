@@ -1,43 +1,42 @@
 use colored::Colorize;
 use cosmwasm_std::Addr;
-use cosmwasm_std::BalanceResponse;
+
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Uint128;
+use network_integration::utils::API_KEY;
 use network_integration::utils::InitConfig;
 use query_authentication::permit::Permit;
 use query_authentication::transaction::PermitSignature;
 use query_authentication::transaction::PubKey;
-use shadeswap_shared::amm_pair;
+
 use shadeswap_shared::c_std::Binary;
 use shadeswap_shared::core::Fee;
 use shadeswap_shared::core::TokenAmount;
 use shadeswap_shared::core::TokenPair;
 use shadeswap_shared::core::TokenPairAmount;
 use shadeswap_shared::core::TokenType;
-use shadeswap_shared::core::ViewingKey;
 use shadeswap_shared::query_auth::PermitData;
 use shadeswap_shared::snip20;
 use shadeswap_shared::staking::AuthQuery;
-use shadeswap_shared::staking::InitMsg;
+
 
 use cosmwasm_std::to_binary;
 use network_integration::utils::{
-    generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
-    ACCOUNT_KEY, AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY,
-    SNIP20_FILE, STAKER_KEY, STAKING_FILE, STORE_GAS, VIEW_KEY,
+    generate_label, init_snip20, print_contract, print_header, print_warning,
+    ACCOUNT_KEY, AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY, STAKER_KEY, STAKING_FILE, STORE_GAS, VIEW_KEY,
 };
 use secretcli::{
     cli_types::NetContract,
-    secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
+    secretcli::{account_address, handle, init, query, store_and_return_contract},
 };
 use serde_json::Result;
 use shadeswap_shared::staking::QueryData;
 use shadeswap_shared::{
-    amm_pair::{AMMPair, AMMSettings},
+    amm_pair::{AMMSettings},
     core::{ContractInstantiationInfo, ContractLink},
     msg::{
         amm_pair::{
-            ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
+            ExecuteMsg as AMMPairHandlMsg,
             QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
         },
         factory::{
@@ -51,15 +50,15 @@ use shadeswap_shared::{
         staking::{
             ExecuteMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
             QueryResponse as StakingQueryMsgResponse,
+            StakingContractInit,
         },
     },
-    stake_contract::StakingContractInit,
     Pagination,
 };
-use std::env;
+
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use shadeswap_shared::contract_interfaces::snip20::InstantiateMsg as Snip20ComposableMsg;
+
 
 pub fn get_current_timestamp() -> StdResult<Uint128> {
     let start = SystemTime::now();
@@ -72,8 +71,8 @@ pub fn get_current_timestamp() -> StdResult<Uint128> {
 #[test]
 fn run_testnet() -> Result<()> {
     let account = account_address(ACCOUNT_KEY)?;
-    let shade_dao = account_address(SHADE_DAO_KEY)?;
-    let staker_account = account_address(STAKER_KEY)?;
+    let _shade_dao = account_address(SHADE_DAO_KEY)?;
+    let _staker_account = account_address(STAKER_KEY)?;
     println!("Using Account: {}", account.blue());
 
     let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
@@ -128,7 +127,7 @@ fn run_testnet() -> Result<()> {
         store_and_return_contract(STAKING_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
 
     print_header("Initializing sSCRT");
-    let (s_sSINIT, s_sCRT) = init_snip20(
+    let (_s_sSINIT, s_sCRT) = init_snip20(
         "SSCRT".to_string(),
         "SSCRT".to_string(),
         6,
@@ -165,7 +164,7 @@ fn run_testnet() -> Result<()> {
     print_contract(&s_sCRT);
     print_header("Initializing s_sREWARDSNIP20");
 
-    let (s_sREWARDSNIP20INIT, s_sREWARDSNIP20) = init_snip20(
+    let (_s_sREWARDSNIP20INIT, s_sREWARDSNIP20) = init_snip20(
         "RWSN".to_string(),
         "RWSN".to_string(),
         6,
@@ -201,7 +200,7 @@ fn run_testnet() -> Result<()> {
     }
     print_header("Initializing sSHD");
 
-    let (s_sSHDINIT, s_sSHD) = init_snip20(
+    let (_s_sSHDINIT, s_sSHD) = init_snip20(
         "SSHD".to_string(),
         "SSHD".to_string(),
         6,
@@ -323,6 +322,8 @@ fn run_testnet() -> Result<()> {
             id: s_lp.id.clone().parse::<u64>().unwrap(),
         },
         prng_seed: to_binary(&"".to_string()).unwrap(),
+        api_key: API_KEY.to_string(),
+        authenticator: None,
     };
 
     let factory_contract = init(
@@ -337,6 +338,27 @@ fn run_testnet() -> Result<()> {
     )?;
 
     print_contract(&factory_contract);
+
+
+    print_header("\n\tInitializing Router");
+
+    let router_msg = RouterInitMsg {
+        prng_seed: to_binary(&"".to_string()).unwrap(),
+        entropy: to_binary(&"".to_string()).unwrap(),
+        pair_contract_code_hash: s_ammPair.code_hash.clone(),
+    };
+
+    let router_contract = init(
+        &router_msg,
+        ROUTER_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+    print_contract(&router_contract);
 
     print_header("\n\tInitializing New Pair Contract (SNIP20/SNIP20) via Factory");
 
@@ -362,12 +384,13 @@ fn run_testnet() -> Result<()> {
                         code_hash: staking_contract.code_hash.to_string(),
                         id: staking_contract.id.clone().parse::<u64>().unwrap(),
                     },
-                    amount: Uint128::new(3450000000000u128),
+                    daily_reward_amount: Uint128::new(3450000000000u128),
                     reward_token: TokenType::CustomToken {
                         contract_addr: Addr::unchecked(s_sREWARDSNIP20.address.clone()),
                         token_code_hash: s_sREWARDSNIP20.code_hash.to_string(),
                     },
                 }),
+                router_contract: Some(ContractLink{ address: Addr::unchecked(router_contract.address.clone()), code_hash: router_contract.code_hash.clone() })
             },
             &factory_contract,
             ACCOUNT_KEY,
@@ -392,12 +415,16 @@ fn run_testnet() -> Result<()> {
         },
     );
 
+
+
+
     {
         handle(
             &FactoryExecuteMsg::CreateAMMPair {
                 pair: test_native_pair.clone(),
                 entropy: to_binary(&"".to_string()).unwrap(),
                 staking_contract: None,
+                router_contract: None
                 // staking_contract: Some(StakingContractInit {
                 //     contract_info: ContractInstantiationInfo{
                 //         code_hash: staking_contract.code_hash.to_string(),
@@ -529,7 +556,7 @@ fn run_testnet() -> Result<()> {
                         amount_0: Uint128::new(10000000000),
                         amount_1: Uint128::new(10000000000),
                     },
-                    slippage: None,
+                    expected_return: None,
                     staking: Some(true),
                 },
                 &NetContract {
@@ -555,7 +582,7 @@ fn run_testnet() -> Result<()> {
                         amount_0: Uint128::new(10000000000),
                         amount_1: Uint128::new(10000000000),
                     },
-                    slippage: None,
+                    expected_return: None,
                     staking: None,
                 },
                 &NetContract {
@@ -581,27 +608,6 @@ fn run_testnet() -> Result<()> {
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
                 Uint128::new(1000000000000 - 10000000000)
             );
-
-            print_header("\n\tInitializing Router");
-
-            let router_msg = RouterInitMsg {
-                prng_seed: to_binary(&"".to_string()).unwrap(),
-                entropy: to_binary(&"".to_string()).unwrap(),
-                viewing_key: Some(ViewingKey::from(VIEW_KEY).to_string()),
-                pair_contract_code_hash: s_ammPair.code_hash.clone(),
-            };
-
-            let router_contract = init(
-                &router_msg,
-                ROUTER_FILE,
-                &*generate_label(8),
-                ACCOUNT_KEY,
-                Some(STORE_GAS),
-                Some(GAS),
-                Some("test"),
-                &mut reports,
-            )?;
-            print_contract(&router_contract);
             print_header("\n\tRegistering Tokens");
 
             handle(
@@ -660,6 +666,7 @@ fn run_testnet() -> Result<()> {
                         start: 0u64,
                         limit: 10u8,
                     },
+                    api_key: API_KEY.to_string(),
                 };
                 let trade_count_info_query: AMMPairQueryMsgResponse = query(
                     &NetContract {
@@ -680,9 +687,9 @@ fn run_testnet() -> Result<()> {
             }
 
             print_header("\n\t 1. - BUY 100 sSHD Initiating sSCRT to sSHD Swap ");
-            let mut old_scrt_balance =
+            let old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
-            let mut old_shd_balance =
+            let old_shd_balance =
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             handle(
                 &snip20::ExecuteMsg::Send {
@@ -763,6 +770,7 @@ fn run_testnet() -> Result<()> {
                         start: 0u64,
                         limit: 10u8,
                     },
+                    api_key: API_KEY.to_string(),
                 };
                 let trade_count_info_query: AMMPairQueryMsgResponse = query(
                     &NetContract {
@@ -782,9 +790,9 @@ fn run_testnet() -> Result<()> {
                 }
             }
 
-            let mut old_shd_balance =
+            let old_shd_balance =
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
-            let mut old_scrt_balance =
+            let old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             print_header("\n\t 2 - BUY 50 sSHD Initiating sSCRT to sSHD Swap ");
 
@@ -841,9 +849,9 @@ fn run_testnet() -> Result<()> {
             );
 
             print_header("\n\t 3 - SELL 2500 sSHD Initiating sSHD to sSCRT Swap ");
-            let mut old_shd_balance =
+            let old_shd_balance =
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
-            let mut old_scrt_balance =
+            let old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
                 &snip20::ExecuteMsg::Send {
@@ -898,9 +906,9 @@ fn run_testnet() -> Result<()> {
             );
 
             print_header("\n\t 4 - SELL 36500 sSHD Initiating sSHD to sSCRT Swap ");
-            let mut old_shd_balance =
+            let old_shd_balance =
                 get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
-            let mut old_scrt_balance =
+            let old_scrt_balance =
                 get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
                 &snip20::ExecuteMsg::Send {
@@ -1156,12 +1164,12 @@ fn run_testnet() -> Result<()> {
 
             if let AMMPairQueryMsgResponse::GetPairInfo {
                 liquidity_token,
-                factory,
-                pair,
-                amount_0,
-                amount_1,
+                factory: _,
+                pair: _,
+                amount_0: _,
+                amount_1: _,
                 total_liquidity,
-                contract_version,
+                contract_version: _,
             } = lp_token_info_query
             {
                 println!(
@@ -1267,12 +1275,12 @@ fn run_testnet() -> Result<()> {
 
                 if let AMMPairQueryMsgResponse::GetPairInfo {
                     liquidity_token,
-                    factory,
-                    pair,
-                    amount_0,
-                    amount_1,
+                    factory: _,
+                    pair: _,
+                    amount_0: _,
+                    amount_1: _,
                     total_liquidity,
-                    contract_version,
+                    contract_version: _,
                 } = lp_token_info_query_unstake_a
                 {
                     println!(
@@ -1315,12 +1323,12 @@ fn run_testnet() -> Result<()> {
                 )?;
                 if let AMMPairQueryMsgResponse::GetPairInfo {
                     liquidity_token,
-                    factory,
-                    pair,
-                    amount_0,
-                    amount_1,
+                    factory: _,
+                    pair: _,
+                    amount_0: _,
+                    amount_1: _,
                     total_liquidity,
-                    contract_version,
+                    contract_version: _,
                 } = lp_token_info_query_unstake_b
                 {
                     println!(
@@ -1382,7 +1390,7 @@ fn run_testnet() -> Result<()> {
                             amount_0: Uint128::new(500000000),
                             amount_1: Uint128::new(500000000),
                         },
-                        slippage: None,
+                        expected_return: None,
                         staking: Some(true),
                     },
                     &NetContract {
@@ -1414,12 +1422,12 @@ fn run_testnet() -> Result<()> {
 
                 if let AMMPairQueryMsgResponse::GetPairInfo {
                     liquidity_token,
-                    factory,
-                    pair,
-                    amount_0,
-                    amount_1,
+                    factory: _,
+                    pair: _,
+                    amount_0: _,
+                    amount_1: _,
                     total_liquidity,
-                    contract_version,
+                    contract_version: _,
                 } = lp_token_info_query_unstake
                 {
                     println!(
@@ -1454,11 +1462,11 @@ fn run_testnet() -> Result<()> {
                 )?;
 
                 if let RouterQueryResponse::SwapSimulation {
-                    total_fee_amount,
-                    lp_fee_amount,
-                    shade_dao_fee_amount,
+                    total_fee_amount: _,
+                    lp_fee_amount: _,
+                    shade_dao_fee_amount: _,
                     result,
-                    price,
+                    price: _,
                 } = swap_result_response
                 {
                     assert_ne!(result.return_amount, Uint128::new(0u128));
@@ -1479,9 +1487,9 @@ fn run_testnet() -> Result<()> {
 
                 if let AMMPairQueryMsgResponse::ShadeDAOInfo {
                     shade_dao_address,
-                    shade_dao_fee,
+                    shade_dao_fee: _,
                     admin_address,
-                    lp_fee,
+                    lp_fee: _,
                 } = shade_dao_response
                 {
                     assert_ne!(
@@ -1512,17 +1520,15 @@ fn run_testnet() -> Result<()> {
                     None,
                 )?;
 
-                if let StakingQueryMsgResponse::ClaimReward {
-                    amount,
-                    reward_token,
-                } = claims_reward_response
-                {
-                    assert_ne!(amount, Uint128::new(0));
-                    assert_eq!(
-                        reward_token.address.to_string(),
-                        s_sREWARDSNIP20.address.clone().to_string()
-                    )
-                }
+                // if let StakingQueryMsgResponse::ClaimRewards {
+                // } = claims_reward_response
+                // {
+                //     assert_ne!(amount, Uint128::new(0));
+                //     assert_eq!(
+                //         reward_token.address.to_string(),
+                //         s_sREWARDSNIP20.address.clone().to_string()
+                //     )
+                // }
 
                 print_header("\n\tGet Staking Contract Config Info");
                 let get_config_msg = StakingQueryMsg::GetConfig {};
@@ -1539,9 +1545,9 @@ fn run_testnet() -> Result<()> {
 
                 if let StakingQueryMsgResponse::Config {
                     reward_token,
-                    lp_token,
-                    contract_owner,
+                    lp_token: _,
                     daily_reward_amount,
+                    amm_pair,
                 } = config_query_response
                 {
                     assert_eq!(
@@ -1712,7 +1718,7 @@ fn run_test_deploy() -> Result<()> {
 
     println!("Using Account: {}", account.blue());
 
-    let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
+    let _entropy = to_binary(&"ENTROPY".to_string()).unwrap();
 
     let mut reports = vec![];
 
@@ -1724,7 +1730,7 @@ fn run_test_deploy() -> Result<()> {
     let s_ammPair =
         store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
     print_warning("Storing Staking Contract");
-    let staking_contract =
+    let _staking_contract =
         store_and_return_contract(STAKING_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
 
     print_header("\n\tInitializing Factory Contract");
@@ -1747,6 +1753,8 @@ fn run_test_deploy() -> Result<()> {
             id: s_lp.id.clone().parse::<u64>().unwrap(),
         },
         prng_seed: to_binary(&"".to_string()).unwrap(),
+        api_key: API_KEY.to_string(),
+        authenticator: None
     };
 
     let factory_contract = init(
@@ -1780,7 +1788,6 @@ fn run_test_deploy() -> Result<()> {
             let router_msg = RouterInitMsg {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
                 entropy: to_binary(&"".to_string()).unwrap(),
-                viewing_key: Some(ViewingKey::from(VIEW_KEY).to_string()),
                 pair_contract_code_hash: s_ammPair.code_hash.to_string(),
             };
 

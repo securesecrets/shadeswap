@@ -1,67 +1,95 @@
 // This should be callback from Snip20 Receiver
 // needs to check for the amount
-
-use std::convert;
-use std::ops::Add;
-use std::time::{SystemTime, UNIX_EPOCH};
-
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
 
+use cosmwasm_std::Binary;
 use cosmwasm_std::{
-    to_binary, Addr, Attribute, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
-    Uint128, Storage, Decimal,
+    to_binary, wasm_execute, Addr, Attribute, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    Response, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
-use cosmwasm_std::{Binary, QuerierWrapper, WasmMsg};
 use shadeswap_shared::core::TokenType;
 use shadeswap_shared::snip20;
-use shadeswap_shared::snip20::helpers::token_info;
+use shadeswap_shared::stake_contract::ClaimableInfo;
 use shadeswap_shared::staking::QueryResponse;
 use shadeswap_shared::{
-    core::{ContractLink, ViewingKey},
-    msg::amm_pair::InvokeMsg as AmmPairInvokeMsg,
-    snip20::helpers::register_receive,
-    Contract,
+    core::ContractLink, msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, Contract,
 };
 
 use crate::state::{
-    claim_reward_info_r, claim_reward_info_w, config_r, config_w, stakers_r, stakers_vk_r,
-    stakers_vk_w, stakers_w, total_staked_r, ClaimRewardsInfo, StakingInfo, total_staked_w, total_stakers_r, total_stakers_w, staker_index_w, staker_index_r, last_reward_time_claimed_w, Config,
+    claim_reward_info_r, claim_reward_info_w, config_r, config_w, proxy_staker_info_r,
+    proxy_staker_info_w, reward_token_list_r, reward_token_list_w, reward_token_r, reward_token_w,
+    staker_index_r, staker_index_w, stakers_r, stakers_w, total_staked_r, total_staked_w,
+    total_stakers_r, total_stakers_w, ClaimRewardsInfo, ProxyStakingInfo, RewardTokenInfo,
+    StakingInfo,
 };
 
-pub fn set_view_key(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    key: String,
-) -> StdResult<Response> {
-    let caller = info.sender.clone();
-    let staker_vk = ViewingKey(key);
-    stakers_vk_w(deps.storage).save(caller.as_bytes(), &staker_vk);
-    Ok(Response::new().add_attributes(vec![
-        Attribute::new("action", "set_view_key"),
-        Attribute::new("staker", caller.to_string()),
-    ]))
-}
-
-pub fn calculate_staker_shares(
-    storage: &dyn Storage,
-    amount: Uint128
-) -> StdResult<Decimal>
-{
-    let total_staking_amount: Uint128 = match total_staked_r(storage).may_load() {
-        Ok(it) => it.unwrap_or(Uint128::zero()),
-        Err(err) => Uint128::zero(),
-    };   
-    if total_staking_amount.is_zero() == true{
-        return Ok(Decimal::zero())
+pub fn calculate_staker_shares(storage: &dyn Storage, amount: Uint128) -> StdResult<Decimal> {
+    let total_staking_amount: Uint128 = match total_staked_r(storage).may_load()? {
+        Some(staking_amount) => staking_amount,
+        None => Uint128::zero(),
+    };
+    if total_staking_amount.is_zero() {
+        return Ok(Decimal::one());
     }
 
-    let user_share = Decimal::from_ratio(amount,total_staking_amount);
+    let user_share = Decimal::from_ratio(amount, total_staking_amount);
     Ok(user_share)
 }
 
+pub fn store_init_reward_token_and_timestamp(
+    storage: &mut dyn Storage,
+    reward_token: ContractLink,
+    emission_amount: Uint128,
+    current_timestamp: Uint128,
+) -> StdResult<()> {
+    // store reward token to the list
+    let mut reward_token_list: Vec<Addr> = Vec::new();
+    reward_token_list.push(reward_token.address.to_owned());
+    reward_token_list_w(storage).save(&reward_token_list)?;
+    reward_token_w(storage).save(
+        &reward_token.address.as_bytes(),
+        &RewardTokenInfo {
+            reward_token: reward_token.to_owned(),
+            daily_reward_amount: emission_amount,
+            valid_to: Uint128::new(3747905010000u128),
+        },
+    )?;
+    Ok(())
+}
+
+pub fn set_reward_token(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    reward_token: ContractLink,
+    daily_reward_amount: Uint128,
+    valid_to: Uint128,
+) -> StdResult<Response> {
+    let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
+    claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
+    let reward_token_info: RewardTokenInfo = RewardTokenInfo {
+        daily_reward_amount,
+        reward_token: reward_token.to_owned(),
+        valid_to,
+    };
+    let mut reward_list_token = reward_token_list_r(deps.storage).load()?;
+    let result = reward_list_token
+        .iter()
+        .find(|&x| x.to_owned() == reward_token.address.to_owned());
+    if result == None {
+        reward_list_token.push(reward_token.address.to_owned());
+    }
+    reward_token_w(deps.storage).save(&reward_token.address.as_bytes(), &reward_token_info)?;
+    Ok(Response::new().add_attributes(vec![
+        Attribute::new("action", "set_reward_token"),
+        Attribute::new("owner", info.sender.to_string()),
+        Attribute::new("daily_reward_amount", daily_reward_amount.to_string()),
+        Attribute::new("valid_to", valid_to.to_string()),
+    ]))
+}
+
 pub fn stake(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     amount: Uint128,
@@ -74,52 +102,43 @@ pub fn stake(
             "Token sent is not LP Token".to_string(),
         ));
     }
-    // calculate staking for existing stakers without increasing amount    
-    let current_timestamp = Uint128::from((env.block.time.seconds() * 1000) as u128);
+
+    let mut stakers_count = get_total_stakers_count(deps.storage)?;
+    let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
     claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
 
     // set the new total stake amount
-    let mut total_stake_amount = match total_staked_r(deps.storage).may_load() {
-        Ok(it) => it.unwrap_or(Uint128::zero()) ,
-        Err(_) => Uint128::zero(),
+    let mut total_stake_amount = match total_staked_r(deps.storage).may_load()? {
+        Some(total_amount) => total_amount,
+        None => Uint128::zero(),
     };
 
     total_stake_amount += amount;
     total_staked_w(deps.storage).save(&total_stake_amount)?;
-   
-    let caller = from.clone();
-    // check if caller exist
-    let is_staker = is_address_already_staker(deps.as_ref(), caller.clone())?;
-    if is_staker == true {
-        let mut stake_info = stakers_r(deps.storage).load(caller.as_bytes())?;
-        stake_info.amount += amount;
-        stake_info.last_time_updated = current_timestamp;
-        stakers_w(deps.storage).save(caller.as_bytes(), &stake_info)?;
-    } else {
-        stakers_w(deps.storage).save(
-            caller.as_bytes(),
-            &StakingInfo {
-                staker: caller.clone(),
-                amount: amount,
-                last_time_updated: current_timestamp,                 
-            },
-        )?;
 
-        // new staker add it to the count
-        let mut stakers_count = get_total_stakers_count(deps.storage);
-        stakers_count += Uint128::from(1u128);
-        total_stakers_w(deps.storage).save(&stakers_count)?;
-        // store staker with index
-        staker_index_w(deps.storage).save(&stakers_count.u128().to_be_bytes(), &caller.clone())?;        
-        // store zero for claim rewards
-        println!("storing claim first time {}", current_timestamp);
-        claim_reward_info_w(deps.storage).save(
-            caller.as_bytes(),
-            &ClaimRewardsInfo {
-                amount: Uint128::from(0u128),
-                last_time_claimed: current_timestamp,
-            },
-        )?;
+    let caller = from.to_owned();
+    // check if user has staked before
+    match stakers_r(deps.storage).may_load(caller.as_bytes())? {
+        Some(mut stake_info) => {
+            stake_info.amount += amount;
+            stake_info.last_time_updated = current_timestamp;
+            stakers_w(deps.storage).save(caller.as_bytes(), &stake_info)?;
+        }
+        None => {
+            stakers_w(deps.storage).save(
+                caller.as_bytes(),
+                &StakingInfo {
+                    amount: amount,
+                    last_time_updated: current_timestamp,
+                    proxy_staked: Uint128::zero(),
+                },
+            )?;
+
+            staker_index_w(deps.storage)
+                .save(&stakers_count.u128().to_be_bytes(), &caller.to_owned())?;
+            stakers_count += Uint128::one();
+            total_stakers_w(deps.storage).save(&stakers_count)?;
+        }
     }
 
     // return response
@@ -130,155 +149,349 @@ pub fn stake(
     ]))
 }
 
-pub fn get_total_stakers_count(
-    storage: &dyn Storage
-) -> Uint128 
-{    
-    match total_stakers_r(storage).may_load(){
-        Ok(it) => it.unwrap_or(Uint128::zero()) ,
-        Err(_) => Uint128::zero(),
+pub fn generate_proxy_staking_key(from: &Addr, for_addr: &Addr) -> Vec<u8> {
+    [from.as_bytes(), for_addr.as_bytes()].concat()
+}
+
+pub fn proxy_stake(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    amount: Uint128,
+    from: Addr,
+    for_addr: Addr,
+) -> StdResult<Response> {
+    // this is receiver for LP Token send to staking contract ->
+    let config = config_r(deps.storage).load()?;
+    if config.lp_token.address != info.sender {
+        return Err(StdError::generic_err(
+            "Token sent is not LP Token.".to_string(),
+        ));
     }
+    if from == for_addr {
+        return Err(StdError::generic_err(
+            "You cannot proxy stake for yourself.".to_string(),
+        ));
+    }
+
+    let mut stakers_count = get_total_stakers_count(deps.storage)?;
+    let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
+    claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
+
+    // set the new total stake amount
+    let mut total_stake_amount = match total_staked_r(deps.storage).may_load()? {
+        Some(total_amount) => total_amount,
+        None => Uint128::zero(),
+    };
+
+    total_stake_amount += amount;
+    total_staked_w(deps.storage).save(&total_stake_amount)?;
+
+    let staker = for_addr.to_owned();
+    // check if user has staked before
+    match stakers_r(deps.storage).may_load(staker.as_bytes())? {
+        Some(mut stake_info) => {
+            stake_info.amount += amount;
+            //store that this amount is proxy_staked
+            stake_info.proxy_staked += amount;
+            stake_info.last_time_updated = current_timestamp;
+            stakers_w(deps.storage).save(staker.as_bytes(), &stake_info)?;
+        }
+        None => {
+            stakers_w(deps.storage).save(
+                staker.as_bytes(),
+                &StakingInfo {
+                    amount: amount,
+                    last_time_updated: current_timestamp,
+                    proxy_staked: amount,
+                },
+            )?;
+
+            staker_index_w(deps.storage)
+                .save(&stakers_count.u128().to_be_bytes(), &staker.to_owned())?;
+            stakers_count += Uint128::one();
+            total_stakers_w(deps.storage).save(&stakers_count)?;
+        }
+    }
+
+    let proxy_staking_key = &generate_proxy_staking_key(&from, &for_addr);
+
+    let proxy_staker_info = proxy_staker_info_r(deps.storage).may_load(proxy_staking_key)?;
+
+    match proxy_staker_info {
+        Some(mut p) => {
+            p.amount += amount;
+            proxy_staker_info_w(deps.storage).save(proxy_staking_key, &p)?;
+        }
+        None => {
+            proxy_staker_info_w(deps.storage)
+                .save(proxy_staking_key, &ProxyStakingInfo { amount })?;
+        }
+    }
+
+    // return response
+    Ok(Response::new().add_attributes(vec![
+        Attribute::new("action", "stake"),
+        Attribute::new("staker", staker.as_str()),
+        Attribute::new("amount", amount),
+    ]))
+}
+
+pub fn get_total_stakers_count(storage: &dyn Storage) -> StdResult<Uint128> {
+    return match total_stakers_r(storage).may_load()? {
+        Some(count) => Ok(count),
+        None => Ok(Uint128::zero()),
+    };
 }
 
 pub fn claim_rewards(deps: DepsMut, info: MessageInfo, env: Env) -> StdResult<Response> {
     let receiver = info.sender.clone();
-    let is_user_staker = is_address_already_staker(deps.as_ref(), receiver.clone())?;
-    if is_user_staker != true {
-        return Err(StdError::generic_err("".to_string()));
-    }
-    let current_timestamp = Uint128::from((env.block.time.seconds() * 1000) as u128);
-    let mut messages = Vec::new();
-    // calculate for all also for user
-    claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
-    let mut claim_info = claim_reward_info_r(deps.storage).load(&receiver.as_bytes())?;
-    let claim_amount = claim_info.amount;
-    claim_info.amount = Uint128::from(0u128);
-    claim_info.last_time_claimed = current_timestamp;
-    claim_reward_info_w(deps.storage).save(receiver.as_bytes(), &claim_info)?;
-    let config = config_r(deps.storage).load()?;
-    // send the message
-    messages.push(config.reward_token.create_send_msg(
-        env.contract.address.to_string(),
-        receiver.to_string(),
-        claim_amount,
-    )?);
+    let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
+    let mut messages: Vec<CosmosMsg> = Vec::new();
 
-    Ok(Response::new().add_attributes(vec![
+    let staker_address: Addr = receiver;
+    let mut staker_info = stakers_r(deps.storage).load(staker_address.as_bytes())?;
+
+    let staker_share = calculate_staker_shares(deps.storage, staker_info.amount)?;
+    let reward_token_list: Vec<RewardTokenInfo> = get_actual_reward_tokens(deps.storage, current_timestamp)?;
+    for reward_token in reward_token_list.iter() {
+        // calculate reward amount for each reward token
+        let mut reward = find_claimable_reward_for_staker_by_reward_token(
+            deps.storage,
+            &staker_address,
+            &reward_token.reward_token,
+        )?
+        .amount;
+
+        if staker_info.last_time_updated < reward_token.valid_to {
+            if current_timestamp < reward_token.valid_to {
+                reward += calculate_incremental_staking_reward(
+                    staker_share,
+                    staker_info.last_time_updated,
+                    current_timestamp,
+                    reward_token.daily_reward_amount,
+                )?;
+            } else {
+                reward += calculate_incremental_staking_reward(
+                    staker_share,
+                    staker_info.last_time_updated,
+                    reward_token.valid_to,
+                    reward_token.daily_reward_amount,
+                )?;
+            }
+        }
+
+        save_claimable_amount_staker_by_reward_token(
+            deps.storage,
+            reward,
+            &staker_address,
+            &reward_token.reward_token,
+        )?;
+    }
+    staker_info.last_time_updated = current_timestamp;
+    // Update the stakers information
+    stakers_w(deps.storage).save(staker_address.as_bytes(), &staker_info)?;
+
+    // calculate for all also for user
+    process_all_claimable_rewards(deps.storage, info.sender.to_string(), &mut messages)?;
+
+    Ok(Response::new().add_messages(messages).add_attributes(vec![
         Attribute::new("action", "claim_rewards"),
-        Attribute::new("caller", receiver.as_str().clone()),
-        Attribute::new("reward_amount", claim_amount),
+        Attribute::new("caller", info.sender.to_string()),
     ]))
+}
+
+fn process_all_claimable_rewards(
+    storage: &mut dyn Storage,
+    receiver: String,
+    messages: &mut Vec<CosmosMsg>,
+) -> StdResult<()> {
+    let mut claim_reward_tokens = claim_reward_info_r(storage).load(receiver.as_bytes())?;
+    for claim_reward in claim_reward_tokens.iter_mut() {
+        // send all remaing reward token
+        let msg = snip20::ExecuteMsg::Send {
+            recipient: receiver.to_owned(),
+            recipient_code_hash: None,
+            amount: claim_reward.amount,
+            msg: None,
+            memo: None,
+            padding: None,
+        };
+
+        let cosmos_msg = wasm_execute(
+            claim_reward.reward_token_addr.to_owned(),
+            claim_reward.reward_token_code_hash.to_owned(),
+            &msg,
+            vec![],
+        )?
+        .into();
+
+        messages.push(cosmos_msg);
+        claim_reward.amount = Uint128::zero();
+    }
+    // let mut staker_info = stakers_r(storage).load(receiver.as_bytes())?;
+    // staker_info.last_time_updated = timestamp;
+    claim_reward_info_w(storage).save(receiver.as_bytes(), &claim_reward_tokens)?;
+    Ok(())
 }
 
 // Total Available Rewards = Daily_Rewards / 24*60*60*1000 * (current_date_time - last_calculated_date_time).miliseconds()
 // User Incremental Rewards = Total Available Rewards * Staked Percentage
 // User Total Rewards = User Owed Rewards + (User Incremental Rewards)
-pub fn claim_rewards_for_all_stakers(storage: &mut dyn Storage, current_timestamp: Uint128) -> StdResult<()> {
-    // TO DO FIX THIS
-    let stakers_count = get_total_stakers_count(storage);
-    let mut index = Uint128::one();
-    while  index <= stakers_count
-    {
+// storage: &mut dyn Storage,
+pub fn claim_rewards_for_all_stakers(
+    storage: &mut dyn Storage,
+    current_timestamp: Uint128,
+) -> StdResult<()> {
+    let stakers_count = get_total_stakers_count(storage)?;
+    for i in 0..stakers_count.u128() {
         // load staker address
-        let staker_address: Addr = staker_index_r(storage).load(&index.to_be_bytes())?;
-        let mut staker_info = match stakers_r(storage).may_load(staker_address.as_bytes()){
-            Ok(it) => it.unwrap_or(StakingInfo{ amount: Uint128::zero(), staker: Addr::unchecked(""), last_time_updated: Uint128::zero() }),
-            Err(_) =>  StakingInfo{ amount: Uint128::zero(), staker: Addr::unchecked(""), last_time_updated: Uint128::zero() }
-        };
-      
-        if staker_info.amount != Uint128::zero(){
-           let reward = calculate_staking_reward(storage,staker_info.amount, staker_info.last_time_updated,current_timestamp)?;
-           let mut claim_info = match claim_reward_info_r(storage).may_load(staker_address.as_bytes()){
-             Ok(it) => it.unwrap_or(ClaimRewardsInfo{ amount: Uint128::zero(), last_time_claimed: Uint128::zero() }),
-             Err(_) => ClaimRewardsInfo{ amount: Uint128::zero(), last_time_claimed: Uint128::zero() }
-           };
+        let staker_address: Addr = staker_index_r(storage).load(&i.to_be_bytes())?;
+        let mut staker_info = stakers_r(storage).load(staker_address.as_bytes())?;
 
-           claim_info.amount += reward;
-           claim_info.last_time_claimed = current_timestamp;
-           claim_reward_info_w(storage).save(staker_address.as_bytes(),&claim_info)?;        
-        }      
-        index += Uint128::one()
+        let staker_share = calculate_staker_shares(storage, staker_info.amount)?;
+        let reward_token_list: Vec<RewardTokenInfo> =
+            get_actual_reward_tokens(storage, current_timestamp)?;
+        for reward_token in reward_token_list.iter() {
+            // calculate reward amount for each reward token
+            let mut reward = find_claimable_reward_for_staker_by_reward_token(
+                storage,
+                &staker_address,
+                &reward_token.reward_token,
+            )?
+            .amount;
+
+            if staker_info.last_time_updated < reward_token.valid_to {
+                if current_timestamp < reward_token.valid_to {
+                    reward += calculate_incremental_staking_reward(
+                        staker_share,
+                        staker_info.last_time_updated,
+                        current_timestamp,
+                        reward_token.daily_reward_amount,
+                    )?;
+                } else {
+                    reward += calculate_incremental_staking_reward(
+                        staker_share,
+                        staker_info.last_time_updated,
+                        reward_token.valid_to,
+                        reward_token.daily_reward_amount,
+                    )?;
+                }
+            }
+
+            save_claimable_amount_staker_by_reward_token(
+                storage,
+                // Add previous claimable for the staker
+                reward,
+                &staker_address,
+                &reward_token.reward_token,
+            )?;
+        }
+        staker_info.last_time_updated = current_timestamp;
+        // Update the stakers information
+        stakers_w(storage).save(staker_address.as_bytes(), &staker_info)?;
     }
-    last_reward_time_claimed_w(storage).save(&current_timestamp)?;
     Ok(())
 }
 
-// pub fn set_lp_token(deps: DepsMut, env: Env, lp_token: ContractLink) -> StdResult<Response> {
-//     let mut config = config_r(deps.storage).load()?;
-
-//     if config.lp_token.address != Addr::unchecked("".to_string()) {
-//         return Err(StdError::generic_err(
-//             "LP Token has already been added.".to_string(),
-//         ));
-//     }
-//     config.lp_token = lp_token.clone();
-//     let mut messages = Vec::new();
-//     // register pair contract for LP receiver
-//     messages.push(register_receive(
-//         env.contract.code_hash.clone(),
-//         None,
-//         &Contract {
-//             address: lp_token.address.clone(),
-//             code_hash: lp_token.code_hash.clone(),
-//         },
-//     )?);
-
-//     //store lp_token
-//     config_w(deps.storage).save(&config)?;
-//     Ok(Response::new().add_attributes(vec![Attribute::new("action", "set_lp_token")]))
-// }
-
-pub fn calculate_staking_reward(
+pub fn get_actual_reward_tokens(
     storage: &dyn Storage,
-    amount: Uint128,
-    last_timestamp: Uint128,
     current_timestamp: Uint128,
+) -> StdResult<Vec<RewardTokenInfo>> {
+    let mut list_token: Vec<RewardTokenInfo> = Vec::new();
+    let reward_list = reward_token_list_r(storage).load()?;
+    for addr in &reward_list {
+        // load total reward token
+        let reward_token: RewardTokenInfo = reward_token_r(storage).load(addr.as_bytes())?;
+        list_token.push(reward_token.to_owned())
+    }
+    Ok(list_token)
+}
+
+pub fn get_all_claimable_reward_for_staker(
+    storage: &dyn Storage,
+    staker_address: &Addr,
+) -> StdResult<Vec<ClaimRewardsInfo>> {
+    let claim_info = match claim_reward_info_r(storage).may_load(staker_address.as_bytes())? {
+        Some(claim_reward_info) => claim_reward_info,
+        None => Vec::new(),
+    };
+    Ok(claim_info)
+}
+
+pub fn find_claimable_reward_for_staker_by_reward_token(
+    storage: &dyn Storage,
+    staker_address: &Addr,
+    reward_token: &ContractLink,
+) -> StdResult<ClaimRewardsInfo> {
+    let all_claimable_reward = get_all_claimable_reward_for_staker(storage, staker_address)?;
+    let result = match all_claimable_reward
+        .iter()
+        .find(|&x| x.reward_token_addr == reward_token.address.to_owned())
+    {
+        Some(clm) => clm.to_owned(),
+        None => ClaimRewardsInfo {
+            amount: Uint128::zero(),
+            reward_token_addr: reward_token.address.to_owned(),
+            reward_token_code_hash: reward_token.code_hash.to_owned(),
+        },
+    };
+    Ok(result)
+}
+
+pub fn find_claimable_reward_index_for_staker(
+    storage: &dyn Storage,
+    staker_address: &Addr,
+    reward_token: &ContractLink,
+) -> StdResult<Option<usize>> {
+    let all_claimable_reward = get_all_claimable_reward_for_staker(storage, staker_address)?;
+    return Ok(all_claimable_reward
+        .iter()
+        .position(|x| x.reward_token_addr == reward_token.address));
+}
+
+pub fn save_claimable_amount_staker_by_reward_token(
+    storage: &mut dyn Storage,
+    amount: Uint128,
+    staker_address: &Addr,
+    reward_token: &ContractLink,
+) -> StdResult<()> {
+    let mut list_claimable_reward = get_all_claimable_reward_for_staker(storage, &staker_address)?;
+    let claimable_reward_index =
+        find_claimable_reward_index_for_staker(storage, staker_address, reward_token)?;
+    let mut claimable_reward =
+        find_claimable_reward_for_staker_by_reward_token(storage, &staker_address, &reward_token)?;
+    match claimable_reward_index {
+        Some(index) => {
+            list_claimable_reward[index].amount = amount;
+        }
+        None => {
+            claimable_reward.amount = amount;
+            list_claimable_reward.push(claimable_reward.to_owned());
+        }
+    }
+    claim_reward_info_w(storage).save(staker_address.as_bytes(), &list_claimable_reward)?;
+    Ok(())
+}
+
+/**
+ *
+ */
+pub fn calculate_incremental_staking_reward(
+    percentage: Decimal,
+    last_timestamp: Uint128,
+    to_timestamp: Uint128,
+    emmision_rate: Uint128,
 ) -> StdResult<Uint128> {
-    let percentage = calculate_staker_shares(storage, amount)?;
-    let config: Config = config_r(storage).load()?;
-    let seconds = Uint128::from(24u128 * 60u128 * 60u128 * 1000u128);   
-    if last_timestamp < current_timestamp {
-        let time_dif = (current_timestamp - last_timestamp);
-        let total_available_reward = config.daily_reward_amount.multiply_ratio(time_dif, seconds);
-        let converted_total_reward = Decimal::from_atomics(total_available_reward, 0).unwrap();  
+    let seconds_in_day = Uint128::new(24u128 * 60u128 * 60u128);
+    if last_timestamp < to_timestamp {
+        let time_dif = to_timestamp - last_timestamp;
+        let total_available_reward = emmision_rate.multiply_ratio(time_dif, seconds_in_day);
+        let converted_total_reward = Decimal::from_atomics(total_available_reward, 0).unwrap();
         let result = converted_total_reward.checked_mul(percentage)?;
         Ok(result.atomics().checked_div(DECIMAL_FRACTIONAL)?)
     } else {
-        Ok(Uint128::from(0u128))
-    }
-}
-
-
-pub fn get_staker_reward_info(deps: Deps, viewing_key: String, staker: Addr) -> StdResult<Binary> {
-    let config = config_r(deps.storage).load()?;
-    if let TokenType::CustomToken {
-        contract_addr,
-        token_code_hash,
-        ..
-    } = config.reward_token.clone()
-    {
-        let reward_token_info = ContractLink {
-            address: contract_addr.clone(),
-            code_hash: token_code_hash.clone(),
-        };
-        let reward_token_balance = config.reward_token.query_balance(
-            deps,
-            staker.to_string(),
-            viewing_key.to_string(),
-        )?;
-        let total_reward_token_balance =
-            query_total_reward_liquidity(&deps.querier, &reward_token_info)?;
-        let response_msg = QueryResponse::StakerRewardTokenBalance {
-            reward_amount: reward_token_balance,
-            total_reward_liquidity: total_reward_token_balance,
-            reward_token: ContractLink {
-                address: contract_addr.clone(),
-                code_hash: token_code_hash.clone(),
-            },
-        };
-        return to_binary(&response_msg);
-    } else {
-        return Err(StdError::generic_err("Invalid reward token"));
+        Ok(Uint128::zero())
     }
 }
 
@@ -297,7 +510,7 @@ pub fn get_config(deps: Deps) -> StdResult<Binary> {
             },
             lp_token: config.lp_token.clone(),
             daily_reward_amount: config.daily_reward_amount.clone(),
-            contract_owner: config.contract_owner.clone(),
+            amm_pair: config.amm_pair.clone(),
         };
         return to_binary(&response);
     } else {
@@ -305,12 +518,17 @@ pub fn get_config(deps: Deps) -> StdResult<Binary> {
     }
 }
 
-pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Binary> {
-    let is_staker = is_address_already_staker(deps, staker.clone())?;
-    if is_staker == false {
-        return Err(StdError::generic_err("Shared address is not staker".to_string()));
-    }
+pub fn update_authenticator(
+    storage: &mut dyn Storage,
+    authenticator: Option<Contract>,
+) -> StdResult<Response> {
+    let mut config = config_r(storage).load()?;
+    config.authenticator = authenticator;
+    config_w(storage).save(&config)?;
+    Ok(Response::default())
+}
 
+pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Binary> {
     let staker_info = stakers_r(deps.storage).load(&staker.as_bytes())?;
     let response_msg = QueryResponse::StakerLpTokenInfo {
         staked_lp_token: staker_info.amount,
@@ -319,54 +537,114 @@ pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Bi
     to_binary(&response_msg)
 }
 
-pub fn get_staking_contract_owner(deps: Deps, env: Env) -> StdResult<Binary> {
-    let config = config_r(deps.storage).load()?;
-    to_binary(&QueryResponse::ContractOwner {
-        address: env.contract.address.to_string(),
+pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResult<Binary> {
+    // load stakers
+    let mut result_list: Vec<ClaimableInfo> = Vec::new();
+    let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;
+    let reward_token_list: Vec<RewardTokenInfo> = get_actual_reward_tokens(deps.storage, time)?;
+    let percentage = calculate_staker_shares(deps.storage, staker_info.amount)?;
+    for reward_token in reward_token_list.iter() {
+        if reward_token.valid_to < staker_info.last_time_updated {
+            let reward: Uint128;
+            if time > reward_token.valid_to {
+                // calculate reward amount for each reward token
+                reward = calculate_incremental_staking_reward(
+                    percentage,
+                    staker_info.last_time_updated,
+                    time,
+                    reward_token.daily_reward_amount,
+                )?;
+            } else {
+                reward = calculate_incremental_staking_reward(
+                    percentage,
+                    staker_info.last_time_updated,
+                    reward_token.valid_to,
+                    reward_token.daily_reward_amount,
+                )?;
+            }
+            // load any existing claimable reward for specif user
+            let claimable_reward = find_claimable_reward_for_staker_by_reward_token(
+                deps.storage,
+                &staker,
+                &reward_token.reward_token,
+            )?;
+            result_list.push(ClaimableInfo {
+                token_address: reward_token.reward_token.address.to_owned(),
+                amount: claimable_reward.amount + reward,
+            });
+        }
+    }
+    to_binary(&QueryResponse::ClaimRewards {
+        claimable_rewards: result_list,
     })
 }
 
-pub fn get_claim_reward_for_user(
-    deps: Deps,
-    staker: Addr,
-    time: Uint128,
-) -> StdResult<Binary> {
-    // load stakers
-    let config = config_r(deps.storage).load()?;
-    let reward_token_info = match config.reward_token.clone() {
-        TokenType::CustomToken {
-            contract_addr,
-            token_code_hash,
-        } => ContractLink {
-            address: contract_addr.clone(),
-            code_hash: token_code_hash,
-        },
-        TokenType::NativeToken { denom } => ContractLink {
-            address: Addr::unchecked("".to_string()),
-            code_hash: "".to_string(),
-        },
-    };
+pub fn proxy_unstake(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    for_addr: Addr,
+    amount: Uint128,
+) -> StdResult<Response> {
+    let caller = info.sender.clone();
+    let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
+    let mut staker_info = stakers_r(deps.storage).load(for_addr.as_bytes())?;
+    let proxy_staking_key = &generate_proxy_staking_key(&caller, &for_addr);
+    if let Some(mut proxy_staker_info) =
+        proxy_staker_info_r(deps.storage).may_load(proxy_staking_key)?
+    {
+        // claim rewards
+        claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
+        // remove staker
+        let mut messages: Vec<CosmosMsg> = Vec::new();
+        // check if the amount is higher than what has been totally staked and proxy staked by this caller
+        if amount > proxy_staker_info.amount || amount > staker_info.proxy_staked {
+            return Err(StdError::generic_err(
+                "Staking Amount is higher then actual staking amount".to_string(),
+            ));
+        }
 
-    let is_staker = is_address_already_staker(deps, staker.clone())?;
-    if is_staker == false {
-        return Err(StdError::generic_err("".to_string()));
+        staker_info.amount -= staker_info.amount;
+        staker_info.last_time_updated = current_timestamp;
+        stakers_w(deps.storage).save(for_addr.as_bytes(), &staker_info)?;
+
+        //Update the proxy stakers
+        proxy_staker_info.amount -= amount;
+        proxy_staker_info_w(deps.storage).save(
+            &generate_proxy_staking_key(&caller, &for_addr),
+            &proxy_staker_info,
+        )?;
+
+        process_all_claimable_rewards(deps.storage, for_addr.to_string(), &mut messages)?;
+        // send back amount of lp token to pair contract to send pair token back with burn
+        let config = config_r(deps.storage).load()?;
+
+        let msg = snip20::ExecuteMsg::Transfer {
+            recipient: caller.to_string(),
+            amount: amount,
+            memo: None,
+            padding: None,
+        };
+
+        let coms_msg = wasm_execute(
+            config.lp_token.address.to_string(),
+            config.lp_token.code_hash.clone(),
+            &msg,
+            vec![],
+        )?
+        .into();
+
+        messages.push(coms_msg);
+        Ok(Response::new().add_messages(messages).add_attributes(vec![
+            Attribute::new("action", "unstake"),
+            Attribute::new("amount", amount),
+            Attribute::new("staker", caller.as_str()),
+        ]))
+    } else {
+        Err(StdError::generic_err(
+            "Proxy stake for given proxy staker and staker does not exist.",
+        ))
     }
-    let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;
-    let unpaid_claim = claim_reward_info_r(deps.storage).load(staker.as_bytes())?;
-    let last_claim_timestamp = unpaid_claim.last_time_claimed;
-    let current_timestamp = time;
-    let current_claim = calculate_staking_reward(
-        deps.storage,
-        staker_info.amount,
-        last_claim_timestamp,
-        current_timestamp,
-    )?;
-    let total_claim = unpaid_claim.amount + current_claim;
-    println!("{:?}", total_claim);
-    to_binary(&QueryResponse::ClaimReward {
-        amount: total_claim,
-        reward_token: reward_token_info,
-    })
 }
 
 pub fn unstake(
@@ -377,134 +655,101 @@ pub fn unstake(
     remove_liqudity: Option<bool>,
 ) -> StdResult<Response> {
     let caller = info.sender.clone();
-    let current_timestamp = Uint128::from((env.block.time.seconds() * 1000) as u128);
-    let is_user_staker = is_address_already_staker(deps.as_ref(), caller.clone())?;
-    let config = config_r(deps.storage).load()?;
-    if is_user_staker != true {
-        return Err(StdError::generic_err("".to_string()));
-    }
-    // claim rewards
-    claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
-    // remove staker
-    let mut messages = Vec::new();
-    // update stake_info
-    let mut staker_info = stakers_r(deps.storage).load(caller.as_bytes())?;
-    // check if the amount is higher than the current staking amount
-    if amount > staker_info.amount {
-        // return Err(StdError::GenericErr{ msg: "Staking Amount is higher then actual staking amount".to_string(), backtrace: None})
-    }
-    // if amount is the same as current staking amount remove staker from list
-    let diff_amount = (staker_info.amount - amount);
-    if diff_amount == Uint128::zero() {
-        stakers_w(deps.storage).remove(caller.as_bytes());
-    } else {
-        staker_info.amount = (staker_info.amount - amount);
+    let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
+    if let Some(mut staker_info) = stakers_r(deps.storage).may_load(caller.as_bytes())? {
+        // claim rewards
+        claim_rewards_for_all_stakers(deps.storage, current_timestamp)?;
+        // remove staker
+        let mut messages: Vec<CosmosMsg> = Vec::new();
+        // check if the amount is higher than the current staking amount directly staked
+        if amount > (staker_info.amount - staker_info.proxy_staked) {
+            return Err(StdError::generic_err(
+                "Staking Amount is higher then actual staking amount".to_string(),
+            ));
+        }
+
+        staker_info.amount = staker_info.amount - amount;
         staker_info.last_time_updated = current_timestamp;
         stakers_w(deps.storage).save(caller.as_bytes(), &staker_info)?;
-    }
 
-    // send reward if any and
-    let mut claim_reward = claim_reward_info_r(deps.storage).load(caller.as_bytes())?;
-    // send all remaing reward token
-    messages.push(config.reward_token.create_send_msg(
-        env.contract.address.to_string(),
-        caller.to_string(),
-        claim_reward.amount,
-    )?);
+        process_all_claimable_rewards(deps.storage, caller.to_string(), &mut messages)?;
+        // send back amount of lp token to pair contract to send pair token back with burn
+        let config = config_r(deps.storage).load()?;
 
-    // update claim  reward for staker
-    claim_reward.amount = Uint128::zero();
-    claim_reward.last_time_claimed = current_timestamp;
-    claim_reward_info_w(deps.storage).save(
-        caller.as_bytes(),
-        &ClaimRewardsInfo {
-            amount: Uint128::zero(),
-            last_time_claimed: current_timestamp,
-        },
-    )?;
+        if let Some(true) = remove_liqudity {
+            // SEND LP Token back to Pair Contract With Remove Liquidity
+            let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity {
+                from: Some(caller.clone()),
+            })?;
+            let msg = snip20::ExecuteMsg::Send {
+                recipient: config.amm_pair.to_string(),
+                recipient_code_hash: None,
+                amount: amount,
+                msg: Some(remove_liquidity_msg.clone()),
+                memo: None,
+                padding: None,
+            };
 
-    // send back amount of lp token to pair contract to send pair token back with burn
-    // TODO send LP token to user add option either to remove liqudity or just remove from staking
-    let config = config_r(deps.storage).load()?;
+            let coms_msg = wasm_execute(
+                config.lp_token.address.to_string(),
+                config.lp_token.code_hash.clone(),
+                &msg,
+                vec![],
+            )?
+            .into();
 
-    if let Some(true) = remove_liqudity {
-        // SEND LP Token back to Pair Contract With Remove Liquidity
-        let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity {
-            from: Some(caller.clone()),
-        })
-        .unwrap();
-        let msg = to_binary(&snip20::ExecuteMsg::Send {
-            recipient: config.contract_owner.to_string(),
-            recipient_code_hash: None,
-            amount: amount,
-            msg: Some(remove_liquidity_msg.clone()),
-            memo: None,
-            padding: None,
-        })?;
-        messages.push(
-            WasmMsg::Execute {
-                contract_addr: config.lp_token.address.to_string(),
-                code_hash: config.lp_token.code_hash.clone(),
-                msg,
-                funds: vec![],
-            }
-            .into(),
-        );
+            messages.push(coms_msg);
+        } else {
+            // SEND LP Token back to Staker And User Will Manually Remove Liquidity
+            let msg = snip20::ExecuteMsg::Transfer {
+                recipient: caller.to_string(),
+                amount: amount,
+                memo: None,
+                padding: None,
+            };
+
+            let coms_msg = wasm_execute(
+                config.lp_token.address.to_string(),
+                config.lp_token.code_hash.clone(),
+                &msg,
+                vec![],
+            )?
+            .into();
+
+            messages.push(coms_msg);
+        }
+        Ok(Response::new().add_messages(messages).add_attributes(vec![
+            Attribute::new("action", "unstake"),
+            Attribute::new("amount", amount),
+            Attribute::new("staker", caller.as_str()),
+        ]))
     } else {
-        // SEND LP Token back to Staker And User Will Manually Remove Liquidity
-        let msg = to_binary(&snip20::ExecuteMsg::Transfer {
-            recipient: caller.to_string(),
-            amount: amount,
-            memo: None,
+        return Err(StdError::generic_err(
+            "Staking information does not exist".to_string(),
+        ));
+    }
+}
+
+pub fn create_send_msg(
+    recipient: String,
+    amount: Uint128,
+    token_link: ContractLink,
+) -> StdResult<CosmosMsg> {
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: token_link.address.to_string(),
+        code_hash: token_link.code_hash.to_owned(),
+        msg: to_binary(&snip20::ExecuteMsg::Send {
+            recipient,
+            amount,
             padding: None,
-        })?;
-        messages.push(
-            WasmMsg::Execute {
-                contract_addr: config.lp_token.address.to_string(),
-                code_hash: config.lp_token.code_hash.clone(),
-                msg,
-                funds: vec![],
-            }
-            .into(),
-        );
-    }
-    Ok(Response::new().add_messages(messages).add_attributes(vec![
-        Attribute::new("action", "unstake"),
-        Attribute::new("amount", amount),
-        Attribute::new("staker", caller.as_str()),
-    ]))
-}
+            msg: None,
+            recipient_code_hash: None,
+            memo: None,
+        })?,
+        funds: vec![],
+    });
 
-pub fn create_viewing_key(seed: String) -> ViewingKey {
-    ViewingKey(seed.to_string())
-}
-
-fn query_total_reward_liquidity(
-    querier: &QuerierWrapper,
-    reward_token_info: &ContractLink,
-) -> StdResult<Uint128> {
-    let result = token_info(
-        querier,
-        &Contract {
-            address: reward_token_info.address.clone(),
-            code_hash: reward_token_info.code_hash.clone(),
-        },
-    )?;
-
-    //If this happens, the LP token has been incorrectly configured
-    if result.total_supply.is_none() {
-        unreachable!("Reward token has no available supply.");
-    }
-
-    Ok(result.total_supply.unwrap())
-}
-
-pub fn get_current_timestamp() -> StdResult<Uint128> {
-    let start = SystemTime::now();
-    let since_the_epoch = start
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
-    Ok(Uint128::from(since_the_epoch.as_millis()))
+    Ok(msg)
 }
 
 pub fn is_address_already_staker(deps: Deps, address: Addr) -> StdResult<bool> {

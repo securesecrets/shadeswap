@@ -11,27 +11,14 @@ exclude = [
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[profile.release]
-opt-level = 3
-debug = false
-rpath = false
-lto = true
-debug-assertions = false
-codegen-units = 1
-panic = 'abort'
-incremental = false
-overflow-checks = true
-
 [features]
 default = []
+backtraces = ["cosmwasm-std/backtraces"]
 # for quicker tests, cargo test --lib
 # # for more explicit tests, cargo test --features=backtraces
-
-
 
 
 [dependencies]
@@ -43,8 +30,10 @@ serde = { version = "1.0.114", default-features = false, features = [
 schemars = "0.8.1"
 cosmwasm-std = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
 cosmwasm-storage = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
-shadeswap-shared = {path = "../../packages/shadeswap-shared"}
 query-authentication = { git = "https://github.com/securesecrets/query-authentication", branch = "cosmwasm_v1_upgrade", optional = true }
+shadeswap-shared = {path = "../../packages/shadeswap-shared"}
 
 [dev-dependencies]
-cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm", commit = "1e05e7e" }
+cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm"}
+snip20-reference-impl = {path ="../../contracts/snip20"}
+secret-multi-test = { git = "https://github.com/securesecrets/secret-plus-utils", version = "0.13.4" }

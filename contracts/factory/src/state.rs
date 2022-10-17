@@ -6,8 +6,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings},
-    core::{ContractInstantiationInfo, TokenPair},
-    msg::factory::InitMsg
+    core::{ContractInstantiationInfo, TokenPair, ViewingKey},
+    msg::factory::InitMsg, Contract
 };
 
 const AMM_PAIRS_KEYS: &[u8] = b"amm_pair_keys";
@@ -22,7 +22,9 @@ pub const PAGINATION_LIMIT: u8 = 30;
 pub struct Config {
     pub pair_contract: ContractInstantiationInfo,
     pub amm_settings: AMMSettings,
-    pub lp_token_contract: ContractInstantiationInfo
+    pub lp_token_contract: ContractInstantiationInfo,
+    pub api_key: ViewingKey,
+    pub authenticator: Option<Contract>
 }
 
 impl Config {
@@ -31,6 +33,8 @@ impl Config {
             pair_contract: msg.pair_contract,
             amm_settings: msg.amm_settings,
             lp_token_contract: msg.lp_token_contract,
+            api_key: ViewingKey(msg.api_key),
+            authenticator: msg.authenticator,
         }
     }
 }
@@ -89,124 +93,3 @@ pub fn total_amm_pairs_w(storage: &mut dyn Storage) -> Singleton<u64> {
 pub fn total_amm_pairs_r(storage: &dyn Storage) -> ReadonlySingleton<u64> {
     singleton_read(storage, TOTAL_AMM_PAIR)
 }
-
-// pub fn config_write<S: Storage, A: Api, Q: Querier>(
-//     deps: DepsMut,
-//     config: Config<String>,
-// ) -> StdResult<()> {
-//     save(&mut deps.storage, CONFIG_KEY, &config.canonize(&deps.api)?)
-// }
-
-// pub fn config_read<S: Storage, A: Api, Q: Querier>(
-//     deps: &Deps<S, A, Q>,
-// ) -> StdResult<Config<String>> {
-//     let config: Option<Config<CanonicalAddr>> = load(&deps.storage, CONFIG_KEY)?;
-//     config
-//         .ok_or(StdError::generic_err("Config doesn't exist in storage."))?
-//         .humanize(&deps.api)
-// }
-
-// pub(crate) fn generate_pair_key(pair: &TokenPair<CanonicalAddr>) -> Vec<u8> {
-//     let mut bytes: Vec<&[u8]> = Vec::new();
-
-//     match &pair.0 {
-//         TokenType::NativeToken { denom } => bytes.push(denom.as_bytes()),
-//         TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_slice()),
-//     }
-
-//     match &pair.1 {
-//         TokenType::NativeToken { denom } => bytes.push(denom.as_bytes()),
-//         TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_slice()),
-//     }
-
-//     bytes.sort();
-
-//     bytes.concat()
-// }
-
-// pub(crate) fn save_amm_pairs<S: Storage, A: Api, Q: Querier>(
-//     deps: DepsMut,
-//     exchanges: Vec<AMMPair>,
-// ) -> StdResult<()> {
-//     let mut count = load_amm_pairs_count(&deps.storage)?;
-
-//     for exchange in exchanges {
-//         let exchange = exchange.canonize(&deps.api)?;
-//         let key = generate_pair_key(&exchange.pair);
-
-//         let result: Option<CanonicalAddr> = ns_load(&deps.storage, NS_AMM_PAIRS, &key)?;
-//         if result.is_some() {
-//             return Err(StdError::generic_err(format!(
-//                 "Exchange ({}) already exists",
-//                 exchange.pair
-//             )));
-//         }
-//         ns_save(&mut deps.storage, NS_AMM_PAIRS, &key, &exchange.address)?;
-//         ns_save(
-//             &mut deps.storage,
-//             NS_AMM_PAIRS,
-//             count.to_string().as_bytes(),
-//             &exchange,
-//         )?;
-//         count += 1;
-//     }
-
-//     save_amm_pairs_count(&mut deps.storage, count)
-// }
-
-// pub(crate) fn get_address_for_pair<S: Storage, A: Api, Q: Querier>(
-//     deps: &Deps<S, A, Q>,
-//     pair: TokenPair,
-// ) -> StdResult<String> {
-//     let key = generate_pair_key(&pair.canonize(&deps.api)?);
-
-//     let canonical = ns_load(&deps.storage, NS_AMM_PAIRS, &key)?
-//         .ok_or_else(|| StdError::generic_err("Address doesn't exist in storage."))?;
-
-//     deps.api.human_address(&canonical)
-// }
-
-// pub(crate) fn load_amm_pairs<S: Storage, A: Api, Q: Querier>(
-//     deps: &Deps<S, A, Q>,
-//     pagination: Pagination,
-// ) -> StdResult<Vec<AMMPair>> {
-//     let count = load_amm_pairs_count(&deps.storage)?;
-
-//     if pagination.start >= count {
-//         return Ok(vec![]);
-//     }
-
-//     let limit = pagination.limit.min(PAGINATION_LIMIT);
-//     let end = (pagination.start + limit as u64).min(count);
-
-//     let mut result = Vec::with_capacity((end - pagination.start) as usize);
-
-//     for i in pagination.start..end {
-//         let exchange: AMMPair<CanonicalAddr> =
-//             ns_load(&deps.storage, NS_AMM_PAIRS, i.to_string().as_bytes())?
-//                 .ok_or_else(|| StdError::generic_err("AMMPair doesn't exist in storage."))?;
-
-//         result.push(exchange.humanize(&deps.api)?);
-//     }
-
-//     Ok(result)
-// }
-
-// #[inline]
-// pub fn load_amm_pairs_count(storage: &impl Storage) -> StdResult<u64> {
-//     Ok(load(storage, AMM_PAIR_COUNT_KEY)?.unwrap_or(0))
-// }
-
-// #[inline]
-// pub fn save_amm_pairs_count(storage: &mut impl Storage, count: u64) -> StdResult<()> {
-//     save(storage, AMM_PAIR_COUNT_KEY, &count)
-// }
-
-// pub(crate) fn load_prng_seed(storage: &impl Storage) -> StdResult<Binary> {
-//     let prng_seed: Option<Binary> = load(storage, PRNG_KEY)?;
-//     prng_seed.ok_or(StdError::generic_err("Prng seed doesn't exist in storage."))
-// }
-
-// pub(crate) fn save_prng_seed(storage: &mut impl Storage, prng_seed: &Binary) -> StdResult<()> {
-//     save(storage, PRNG_KEY, prng_seed)
-// }

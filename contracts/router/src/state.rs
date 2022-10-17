@@ -10,9 +10,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use shadeswap_shared::core::TokenAmount;
-use shadeswap_shared::{
-    amm_pair::AMMPair, core::ContractLink, msg::router::InitMsg
-};
 
 pub static CONFIG: &[u8] = b"config";
 pub static ADDED_TOKEN_LIST: &[u8] = b"added_token_list";

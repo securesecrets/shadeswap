@@ -1,19 +1,22 @@
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Addr, Attribute, Binary, CosmosMsg, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
-};
+    entry_point, Addr, Attribute, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult, Uint128, to_binary, Binary, StdError, from_binary, CosmosMsg, BankMsg, Coin};
 use shadeswap_shared::{
-    core::{admin_w, ContractLink},
-    msg::amm_pair::ExecuteMsg as AmmPairExecuteMsg,
-    staking::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, AuthQuery, QueryData}, query_auth::helpers::{authenticate_permit, PermitAuthentication},
+    core::{admin_r, admin_w, apply_admin_guard, ContractLink, TokenType},
+    query_auth::helpers::{authenticate_permit, PermitAuthentication},
+    staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
+    utils::{pad_query_result, pad_response_result}, snip20::helpers::send_msg, Contract,
 };
+
+use shadeswap_shared::staking::QueryResponse;
 
 use crate::{
     operations::{
-        claim_rewards, get_claim_reward_for_user, get_config, get_staker_reward_info,
-        get_staking_contract_owner, get_staking_stake_lp_token_info, set_view_key, stake, unstake,
+        claim_rewards, get_claim_reward_for_user, get_config, get_staking_stake_lp_token_info,
+        set_reward_token, stake, store_init_reward_token_and_timestamp, unstake,
+        update_authenticator, proxy_stake, proxy_unstake,
     },
-    state::{config_r, config_w, prng_seed_w, stakers_r, Config},
+    state::{config_r, config_w, prng_seed_w, Config},
 };
 
 pub const BLOCK_SIZE: usize = 256;
@@ -26,50 +29,110 @@ pub fn instantiate(
     msg: InitMsg,
 ) -> StdResult<Response> {
     let config = Config {
-        contract_owner: _info.sender.clone(),
-        daily_reward_amount: msg.staking_amount,
-        reward_token: msg.reward_token.clone(),
+        amm_pair: _info.sender.clone(),
+        daily_reward_amount: msg.daily_reward_amount,
+        reward_token: msg.reward_token.to_owned(),
         lp_token: msg.lp_token,
-        authenticator: None
+        authenticator: msg.authenticator,
     };
     config_w(deps.storage).save(&config)?;
     admin_w(deps.storage).save(&_info.sender)?;
     prng_seed_w(deps.storage).save(&msg.prng_seed.as_slice().to_vec())?;
 
+    // store reward token to the list
+    let reward_token_address: ContractLink = match msg.reward_token {
+        TokenType::CustomToken {
+            contract_addr,
+            token_code_hash,
+        } => ContractLink {
+            address: contract_addr.to_owned(),
+            code_hash: token_code_hash.to_owned(),
+        },
+        TokenType::NativeToken { denom: _ } => {
+            return Err(StdError::generic_err(
+                "Invalid Token Type for Reward Token".to_string(),
+            ))
+        }
+    };
+    let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
+    store_init_reward_token_and_timestamp(
+        deps.storage,
+        reward_token_address.to_owned(),
+        msg.daily_reward_amount,
+        current_timestamp,
+    )?;
+
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
-
-    Ok(response
-        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: msg.pair_contract.address.to_string(),
-            code_hash: msg.pair_contract.code_hash.clone(),
-            msg: to_binary(&AmmPairExecuteMsg::SetStakingContract {
-                contract: ContractLink {
-                    address: env.contract.address.clone(),
-                    code_hash: env.contract.code_hash.clone(),
-                },
-            })?,
-            funds: vec![],
-        }))
-        .add_attributes(vec![
-            Attribute::new("staking_contract_addr", env.contract.address),
-            Attribute::new("reward_token", msg.reward_token.to_string()),
-            Attribute::new("daily_reward_amount", msg.staking_amount),
-        ]))
+    Ok(response.add_attributes(vec![
+        Attribute::new("staking_contract_addr", env.contract.address),
+        Attribute::new("reward_token", reward_token_address.address.to_string()),
+        Attribute::new("daily_reward_amount", msg.daily_reward_amount),
+    ]))
 }
 
 #[entry_point]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
-    match msg {
-        ExecuteMsg::Receive {
-            from, amount, msg, ..
-        } => receiver_callback(deps, env, info, from, amount, msg),
-        ExecuteMsg::ClaimRewards {} => claim_rewards(deps, info, env),
-        ExecuteMsg::Unstake {
-            amount,
-            remove_liqudity,
-        } => unstake(deps, env, info, amount, remove_liqudity)
-    }
+    pad_response_result(
+        match msg {
+            ExecuteMsg::ProxyUnstake { for_addr, amount } => {
+                proxy_unstake(deps, env, info, for_addr, amount)
+            },
+            ExecuteMsg::Receive {
+                from, amount, msg, ..
+            } => receiver_callback(deps, env, info, from, amount, msg),
+            ExecuteMsg::ClaimRewards {} => claim_rewards(deps, info, env),
+            ExecuteMsg::Unstake {
+                amount,
+                remove_liqudity,
+            } => unstake(deps, env, info, amount, remove_liqudity),
+            ExecuteMsg::SetAuthenticator { authenticator } => {
+                apply_admin_guard(&info.sender, deps.storage)?;
+                update_authenticator(deps.storage, authenticator)
+            }
+            ExecuteMsg::SetAdmin { admin } => {
+                apply_admin_guard(&info.sender, deps.storage)?;
+                admin_w(deps.storage).save(&admin)?;
+                Ok(Response::default())
+            }
+            ExecuteMsg::SetRewardToken {
+                reward_token,
+                daily_reward_amount,
+                valid_to,
+            } => {
+                apply_admin_guard(&info.sender, deps.storage)?;
+                set_reward_token(deps, env, info, reward_token, daily_reward_amount, valid_to)
+            },
+            ExecuteMsg::RecoverFunds {
+                token,
+                amount,
+                to,
+                msg,
+            } => {
+                apply_admin_guard(&info.sender, deps.storage)?;
+                let send_msg = match token {
+                    TokenType::CustomToken { contract_addr, token_code_hash } => vec![send_msg(
+                        to,
+                        amount,
+                        msg,
+                        None,
+                        None,
+                        &Contract{
+                            address: contract_addr,
+                            code_hash: token_code_hash
+                        }
+                    )?],
+                    TokenType::NativeToken { denom } => vec![CosmosMsg::Bank(BankMsg::Send {
+                        to_address: to.to_string(),
+                        amount: vec![Coin::new(amount.u128(), denom)],
+                    })],
+                };
+
+                Ok(Response::new().add_messages(send_msg))
+            }
+        },
+        BLOCK_SIZE,
+    )
 }
 
 fn receiver_callback(
@@ -85,41 +148,53 @@ fn receiver_callback(
     })?;
 
     let config = config_r(deps.storage).load()?;
-    match from_binary(&msg)? {
-        InvokeMsg::Stake { from, amount } => {
-            if config.lp_token.address != info.sender {
-                return Err(StdError::generic_err("Sender was not LP Token".to_string()));
+    pad_response_result(
+        match from_binary(&msg)? {
+            InvokeMsg::Stake { from } => {
+                if config.lp_token.address != info.sender {
+                    return Err(StdError::generic_err("Sender was not LP Token".to_string()));
+                }
+                stake(deps, env, info, amount, from)
             }
-            stake(deps, env, info, amount, from)
-        }
-    }
+            InvokeMsg::ProxyStake { for_addr } => {
+                if config.lp_token.address != info.sender {
+                    return Err(StdError::generic_err("Sender was not LP Token".to_string()));
+                }
+                proxy_stake(deps, env, info, amount, from, for_addr)
+            }
+        },
+        BLOCK_SIZE,
+    )
 }
 
 #[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
-        QueryMsg::GetConfig {} => get_config(deps),
-        QueryMsg::GetContractOwner {} => todo!(),
-        QueryMsg::WithPermit { permit, query } => {
-            let res: PermitAuthentication<QueryData> = authenticate_permit(deps, permit, &deps.querier, None)?;
+    pad_query_result(
+        match msg {
+            QueryMsg::GetConfig {} => get_config(deps),
+            QueryMsg::GetContractOwner {} => todo!(),
+            QueryMsg::WithPermit { permit, query } => {
+                let config = config_r(deps.storage).load()?;
+                let res: PermitAuthentication<QueryData> =
+                    authenticate_permit(deps, permit, &deps.querier, config.authenticator)?;
 
-            if res.revoked {
-                return Err(StdError::generic_err("".to_string()));
+                if res.revoked {
+                    return Err(StdError::generic_err("".to_string()));
+                }
+
+                auth_queries(deps, env, query, res.sender)
             }
-
-            auth_queries(deps, env, query, res.sender)
+            QueryMsg::GetAdmin {} => to_binary(&QueryResponse::GetAdmin {
+                admin: admin_r(deps.storage).load()?,
+            }),
         },
-    }
+        BLOCK_SIZE,
+    )
 }
 
-pub fn auth_queries(deps: Deps, env: Env, msg: AuthQuery, user: Addr) -> StdResult<Binary> {
+pub fn auth_queries(deps: Deps, _env: Env, msg: AuthQuery, user: Addr) -> StdResult<Binary> {
     match msg {
-        AuthQuery::GetClaimReward { time } => {
-            get_claim_reward_for_user(deps, user, time)
-        },
-        AuthQuery::GetStakerLpTokenInfo { } => {
-            get_staking_stake_lp_token_info(deps, user)
-        }
+        AuthQuery::GetClaimReward { time } => get_claim_reward_for_user(deps, user, time),
+        AuthQuery::GetStakerLpTokenInfo {} => get_staking_stake_lp_token_info(deps, user),
     }
 }
-

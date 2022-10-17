@@ -2,6 +2,8 @@ use rand_chacha::ChaChaRng;
 use rand_core::{RngCore, SeedableRng};
 use sha2::{Digest, Sha256};
 
+use super::SHA256_HASH_SIZE;
+
 pub struct Prng {
     rng: ChaChaRng,
 }
@@ -15,7 +17,7 @@ impl Prng {
         hasher.update(&entropy);
         let hash = hasher.finalize();
 
-        let mut hash_bytes = [0u8; 32];
+        let mut hash_bytes = [0u8; SHA256_HASH_SIZE];
         hash_bytes.copy_from_slice(hash.as_slice());
 
         let rng = ChaChaRng::from_seed(hash_bytes);
@@ -23,8 +25,8 @@ impl Prng {
         Self { rng }
     }
 
-    pub fn rand_bytes(&mut self) -> [u8; 32] {
-        let mut bytes = [0u8; 32];
+    pub fn rand_bytes(&mut self) -> [u8; SHA256_HASH_SIZE] {
+        let mut bytes = [0u8; SHA256_HASH_SIZE];
         self.rng.fill_bytes(&mut bytes);
 
         bytes
@@ -44,19 +46,19 @@ mod tests {
     #[test]
     fn test_rng() {
         let mut rng = Prng::new(b"foo", b"bar!");
-        let r1: [u8; 32] = [
+        let r1: [u8; SHA256_HASH_SIZE] = [
             155, 11, 21, 97, 252, 65, 160, 190, 100, 126, 85, 251, 47, 73, 160, 49, 216, 182, 93,
             30, 185, 67, 166, 22, 34, 10, 213, 112, 21, 136, 49, 214,
         ];
-        let r2: [u8; 32] = [
+        let r2: [u8; SHA256_HASH_SIZE] = [
             46, 135, 19, 242, 111, 125, 59, 215, 114, 130, 122, 155, 202, 23, 36, 118, 83, 11, 6,
             180, 97, 165, 218, 136, 134, 243, 191, 191, 149, 178, 7, 149,
         ];
-        let r3: [u8; 32] = [
+        let r3: [u8; SHA256_HASH_SIZE] = [
             9, 2, 131, 50, 199, 170, 6, 68, 168, 28, 242, 182, 35, 114, 15, 163, 65, 139, 101, 221,
             207, 147, 119, 110, 81, 195, 6, 134, 14, 253, 245, 244,
         ];
-        let r4: [u8; 32] = [
+        let r4: [u8; SHA256_HASH_SIZE] = [
             68, 196, 114, 205, 225, 64, 201, 179, 18, 77, 216, 197, 211, 13, 21, 196, 11, 102, 106,
             195, 138, 250, 29, 185, 51, 38, 183, 0, 5, 169, 65, 190,
         ];
@@ -70,7 +72,7 @@ mod tests {
     fn test_rand_bytes_counter() {
         let mut rng = Prng::new(b"foo", b"bar");
 
-        let r1: [u8; 32] = [
+        let r1: [u8; SHA256_HASH_SIZE] = [
             114, 227, 179, 76, 120, 34, 236, 42, 204, 27, 153, 74, 44, 29, 158, 162, 180, 202, 165,
             46, 155, 90, 178, 252, 127, 80, 162, 79, 3, 146, 153, 88,
         ];

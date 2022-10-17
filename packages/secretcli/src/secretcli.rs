@@ -46,7 +46,7 @@ fn secretcli_run(command: Vec<String>, max_retry: Option<i32>) -> Result<Value> 
     }
 
     if !commands.is_empty() {
-        cli.args(commands);
+        cli.args(commands);        
     }
 
     let mut result = cli.output().expect("Unexpected error");
@@ -64,7 +64,7 @@ fn secretcli_run(command: Vec<String>, max_retry: Option<i32>) -> Result<Value> 
     if String::from_utf8_lossy(&out).contains("output_error") {
         println!("{:?}", &String::from_utf8_lossy(&out));
     }
-    //println!("{:?}", &String::from_utf8_lossy(&out));
+    println!("{:?}", &String::from_utf8_lossy(&out));
     serde_json::from_str(&String::from_utf8_lossy(&out))
 }
 
@@ -321,7 +321,8 @@ pub fn init<Message: serde::Serialize>(
     backend: Option<&str>,
     report: &mut Vec<Report>,
 ) -> Result<NetContract> {
-    let store_response = store_contract(contract_file, Option::from(&*sender), store_gas, backend)?;
+    let store_response = store_contract(contract_file, Option::from(&*sender), store_gas, backend)?;    
+    
     let store_query = query_hash(store_response.txhash)?;
     let mut contract = NetContract {
         label: label.to_string(),

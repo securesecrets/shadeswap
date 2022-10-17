@@ -2,7 +2,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use shadeswap_shared::core::Callback;
+
 
 use crate::batch;
 use crate::transaction_history::{RichTx, Tx};
@@ -10,13 +10,13 @@ use crate::viewing_key_obj::ViewingKeyObj;
 use cosmwasm_std::{Addr, Binary, StdError, StdResult, Uint128};
 use secret_toolkit::permit::Permit;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct InitialBalance {
     pub address: Addr,
     pub amount: Uint128,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, Debug, Clone)]
 pub struct InstantiateMsg {
     pub name: String,
     pub admin: Option<Addr>,
@@ -24,8 +24,7 @@ pub struct InstantiateMsg {
     pub decimals: u8,
     pub initial_balances: Option<Vec<InitialBalance>>,
     pub prng_seed: Binary,
-    pub config: Option<InitConfig>,
-    pub callback: Option<Callback>
+    pub config: Option<InitConfig>
 }
 
 impl InstantiateMsg {

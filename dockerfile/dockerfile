@@ -1,4 +1,4 @@
-FROM ghcr.io/scrtlabs/localsecret:v1.4.0-beta.11
+FROM ghcr.io/scrtlabs/localsecret:v1.4.1-beta.8
 
 RUN curl https://sh.rustup.rs -sSf |  sh -s -- -y
 
@@ -8,6 +8,8 @@ RUN apt install --assume-yes clang
 
 RUN apt install --assume-yes binaryen
 
-# RUN /rustup target add wasm32-unknown-unknown
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN rustup target add wasm32-unknown-unknown
 
 ENTRYPOINT ["./bootstrap_init.sh"]

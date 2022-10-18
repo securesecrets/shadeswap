@@ -107,7 +107,9 @@ pub fn staking_integration_tests() {
         mocked_contract_addr.to_owned(),
         to_binary(&QueryMsg::WithPermit { 
             permit:mk_create_permit_data().unwrap(),
-            query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwar() } })).unwrap();
+            query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwrap() 
+            } 
+        }).unwrap()).unwrap();
     match query {
         QueryResponse::ClaimRewards { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),0 );           
@@ -121,9 +123,14 @@ pub fn staking_integration_tests() {
 
 
 pub mod integration_help_lib{   
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use query_authentication::permit::Permit;
+    use query_authentication::transaction::PermitSignature;
+    use query_authentication::transaction::PubKey;
+    
     use cosmwasm_std::{Addr, ContractInfo, StdResult, Uint128, Coin, Binary, WasmMsg};
     use secret_multi_test::{App, Executor};
-    use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg}, core::TokenPair, core::{TokenType, ContractLink}, snip20::{InitConfig, InstantiateMsg, self}, query_auth::PermitData};
+    use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg}, core::TokenPair, core::{TokenType, ContractLink}, snip20::{InitConfig, InstantiateMsg, self}, query_auth::PermitData, staking::QueryData};
     use crate::{{TOKEN_A, TOKEN_B}, OWNER, snip20_contract_store};      
     use cosmwasm_std::to_binary;
     

@@ -1,0 +1,202 @@
+
+
+pub mod integration_help_lib{   
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use cosmwasm_std::Empty;
+    use query_authentication::permit::Permit;
+    use query_authentication::transaction::PermitSignature;
+    use query_authentication::transaction::PubKey;
+    use secret_multi_test::AppResponse;
+    use snip20_reference_impl::contract::instantiate;
+    use cosmwasm_std::{Addr, ContractInfo, StdResult, Uint128, Coin, Binary, WasmMsg};
+    use secret_multi_test::Contract;
+    use secret_multi_test::ContractWrapper;
+    use secret_multi_test::{App, Executor};
+    use shadeswap_shared::staking::ExecuteMsg;
+    use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg}, core::TokenPair, core::{TokenType, ContractLink}, snip20::{InitConfig, InstantiateMsg, self}, query_auth::PermitData, staking::QueryData};
+    use snip20_reference_impl::contract::{execute as snip20_execute, instantiate as snip20_instantiate, query as  snip20_query};
+    use cosmwasm_std::to_binary;
+    use snip20_reference_impl::contract::query;
+    pub const CONTRACT_ADDRESS: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy6";
+    pub const TOKEN_A: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
+    pub const TOKEN_B: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy4";
+    pub const SENDER: &str = "secret13q9rgw3ez5mf808vm6k0naye090hh0m5fe2436";
+    pub const OWNER: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
+
+    type TestPermit = Permit<PermitData>;
+    
+    pub fn mk_token_pair() -> TokenPair{
+        return TokenPair(
+            TokenType::CustomToken { contract_addr: mk_address(TOKEN_A), token_code_hash: "".to_string() },
+            TokenType::CustomToken { contract_addr: mk_address(TOKEN_B), token_code_hash: "".to_string() }
+        );
+    }
+
+
+    
+    pub fn snip20_contract_store() -> Box<dyn Contract<Empty>> {
+        let contract = ContractWrapper::new_with_empty(snip20_execute, snip20_instantiate, snip20_query);
+        Box::new(contract)
+    } 
+
+    pub fn mk_address(address: &str) -> Addr{
+        return Addr::unchecked(address.to_string())
+    }
+
+    pub fn mk_contract_link(address: &str) -> ContractLink{
+        return ContractLink{
+            address: mk_address(address),
+            code_hash: "".to_string(),
+        }       
+    }
+
+    pub fn get_current_timestamp() -> StdResult<Uint128> {
+        let start = SystemTime::now();
+        let since_the_epoch = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+        Ok(Uint128::from(since_the_epoch.as_millis()))
+    }
+
+    pub fn mk_create_permit_data() 
+    -> StdResult<TestPermit>
+    {
+        //secretd tx sign-doc file --from a
+        let newPermit = TestPermit{
+            params: PermitData { data: to_binary(&QueryData {}).unwrap(), key: "0".to_string()},
+            chain_id: Some("secretdev-1".to_string()),
+            sequence: Some(Uint128::zero()),
+            signature: PermitSignature {
+                pub_key: PubKey::new(Binary::from_base64(&"A07oJJ9n4TYTnD7ZStYyiPbB3kXOZvqIMkchGmmPRAzf".to_string()).unwrap()),
+                signature: Binary::from_base64(&"bct9+cSJF+m51/be9/Bcc1zwfzYdMGzFMUH4VQl8EW9BuDDok6YEGzw6ZQOmu+rGqlFOfMBGybZbgINjD48rVQ==".to_string()).unwrap(),
+            },
+            account_number: Some(Uint128::zero()),
+            memo: Some("".to_string())
+        };
+        return Ok(newPermit);
+    }
+
+    pub fn send_snip20_with_msg(
+        router: &mut App, 
+        contract: &ContractInfo,
+        stake_contract: &ContractInfo,
+        lp_token: Uint128,
+        staker: &Addr
+    ) -> StdResult<()>{
+        let OWNER_ADDRESS: Addr = Addr::unchecked(OWNER);
+        let invoke_msg = to_binary(&InvokeMsg::Stake {
+            from: staker.to_owned(),
+        })?;
+
+        // let callback_msg = to_binary(&ExecuteMsg::Receive { 
+        //     from: OWNER_ADDRESS.to_owned(), 
+        //     msg: Some(invoke_msg), 
+        //     amount: lp_token
+        // })?;
+        // SEND LP Token to Staking Contract with Staking Message
+        let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
+            recipient: stake_contract.address.to_owned(),
+            recipient_code_hash: Some(stake_contract.code_hash.clone()),
+            amount: lp_token,
+            msg: Some(invoke_msg),
+            memo: None,
+            padding: None,
+        };
+
+        let response: AppResponse = router.execute_contract(
+            Addr::unchecked(OWNER.to_owned()),
+            &contract.clone(),
+            &msg,
+            &[], // 
+        )
+        .unwrap();
+
+        println!("{:}", response.events[0].ty);
+        Ok(())
+    }
+
+    pub fn mint_snip20(
+        router: &mut App, 
+        amount: Uint128,
+        recipient: Addr,
+        contract: ContractInfo
+    ) -> StdResult<()>{
+        let msg = snip20_reference_impl::msg::ExecuteMsg::Mint { 
+            recipient: recipient, 
+            amount: amount, 
+            memo: None, 
+            padding: None 
+        };
+
+        let _ = router.execute_contract(
+            Addr::unchecked(OWNER.to_owned()),
+            &contract.clone(),
+            &msg,
+            &[Coin{ denom: "uscrt".to_string(), amount: amount}], // Coin{ denom: "uscrt".to_string(), amount: Uint128::new(3000000)}
+        )
+        .unwrap();
+
+        Ok(())
+    }
+
+    pub fn deposit_snip20(
+        router: &mut App, 
+        contract: ContractInfo,
+        amount: Uint128
+    ) -> StdResult<()>{
+        let msg = snip20::ExecuteMsg::Deposit { padding: None };
+        let _ = router.execute_contract(
+            Addr::unchecked(OWNER.to_owned()),
+            &contract.clone(),
+            &msg,
+            &[Coin{ 
+                denom: "uscrt".to_string(), 
+                amount: amount
+            }], 
+        )
+        .unwrap();
+
+        Ok(())
+    }
+
+      pub fn generate_snip20_contract(
+        router: &mut App, 
+        name: String, 
+        symbol: String, 
+        decimal: u8) -> StdResult<ContractInfo> {
+
+        let snip20_contract_code_id = router.store_code(snip20_contract_store());        
+        let init_snip20_msg = InstantiateMsg {
+            name: name.to_string(),
+            admin: Some(OWNER.to_string()),
+            symbol: symbol.to_string(),
+            decimals: decimal,
+            initial_balances: Some(vec![snip20::InitialBalance {
+                address: OWNER.into(),
+                amount: Uint128::from(100000000u128),
+            }]),
+            prng_seed: to_binary("password")?,
+            config: Some(InitConfig {
+                public_total_supply: Some(true),
+                enable_deposit: Some(true),
+                enable_redeem: Some(false),
+                enable_mint: Some(true),
+                enable_burn: Some(true),
+                enable_transfer: Some(true),
+            }),
+            query_auth: None,
+        };
+        let init_snip20_code_id = router
+            .instantiate_contract(
+                snip20_contract_code_id,
+                mk_address(&OWNER).to_owned(),
+                &init_snip20_msg,
+                &[],
+                "token_a",
+                Some(OWNER.to_string()),
+            ).unwrap();
+        Ok(init_snip20_code_id)
+    }
+
+
+}

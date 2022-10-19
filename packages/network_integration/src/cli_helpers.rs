@@ -1,36 +1,34 @@
 use schemars::JsonSchema;
-use shadeswap_shared::viewing_keys::ViewingKey;
 use colored::*;
 use rand::{distributions::Alphanumeric, Rng};
 use secretcli::cli_types::StoredContract;
 use secretcli::secretcli::{init, handle, Report};
 use secretcli::{cli_types::NetContract, secretcli::query};
 use serde::{Serialize, Deserialize};
+use shadeswap_shared::core::ViewingKey;
+use shadeswap_shared::snip20::InitialBalance;
 use snip20_reference_impl::contract;
 use std::fmt::Display;
 use std::fs;
 use cosmwasm_std::{
-    Binary, HumanAddr, Uint128, Env
+    Binary, Addr, Uint128, Env, StdResult, MessageInfo
 };
 use shadeswap_shared::{
     amm_pair::{AMMPair},
     msg::{
         amm_pair::{
-            HandleMsg as AMMPairHandlMsg,
+            ExecuteMsg as AMMPairHandlMsg,
         },
         factory::{
-            HandleMsg as FactoryHandleMsg, QueryMsg as FactoryQueryMsg,
+            ExecuteMsg as FactoryHandleMsg, QueryMsg as FactoryQueryMsg,
             QueryResponse as FactoryQueryResponse, InitMsg as FactoryInitMsg
         },
         router::{
-            HandleMsg as RouterHandleMsg,
+            ExecuteMsg as RouterHandleMsg,
         },
     },
     stake_contract::StakingContractInit,
-    Pagination, TokenPair, TokenPairAmount, TokenType,
-};
-use shadeswap_shared::snip20_reference_impl::msg::{
-    InitConfig as Snip20ComposableConfig, InitMsg as Snip20ComposableMsg, InitialBalance,
+    Pagination, 
 };
 
 use serde_json::Result;
@@ -148,8 +146,8 @@ impl InitConfig {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema)]
 pub struct InitialAllowance {
-    pub owner: HumanAddr,
-    pub spender: HumanAddr,
+    pub owner: Addr,
+    pub spender: Addr,
     pub amount: Uint128,
     pub expiration: Option<u64>,
 }
@@ -157,7 +155,7 @@ pub struct InitialAllowance {
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct InitMsg {
     pub name: String,
-    pub admin: Option<HumanAddr>,
+    pub admin: Option<Addr>,
     pub symbol: String,
     pub decimals: u8,
     pub initial_balances: Option<Vec<InitialBalance>>,
@@ -208,6 +206,6 @@ pub fn init_snip20(
 
 
 
-pub fn create_viewing_key(env: &Env, seed: Binary, entroy: Binary) -> ViewingKey {
-    ViewingKey::new(&env, seed.as_slice(), entroy.as_slice())
+pub fn create_viewing_key(env: &Env, msgInfo: &MessageInfo, seed: Binary, entroy: Binary) -> ViewingKey {
+    ViewingKey::new(&env, &msgInfo, seed.as_slice(), entroy.as_slice())
 }

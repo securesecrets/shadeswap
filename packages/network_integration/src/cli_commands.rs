@@ -7,7 +7,6 @@ pub mod snip20_lib{
 
     use crate::utils::{InitConfig, init_snip20_cli, GAS};
     use cosmwasm_std::Addr;
-    pub const SNIP20_FILE: &str = "../../compiled/snip20.wasm.gz";
     
     pub fn create_new_snip_20(account_name: &str, backend: &str, name:&str, symbol:&str, decimal: u8, 
         viewing_key:&str, reports: &mut Vec<Report>,  enable_burn: bool, enable_mint: bool, enable_deposit: bool,
@@ -49,7 +48,7 @@ pub mod snip20_lib{
             Some(config),
             reports,
             &account_name, 
-            Some(&SNIP20_FILE),
+            None,
             &keyring_backend        
         )?;
     
@@ -333,7 +332,7 @@ pub mod amm_pair_lib{
 
     use std::io;
     use shadeswap_shared::{
-        core::{ContractInstantiationInfo, TokenType, TokenPair, TokenPairAmount},
+        core::{ContractInstantiationInfo, TokenType, TokenPair, TokenPairAmount, ContractLink},
         msg::{
             amm_pair::{
                 ExecuteMsg as AMMPairHandlMsg
@@ -342,7 +341,7 @@ pub mod amm_pair_lib{
                 ExecuteMsg as FactoryExecuteMsg,
                 QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
             },
-            staking::StakingContractInit,
+            staking::{StakingContractInit, ExecuteMsg as StakingExecuteMsg},
         },
         Pagination, c_std::{Addr, to_binary},
     };
@@ -518,6 +517,46 @@ pub mod amm_pair_lib{
             };
         
             Ok((token_0_address, token_1_address))
+        }
+
+        pub fn set_reward_token(          
+            account_name: &str,
+            backend: &str,
+            staking_addr: &str,
+            token_addr: &str,
+            token_code_hash: &str,
+            daily_reward_amount: Uint128,
+            valid_to: Uint128,
+            reports: &mut Vec<Report>
+        ) -> io::Result<()>
+        {
+            let staking_contract =  NetContract { 
+                label: "".to_string(), 
+                id: "".to_string(), 
+                address: staking_addr.to_string(), 
+                code_hash: "".to_string() };        
+
+           
+            handle(
+                &StakingExecuteMsg::SetRewardToken { 
+                    reward_token: ContractLink{
+                        address: Addr::unchecked(token_addr.to_string()),
+                        code_hash: token_code_hash.to_string(),
+                    }, 
+                    daily_reward_amount: daily_reward_amount, 
+                    valid_to: valid_to 
+                },
+                &staking_contract,
+                account_name,
+                Some(GAS),
+                Some(backend),
+                None,
+                reports,
+                None,
+            )
+            .unwrap();
+        
+            Ok(())
         }
 
         pub fn add_liquidity(          

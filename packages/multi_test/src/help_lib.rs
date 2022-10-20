@@ -2,11 +2,14 @@
 
 pub mod integration_help_lib{   
     use std::time::{SystemTime, UNIX_EPOCH};
+    use cosmwasm_std::CosmosMsg;
     use cosmwasm_std::Empty;
     use query_authentication::permit::Permit;
     use query_authentication::transaction::PermitSignature;
     use query_authentication::transaction::PubKey;
     use secret_multi_test::AppResponse;
+    use secret_multi_test::next_block;
+    use shadeswap_shared::utils::testing::TestingExt;
     use snip20_reference_impl::contract::instantiate;
     use cosmwasm_std::{Addr, ContractInfo, StdResult, Uint128, Coin, Binary, WasmMsg};
     use secret_multi_test::Contract;
@@ -33,6 +36,14 @@ pub mod integration_help_lib{
     }
 
 
+    pub fn roll_blockchain(router: &mut App, count: u128) -> StdResult<()>{
+        for i in 1..count {
+            println!("timestamp {} - height {}",router.block_info().time, router.block_info().height);
+            router.update_block(next_block);
+         
+        }
+        Ok(())
+    }
     
     pub fn snip20_contract_store() -> Box<dyn Contract<Empty>> {
         let contract = ContractWrapper::new_with_empty(snip20_execute, snip20_instantiate, snip20_query);
@@ -58,7 +69,27 @@ pub mod integration_help_lib{
         Ok(Uint128::from(since_the_epoch.as_millis()))
     }
 
-    pub fn mk_create_permit_data() 
+    pub fn get_snip20_balance(
+        router: &mut App, 
+        contract: &ContractInfo, 
+        from: String, 
+        view_key: String
+    ) -> Uint128 {
+        let msg = to_binary(&snip20::QueryMsg::Balance {
+            address: from,
+            key: view_key,
+        }).unwrap();
+    
+        let balance: snip20::QueryAnswer = router.query_test(contract.to_owned(), msg).unwrap();
+    
+        if let snip20::QueryAnswer::Balance { amount } = balance {
+            return amount;
+        }
+        Uint128::zero()
+    }
+
+  
+    pub fn mk_create_permit_data(pub_key: &str) 
     -> StdResult<TestPermit>
     {
         //secretd tx sign-doc file --from a
@@ -67,7 +98,7 @@ pub mod integration_help_lib{
             chain_id: Some("secretdev-1".to_string()),
             sequence: Some(Uint128::zero()),
             signature: PermitSignature {
-                pub_key: PubKey::new(Binary::from_base64(&"A07oJJ9n4TYTnD7ZStYyiPbB3kXOZvqIMkchGmmPRAzf".to_string()).unwrap()),
+                pub_key: PubKey::new(Binary::from_base64(pub_key).unwrap()),
                 signature: Binary::from_base64(&"bct9+cSJF+m51/be9/Bcc1zwfzYdMGzFMUH4VQl8EW9BuDDok6YEGzw6ZQOmu+rGqlFOfMBGybZbgINjD48rVQ==".to_string()).unwrap(),
             },
             account_number: Some(Uint128::zero()),
@@ -76,28 +107,23 @@ pub mod integration_help_lib{
         return Ok(newPermit);
     }
 
+ 
     pub fn send_snip20_with_msg(
         router: &mut App, 
         contract: &ContractInfo,
         stake_contract: &ContractInfo,
-        lp_token: Uint128,
+        amount: Uint128,
         staker: &Addr
     ) -> StdResult<()>{
         let OWNER_ADDRESS: Addr = Addr::unchecked(OWNER);
         let invoke_msg = to_binary(&InvokeMsg::Stake {
             from: staker.to_owned(),
         })?;
-
-        // let callback_msg = to_binary(&ExecuteMsg::Receive { 
-        //     from: OWNER_ADDRESS.to_owned(), 
-        //     msg: Some(invoke_msg), 
-        //     amount: lp_token
-        // })?;
-        // SEND LP Token to Staking Contract with Staking Message
+       
         let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
             recipient: stake_contract.address.to_owned(),
             recipient_code_hash: Some(stake_contract.code_hash.clone()),
-            amount: lp_token,
+            amount: amount,
             msg: Some(invoke_msg),
             memo: None,
             padding: None,
@@ -111,7 +137,35 @@ pub mod integration_help_lib{
         )
         .unwrap();
 
-        println!("{:}", response.events[0].ty);
+        print_events(response);        
+        Ok(())
+    }
+
+    pub fn snip20_send(
+        router: &mut App, 
+        contract: &ContractInfo,
+        recipient: &ContractInfo,
+        amount: Uint128,
+        staker: &Addr
+    ) -> StdResult<()>{       
+        let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
+            recipient: recipient.address.to_owned(),
+            recipient_code_hash: Some(recipient.code_hash.clone()),
+            amount: amount,
+            msg: None,
+            memo: None,
+            padding: None,
+        };
+
+        let response: AppResponse = router.execute_contract(
+            Addr::unchecked(OWNER.to_owned()),
+            &contract.clone(),
+            &msg,
+            &[], // 
+        )
+        .unwrap();
+
+        print_events(response);        
         Ok(())
     }
 
@@ -139,13 +193,22 @@ pub mod integration_help_lib{
         Ok(())
     }
 
+    pub fn print_events(app_response: AppResponse) -> (){
+        for i in app_response.events {
+            println!("{:}", i.ty);
+            for msg in i.attributes{
+                println!("key {:} - value {:}", msg.key, msg.value)
+            }
+        }
+    }
+
     pub fn deposit_snip20(
         router: &mut App, 
         contract: ContractInfo,
         amount: Uint128
     ) -> StdResult<()>{
         let msg = snip20::ExecuteMsg::Deposit { padding: None };
-        let _ = router.execute_contract(
+        let app_response = router.execute_contract(
             Addr::unchecked(OWNER.to_owned()),
             &contract.clone(),
             &msg,
@@ -156,6 +219,12 @@ pub mod integration_help_lib{
         )
         .unwrap();
 
+        for res in app_response.events.to_owned(){
+            println!("{:}", res.ty);
+            for msg in res.attributes{
+                println!("key {:} - value {:}", msg.key, msg.value)
+            }
+        }
         Ok(())
     }
 

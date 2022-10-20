@@ -40,7 +40,6 @@ pub fn store_init_reward_token_and_timestamp(
     storage: &mut dyn Storage,
     reward_token: ContractLink,
     emission_amount: Uint128,
-    current_timestamp: Uint128,
 ) -> StdResult<()> {
     // store reward token to the list
     let mut reward_token_list: Vec<Addr> = Vec::new();
@@ -231,7 +230,7 @@ pub fn proxy_stake(
 
     // return response
     Ok(Response::new().add_attributes(vec![
-        Attribute::new("action", "stake"),
+        Attribute::new("action", "proxy stake"),
         Attribute::new("staker", staker.as_str()),
         Attribute::new("amount", amount),
     ]))
@@ -536,7 +535,7 @@ pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Bi
 }
 
 pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResult<Binary> {
-    // load stakers
+    // load stakers   
     let mut result_list: Vec<ClaimableInfo> = Vec::new();
     let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;
     let reward_token_list: Vec<RewardTokenInfo> = get_actual_reward_tokens(deps.storage, time)?;
@@ -585,6 +584,7 @@ pub fn proxy_unstake(
     amount: Uint128,
 ) -> StdResult<Response> {
     let caller = info.sender.clone();
+    println!("caller {}", caller.to_owned());
     let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
     let mut staker_info = stakers_r(deps.storage).load(for_addr.as_bytes())?;
     let proxy_staking_key = &generate_proxy_staking_key(&caller, &for_addr);

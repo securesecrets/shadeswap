@@ -58,8 +58,7 @@ pub fn instantiate(
     store_init_reward_token_and_timestamp(
         deps.storage,
         reward_token_address.to_owned(),
-        msg.daily_reward_amount,
-        current_timestamp,
+        msg.daily_reward_amount,        
     )?;
 
     let mut response = Response::new();

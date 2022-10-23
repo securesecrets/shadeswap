@@ -537,12 +537,14 @@ pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Bi
 pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResult<Binary> {
     // load stakers   
     let mut result_list: Vec<ClaimableInfo> = Vec::new();
+    println!("query for staker {}", staker.to_string());
     let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;
     let reward_token_list: Vec<RewardTokenInfo> = get_actual_reward_tokens(deps.storage, time)?;
     let percentage = calculate_staker_shares(deps.storage, staker_info.amount)?;
     for reward_token in reward_token_list.iter() {
-        if reward_token.valid_to < staker_info.last_time_updated {
+        if reward_token.valid_to > staker_info.last_time_updated {
             let reward: Uint128;
+            println!("time {} - valid_to {}", time.to_string(), reward_token.valid_to.to_string());
             if time > reward_token.valid_to {
                 // calculate reward amount for each reward token
                 reward = calculate_incremental_staking_reward(

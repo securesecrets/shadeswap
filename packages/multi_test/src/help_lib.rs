@@ -18,14 +18,10 @@ pub mod integration_help_lib{
     use shadeswap_shared::staking::ExecuteMsg;
     use shadeswap_shared::{msg::staking::{InitMsg, InvokeMsg}, core::TokenPair, core::{TokenType, ContractLink}, snip20::{InitConfig, InstantiateMsg, self}, query_auth::PermitData, staking::QueryData};
     use snip20_reference_impl::contract::{execute as snip20_execute, instantiate as snip20_instantiate, query as  snip20_query};
-    use cosmwasm_std::to_binary;
-    use snip20_reference_impl::contract::query;
-    pub const CONTRACT_ADDRESS: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy6";
-    pub const TOKEN_A: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
-    pub const TOKEN_B: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy4";
-    pub const SENDER: &str = "secret13q9rgw3ez5mf808vm6k0naye090hh0m5fe2436";
-    pub const OWNER: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
-
+    use cosmwasm_std::to_binary;  
+    use crate::auth_query::auth_query::{{execute as auth_execute, instantiate as auth_instantiate, query as auth_query, InitMsg as AuthInitMsg}};
+    use crate::util_addr::util_addr::{OWNER, TOKEN_B, TOKEN_A};
+          
     type TestPermit = Permit<PermitData>;
     
     pub fn mk_token_pair() -> TokenPair{
@@ -35,12 +31,25 @@ pub mod integration_help_lib{
         );
     }
 
+    pub fn store_init_auth_contract(router: &mut App) 
+    -> StdResult<ContractInfo>
+    {        
+        let auth_contract_info = router.store_code(auth_permit_contract_store());   
+        let auth_contract = router.instantiate_contract(
+            auth_contract_info, 
+            mk_address(&OWNER).to_owned(), 
+            &AuthInitMsg{}, 
+            &[], 
+            "auth_permit", 
+            Some(OWNER.to_string())
+        ).unwrap();
+        Ok(auth_contract)
+    }
+
 
     pub fn roll_blockchain(router: &mut App, count: u128) -> StdResult<()>{
-        for i in 1..count {
-            println!("timestamp {} - height {}",router.block_info().time, router.block_info().height);
-            router.update_block(next_block);
-         
+        for i in 1..count {            
+            router.update_block(next_block);         
         }
         Ok(())
     }
@@ -49,6 +58,11 @@ pub mod integration_help_lib{
         let contract = ContractWrapper::new_with_empty(snip20_execute, snip20_instantiate, snip20_query);
         Box::new(contract)
     } 
+
+    pub fn auth_permit_contract_store() -> Box<dyn Contract<Empty>> {
+        let contract = ContractWrapper::new_with_empty(auth_execute, auth_instantiate, auth_query);
+        Box::new(contract)
+    }
 
     pub fn mk_address(address: &str) -> Addr{
         return Addr::unchecked(address.to_string())
@@ -89,17 +103,17 @@ pub mod integration_help_lib{
     }
 
   
-    pub fn mk_create_permit_data(pub_key: &str) 
+    pub fn mk_create_permit_data(pub_key: &str, sign: &str, chain_id: &str) 
     -> StdResult<TestPermit>
     {
         //secretd tx sign-doc file --from a
         let newPermit = TestPermit{
             params: PermitData { data: to_binary(&QueryData {}).unwrap(), key: "0".to_string()},
-            chain_id: Some("secretdev-1".to_string()),
+            chain_id: Some(chain_id.to_string()),
             sequence: Some(Uint128::zero()),
             signature: PermitSignature {
                 pub_key: PubKey::new(Binary::from_base64(pub_key).unwrap()),
-                signature: Binary::from_base64(&"bct9+cSJF+m51/be9/Bcc1zwfzYdMGzFMUH4VQl8EW9BuDDok6YEGzw6ZQOmu+rGqlFOfMBGybZbgINjD48rVQ==".to_string()).unwrap(),
+                signature: Binary::from_base64(sign).unwrap(),
             },
             account_number: Some(Uint128::zero()),
             memo: Some("".to_string())

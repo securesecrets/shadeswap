@@ -5,8 +5,8 @@ use secretcli::{secretcli::Report, cli_types::NetContract};
 use shadeswap_shared::c_std::Uint128;
 
 use crate::cli_commands::amm_pair_lib::{store_amm_pair, store_staking_contract, add_amm_pairs_with_staking, list_pair_from_factory, add_amm_pairs_no_staking, add_liquidity, set_reward_token};
-use crate::cli_commands::snip20_lib::{create_new_snip_20, balance_snip20_query};
-use crate::cli_commands::factory_lib::{create_factory_contract, mint_snip20, increase_allowance};
+use crate::cli_commands::snip20_lib::{create_new_snip_20, balance_snip20_query, set_viewing_key};
+use crate::cli_commands::factory_lib::{create_factory_contract, mint_snip20, increase_allowance, deposit_snip20};
 use crate::cli_commands::router_lib::{create_router_contract, register_snip20_router};
 pub const HELP: &str = "help";
 pub const CMDCREATESNIP20: &str = "snip20";
@@ -22,6 +22,8 @@ pub const CMDLISTAMMPAIR: &str = "list_amm_pair";
 pub const CMDADDLIQ: &str = "add_liq";
 pub const CMDBALANCE: &str = "snip20_bal";
 pub const CMDSETREWARDTOKEN: &str = "set_reward_token";
+pub const CMDDEPOSITSNIP20: &str = "deposit";
+pub const CMDSETVIEWINGKEY: &str = "set_viewing_key";
 
 pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
 {
@@ -78,6 +80,36 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
         let code_hash = args[5].clone(); 
         let router: NetContract = create_router_contract(code_hash.clone(), &account_name, &backend,  reports)?;
         print_contract_details_cli(router, "Router".to_string());
+    }
+
+    if args_command == CMDSETVIEWINGKEY{
+        if args.len() != 6 {
+            return Err(Error::new(ErrorKind::Other, "Please provide all args"));
+        } 
+
+        let account_name = args[2].clone();
+        let backend = args[3].clone(); 
+        let token_addr = args[4].clone();    
+        let viewing_key = args[5].clone(); 
+        let net_contract = NetContract{
+            label: "".to_string(),
+            id: "".to_string(),
+            address: token_addr,
+            code_hash: "".to_string(),
+        };
+        set_viewing_key(&viewing_key,&net_contract,reports, &account_name, &backend)?;
+    }
+
+    if args_command == CMDDEPOSITSNIP20{
+        if args.len() != 6 {
+            return Err(Error::new(ErrorKind::Other, "Please provide all args"));
+        } 
+
+        let account_name = args[2].clone();
+        let backend = args[3].clone(); 
+        let token_addr = args[4].clone();    
+        let amount = args[5].clone(); 
+        deposit_snip20(&account_name,&backend,&token_addr,&amount,reports)?;
     }
 
     if args_command == CMDSTOREAMMPAIR{
@@ -274,6 +306,8 @@ pub fn print_help() -> io::Result<()>
     handle.write_all(b"\n\t11. Command:: add_liq <account_name> <keyring_backend> <pair_addr> <token_0_addr> <token_1_addr> <token_code_hash> <amount_0> <amount_1> <staking - bool> -- Add Liquidity to the AMM Pair")?;
     handle.write_all(b"\n\t12. Command:: snip20_bal <snip20_addr> <spender> <viewing_key> -- Balance Snip 20 for spender")?;
     handle.write_all(b"\n\t13. Command:: set_reward_token <account_name> <keyring_backend> <staking_addr> <reward_token_addr> <reward_token_hash> <amount> <valid_to> -- Set Reward Token for Staking Contract")?;
+    handle.write_all(b"\n\t14. Command:: deposit <account_name> <keyring_backend> <token_addr> <amount> -- Deposit to Snip20 Token")?;
+    handle.write_all(b"\n\t15. Command:: set_viewing_key <account_name> <keyring_backend> <token_addr> <key> -- Set Viewing Key")?;
     handle.write_all(b"\n")?;
     handle.flush()?;
   

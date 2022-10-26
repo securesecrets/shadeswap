@@ -75,13 +75,14 @@ pub fn set_reward_token(
     let result = reward_list_token
         .iter()
         .find(|&x| x.to_owned() == reward_token.address.to_owned());
-    if result == None {
+    if result == None {       
         reward_list_token.push(reward_token.address.to_owned());
     }
     reward_token_w(deps.storage).save(&reward_token.address.as_bytes(), &reward_token_info)?;
+    reward_token_list_w(deps.storage).save(&reward_list_token)?;
     Ok(Response::new().add_attributes(vec![
         Attribute::new("action", "set_reward_token"),
-        Attribute::new("owner", info.sender.to_string()),
+        Attribute::new("owner", info.sender.to_string()),       
         Attribute::new("daily_reward_amount", daily_reward_amount.to_string()),
         Attribute::new("valid_to", valid_to.to_string()),
     ]))
@@ -252,7 +253,7 @@ pub fn claim_rewards(deps: DepsMut, info: MessageInfo, env: Env) -> StdResult<Re
     let mut staker_info = stakers_r(deps.storage).load(staker_address.as_bytes())?;
 
     let staker_share = calculate_staker_shares(deps.storage, staker_info.amount)?;
-    let reward_token_list: Vec<RewardTokenInfo> = get_actual_reward_tokens(deps.storage, current_timestamp)?;
+    let reward_token_list: Vec<RewardTokenInfo> = get_actual_reward_tokens(deps.storage)?;
     for reward_token in reward_token_list.iter() {
         // calculate reward amount for each reward token
         let mut reward = find_claimable_reward_for_staker_by_reward_token(
@@ -348,7 +349,7 @@ pub fn claim_rewards_for_all_stakers(
 
         let staker_share = calculate_staker_shares(storage, staker_info.amount)?;
         let reward_token_list: Vec<RewardTokenInfo> =
-            get_actual_reward_tokens(storage, current_timestamp)?;
+            get_actual_reward_tokens(storage)?;
         for reward_token in reward_token_list.iter() {
             // calculate reward amount for each reward token
             let mut reward = find_claimable_reward_for_staker_by_reward_token(
@@ -393,11 +394,10 @@ pub fn claim_rewards_for_all_stakers(
 
 pub fn get_actual_reward_tokens(
     storage: &dyn Storage,
-    current_timestamp: Uint128,
 ) -> StdResult<Vec<RewardTokenInfo>> {
     let mut list_token: Vec<RewardTokenInfo> = Vec::new();
     let reward_list = reward_token_list_r(storage).load()?;
-    for addr in &reward_list {
+    for addr in &reward_list {       
         // load total reward token
         let reward_token: RewardTokenInfo = reward_token_r(storage).load(addr.as_bytes())?;
         list_token.push(reward_token.to_owned())
@@ -537,12 +537,11 @@ pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Bi
 pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResult<Binary> {
     // load stakers   
     let mut result_list: Vec<ClaimableInfo> = Vec::new();
-    println!("query for staker {}", staker.to_string());
     let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;
-    let reward_token_list: Vec<RewardTokenInfo> = get_actual_reward_tokens(deps.storage, time)?;
+    let reward_token_list: Vec<RewardTokenInfo> = get_actual_reward_tokens(deps.storage)?;
     let percentage = calculate_staker_shares(deps.storage, staker_info.amount)?;
     for reward_token in reward_token_list.iter() {
-        if reward_token.valid_to > staker_info.last_time_updated {
+        if reward_token.valid_to < staker_info.last_time_updated {
             let reward: Uint128;
             println!("time {} - valid_to {}", time.to_string(), reward_token.valid_to.to_string());
             if time > reward_token.valid_to {
@@ -562,6 +561,23 @@ pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> Std
                 )?;
             }
             // load any existing claimable reward for specif user
+            let claimable_reward = find_claimable_reward_for_staker_by_reward_token(
+                deps.storage,
+                &staker,
+                &reward_token.reward_token,
+            )?;
+            result_list.push(ClaimableInfo {
+                token_address: reward_token.reward_token.address.to_owned(),
+                amount: claimable_reward.amount + reward,
+            });
+        }
+        else{
+            let reward = calculate_incremental_staking_reward(
+                percentage,
+                staker_info.last_time_updated,
+                reward_token.valid_to,
+                reward_token.daily_reward_amount,
+            )?;
             let claimable_reward = find_claimable_reward_for_staker_by_reward_token(
                 deps.storage,
                 &staker,

@@ -59,7 +59,7 @@ pub mod snip20_lib{
         Ok(s_contract.1)
     }
 
-    fn set_viewing_key(
+    pub fn set_viewing_key(
         viewing_key: &str, 
         net_contract: &NetContract, 
         reports: &mut Vec<Report>,
@@ -173,6 +173,35 @@ pub mod factory_lib{
         )?;    
        
         Ok(factory_contract)
+    }
+
+    pub fn deposit_snip20(
+        account_name: &str,
+        backend: & str,
+        token_addr: &str,
+        amount: &str,
+        reports: &mut Vec<Report>
+    ) -> io::Result<()>{
+        println!("Deposit to SNIP20 - token {} - amount {}", token_addr.to_string(), amount);
+        let net_contract = NetContract{
+            label: "".to_string(),
+            id: "".to_string(),
+            address: token_addr.to_string(),
+            code_hash: "".to_string(),
+        };
+
+        let msg = snip20_reference_impl::msg::ExecuteMsg::Deposit { padding: None };
+        handle(
+            &msg,
+            &net_contract,
+            account_name,
+            Some(GAS),
+            Some(backend),
+            Some(amount),
+            reports,
+            None,
+        )?;
+        Ok(())
     }
 
     pub fn mint_snip20(

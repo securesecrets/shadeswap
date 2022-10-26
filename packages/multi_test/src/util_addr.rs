@@ -7,4 +7,7 @@ pub mod util_addr{
     pub const OWNER_PUB_KEY: &str = "A0qzJ3s16OKUfn1KFyh533vBnBOQIT0jm+R/FBobJCfa";
     pub const OWNER_SIGNATURE: &str =
         "4pZtghyHKHHmwiGNC5JD8JxCJiO+44j6GqaLPc19Q7lt85tr0IRZHYcnc0pkokIds8otxU9rcuvPXb0+etLyVA==";
+
+    pub const STAKER_A: &str = "secret1r5gk4wy0jyqg7mndw8gjks65evrtffs3ud2vk6";
+    pub const STAKER_B: &str = "secret1r5gk4wy0jyqg7mndw8gjks65evrtffs3ud2vk6";    
 }

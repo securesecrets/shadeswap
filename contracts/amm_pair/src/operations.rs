@@ -283,15 +283,7 @@ pub fn swap(
 
     store_trade_history(deps, &trade_history)?;
     
-    Ok(Response::new().add_messages(messages).add_attributes(vec![
-        Attribute::new("action", "swap"),
-        // Attribute::new("offer_token", offer.token),
-        Attribute::new("offer_amount", offer.amount),
-        Attribute::new("return_amount", swap_result.result.return_amount),
-        Attribute::new("lp_fee", swap_result.lp_fee_amount),
-        Attribute::new("shade_dao_fee", swap_result.shade_dao_fee_amount),
-        Attribute::new("shade_total_fee", swap_result.total_fee_amount),
-    ]))
+    Ok(Response::new().add_messages(messages))
 }
 
 pub fn set_staking_contract(

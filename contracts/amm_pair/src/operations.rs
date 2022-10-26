@@ -661,8 +661,10 @@ pub fn add_liquidity(
     let mut new_deposit = deposit.clone();
 
     //determine which token should be swapped for other
-    let token0_input_ratio_larger: bool = deposit.amount_0 / pool_balances[0] > deposit.amount_1 / pool_balances[1];
-    if token0_input_ratio_larger {
+    let ten_to_18th = Uint128::from(1_000_000_000_000_000_000u128);
+    let token0_ratio = (deposit.amount_0 * ten_to_18th) / pool_balances[0];
+    let token1_ratio = (deposit.amount_1 * ten_to_18th) / pool_balances[1];
+    if token0_ratio > token1_ratio {
         let extra_token0_amount = deposit.amount_0 - pool_balances[0].multiply_ratio(deposit.amount_1, pool_balances[1]);
         let half_of_extra = extra_token0_amount / Uint128::from(2u32);
         let offer = TokenAmount { token: deposit.pair.0, amount: half_of_extra };
@@ -677,7 +679,7 @@ pub fn add_liquidity(
 
         new_deposit.amount_0 = deposit.amount_0 - half_of_extra;
         new_deposit.amount_1 = deposit.amount_1 + swap_return;
-    } else {
+    } else if token1_ratio > token0_ratio {
         let extra_token1_amount = deposit.amount_1 - pool_balances[1].multiply_ratio(deposit.amount_0, pool_balances[0]);
         let half_of_extra = extra_token1_amount / Uint128::from(2u32);
         let offer = TokenAmount { token: deposit.pair.1, amount: half_of_extra };

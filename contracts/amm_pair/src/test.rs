@@ -288,6 +288,8 @@ pub mod tests {
 
 #[cfg(test)]
 pub mod tests_calculation_price_and_fee {
+    use std::str::FromStr;
+
     use super::*;
 
     use cosmwasm_std::Decimal;
@@ -513,19 +515,72 @@ pub mod tests_calculation_price_and_fee {
             &mock_info,
             TokenPairAmount{
                 pair: token_pair.clone(),
-                amount_0: Uint128::from(1000000u128),
+                amount_0: Uint128::from(10000u128),
                 amount_1: Uint128::from(10000u128)
             },
             Some(Uint128::from(10000001u128)),
             None
-        );       
+        );
 
-        match add_liquidity_with_err {  
-            Ok(_) => todo!(),
-            Err(e) => assert_eq!(e, StdError::generic_err(
-                "Operation returns less then expected (10000001 < 10000000).",
-            )),
-        }       
+        assert!(add_liquidity_with_err.is_err());
+        assert_eq!(add_liquidity_with_err.err().unwrap(), StdError::generic_err("Operation returns less then expected (10000001 < 10000000)."));
+        Ok(())
+    }
+
+    #[test]
+    fn assert_slippage_add_imbalanced_liqudity_return_less_than_balanced() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;              
+        let mock_info = mock_info("Sender", &[]);
+
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(100u128),
+                amount_1: Uint128::from(10u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let imbalanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        let add_result = add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(110u128),
+                amount_1: Uint128::from(0u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let sslp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(55u128),
+                amount_1: Uint128::from(55u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+        
+        assert!(balanced_lp_tokens_received > imbalanced_lp_tokens_received);
+        assert!(imbalanced_lp_tokens_received > sslp_tokens_received);
         Ok(())
     }
 

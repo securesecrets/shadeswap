@@ -7,7 +7,7 @@ use std::{
 use cosmwasm_std::{
     to_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
     MessageInfo, QuerierWrapper, QueryRequest, Response, StdError, StdResult, Storage, SubMsg,
-    Uint128, Uint256, WasmMsg, WasmQuery,
+    Uint128, Uint256, WasmMsg, WasmQuery, from_binary,
 };
 use shadeswap_shared::{
     amm_pair::AMMSettings,
@@ -658,11 +658,47 @@ pub fn add_liquidity(
         }
     }
 
+    let mut new_deposit = deposit.clone();
+
+    //determine which token should be swapped for other
+    let token0_input_ratio_larger: bool = deposit.amount_0 / pool_balances[0] > deposit.amount_1 / pool_balances[1];
+    if token0_input_ratio_larger {
+        let extra_token0_amount = deposit.amount_0 - pool_balances[0].multiply_ratio(deposit.amount_1, pool_balances[1]);
+        let half_of_extra = extra_token0_amount / Uint128::from(2u32);
+        let offer = TokenAmount { token: deposit.pair.0, amount: half_of_extra };
+
+        let response = from_binary::<QueryMsgResponse>(&swap_simulation(deps.as_ref(), env.clone(), offer)?)?;
+        let swap_return = match response {
+            QueryMsgResponse::SwapSimulation { total_fee_amount: _, lp_fee_amount: _, shade_dao_fee_amount: _, result, price: _ } => {
+                Ok(result.return_amount)
+            },
+            _ => Err(StdError::generic_err("Failed to read data from swap return"))
+        }?;
+
+        new_deposit.amount_0 = deposit.amount_0 - half_of_extra;
+        new_deposit.amount_1 = deposit.amount_1 + swap_return;
+    } else {
+        let extra_token1_amount = deposit.amount_1 - pool_balances[1].multiply_ratio(deposit.amount_0, pool_balances[0]);
+        let half_of_extra = extra_token1_amount / Uint128::from(2u32);
+        let offer = TokenAmount { token: deposit.pair.1, amount: half_of_extra };
+
+        let response = from_binary::<QueryMsgResponse>(&swap_simulation(deps.as_ref(), env.clone(), offer)?)?;
+        let swap_return = match response {
+            QueryMsgResponse::SwapSimulation { total_fee_amount: _, lp_fee_amount: _, shade_dao_fee_amount: _, result, price: _ } => {
+                Ok(result.return_amount)
+            },
+            _ => Err(StdError::generic_err("Failed to read data from swap return"))
+        }?;
+
+        new_deposit.amount_0 = deposit.amount_0 + swap_return;
+        new_deposit.amount_1 = deposit.amount_1 - half_of_extra;
+    }
+
     let pair_contract_pool_liquidity =
     query_total_supply(deps.as_ref(), &lp_token)?;
     println!("total pool amount {}", pair_contract_pool_liquidity);
     let lp_tokens = calculate_lp_tokens(
-        &deposit,
+        &new_deposit,
         pool_balances,
         pair_contract_pool_liquidity,
     )?;
@@ -755,7 +791,7 @@ pub fn add_liquidity(
         .add_attributes(vec![
             Attribute::new("staking", format!("{}", add_to_staking)),
             Attribute::new("action", "add_liquidity_to_pair_contract"),
-            Attribute::new("assets", format!("{}, {}", deposit.pair.0, deposit.pair.1)),
+            Attribute::new("assets", format!("{}, {}", new_deposit.pair.0, new_deposit.pair.1)),
             Attribute::new("share_pool", lp_tokens),
         ]))
 }

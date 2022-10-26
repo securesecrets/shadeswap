@@ -22,32 +22,35 @@ pub fn staking_contract_store() -> Box<dyn Contract<Empty>> {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 pub fn staking_integration_tests() {        
-    use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snipo20, send_snip20_to_stake};
+    use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance};
     use cosmwasm_std::{Uint128, Coin, StdError, StdResult};
-    use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY};       
+    use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
+    use multi_test::util_addr::util_blockchain::CHAIN_ID;
     use shadeswap_shared::core::ContractLink;
     use shadeswap_shared::staking::{QueryMsg, AuthQuery};
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{core::{TokenType}};
-    use multi_test::help_lib::integration_help_lib::{generate_snip20_contract,
-         mk_create_permit_data, get_current_timestamp};
+    use multi_test::help_lib::integration_help_lib::{generate_snip20_contract};
+    use multi_test::help_lib::integration_help_lib::print_events;
+    use crate::staking_help_query::query_claimable_reward;
        
-    
-    let owner_address = Addr::unchecked(OWNER);
+    let staker_a_addr = Addr::unchecked(STAKER_A.to_owned());       
+    let staker_b_addr = Addr::unchecked(STAKER_B.to_owned());       
+    let owner_addr = Addr::unchecked(OWNER);
+   
     let mut router = App::default();  
-    let chain_id = "pulsar-2".to_string();
+
     router.init_modules(|router, _, storage| {
         router
             .bank
-            .init_balance(storage, &owner_address.clone(), vec![Coin{denom: "uscrt".into(), amount: Uint128::new(100000000000000u128)}])
+            .init_balance(storage, &owner_addr.clone(), vec![Coin{denom: "uscrt".into(), amount: Uint128::new(100000000000000u128)}])
             .unwrap();
     });
 
-    router.block_info().chain_id = chain_id.to_string();
+    router.block_info().chain_id = CHAIN_ID.to_string();
     roll_blockchain(&mut router, 1).unwrap();
 
     let reward_contract = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18).unwrap();    
-    println!("reward token A addr {}", reward_contract.address.to_string());
     let staking_contract_info = router.store_code(staking_contract_store());
     let auth_contract = store_init_auth_contract(&mut router).unwrap();
     let lp_token_contract = generate_snip20_contract(&mut router, "LPT".to_string(),"LPT".to_string(),18).unwrap();
@@ -90,35 +93,20 @@ pub fn staking_integration_tests() {
     roll_blockchain(&mut router, 1).unwrap();  
    
     // Assert Error StakingInfo not found
-    let permit = mk_create_permit_data(OWNER_PUB_KEY, OWNER_SIGNATURE, &chain_id).unwrap();
-    let query: StdResult<QueryResponse> = router.query_test(
-        staking_contract.to_owned(),
-        to_binary(&QueryMsg::WithPermit { 
-            permit:permit,
-            query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwrap() 
-            } 
-        }).unwrap());
-
-    match query {
+    let permit_query = query_claimable_reward(&router, &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY);
+    match permit_query {
         Ok(_) => todo!(),
         Err(err) =>assert_eq!(StdError::GenericErr{ msg: "Querier contract error: staking::state::StakingInfo not found".to_string() }, err),
     }
 
-    // MINT & DEPOSIT 
-    mint_deposit_snipo20(&mut router,&lp_token_contract,&staking_contract,Uint128::new(1000));
-    mint_deposit_snipo20(&mut router,&reward_contract,&staking_contract,Uint128::new(10000000));
+    // MINT & DEPOSIT LP TOKEN & REWARD TOKEN
+    mint_deposit_snip20(&mut router,&lp_token_contract,&owner_addr,Uint128::new(100000000), &owner_addr);
+    mint_deposit_snip20(&mut router,&reward_contract,&owner_addr,Uint128::new(100000000), &owner_addr);
     // STAKE LP TOKEN 
-    send_snip20_to_stake(&mut router, &lp_token_contract, &staking_contract, Uint128::new(1000u128), &owner_address).unwrap();
+    send_snip20_to_stake(&mut router, &lp_token_contract, &staking_contract, Uint128::new(1000u128), &owner_addr, &owner_addr).unwrap();
      
-    roll_blockchain(&mut router, 1000).unwrap();  
-    let permit_query: QueryResponse = router.query_test(
-        staking_contract.to_owned(),
-        to_binary(&QueryMsg::WithPermit { 
-            permit:mk_create_permit_data(OWNER_PUB_KEY, OWNER_SIGNATURE, &chain_id).unwrap(),
-            query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwrap() 
-            } 
-        }).unwrap()).unwrap();
-   
+    roll_blockchain(&mut router, 1000).unwrap(); 
+    let permit_query = query_claimable_reward(&router, &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY).unwrap();
     match permit_query {
         QueryResponse::ClaimRewards { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),1); 
@@ -148,8 +136,8 @@ pub fn staking_integration_tests() {
         valid_to: Uint128::new(3747905010000u128) 
     };
 
-    let _ = router.execute_contract(owner_address, &staking_contract, &set_reward_msg, &[]).unwrap();
-    mint_deposit_snipo20(&mut router, &reward_contract_b, &staking_contract, Uint128::new(100000));
+    let _ = router.execute_contract(owner_addr.to_owned(), &staking_contract, &set_reward_msg, &[]).unwrap();
+    mint_deposit_snip20(&mut router, &reward_contract_b, &staking_contract.address, Uint128::new(100000), &owner_addr);
 
     roll_blockchain(&mut router, 500).unwrap();    
     let msg = ExecuteMsg::ClaimRewards {  }; 
@@ -160,30 +148,59 @@ pub fn staking_integration_tests() {
         &[], // 
     )
     .unwrap(); 
-    
-    let permit_query: QueryResponse = router.query_test(
-        staking_contract.to_owned(),
-        to_binary(&QueryMsg::WithPermit { 
-            permit:mk_create_permit_data(OWNER_PUB_KEY, OWNER_SIGNATURE, &chain_id).unwrap(),
-            query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwrap() 
-            } 
-        }).unwrap()).unwrap();
-   
+
+    let permit_query = query_claimable_reward(&router, &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY).unwrap();   
     match permit_query {
         QueryResponse::ClaimRewards { claimable_rewards  } => {
-           //assert_eq!(claimable_rewards.len(),2); 
-           assert_eq!(claimable_rewards[0].amount, Uint128::new(1300810141521u128));
-           assert_eq!(claimable_rewards[1].amount, Uint128::new(1300810140654u128));  
+           assert_eq!(claimable_rewards.len(),2); 
+           assert_eq!(claimable_rewards[0].amount, Uint128::new(1300810140654u128));
+           assert_eq!(claimable_rewards[1].amount, Uint128::new(130081014065u128));  
         },
         _ => panic!("Query Responsedoes not match")
     } 
 
-    // Assert New Staker
-    
-
-
+    // Assert New Staker A
+    mint_deposit_snip20(&mut router,&lp_token_contract, &staker_a_addr, Uint128::new(10000u128), &owner_addr);
+    let _ = send_snip20_to_stake(&mut router, &lp_token_contract, &staking_contract, Uint128::new(1000u128), &staker_a_addr, &staker_a_addr).unwrap();
+    let permit_query = query_claimable_reward(&router, &staking_contract,PUB_KEY_STAKER_A, PUB_KEY_STAKER_A);   
+    match permit_query {
+        Ok(_) => todo!(),
+        Err(err) =>assert_eq!(StdError::GenericErr{ msg: "Querier contract error: staking::state::StakingInfo not found".to_string() }, err),
+    }
+    roll_blockchain(&mut router, 500).unwrap();    
+    let permit_query = query_claimable_reward(&router, &staking_contract,PUB_KEY_STAKER_A, PUB_KEY_STAKER_A).unwrap();   
+    match permit_query {
+        QueryResponse::ClaimRewards { claimable_rewards  } => {
+           assert_eq!(claimable_rewards.len(),2); 
+           assert_eq!(claimable_rewards[0].amount, Uint128::new(1300810140654u128));
+           assert_eq!(claimable_rewards[1].amount, Uint128::new(130081014065u128));  
+        },
+        _ => panic!("Query Responsedoes not match")
+    } 
 
 }
+
+pub mod staking_help_query{
+    use cosmwasm_std::{StdResult, ContractInfo, to_binary};
+    use multi_test::{util_addr::util_blockchain::CHAIN_ID, help_lib::integration_help_lib::{get_current_timestamp, mk_create_permit_data}};
+    use secret_multi_test::App;
+    use shadeswap_shared::staking::{QueryResponse, QueryMsg, AuthQuery};
+    use shadeswap_shared::utils::testing::TestingExt;
+    
+    pub fn query_claimable_reward(router: &App, staking_contract: &ContractInfo, pub_key: &str, signature: &str) 
+    -> StdResult<QueryResponse> {
+        let permit = mk_create_permit_data(pub_key, signature, CHAIN_ID).unwrap();
+        let query: StdResult<QueryResponse> = router.query_test(
+            staking_contract.to_owned(),
+            to_binary(&QueryMsg::WithPermit { 
+                permit:permit,
+                query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwrap() 
+                } 
+            })?);
+        return query
+    }
+}
+
 
 
 

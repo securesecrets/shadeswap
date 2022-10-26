@@ -1,6 +1,7 @@
 
 
 pub mod integration_help_lib{   
+    use std::ops::Add;
     use std::time::{SystemTime, UNIX_EPOCH};
     use cosmwasm_std::CosmosMsg;
     use cosmwasm_std::Empty;
@@ -119,15 +120,35 @@ pub mod integration_help_lib{
         return Ok(newPermit);
     }
 
-    pub fn mint_deposit_snipo20(
+    pub fn mint_deposit_snip20(
         router: &mut App, 
-        reward_contract_b: &ContractInfo, 
-        staking_contract: &ContractInfo,
-        amount: Uint128
+        contract: &ContractInfo, 
+        recipient: &Addr,
+        amount: Uint128,
+        sender: &Addr
     ) {
-        set_viewing_key(router, &reward_contract_b, "password" ).unwrap();
-        deposit_snip20(router,&reward_contract_b, amount).unwrap();
-        mint_snip20(router, amount,staking_contract.address.to_owned(),&reward_contract_b).unwrap();       
+        set_viewing_key(router, &contract, "password", sender).unwrap();
+        deposit_snip20(router,&contract, amount, &sender).unwrap();
+        mint_snip20(router, amount, &recipient,&contract, &sender).unwrap();       
+    }
+
+    pub fn increase_allowance(
+        router: &mut App, 
+        contract: &ContractInfo,
+        amount: Uint128,
+        spender: &Addr,
+        sender: &Addr
+    ) 
+    -> StdResult<AppResponse>{
+        let msg = snip20::ExecuteMsg::IncreaseAllowance { 
+            spender: spender.to_string() , 
+            amount: amount, 
+            expiration: None, 
+            padding: None 
+        };
+
+        let respone = router.execute_contract(sender.to_owned(), contract, &msg, &[]).unwrap();        
+        Ok(respone)
     }
 
  
@@ -136,7 +157,8 @@ pub mod integration_help_lib{
         contract: &ContractInfo,
         stake_contract: &ContractInfo,
         amount: Uint128,
-        staker: &Addr
+        staker: &Addr,
+        sender: &Addr
     ) -> StdResult<AppResponse>{        
         let invoke_msg = to_binary(&InvokeMsg::Stake {
             from: staker.to_owned(),
@@ -152,25 +174,25 @@ pub mod integration_help_lib{
         };
 
         let response: AppResponse = router.execute_contract(
-            Addr::unchecked(OWNER.to_owned()),
+            sender.to_owned(),
             &contract.clone(),
             &msg,
             &[], // 
         )
-        .unwrap();           
+        .unwrap();               
         Ok(response)
     }
 
     pub fn snip20_send(
         router: &mut App, 
         contract: &ContractInfo,
-        recipient: &ContractInfo,
+        recipient: &Addr,
         amount: Uint128,
-        staker: &Addr
+        sender: &Addr
     ) -> StdResult<AppResponse>{       
         let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
-            recipient: recipient.address.to_owned(),
-            recipient_code_hash: Some(recipient.code_hash.clone()),
+            recipient: recipient.to_owned(),
+            recipient_code_hash: None,
             amount: amount,
             msg: None,
             memo: None,
@@ -178,36 +200,36 @@ pub mod integration_help_lib{
         };
 
         let response: AppResponse = router.execute_contract(
-            staker.to_owned(),
+            sender.to_owned(),
             &contract.clone(),
             &msg,
-            &[], // 
+            &[], 
         )
-        .unwrap();           
+        .unwrap();               
         Ok(response)
     }
 
     pub fn mint_snip20(
         router: &mut App, 
         amount: Uint128,
-        recipient: Addr,
-        contract: &ContractInfo
+        recipient: &Addr,
+        contract: &ContractInfo,
+        sender: &Addr
     ) -> StdResult<AppResponse>{
         let msg = snip20_reference_impl::msg::ExecuteMsg::Mint { 
-            recipient: recipient, 
+            recipient: recipient.to_owned(), 
             amount: amount, 
             memo: None, 
             padding: None 
         };
 
         let response = router.execute_contract(
-            Addr::unchecked(OWNER.to_owned()),
+            sender.to_owned(),
             contract,
             &msg,
             &[Coin{ denom: "uscrt".to_string(), amount: amount}], // Coin{ denom: "uscrt".to_string(), amount: Uint128::new(3000000)}
         )
         .unwrap();
-
         Ok(response)
     }
 
@@ -223,11 +245,12 @@ pub mod integration_help_lib{
     pub fn deposit_snip20(
         router: &mut App, 
         contract: &ContractInfo,
-        amount: Uint128
+        amount: Uint128,
+        sender: &Addr
     ) -> StdResult<AppResponse>{
         let msg = snip20::ExecuteMsg::Deposit { padding: None };
         let app_response = router.execute_contract(
-            Addr::unchecked(OWNER.to_owned()),
+            sender.clone(),
             contract,
             &msg,
             &[Coin{ 
@@ -243,11 +266,12 @@ pub mod integration_help_lib{
     pub fn set_viewing_key(
         router: &mut App,
         contract: &ContractInfo,
-        key: &str
+        key: &str,
+        sender: &Addr
     ) -> StdResult<AppResponse>{
         let msg = snip20::ExecuteMsg::SetViewingKey { key: key.to_string(), padding: None};
         let app_response = router.execute_contract(
-            Addr::unchecked(OWNER.to_owned()),
+            sender.to_owned(),
             contract,
             &msg,
             &[], 

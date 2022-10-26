@@ -1,6 +1,7 @@
 
 pub mod auth_query{
     use cosmwasm_std::{Response, StdResult, MessageInfo, DepsMut, Env, entry_point, to_binary, Deps, Binary, CosmosMsg, BankMsg, Coin, Addr};
+    use query_authentication::transaction::{PubKey, PubKeyValue};
     use schemars::JsonSchema;
     use secret_multi_test::Contract;
     use serde::{Deserialize, Serialize};
@@ -32,9 +33,12 @@ pub mod auth_query{
             match msg {
                 QueryMsg::Config {  } => to_binary(""),
                 QueryMsg::ValidateViewingKey { user, key } => to_binary(""),
-                QueryMsg::ValidatePermit { permit } => {                   
+                QueryMsg::ValidatePermit { permit } => {
+                    let pub_key = permit.signature.pub_key.value.clone(); 
+                    let pub_key_value = PubKeyValue(pub_key);                  
+                    println!(" Mock Validating Permit for Addr {}", pub_key_value.as_addr(None)?);
                     return to_binary(&QueryAnswer::ValidatePermit { 
-                        user: Addr::unchecked(OWNER.to_string()), 
+                        user:  pub_key_value.as_addr(None)?, 
                         is_revoked: false 
                     });
                 }

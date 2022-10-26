@@ -110,13 +110,13 @@ pub mod factory_lib{
     use secretcli::{cli_types::NetContract, secretcli::{Report, store_and_return_contract, handle}};
     use shadeswap_shared::{
         amm_pair::{AMMSettings},
-        core::{ContractInstantiationInfo, ContractLink, Fee},
+        core::{ContractInstantiationInfo, Fee},
         msg::{
             factory::{
                 InitMsg as FactoryInitMsg,
             },
         },
-        c_std::{Addr, to_binary},
+        c_std::{Addr, to_binary}, Contract,
     };
 
     use crate::utils::{init_contract_factory, STORE_GAS, GAS, API_KEY};
@@ -151,7 +151,7 @@ pub mod factory_lib{
             amm_settings: AMMSettings{
                 shade_dao_fee: Fee::new(8, 100),
                 lp_fee: Fee::new(2, 8),
-                shade_dao_address:  ContractLink {
+                shade_dao_address:  Contract {
                     address: Addr::unchecked("".to_string()),
                     code_hash: "".to_string(),
                 },
@@ -271,7 +271,6 @@ pub mod router_lib{
             let router_msg = RouterInitMsg {
                 prng_seed: to_binary(&"".to_string()).unwrap(),      
                 entropy: to_binary(&"".to_string()).unwrap(),
-                pair_contract_code_hash: code_hash,
                 admin_auth: todo!(),
             };
         
@@ -308,7 +307,7 @@ pub mod router_lib{
 
             handle(
                 &RouterExecuteMsg::RegisterSNIP20Token {
-                    token_addr: Addr::unchecked(snip20_address.clone()),
+                    token_addr: snip20_address.clone(),
                     token_code_hash: snip20_code_hash.clone(),        
                 },
                 &net_contract,

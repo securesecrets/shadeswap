@@ -8,7 +8,7 @@
 // use cosmwasm_std::{Api, Binary, CanonicalAddr, Querier, StdError, StdResult, Storage};
 // use shadeswap_shared::amm_pair::AMMSettings;
 // use shadeswap_shared::core::Fee;
-// use shadeswap_shared::core::{ContractInstantiationInfo, ContractLink};
+// use shadeswap_shared::core::{ContractInstantiationInfo, Contract};
 // use shadeswap_shared::msg::factory::InitMsg;
 // pub use shadeswap_shared::{msg::factory::QueryResponse, Pagination};
 
@@ -394,7 +394,7 @@
 //         amm_settings: AMMSettings {
 //             lp_fee: Fee::new(28, 10000),
 //             shade_dao_fee: Fee::new(2, 10000),
-//             shade_dao_address: ContractLink {
+//             shade_dao_address: Contract {
 //                 address: Addr::unchecked("CALLBACKADDR"),
 //                 code_hash: "Test".to_string(),
 //             },
@@ -418,7 +418,7 @@
 //             amm_settings: AMMSettings {
 //                 lp_fee: Fee::new(28, 10000),
 //                 shade_dao_fee: Fee::new(2, 10000),
-//                 shade_dao_address: ContractLink {
+//                 shade_dao_address: Contract {
 //                     address: Addr::unchecked("CALLBACKADDR"),
 //                     code_hash: "Test".to_string(),
 //                 },

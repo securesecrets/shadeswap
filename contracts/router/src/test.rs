@@ -34,7 +34,7 @@
 //     use cosmwasm_std::WasmQuery;
 //     use secret_toolkit::snip20::Balance;
 //     use shadeswap_shared::core::ContractInstantiationInfo;
-//     use shadeswap_shared::core::ContractLink;
+//     use shadeswap_shared::core::Contract;
 //     use shadeswap_shared::scrt_storage::load;
 //     use shadeswap_shared::scrt_storage::save;
 
@@ -485,7 +485,7 @@
 //         Config::from_init_msg(
 //             env,
 //             InitMsg {
-//                 factory_address: ContractLink {
+//                 factory_address: Contract {
 //                     address: HumanAddr(String::from(FACTORY_ADDRESS)),
 //                     code_hash: "Test".to_string(),
 //                 },
@@ -523,7 +523,7 @@
 //         let env = mock_env("admin", &[]);
 
 //         let init_msg = InitMsg {
-//             factory_address: ContractLink {
+//             factory_address: Contract {
 //                 address: HumanAddr(String::from(FACTORY_ADDRESS)),
 //                 code_hash: "Test".to_string(),
 //             },
@@ -562,7 +562,7 @@
 //                                     amm_settings: shadeswap_shared::amm_pair::AMMSettings {
 //                                         lp_fee: Fee::new(28, 10000),
 //                                         shade_dao_fee: Fee::new(2, 10000),
-//                                         shade_dao_address: ContractLink {
+//                                         shade_dao_address: Contract {
 //                                             address: HumanAddr(String::from("DAO")),
 //                                             code_hash: "".to_string(),
 //                                         },
@@ -575,11 +575,11 @@
 //                             }
 //                             PAIR_CONTRACT_1 => QuerierResult::Ok(to_binary(
 //                                 &AMMPairQueryMsgResponse::GetPairInfo {
-//                                     liquidity_token: ContractLink {
+//                                     liquidity_token: Contract {
 //                                         address: HumanAddr::from("asd"),
 //                                         code_hash: "".to_string(),
 //                                     },
-//                                     factory: ContractLink {
+//                                     factory: Contract {
 //                                         address: HumanAddr::from("asd"),
 //                                         code_hash: "".to_string(),
 //                                     },

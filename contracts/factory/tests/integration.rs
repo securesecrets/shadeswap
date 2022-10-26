@@ -4,7 +4,7 @@ use cosmwasm_std::{
 use factory::contract::{execute, instantiate, query};
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
 use shadeswap_shared::{
-    core::{ContractInstantiationInfo, ContractLink },
+    core::{ContractInstantiationInfo, },
     factory::{InitMsg, QueryResponse, QueryMsg},
     utils::testing::TestingExt,
     Contract as SContract
@@ -29,7 +29,7 @@ fn factory_integration_tests() {
         amm_settings: shadeswap_shared::amm_pair::AMMSettings {
             lp_fee: shadeswap_shared::core::Fee { nom: 2, denom: 100 },
             shade_dao_fee: shadeswap_shared::core::Fee { nom: 2, denom: 100 },
-            shade_dao_address: ContractLink {
+            shade_dao_address: SContract {
                 address: Addr::unchecked("".to_string()),
                 code_hash: "".to_string(),
             },

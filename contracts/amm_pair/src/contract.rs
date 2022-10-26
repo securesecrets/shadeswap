@@ -15,12 +15,11 @@ use cosmwasm_std::{
 };
 use shadeswap_shared::{
     admin::helpers::{validate_admin, AdminPermissions},
-    core::{create_viewing_key, ContractLink, TokenAmount, TokenType},
+    core::{create_viewing_key, TokenAmount, TokenType},
     lp_token::{InitConfig, InstantiateMsg},
     msg::amm_pair::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse},
     snip20::helpers::send_msg,
-    utils::{pad_query_result, pad_response_result},
-    Contract,
+    utils::{pad_query_result, pad_response_result}, Contract,
 };
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
@@ -99,7 +98,7 @@ pub fn instantiate(
 
     let config = Config {
         factory_contract: msg.factory_info.clone(),
-        lp_token: ContractLink {
+        lp_token: Contract {
             code_hash: msg.lp_token_contract.code_hash,
             address: Addr::unchecked(""),
         },
@@ -164,8 +163,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 offer,
                 expected_return,
                 to,
-                router_link,
-                callback_signature,
             } => {
                 if !offer.token.is_native_token() {
                     return Err(StdError::generic_err("Use the receive interface"));
@@ -181,8 +178,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     to,
                     offer,
                     expected_return,
-                    router_link,
-                    callback_signature,
                 )
             }
             ExecuteMsg::SetViewingKey { viewing_key } => update_viewing_key(env, deps, viewing_key),
@@ -259,9 +254,7 @@ fn receiver_callback(
         match from_binary(&msg)? {
             InvokeMsg::SwapTokens {
                 to,
-                expected_return,
-                router_link,
-                callback_signature,
+                expected_return
             } => {
                 for token in config.pair.into_iter() {
                     match token {
@@ -283,9 +276,7 @@ fn receiver_callback(
                                         )
                                     })?),
                                     offer,
-                                    expected_return,
-                                    router_link,
-                                    callback_signature,
+                                    expected_return
                                 );
                             }
                         }
@@ -412,7 +403,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                     let config = config_r(deps.storage).load()?;
                     set_staking_contract(
                         deps.storage,
-                        Some(ContractLink {
+                        Some(Contract {
                             address: deps.api.addr_validate(&contract_address)?,
                             code_hash: config
                                 .staking_contract_init

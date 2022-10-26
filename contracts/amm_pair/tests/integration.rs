@@ -5,7 +5,7 @@
 // use secret_multi_test::{App, BankKeeper, Contract, ContractWrapper, Executor};
 // use shadeswap_shared::{
 //     msg::amm_pair::{{QueryMsg, QueryMsgResponse}},
-//     core::{ContractInstantiationInfo, ContractLink},
+//     core::{ContractInstantiationInfo, Contract},
 //     c_std::{QueryRequest, WasmQuery},
 //     factory::{InitMsg as FactoryInitMsg, QueryResponse as FactoryQueryResponse, QueryMsg as FactoryQueryMsg}, 
 //     utils::testing::TestingExt
@@ -59,7 +59,7 @@
        
 //     let mut router = App::default();   
 
-//     let factory_contract_link = ContractLink{
+//     let factory_contract_link = Contract{
 //         address: mk_address(FACTORY),
 //         code_hash: "".to_string(),
 //     };    
@@ -119,7 +119,7 @@
 // pub mod integration_help_lib{   
 //     use cosmwasm_std::{Addr, ContractInfo};
 //     use secret_multi_test::{App, Executor};
-//     use shadeswap_shared::{msg::amm_pair::InitMsg, core::TokenPair, core::{TokenType, ContractLink}, snip20::{InitConfig, InstantiateMsg}};
+//     use shadeswap_shared::{msg::amm_pair::InitMsg, core::TokenPair, core::{TokenType, Contract}, snip20::{InitConfig, InstantiateMsg}};
 //     use crate::{{TOKEN_A, TOKEN_B}, OWNER, snip20_contract_store};      
 //     use cosmwasm_std::to_binary;
 
@@ -134,8 +134,8 @@
 //         return Addr::unchecked(address.to_string())
 //     }
 
-//     pub fn mk_contract_link(address: &str) -> ContractLink{
-//         return ContractLink{
+//     pub fn mk_contract_link(address: &str) -> Contract{
+//         return Contract{
 //             address: mk_address(address),
 //             code_hash: "".to_string(),
 //         }       

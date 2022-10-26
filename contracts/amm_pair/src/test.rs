@@ -5,7 +5,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use shadeswap_shared::amm_pair::AMMSettings;
 use shadeswap_shared::{
-    core::{create_viewing_key, ContractLink, TokenAmount, TokenType},
+    core::{create_viewing_key, TokenAmount, TokenType},
     msg::amm_pair::InitMsg,
 };
 
@@ -53,7 +53,7 @@ pub mod tests {
                 code_hash: "CODE_HASH".to_string(),
                 id: 0,
             },
-            factory_info: ContractLink {
+            factory_info: Contract {
                 address: Addr::unchecked("FACTORYADDR"),
                 code_hash: "FACTORYADDR_HASH".to_string(),
             },
@@ -116,7 +116,7 @@ pub mod tests {
                 code_hash: "CODE_HASH".to_string(),
                 id: 0,
             },
-            factory_info: ContractLink {
+            factory_info: Contract {
                 address: Addr::unchecked("FACTORYADDR"),
                 code_hash: "FACTORYADDR_HASH".to_string(),
             },
@@ -180,7 +180,7 @@ pub mod tests {
             config.factory_contract.address.as_str(),
             FACTORY_CONTRACT_ADDRESS.clone()
         );
-        let router_contract = ContractLink {
+        let router_contract = Contract {
             address: Addr::unchecked("router".to_string()),
             code_hash: "".to_string(),
         };
@@ -192,9 +192,7 @@ pub mod tests {
             address_a.clone(),
             None,
             mk_custom_token_amount(Uint128::from(1000u128), token_pair.clone()),
-            None,
-            Some(router_contract),
-            Some(signature),
+            None
         )?;
         let offer_amount = &native_swap.clone().attributes[2];
         assert_eq!(offer_amount.value, 65420.to_string());
@@ -220,9 +218,7 @@ pub mod tests {
             address_a.clone(),
             None,
             mk_custom_token_amount(Uint128::from(1000u128), token_pair.clone()),
-            None,
-            None,
-            None,
+            None
         )?;
         let offer_amount = &native_swap.clone().attributes[2];
         assert_eq!(offer_amount.value, 65420.to_string());
@@ -237,7 +233,7 @@ pub mod tests {
         let token_pair = mk_native_token_pair();
         let config = make_init_config(mk_native_token_pair().clone())?;
         let address_a = Addr::unchecked("TESTA".to_string());
-        let router_contract = ContractLink {
+        let router_contract = Contract {
             address: Addr::unchecked("router".to_string()),
             code_hash: "".to_string(),
         };
@@ -252,9 +248,7 @@ pub mod tests {
             address_a.clone(),
             None,
             mk_custom_token_amount(Uint128::from(1000u128), token_pair.clone()),
-            None,
-            Some(router_contract),
-            None,
+            None
         );
         match native_swap.unwrap_err() {
             e =>  assert_eq!(e, StdError::generic_err(
@@ -292,6 +286,7 @@ pub mod tests_calculation_price_and_fee {
 
     use cosmwasm_std::Decimal;
 
+    use shadeswap_shared::Contract;
     use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount};
 
     use crate::operations::{
@@ -405,7 +400,7 @@ pub mod tests_calculation_price_and_fee {
         let amm_settings = shadeswap_shared::amm_pair::AMMSettings {
             lp_fee: Fee::new(2, 100),
             shade_dao_fee: Fee::new(3, 100),
-            shade_dao_address: ContractLink {
+            shade_dao_address: Contract {
                 address: Addr::unchecked("DAO"),
                 code_hash: "".to_string(),
             }
@@ -457,9 +452,7 @@ pub mod tests_calculation_price_and_fee {
             address_a.clone(),
             Some(address_a.clone()),          
             mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), token), 
-            Some(Uint128::from(40000u128)),
-            None, 
-            None
+            Some(Uint128::from(40000u128))
         );
 
         match swap_and_test_slippage.unwrap_err() {
@@ -479,7 +472,7 @@ pub mod tests_calculation_price_and_fee {
         let offer_amount: u128 = 2000;          
         let address_a = "TESTA".to_string();
         let token = config.pair.clone();  
-        let router_contract = ContractLink{
+        let router_contract = Contract{
             address: Addr::unchecked("".to_string()),
             code_hash: "".to_string()
         }; 
@@ -491,9 +484,7 @@ pub mod tests_calculation_price_and_fee {
             Addr::unchecked(address_a.clone()),
             Some(Addr::unchecked(address_a.clone())),          
             mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), token), 
-            Some(Uint128::from(400u128)),
-            Some(router_contract), 
-            Some(signature)
+            Some(Uint128::from(400u128))
         );
          assert_eq!(
             swap_and_test_slippage.unwrap().attributes[2].value, 
@@ -636,7 +627,7 @@ pub mod help_test_lib {
                 code_hash: "CODE_HASH".to_string(),
                 id: 0,
             },
-            factory_info: ContractLink {
+            factory_info: Contract {
                 address: Addr::unchecked(FACTORY_CONTRACT_ADDRESS),
                 code_hash: "".to_string(),
             },
@@ -656,7 +647,7 @@ pub mod help_test_lib {
         AMMSettings {
             lp_fee: Fee { nom: 2, denom: 100 },
             shade_dao_fee: Fee { nom: 1, denom: 100 },
-            shade_dao_address: ContractLink {
+            shade_dao_address: Contract {
                 code_hash: "CODEHAS".to_string(),
                 address: Addr::unchecked("TEST".to_string()),
             },
@@ -715,7 +706,7 @@ pub mod help_test_lib {
         AMMSettings {
             shade_dao_fee: Fee { nom: 1, denom: 100 },
             lp_fee: Fee { nom: 2, denom: 100 },
-            shade_dao_address: ContractLink {
+            shade_dao_address: Contract {
                 code_hash: "CODEHAS".to_string(),
                 address: Addr::unchecked("TEST".to_string()),
             },
@@ -750,15 +741,15 @@ pub mod help_test_lib {
         })
     }
 
-    pub fn mock_contract_link(address: String) -> ContractLink {
-        ContractLink {
+    pub fn mock_contract_link(address: String) -> Contract {
+        Contract {
             address: Addr::unchecked(address.clone()),
             code_hash: "CODEHASH".to_string(),
         }
     }
 
-    pub fn mock_contract_info(address: &str) -> ContractLink {
-        ContractLink {
+    pub fn mock_contract_info(address: &str) -> Contract {
+        Contract {
             address: Addr::unchecked(address.clone()),
             code_hash: "".to_string(),
         }
@@ -857,7 +848,7 @@ pub mod help_test_lib {
                             let amm_settings = shadeswap_shared::amm_pair::AMMSettings {
                                 lp_fee: Fee::new(28, 100),
                                 shade_dao_fee: Fee::new(2, 100),
-                                shade_dao_address: ContractLink {
+                                shade_dao_address: Contract {
                                     address: Addr::unchecked("DAO"),
                                     code_hash: "".to_string(),
                                 },
@@ -971,7 +962,7 @@ pub mod help_test_lib {
                   code_hash: "CODE_HASH".to_string(),
                   id :0
             },
-            factory_info: ContractLink {
+            factory_info: Contract {
                 address: Addr::unchecked(FACTORY_CONTRACT_ADDRESS),
                 code_hash: "TEST".to_string()
             },
@@ -985,7 +976,7 @@ pub mod help_test_lib {
         let temp_deps = deps.branch();
         assert!(instantiate(temp_deps, env.clone(),mock_info, msg).is_ok());
         let mut config = config_r(deps.storage).load()?;    // set staking contract        
-        config.lp_token = ContractLink{
+        config.lp_token = Contract{
             address: deps_api.as_mut().api.addr_validate(&lp_token_addr.unwrap()).unwrap(),
             code_hash: "".to_string(),
         };

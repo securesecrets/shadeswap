@@ -40,7 +40,7 @@ pub mod tests {
     }, utils::testing::assert_error};
     use shadeswap_shared::{
         c_std::{CustomQuery, Deps, OwnedDeps},
-        core::{ContractLink, TokenType},
+        core::{TokenType},
         msg::staking::{ExecuteMsg, InitMsg, QueryMsg, QueryResponse},
     };
 
@@ -772,7 +772,7 @@ pub mod test_help_lib {
     };
     use serde::{Deserialize, Serialize};
     use shadeswap_shared::{
-        core::{ContractLink, TokenType},
+        core::{TokenType},
         snip20::{manager::Balance, QueryAnswer},
         staking::InitMsg, Contract,
     };
@@ -790,9 +790,9 @@ pub mod test_help_lib {
         });
     }
 
-    pub fn make_reward_token_contract(address: &str, code_hash: &str) -> StdResult<ContractLink> {
+    pub fn make_reward_token_contract(address: &str, code_hash: &str) -> StdResult<Contract> {
         let mut deps = mock_dependencies(&[]);
-        return Ok(ContractLink {
+        return Ok(Contract {
             address: deps.as_mut().api.addr_validate(address)?,
             code_hash: code_hash.to_string(),
         });
@@ -810,12 +810,12 @@ pub mod test_help_lib {
                 contract_addr: deps.api.addr_validate(CONTRACT_ADDRESS)?,
                 token_code_hash: CONTRACT_ADDRESS.to_string(),
             },
-            pair_contract: ContractLink {
+            pair_contract: Contract {
                 address: deps.api.addr_validate(CONTRACT_ADDRESS)?,
                 code_hash: "".to_string().clone(),
             },
             prng_seed: to_binary(&"prng")?,
-            lp_token: ContractLink {
+            lp_token: Contract {
                 address: Addr::unchecked("".to_string()),
                 code_hash: "".to_string(),
             },
@@ -824,7 +824,7 @@ pub mod test_help_lib {
         };
         assert!(instantiate(deps.branch(), env.clone(), info.clone(), msg).is_ok());
         let mut config = config_r(deps.storage).load()?;
-        config.lp_token = ContractLink {
+        config.lp_token = Contract {
             address: deps.api.addr_validate(LP_TOKEN)?,
             code_hash: "".to_string(),
         };

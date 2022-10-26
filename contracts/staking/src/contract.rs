@@ -3,7 +3,7 @@ use cosmwasm_std::{
     DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128,
 };
 use shadeswap_shared::{
-    core::{ContractLink, TokenType},
+    core::{TokenType},
     query_auth::helpers::{authenticate_permit, PermitAuthentication},
     snip20::helpers::send_msg,
     staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
@@ -41,11 +41,11 @@ pub fn instantiate(
     prng_seed_w(deps.storage).save(&msg.prng_seed.as_slice().to_vec())?;
 
     // store reward token to the list
-    let reward_token_address: ContractLink = match msg.reward_token {
+    let reward_token_address: Contract = match msg.reward_token {
         TokenType::CustomToken {
             contract_addr,
             token_code_hash,
-        } => ContractLink {
+        } => Contract {
             address: contract_addr.to_owned(),
             code_hash: token_code_hash.to_owned(),
         },

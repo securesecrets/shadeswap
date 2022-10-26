@@ -899,8 +899,8 @@ dependencies = [
 
 [[package]]
 name = "secret-toolkit"
-version = "0.5.0"
-source = "git+https://github.com/scrtlabs/secret-toolkit?branch=cosmwasm-v1.0#0d0531c83b429b54b01926d2cacbc0ed6e7893fd"
+version = "0.4.0"
+source = "git+https://github.com/scrtlabs/secret-toolkit?rev=8380c00#8380c00d4abb4585e02ba2d2bab8194aff52743e"
 dependencies = [
  "secret-toolkit-crypto",
  "secret-toolkit-permit",
@@ -915,7 +915,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-crypto"
 version = "0.3.0"
-source = "git+https://github.com/scrtlabs/secret-toolkit?branch=cosmwasm-v1.0#0d0531c83b429b54b01926d2cacbc0ed6e7893fd"
+source = "git+https://github.com/scrtlabs/secret-toolkit?rev=8380c00#8380c00d4abb4585e02ba2d2bab8194aff52743e"
 dependencies = [
  "cosmwasm-std",
  "rand_chacha 0.2.2",
@@ -926,7 +926,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-permit"
 version = "0.3.1"
-source = "git+https://github.com/scrtlabs/secret-toolkit?branch=cosmwasm-v1.0#0d0531c83b429b54b01926d2cacbc0ed6e7893fd"
+source = "git+https://github.com/scrtlabs/secret-toolkit?rev=8380c00#8380c00d4abb4585e02ba2d2bab8194aff52743e"
 dependencies = [
  "bech32",
  "cosmwasm-std",
@@ -940,7 +940,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-serialization"
 version = "0.3.0"
-source = "git+https://github.com/scrtlabs/secret-toolkit?branch=cosmwasm-v1.0#0d0531c83b429b54b01926d2cacbc0ed6e7893fd"
+source = "git+https://github.com/scrtlabs/secret-toolkit?rev=8380c00#8380c00d4abb4585e02ba2d2bab8194aff52743e"
 dependencies = [
  "bincode2",
  "cosmwasm-std",
@@ -951,7 +951,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-snip20"
 version = "0.3.0"
-source = "git+https://github.com/scrtlabs/secret-toolkit?branch=cosmwasm-v1.0#0d0531c83b429b54b01926d2cacbc0ed6e7893fd"
+source = "git+https://github.com/scrtlabs/secret-toolkit?rev=8380c00#8380c00d4abb4585e02ba2d2bab8194aff52743e"
 dependencies = [
  "cosmwasm-std",
  "schemars 0.8.11",
@@ -962,7 +962,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-snip721"
 version = "0.3.0"
-source = "git+https://github.com/scrtlabs/secret-toolkit?branch=cosmwasm-v1.0#0d0531c83b429b54b01926d2cacbc0ed6e7893fd"
+source = "git+https://github.com/scrtlabs/secret-toolkit?rev=8380c00#8380c00d4abb4585e02ba2d2bab8194aff52743e"
 dependencies = [
  "cosmwasm-std",
  "schemars 0.8.11",
@@ -972,8 +972,8 @@ dependencies = [
 
 [[package]]
 name = "secret-toolkit-storage"
-version = "0.5.0"
-source = "git+https://github.com/scrtlabs/secret-toolkit?branch=cosmwasm-v1.0#0d0531c83b429b54b01926d2cacbc0ed6e7893fd"
+version = "0.4.1"
+source = "git+https://github.com/scrtlabs/secret-toolkit?rev=8380c00#8380c00d4abb4585e02ba2d2bab8194aff52743e"
 dependencies = [
  "cosmwasm-std",
  "cosmwasm-storage",
@@ -984,7 +984,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-utils"
 version = "0.3.1"
-source = "git+https://github.com/scrtlabs/secret-toolkit?branch=cosmwasm-v1.0#0d0531c83b429b54b01926d2cacbc0ed6e7893fd"
+source = "git+https://github.com/scrtlabs/secret-toolkit?rev=8380c00#8380c00d4abb4585e02ba2d2bab8194aff52743e"
 dependencies = [
  "cosmwasm-std",
  "cosmwasm-storage",
@@ -995,7 +995,7 @@ dependencies = [
 [[package]]
 name = "secret-toolkit-viewing-key"
 version = "0.3.0"
-source = "git+https://github.com/scrtlabs/secret-toolkit?branch=cosmwasm-v1.0#0d0531c83b429b54b01926d2cacbc0ed6e7893fd"
+source = "git+https://github.com/scrtlabs/secret-toolkit?rev=8380c00#8380c00d4abb4585e02ba2d2bab8194aff52743e"
 dependencies = [
  "base64 0.11.0",
  "cosmwasm-std",

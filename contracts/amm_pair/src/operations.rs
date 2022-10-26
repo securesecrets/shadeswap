@@ -11,7 +11,7 @@ use cosmwasm_std::{
 };
 use shadeswap_shared::{
     amm_pair::AMMSettings,
-    core::{ContractLink, Fee, TokenAmount, TokenPairAmount, TokenType, ViewingKey},
+    core::{Fee, TokenAmount, TokenPairAmount, TokenType, ViewingKey},
     msg::{
         amm_pair::{QueryMsgResponse, SwapInfo, SwapResult, TradeHistory},
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
@@ -84,7 +84,7 @@ pub fn register_lp_token(
 ) -> StdResult<Response> {
     let mut config = config_r(deps.storage).load()?;
 
-    config.lp_token = ContractLink {
+    config.lp_token = Contract {
         address: lp_token_address.address.clone(),
         code_hash: lp_token_address.code_hash.clone(),
     };
@@ -108,12 +108,12 @@ pub fn register_lp_token(
                     msg: to_binary(&StakingInitMsg {
                         daily_reward_amount: c.daily_reward_amount,
                         reward_token: c.reward_token.clone(),
-                        pair_contract: ContractLink {
+                        pair_contract: Contract {
                             address: env.contract.address.clone(),
                             code_hash: env.contract.code_hash.clone(),
                         },
                         prng_seed: config.prng_seed.clone(),
-                        lp_token: ContractLink {
+                        lp_token: Contract {
                             address: lp_token_address.address.clone(),
                             code_hash: lp_token_address.code_hash.clone(),
                         },
@@ -195,8 +195,6 @@ pub fn swap(
     recipient: Option<Addr>,
     offer: TokenAmount,
     expected_return: Option<Uint128>,
-    router_link: Option<ContractLink>,
-    callback_signature: Option<Binary>,
 ) -> StdResult<Response> {
     let swaper_receiver = recipient.unwrap_or(sender);
     let amm_settings = query_factory_config(deps.as_ref(), &config.factory_contract)?.amm_settings;
@@ -219,7 +217,7 @@ pub fn swap(
     }
 
     // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
-    let mut messages = Vec::with_capacity(3);
+    let mut messages = Vec::with_capacity(2);
     if swap_result.shade_dao_fee_amount > Uint128::zero() {
         match &offer.token {
             TokenType::CustomToken {
@@ -284,28 +282,7 @@ pub fn swap(
     };
 
     store_trade_history(deps, &trade_history)?;
-
-    match &router_link {
-        Some(r) => {
-            if let Some(c) = callback_signature {
-                messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: r.address.to_string(),
-                    code_hash: r.code_hash.to_string(),
-                    funds: vec![],
-                    msg: to_binary(&RouterExecuteMsg::SwapCallBack {
-                        last_token_out: TokenAmount {
-                            token: token.clone(),
-                            amount: swap_result.result.return_amount,
-                        },
-                        signature: c
-                    })?,
-                }));
-            } else {
-                return Err(StdError::generic_err("Callback signature needs to be passed with router contract."))
-            }
-        }
-        None => (),
-    }
+    
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         Attribute::new("action", "swap"),
         // Attribute::new("offer_token", offer.token),
@@ -319,7 +296,7 @@ pub fn swap(
 
 pub fn set_staking_contract(
     storage: &mut dyn Storage,
-    staking_contract: Option<ContractLink>,
+    staking_contract: Option<Contract>,
 ) -> StdResult<Response> {
     let mut config = config_w(storage).load()?;
 
@@ -767,7 +744,7 @@ fn calculate_lp_tokens(
 ) -> Result<Uint128, StdError> {
 
     let lp_tokens: Uint128 ;
-    if pair_contract_pool_liquidity == Uint128::zero() {
+    if pair_contract_pool_liquidity.is_zero() {
         // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
         // x and y is amount of token0 and token1 provided
         let deposit_token0_amount = Uint256::from(deposit.amount_0);
@@ -831,7 +808,7 @@ struct FactoryConfig {
     admin_auth: Contract
 }
 
-fn query_factory_config(deps: Deps, factory: &ContractLink) -> StdResult<FactoryConfig> {
+fn query_factory_config(deps: Deps, factory: &Contract) -> StdResult<FactoryConfig> {
     let result: FactoryQueryResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: factory.address.to_string(),
@@ -859,7 +836,7 @@ fn query_factory_config(deps: Deps, factory: &ContractLink) -> StdResult<Factory
 
 pub fn query_factory_authorize_api_key(
     deps: Deps,
-    factory: &ContractLink,
+    factory: &Contract,
     api_key: String,
 ) -> StdResult<bool> {
     let result: FactoryQueryResponse =
@@ -884,7 +861,7 @@ pub fn query_factory_authorize_api_key(
     }
 }
 
-pub fn query_total_supply(deps: Deps, lp_token_info: &ContractLink) -> StdResult<Uint128> {
+pub fn query_total_supply(deps: Deps, lp_token_info: &Contract) -> StdResult<Uint128> {
     let result = token_info(
         &deps.querier,
         &Contract {

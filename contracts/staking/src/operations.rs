@@ -575,7 +575,7 @@ pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> Std
             let reward = calculate_incremental_staking_reward(
                 percentage,
                 staker_info.last_time_updated,
-                reward_token.valid_to,
+                time,
                 reward_token.daily_reward_amount,
             )?;
             let claimable_reward = find_claimable_reward_for_staker_by_reward_token(

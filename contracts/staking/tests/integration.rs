@@ -1,14 +1,14 @@
 use staking::contract::{execute, instantiate, query};
 // use lp_token::contract::{execute as lp_execute, instantiate as lp_instantiate, query as lp_query};
 
-use secret_multi_test::{App, BankKeeper, Contract, ContractWrapper, Executor};
+use secret_multi_test::{App, Contract, ContractWrapper, Executor};
 // use multi_test::{auth_query::execute};
 
 use shadeswap_shared::msg::staking::{{InitMsg, QueryResponse, ExecuteMsg}};
 use multi_test::help_lib::integration_help_lib::{mk_contract_link, mk_address};
 use cosmwasm_std::{
     testing::{mock_env, MockApi},
-    to_binary, Addr, Empty, Binary, ContractInfo,
+    to_binary, Addr, Empty, Binary, ContractInfo, Uint128,
 };
 
 use shadeswap_shared::utils::asset::Contract as AuthContract;
@@ -22,7 +22,7 @@ pub fn staking_contract_store() -> Box<dyn Contract<Empty>> {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 pub fn staking_integration_tests() {        
-    use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance};
+    use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance, get_current_block_time};
     use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp};
     use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
@@ -36,10 +36,7 @@ pub fn staking_integration_tests() {
        
     let staker_a_addr = Addr::unchecked(STAKER_A.to_owned());       
     let staker_b_addr = Addr::unchecked(STAKER_B.to_owned());       
-    let owner_addr = Addr::unchecked(OWNER);
-   
-    let current_timestamp = Timestamp::from_seconds(1666780713);
-    let current_timestamp_int = Uint128::new(current_timestamp.seconds() as u128);
+    let owner_addr = Addr::unchecked(OWNER);   
     let mut router = App::default();  
 
     router.init_modules(|router, _, storage| {
@@ -50,7 +47,6 @@ pub fn staking_integration_tests() {
     });
 
     router.block_info().chain_id = CHAIN_ID.to_string();
-    router.block_info().time = current_timestamp;
     roll_blockchain(&mut router, 1).unwrap();
 
     let reward_contract = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18).unwrap();    
@@ -97,7 +93,7 @@ pub fn staking_integration_tests() {
    
     // Assert Error StakingInfo not found
     let permit_query = query_claimable_reward(&router, 
-        &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, current_timestamp_int);
+        &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, get_current_block_time(&router));
     match permit_query {
         Ok(_) => todo!(),
         Err(err) =>assert_eq!(StdError::GenericErr{ msg: "Querier contract error: staking::state::StakingInfo not found".to_string() }, err),
@@ -113,18 +109,19 @@ pub fn staking_integration_tests() {
         Uint128::new(1000u128),
         &owner_addr,
         &owner_addr).unwrap();
-     
-    roll_blockchain(&mut router, 1000).unwrap(); 
+        
+    // Assert zero for the same time
     let permit_query = query_claimable_reward(&router, 
-        &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, current_timestamp.seconds()).unwrap();
+        &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, get_current_block_time(&router)).unwrap();
     match permit_query {
         QueryResponse::ClaimRewards { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),1); 
-           assert_eq!(claimable_rewards[0].amount, Uint128::new(1300810143255u128))          ;
+           assert_eq!(claimable_rewards[0].amount, Uint128::zero());
         },
         _ => panic!("Query Responsedoes not match")
     } 
 
+    roll_blockchain(&mut router, 1000).unwrap(); 
     let msg = ExecuteMsg::ClaimRewards {  }; 
     router.execute_contract(
         owner_addr.to_owned(),
@@ -132,7 +129,18 @@ pub fn staking_integration_tests() {
         &msg,
         &[], // 
     )
-    .unwrap();      
+    .unwrap(); 
+    
+    // Assert claim_rewards to set claimable_reward to zero (already paid)
+    let permit_query = query_claimable_reward(&router, 
+        &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, get_current_block_time(&router) ).unwrap();
+    match permit_query {
+        QueryResponse::ClaimRewards { claimable_rewards  } => {
+           assert_eq!(claimable_rewards.len(),1); 
+           assert_eq!(claimable_rewards[0].amount, Uint128::zero());
+        },
+        _ => panic!("Query Responsedoes not match")
+    } 
    
     roll_blockchain(&mut router, 1).unwrap();
     // set 2 reward token
@@ -159,12 +167,13 @@ pub fn staking_integration_tests() {
     )
     .unwrap(); 
 
-    let permit_query = query_claimable_reward(&router, &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, current_timestamp_int).unwrap();   
+    // Assert 2 Reward Token + Claimable Reward
+    let permit_query = query_claimable_reward(&router, &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, get_current_block_time(&router)  + Uint128::new(1000u128) ).unwrap();   
     match permit_query {
         QueryResponse::ClaimRewards { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),2); 
-           assert_eq!(claimable_rewards[0].amount, Uint128::new(1300810140654u128));
-           assert_eq!(claimable_rewards[1].amount, Uint128::new(130081014065u128));  
+           assert_eq!(claimable_rewards[0].amount, Uint128::new(347u128));
+           assert_eq!(claimable_rewards[1].amount, Uint128::new(34u128));  
         },
         _ => panic!("Query Responsedoes not match")
     } 
@@ -172,28 +181,54 @@ pub fn staking_integration_tests() {
     // Assert New Staker A
     mint_deposit_snip20(&mut router,&lp_token_contract, &staker_a_addr, Uint128::new(10000u128), &owner_addr);
     let _ = send_snip20_to_stake(&mut router, &lp_token_contract, &staking_contract, Uint128::new(1000u128), &staker_a_addr, &staker_a_addr).unwrap();
-    let permit_query = query_claimable_reward(&router, &staking_contract,PUB_KEY_STAKER_A, PUB_KEY_STAKER_A).unwrap();   
+    // Query Balance
+    let permit_query = query_claimable_reward(
+        &router, 
+        &staking_contract,
+        PUB_KEY_STAKER_A, 
+        PUB_KEY_STAKER_A, 
+        get_current_block_time(&router) + Uint128::new(1000u128)
+    ).unwrap();   
+
     match permit_query {
         QueryResponse::ClaimRewards { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),2); 
-           assert_eq!(claimable_rewards[0].amount, Uint128::zero());
-           assert_eq!(claimable_rewards[1].amount, Uint128::zero());  
+           assert_eq!(claimable_rewards[0].amount, Uint128::new(173u128));
+           assert_eq!(claimable_rewards[1].amount, Uint128::new(17u128));  
         },
         _ => panic!("Query Responsedoes not match")
     } 
 
-    roll_blockchain(&mut router, 500).unwrap();    
-    let permit_query = query_claimable_reward(&router, &staking_contract,PUB_KEY_STAKER_A, PUB_KEY_STAKER_A, current_timestamp_int).unwrap();   
+    // Assert Unstake amount < total amount 
+    roll_blockchain(&mut router, 1000);
+    let unstake_msg = ExecuteMsg::Unstake { amount: Uint128::new(500u128), remove_liqudity: Some(false)};
+    let _ = router.execute_contract(owner_addr.to_owned(), &staking_contract, &unstake_msg, &[]).unwrap();
+    
+    let permit_query = query_claimable_reward(&router, 
+        &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, get_current_block_time(&router) + Uint128::new(1000)).unwrap();
     match permit_query {
         QueryResponse::ClaimRewards { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),2); 
-           assert_eq!(claimable_rewards[0].amount, Uint128::new(1300810140654u128));
-           assert_eq!(claimable_rewards[1].amount, Uint128::new(130081014065u128));  
+           assert_eq!(claimable_rewards[0].amount, Uint128::new(86u128));
+           assert_eq!(claimable_rewards[1].amount, Uint128::new(8u128));  
         },
         _ => panic!("Query Responsedoes not match")
     } 
-
+    // Assert Unstake the whole amount
+    roll_blockchain(&mut router, 1);
+    let _ = router.execute_contract(owner_addr.to_owned(), &staking_contract, &unstake_msg, &[]).unwrap();
+    let permit_query = query_claimable_reward(&router, 
+        &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, get_current_block_time(&router)).unwrap();
+    match permit_query {
+        QueryResponse::ClaimRewards { claimable_rewards  } => {
+            assert_eq!(claimable_rewards.len(),2); 
+            assert_eq!(claimable_rewards[0].amount, Uint128::zero());
+            assert_eq!(claimable_rewards[1].amount, Uint128::zero());  
+        },
+        _ => panic!("Query Responsedoes not match")
+    } 
 }
+
 
 pub mod staking_help_query{
     use cosmwasm_std::{StdResult, ContractInfo, to_binary, Uint128};

@@ -8,3 +8,5 @@ pub mod util_addr;
 pub mod factory_mock;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod staking;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod amm_pair;

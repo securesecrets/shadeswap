@@ -3,13 +3,15 @@
 pub mod integration_help_lib{   
     use std::ops::Add;
     use std::time::{SystemTime, UNIX_EPOCH};
-    use cosmwasm_std::CosmosMsg;
+    use cosmwasm_std::{CosmosMsg, StdError};
     use cosmwasm_std::Empty;
     use query_authentication::permit::Permit;
     use query_authentication::transaction::PermitSignature;
     use query_authentication::transaction::PubKey;
     use secret_multi_test::AppResponse;
     use secret_multi_test::next_block;
+    use shadeswap_shared::core::ContractInstantiationInfo;
+    use shadeswap_shared::snip20::{QueryAnswer, QueryMsg};
     use shadeswap_shared::staking;
     use shadeswap_shared::utils::testing::TestingExt;    
     use cosmwasm_std::{Addr, ContractInfo, StdResult, Uint128, Coin, Binary, WasmMsg};
@@ -25,10 +27,13 @@ pub mod integration_help_lib{
         staking::QueryData
     };
     use snip20_reference_impl::contract::{execute as snip20_execute, instantiate as snip20_instantiate, query as  snip20_query};
-    use cosmwasm_std::to_binary;  
+    use lp_token::contract::{execute as lp_execute, instantiate as lp_instantiate, query as  lp_query};
+    use cosmwasm_std::to_binary;
+    use shadeswap_shared::msg::amm_pair::InitMsg as AMMPairInitMsg;  
     use crate::auth_query::auth_query::{{execute as auth_execute, instantiate as auth_instantiate, query as auth_query, InitMsg as AuthInitMsg}};
     use crate::util_addr::util_addr::{OWNER, TOKEN_B, TOKEN_A};
     use crate::factory_mock::factory_mock::{execute as factory_execute, query as factory_query,instantiate as factory_instantiate, InitMsg as FactoryInitMsg };
+    use crate::amm_pair::amm_pair_mock::amm_pair_mock::{execute as pair_execute, query as pair_query,instantiate as pair_instantiate };
     use crate::staking::staking_mock::staking_mock::{execute as staking_execute, query as staking_query,instantiate as staking_instantiate, InitMsg as StakingInitMsg };
     type TestPermit = Permit<PermitData>;
     
@@ -58,36 +63,77 @@ pub mod integration_help_lib{
     pub fn store_init_factory_contract(router: &mut App) 
     -> StdResult<ContractInfo>
     {        
-        let auth_contract_info = router.store_code(factory_contract_store());   
-        let auth_contract = router.instantiate_contract(
-            auth_contract_info, 
+        let contract_info = router.store_code(factory_contract_store());   
+        let contract = router.instantiate_contract(
+            contract_info, 
             mk_address(&OWNER).to_owned(), 
             &FactoryInitMsg{}, 
             &[], 
             "staking", 
             Some(OWNER.to_string())
         ).unwrap();
-        Ok(auth_contract)
+        Ok(contract)
     }
 
     pub fn store_init_staking_contract(router: &mut App) 
     -> StdResult<ContractInfo>
     {        
-        let auth_contract_info = router.store_code(auth_permit_contract_store());   
-        let auth_contract = router.instantiate_contract(
-            auth_contract_info, 
+        let contract_info = router.store_code(staking_contract_store());   
+        let contract = router.instantiate_contract(
+            contract_info, 
             mk_address(&OWNER).to_owned(), 
             &StakingInitMsg{}, 
             &[], 
             "staking", 
             Some(OWNER.to_string())
         ).unwrap();
-        Ok(auth_contract)
+        Ok(contract)
+    }
+
+    pub fn store_init_amm_pair_contract(
+        router: &mut App,
+        token_0: &ContractLink,
+        token_1: &ContractLink,
+        factory: &ContractLink
+    ) -> StdResult<ContractInfo>
+    {        
+        let contract_info = router.store_code(amm_pair_contract_store());   
+        let lp_token_info =  router.store_code(snip20_lp_token_contract_store()); 
+        let contract = router.instantiate_contract(
+            contract_info, 
+            mk_address(&OWNER).to_owned(), 
+            &AMMPairInitMsg{
+                pair: create_token_pair(&token_0, &token_1),
+                lp_token_contract: ContractInstantiationInfo{
+                    code_hash: lp_token_info.code_hash,
+                    id: lp_token_info.code_id,
+                },
+                factory_info: factory.clone(),
+                prng_seed: to_binary("seed")?,
+                entropy: to_binary("seed")?,
+                admin: Some(mk_address(&OWNER).to_owned()),
+                staking_contract: None,
+                custom_fee: None,
+                callback: None,
+            }, 
+            &[], 
+            "amm_pairs", 
+            Some(OWNER.to_string())
+        ).unwrap();
+        Ok(contract)
+    }
+
+    pub fn convert_to_contract_link(contract: &ContractInfo) -> ContractLink {
+        ContractLink{
+            address: contract.address.to_owned(),
+            code_hash: contract.code_hash.to_owned(),
+        }
     }
 
 
     pub fn roll_blockchain(router: &mut App, count: u128) -> StdResult<()>{
-        for i in 1..count {            
+        let temp_count = count + 1;
+        for i in 1..temp_count {            
             router.update_block(next_block);         
         }
         Ok(())
@@ -95,6 +141,11 @@ pub mod integration_help_lib{
     
     pub fn snip20_contract_store() -> Box<dyn Contract<Empty>> {
         let contract = ContractWrapper::new_with_empty(snip20_execute, snip20_instantiate, snip20_query);
+        Box::new(contract)
+    } 
+
+    pub fn snip20_lp_token_contract_store() -> Box<dyn Contract<Empty>> {
+        let contract = ContractWrapper::new_with_empty(lp_execute, lp_instantiate, lp_query);
         Box::new(contract)
     } 
 
@@ -112,6 +163,11 @@ pub mod integration_help_lib{
         let contract = ContractWrapper::new_with_empty(factory_execute, factory_instantiate, factory_query);
         Box::new(contract)
     }
+
+    pub fn amm_pair_contract_store() -> Box<dyn Contract<Empty>> {
+        let contract = ContractWrapper::new_with_empty(pair_execute, pair_instantiate, pair_query);
+        Box::new(contract)
+    } 
 
     pub fn mk_address(address: &str) -> Addr{
         return Addr::unchecked(address.to_string())
@@ -206,6 +262,27 @@ pub mod integration_help_lib{
         Ok(respone)
     }
 
+    pub fn create_token_pair(token_0_contract: &ContractLink, token_1_contract: &ContractLink) -> TokenPair {
+        let pair =  TokenPair(
+            TokenType::CustomToken { 
+                contract_addr: token_0_contract.address.to_owned(), 
+                token_code_hash: token_0_contract.code_hash.to_owned(), 
+            },
+            TokenType::CustomToken { 
+                contract_addr: token_1_contract.address.to_owned(), 
+                token_code_hash: token_1_contract.code_hash.to_owned(), 
+            },
+        );
+        pair
+    }
+
+    pub fn get_contract_link_from_token_type(token_type: &TokenType) -> ContractLink{
+        match token_type{
+            TokenType::CustomToken { contract_addr, token_code_hash } => ContractLink { address: contract_addr.to_owned(), code_hash: token_code_hash.to_string()},
+            TokenType::NativeToken { denom } => ContractLink { address: Addr::unchecked(""), code_hash: "".to_string()},
+        }
+    }
+
  
     pub fn send_snip20_to_stake(
         router: &mut App, 
@@ -236,6 +313,55 @@ pub mod integration_help_lib{
         )
         .unwrap();               
         Ok(response)
+    }
+
+    pub fn send_snip20_to_proxy_stake(
+        router: &mut App, 
+        contract: &ContractInfo,
+        stake_contract: &ContractInfo,
+        amount: Uint128,
+        staker: &Addr,
+        proxy_addr: &Addr,
+        sender: &Addr
+    ) -> StdResult<AppResponse>{        
+        let invoke_msg = to_binary(&InvokeMsg::ProxyStake { 
+            for_addr: staker.to_owned()})?;
+       
+        let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
+            recipient: stake_contract.address.to_owned(),
+            recipient_code_hash: Some(stake_contract.code_hash.clone()),
+            amount: amount,
+            msg: Some(invoke_msg),
+            memo: None,
+            padding: None,
+        };
+
+        let response: AppResponse = router.execute_contract(
+            sender.to_owned(),
+            &contract.clone(),
+            &msg,
+            &[], // 
+        )
+        .unwrap();               
+        Ok(response)
+    }
+
+    pub fn snip_20_balance_query(
+        router: &App,
+        address: &Addr,
+        key: &str,
+        contract: &ContractInfo,
+    ) -> StdResult<Uint128> {
+        let answer = to_binary(&QueryMsg::Balance {
+            address: address.to_string(),
+            key: key.to_string(),
+        }).unwrap();
+
+        let query_response = router.query_test(contract.to_owned(), answer).unwrap();
+        match query_response {
+            QueryAnswer::Balance { amount, .. } => Ok(amount),
+            _ => Err(StdError::generic_err("Invalid Balance Response")), //TODO: better error
+        }
     }
 
     pub fn snip20_send(
@@ -368,7 +494,7 @@ pub mod integration_help_lib{
                 mk_address(&OWNER),
                 &init_snip20_msg,
                 &[],
-                "token_a",
+                "label",
                 Some(OWNER.to_string()),
             ).unwrap();
         Ok(init_snip20_code_id)

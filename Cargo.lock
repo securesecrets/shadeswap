@@ -417,14 +417,18 @@ dependencies = [
 name = "factory"
 version = "0.1.0"
 dependencies = [
+ "amm_pair",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "multi_test",
+ "query-authentication",
  "schemars 0.8.10",
  "secret-multi-test",
  "serde",
  "shadeswap-shared",
  "snafu 0.7.1",
+ "snip20-reference-impl",
 ]
 
 [[package]]
@@ -605,6 +609,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "lp-token",
  "query-authentication",
  "rand_chacha 0.2.2",
  "rand_core 0.5.1",
@@ -844,12 +849,16 @@ dependencies = [
 name = "router"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "multi_test",
  "schemars 0.8.10",
+ "secret-multi-test",
  "serde",
  "shadeswap-shared",
  "snafu 0.7.1",
+ "snip20-reference-impl",
 ]
 
 [[package]]

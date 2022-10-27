@@ -4,6 +4,7 @@ use cosmwasm_std::{
 };
 use shadeswap_shared::Contract;
 use shadeswap_shared::core::apply_admin_guard;
+use shadeswap_shared::router::QueryMsgResponse;
 use shadeswap_shared::snip20::helpers::send_msg;
 use shadeswap_shared::utils::{pad_query_result, pad_response_result};
 use shadeswap_shared::{core::admin_w, router::InitMsg};
@@ -178,7 +179,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     pad_query_result(
         match msg {
             QueryMsg::SwapSimulation { offer, path } => swap_simulation(deps, path, offer),
-            QueryMsg::GetConfig {} => return Ok(to_binary(&config_r(deps.storage).load()?)?),
+            QueryMsg::GetConfig {} => return Ok(to_binary(&QueryMsgResponse::GetConfig{ 
+                pair_contract_code_hash: config_r(deps.storage).load()?.pair_contract_code_hash, 
+            })?),
         },
         BLOCK_SIZE,
     )

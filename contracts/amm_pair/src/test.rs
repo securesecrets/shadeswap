@@ -297,7 +297,7 @@ pub mod tests_calculation_price_and_fee {
     use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount};
 
     use crate::operations::{
-        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap,
+        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity,
     };
 
     use crate::test::help_test_lib::{
@@ -524,6 +524,143 @@ pub mod tests_calculation_price_and_fee {
 
         assert!(add_liquidity_with_err.is_err());
         assert_eq!(add_liquidity_with_err.err().unwrap(), StdError::generic_err("Operation returns less then expected (10000001 < 10000000)."));
+        Ok(())
+    }
+
+    #[test]
+    fn assert_withdraw_imbalanced() {
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string())).unwrap();              
+        let mock_info = mock_info("Sender", &[]);
+
+        let withdraw_result = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            Uint128::from(100000u32),
+            Addr::unchecked("Sender"),
+            true,
+            Some(true),
+        ).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+        
+        assert!(withdraw0 > Uint128::from(100u32));
+        assert_eq!(withdraw1, Uint128::zero());
+
+        let withdraw_result = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            Uint128::from(100000u32),
+            Addr::unchecked("Sender"),
+            true,
+            Some(false),
+        ).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+        
+        assert_eq!(withdraw0, Uint128::zero());
+        assert!(withdraw1 > Uint128::from(100u32));
+
+    }
+
+    #[test]
+    fn assert_add_and_withdraw_imbalanced_liqudity() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;              
+        let mock_info = mock_info("Sender", &[]);
+
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(100u128),
+                amount_1: Uint128::from(100u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        let withdraw_result = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            balanced_lp_tokens_received,
+            Addr::unchecked("Sender"),
+            false,
+            None,
+        ).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+
+        assert_eq!(withdraw0, Uint128::from(100u32));
+        assert_eq!(withdraw1, Uint128::from(100u32));
+
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(200u128),
+                amount_1: Uint128::from(0u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let sslp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        let withdraw_result = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            sslp_tokens_received,
+            Addr::unchecked("Sender"),
+            false,
+            None,
+        ).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+
+        assert!(withdraw0 < Uint128::from(100u32));
+        assert!(withdraw1 < Uint128::from(100u32));
+        assert!(sslp_tokens_received < balanced_lp_tokens_received);
+        
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(150u128),
+                amount_1: Uint128::from(50u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let imbalanced_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        let withdraw_result = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            imbalanced_tokens_received,
+            Addr::unchecked("Sender"),
+            false,
+            None,
+        ).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+
+        assert!(withdraw0 < Uint128::from(100u32));
+        assert!(withdraw1 < Uint128::from(100u32));
+        assert!(sslp_tokens_received < imbalanced_tokens_received);
+        assert!(imbalanced_tokens_received < balanced_lp_tokens_received);
+
         Ok(())
     }
 

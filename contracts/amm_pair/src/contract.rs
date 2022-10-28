@@ -297,15 +297,15 @@ fn receiver_callback(
                     "No matching token in pair".to_string(),
                 ))
             }
-            InvokeMsg::RemoveLiquidity { from } => {
+            InvokeMsg::RemoveLiquidity { from, single_sided, single_sided_withdraw_in_token0} => {
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err(
                         "LP Token was not sent to remove liquidity.".to_string(),
                     ));
                 }
                 match from {
-                    Some(address) => remove_liquidity(deps, env, amount, address),
-                    None => remove_liquidity(deps, env, amount, from_caller),
+                    Some(address) => remove_liquidity(deps, env, amount, address, single_sided, single_sided_withdraw_in_token0),
+                    None => remove_liquidity(deps, env, amount, from_caller, single_sided, single_sided_withdraw_in_token0),
                 }
             }
         },

@@ -194,6 +194,8 @@ pub mod amm_pair {
         },
         RemoveLiquidity {
             from: Option<Addr>,
+            single_sided: bool,
+            single_sided_withdraw_in_token0: Option<bool>,
         },
     }
     #[derive(Serialize, Deserialize, JsonSchema,  Clone, Debug)]

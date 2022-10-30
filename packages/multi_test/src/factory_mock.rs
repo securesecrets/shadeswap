@@ -4,7 +4,7 @@ pub mod factory_mock{
     use schemars::JsonSchema;
     use secret_multi_test::Contract;
     use serde::{Deserialize, Serialize};
-    use shadeswap_shared::{utils::{pad_query_result, pad_response_result}, factory::{ExecuteMsg, QueryMsg, QueryResponse}, core::TokenType};
+    use shadeswap_shared::{utils::{pad_query_result, pad_response_result}, factory::{ExecuteMsg, QueryMsg, QueryResponse}, core::{TokenType, ContractInstantiationInfo, Fee, ContractLink}, amm_pair::AMMSettings};
     use crate::util_addr::util_addr::OWNER;    
     pub const BLOCK_SIZE: usize = 256;
 
@@ -30,7 +30,19 @@ pub mod factory_mock{
             match msg {
                 QueryMsg::ListAMMPairs { pagination } => to_binary(""),
                 QueryMsg::GetAMMPairAddress { pair } => to_binary(""),
-                QueryMsg::GetConfig => to_binary(""),
+                QueryMsg::GetConfig => to_binary(&QueryResponse::GetConfig { 
+                    pair_contract: ContractInstantiationInfo{ code_hash: "".to_string(), id: 0u64 }, 
+                    amm_settings: AMMSettings { 
+                        lp_fee: Fee::new(3,100),
+                        shade_dao_fee: Fee::new(3,100), 
+                        shade_dao_address: ContractLink{ 
+                            address: Addr::unchecked(OWNER),
+                            code_hash:"".to_string()
+                        }
+                    }, 
+                    lp_token_contract: ContractInstantiationInfo{ code_hash: "".to_string(), id: 0u64 }, 
+                    authenticator: None 
+                }),
                 QueryMsg::GetAdmin => to_binary(""),
                 QueryMsg::AuthorizeApiKey { api_key } => to_binary(""),
             },

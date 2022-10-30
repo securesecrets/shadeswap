@@ -34,7 +34,7 @@ pub mod integration_help_lib{
     use crate::util_addr::util_addr::{OWNER, TOKEN_B, TOKEN_A};
     use crate::factory_mock::factory_mock::{execute as factory_execute, query as factory_query,instantiate as factory_instantiate, InitMsg as FactoryInitMsg };
     use crate::amm_pair::amm_pair_mock::amm_pair_mock::{execute as pair_execute, query as pair_query,instantiate as pair_instantiate };
-    use crate::staking::staking_mock::staking_mock::{execute as staking_execute, query as staking_query,instantiate as staking_instantiate, InitMsg as StakingInitMsg };
+    use crate::staking::staking_mock::staking_mock::{execute as staking_execute_mock, query as staking_query_mock,instantiate as staking_instantiate_mock, InitMsg as StakingInitMsg };
     type TestPermit = Permit<PermitData>;
     
     pub fn mk_token_pair() -> TokenPair{
@@ -155,7 +155,7 @@ pub mod integration_help_lib{
     }
 
     pub fn staking_contract_store() -> Box<dyn Contract<Empty>> {
-        let contract = ContractWrapper::new_with_empty(staking_execute, staking_instantiate, staking_query);
+        let contract = ContractWrapper::new_with_empty(staking_execute_mock, staking_instantiate_mock, staking_query_mock);
         Box::new(contract)
     }
 
@@ -236,11 +236,11 @@ pub mod integration_help_lib{
         contract: &ContractInfo, 
         recipient: &Addr,
         amount: Uint128,
-        sender: &Addr
+        sender: &Addr       
     ) {
-        set_viewing_key(router, &contract, "password", sender).unwrap();
-        deposit_snip20(router,&contract, amount, &sender).unwrap();
-        mint_snip20(router, amount, &recipient,&contract, &sender).unwrap();       
+        let viewing_key_response = set_viewing_key(router, &contract, "seed", sender).unwrap();
+        let deposit_resposne = deposit_snip20(router,&contract, amount, &sender).unwrap();
+        let mint_response = mint_snip20(router, amount, &recipient,&contract, &sender).unwrap();            
     }
 
     pub fn increase_allowance(
@@ -332,6 +332,34 @@ pub mod integration_help_lib{
             recipient_code_hash: Some(stake_contract.code_hash.clone()),
             amount: amount,
             msg: Some(invoke_msg),
+            memo: None,
+            padding: None,
+        };
+
+        let response: AppResponse = router.execute_contract(
+            sender.to_owned(),
+            &contract.clone(),
+            &msg,
+            &[], // 
+        )
+        .unwrap();               
+        Ok(response)
+    }
+
+    
+    pub fn send_snip20_with_msg(
+        router: &mut App, 
+        contract: &ContractInfo,
+        receiver: &ContractInfo,
+        amount: Uint128,      
+        sender: &Addr,
+        msg: &Binary
+    ) -> StdResult<AppResponse>{    
+        let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
+            recipient: receiver.address.to_owned(),
+            recipient_code_hash: Some(receiver.code_hash.clone()),
+            amount: amount,
+            msg: Some(msg.clone()),
             memo: None,
             padding: None,
         };
@@ -477,13 +505,13 @@ pub mod integration_help_lib{
                 address: OWNER.into(),
                 amount: Uint128::from(1000000000000000u128),
             }]),
-            prng_seed: to_binary("password")?,
+            prng_seed: to_binary("seed")?,
             config: Some(InitConfig {
                 public_total_supply: Some(true),
                 enable_deposit: Some(true),
                 enable_redeem: Some(false),
                 enable_mint: Some(true),
-                enable_burn: Some(true),
+                enable_burn: Some(false),
                 enable_transfer: Some(true),
             }),
             query_auth: None,

@@ -1,5 +1,5 @@
 pub mod amm_pair_mock {
-    use cosmwasm_std::{Response, StdResult, MessageInfo, DepsMut, Env, entry_point, to_binary, Deps, Binary, CosmosMsg, BankMsg, Coin, Addr, Uint128, ContractInfo, StdError, SubMsgResult, Reply, Storage, SubMsg, WasmMsg};
+    use cosmwasm_std::{Response, StdResult, MessageInfo, DepsMut, Env, entry_point, to_binary, Deps, Binary, CosmosMsg, BankMsg, Coin, Addr, Uint128, ContractInfo, StdError, SubMsgResult, Reply, Storage, SubMsg, WasmMsg, from_binary};
     use cosmwasm_storage::{singleton, singleton_read, Singleton, ReadonlySingleton};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
@@ -7,7 +7,7 @@ pub mod amm_pair_mock {
     msg::amm_pair::{ExecuteMsg, QueryMsg, QueryMsgResponse, SwapResult, InitMsg}, core::{TokenType, TokenPair, ContractLink, CustomFee, ViewingKey, admin_r, create_viewing_key}, staking::StakingContractInit, snip20::helpers::register_receive};
     use crate::{util_addr::util_addr::OWNER, help_lib::integration_help_lib::get_contract_link_from_token_type};    
     pub const BLOCK_SIZE: usize = 256;
-    use shadeswap_shared::msg::staking::InitMsg as StakingInitMsg;
+    use crate::staking::staking_mock::staking_mock::InitMsg as StakingInitMsg;
     use shadeswap_shared::Contract;
     pub const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1u64;
     pub const INSTANTIATE_STAKING_CONTRACT_REPLY_ID: u64 = 2u64;
@@ -125,8 +125,12 @@ pub mod amm_pair_mock {
         pad_response_result(
             match (msg.id, msg.result) {
                 (INSTANTIATE_LP_TOKEN_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
-                    Some(x) => {                     
-                        let contract_address = Addr::unchecked(&String::from_utf8(x.to_vec())?);    
+                    Some(x) => {   
+                        let mut temp = String::from_utf8(x.to_vec())?;
+                        temp = temp.replace("(", "");
+                        temp = temp.replace("\n", "");
+                        let address = &temp[..40];     
+                        let contract_address = Addr::unchecked(address);                        
                         let config = config_r(deps.storage).load()?;
                         register_lp_token(
                             deps,
@@ -143,6 +147,7 @@ pub mod amm_pair_mock {
                 (INSTANTIATE_STAKING_CONTRACT_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
                     Some(x) => {
                         let contract_address = String::from_utf8(x.to_vec())?;
+                        println!("staking address {}", contract_address);
                         let config = config_r(deps.storage).load()?;
                         set_staking_contract(
                             deps.storage,
@@ -163,8 +168,8 @@ pub mod amm_pair_mock {
                 },
                 _ => Err(StdError::generic_err(format!("Unknown reply id"))),
             },
-            BLOCK_SIZE,
-        )
+            BLOCK_SIZE
+        )     
     }
 
     pub fn set_staking_contract(
@@ -172,7 +177,7 @@ pub mod amm_pair_mock {
         staking_contract: Option<ContractLink>,
     ) -> StdResult<Response> {
         let mut config = config_w(storage).load()?;
-    
+       
         config.staking_contract = staking_contract;
     
         config_w(storage).save(&config)?;
@@ -187,7 +192,7 @@ pub mod amm_pair_mock {
         lp_token_address: Contract,
     ) -> StdResult<Response> {
         let mut config = config_r(deps.storage).load()?;
-    
+       
         config.lp_token = ContractLink {
             address: lp_token_address.address.clone(),
             code_hash: lp_token_address.code_hash.clone(),
@@ -200,29 +205,17 @@ pub mod amm_pair_mock {
             None,
             &lp_token_address.clone(),
         )?);    
-    
+      
         match config.staking_contract_init {
             Some(c) => {
+                println!("register staking ");
+                println!("lp address {}", &lp_token_address.address.to_string());
+                println!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address.to_string());
                 response = response.add_submessage(SubMsg::reply_on_success(
                     CosmosMsg::Wasm(WasmMsg::Instantiate {
                         code_id: c.contract_info.id,
                         label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
-                        msg: to_binary(&StakingInitMsg {
-                            daily_reward_amount: c.daily_reward_amount,
-                            reward_token: c.reward_token.clone(),
-                            pair_contract: ContractLink {
-                                address: env.contract.address.clone(),
-                                code_hash: env.contract.code_hash.clone(),
-                            },
-                            prng_seed: config.prng_seed.clone(),
-                            lp_token: ContractLink {
-                                address: lp_token_address.address.clone(),
-                                code_hash: lp_token_address.code_hash.clone(),
-                            },
-                            authenticator:None,
-                            //default to same admin as amm_pair
-                            admin: admin_r(deps.storage).load()?,
-                        })?,
+                        msg: to_binary(&StakingInitMsg { })?,
                         code_hash: c.contract_info.code_hash.clone(),
                         funds: vec![],
                     }),

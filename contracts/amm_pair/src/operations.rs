@@ -210,7 +210,7 @@ pub fn swap(
     )?;
 
     // check for the slippage expected value compare to actual value
-    if let Some(expected_return) = expected_return {
+    if let Some(expected_return) = expected_return {    
         if swap_result.result.return_amount.lt(&expected_return) {
             return Err(StdError::generic_err(
                 "Operation fell short of expected_return",
@@ -453,7 +453,8 @@ pub fn calculate_swap_result(
     let token0_pool = tokens_pool[0];
     let token1_pool = tokens_pool[1];
     // calculate price
-
+    println!("pool_1 {:}", token0_pool.to_string());
+    println!("pool_2 {:}", token1_pool.to_string());
     // calculate fee
     let lp_fee = settings.lp_fee;
     let shade_dao_fee = settings.shade_dao_fee;
@@ -659,7 +660,7 @@ pub fn add_liquidity(
             }
         }
     }
-
+    
     let pair_contract_pool_liquidity =
     query_total_supply(deps.as_ref(), &lp_token)?;
     println!("total pool amount {}", pair_contract_pool_liquidity);
@@ -669,6 +670,7 @@ pub fn add_liquidity(
         pair_contract_pool_liquidity,
     )?;
 
+  
     if let Some(e) = expected_return 
     {
         if e > lp_tokens {

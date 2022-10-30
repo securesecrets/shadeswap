@@ -182,7 +182,7 @@ pub fn router_integration_tests() {
         recipient: Some(owner_addr.to_owned())
     };
 
-    let error_response = router.execute_contract(
+    let response = router.execute_contract(
         owner_addr.to_owned(), 
         &router_contract, 
         &execute_swap,  

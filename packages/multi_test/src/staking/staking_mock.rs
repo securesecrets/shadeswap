@@ -1,5 +1,5 @@
 pub mod staking_mock {
-    use cosmwasm_std::{Response, StdResult, MessageInfo, DepsMut, Env, entry_point, to_binary, Deps, Binary, CosmosMsg, BankMsg, Coin, Addr};
+    use cosmwasm_std::{Response, StdResult, MessageInfo, DepsMut, Env, entry_point, to_binary, Deps, Binary, CosmosMsg, BankMsg, Coin, Addr, Attribute};
     use schemars::JsonSchema;
     use secret_multi_test::Contract;
     use serde::{Deserialize, Serialize};
@@ -18,8 +18,13 @@ pub mod staking_mock {
         env: Env,
         _info: MessageInfo,
         msg: InitMsg,
-    ) -> StdResult<Response> {    
-        Ok(Response::new())   
+    ) -> StdResult<Response> { 
+        println!("test init staking");
+        let mut response = Response::new();
+        response.data = Some(env.contract.address.as_bytes().into());
+        Ok(response.add_attributes(vec![
+            Attribute::new("init_staking_contract", env.contract.address),
+        ])) 
     }
 
     #[entry_point]

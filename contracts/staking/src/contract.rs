@@ -61,6 +61,7 @@ pub fn instantiate(
         msg.daily_reward_amount,        
     )?;
 
+    println!("test init staking");
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
     Ok(response.add_attributes(vec![

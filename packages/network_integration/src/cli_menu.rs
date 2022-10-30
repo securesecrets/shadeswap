@@ -24,6 +24,7 @@ pub const CMDBALANCE: &str = "snip20_bal";
 pub const CMDSETREWARDTOKEN: &str = "set_reward_token";
 pub const CMDDEPOSITSNIP20: &str = "deposit";
 pub const CMDSETVIEWINGKEY: &str = "set_viewing_key";
+pub const CMDADDLIQUIDITY: &str = "add_liquidity";
 
 pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
 {

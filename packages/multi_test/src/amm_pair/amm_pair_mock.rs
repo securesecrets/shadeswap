@@ -108,14 +108,14 @@ pub mod amm_pair_mock {
         pad_response_result(
             match msg {
                 ExecuteMsg::AddLiquidityToAMMContract { deposit, expected_return, staking } => Ok(Response::new()),
-                ExecuteMsg::SwapTokens { offer, expected_return, to, router_link, callback_signature } =>Ok(Response::new()),
-                ExecuteMsg::Receive { from, msg, amount } => Ok(Response::new()),
+                ExecuteMsg::SwapTokens { offer: _, expected_return, to, router_link, callback_signature } =>Ok(Response::new()),
+                ExecuteMsg::Receive { from: _, msg, amount } => Ok(Response::new()),
                 ExecuteMsg::AddWhiteListAddress { address } => Ok(Response::new()),
                 ExecuteMsg::RemoveWhitelistAddresses { addresses } =>Ok(Response::new()),
-                ExecuteMsg::SetAdmin { admin } => Ok(Response::new()),
-                ExecuteMsg::SetCustomPairFee { custom_fee } => Ok(Response::new()),
-                ExecuteMsg::SetViewingKey { viewing_key } => Ok(Response::new()),
-                ExecuteMsg::RecoverFunds { token, amount, to, msg } => Ok(Response::new()),
+                ExecuteMsg::SetAdmin { admin: _ } => Ok(Response::new()),
+                ExecuteMsg::SetCustomPairFee { custom_fee: _ } => Ok(Response::new()),
+                ExecuteMsg::SetViewingKey { viewing_key: _ } => Ok(Response::new()),
+                ExecuteMsg::RecoverFunds { token: _, amount, to: _, msg: _msg } => Ok(Response::new()),
             },
             BLOCK_SIZE,
         )

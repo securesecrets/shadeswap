@@ -10,7 +10,7 @@ pub mod integration_help_lib{
     use query_authentication::transaction::PubKey;
     use secret_multi_test::AppResponse;
     use secret_multi_test::next_block;
-    use shadeswap_shared::core::ContractInstantiationInfo;
+    use shadeswap_shared::core::{ContractInstantiationInfo, CustomFee};
     use shadeswap_shared::snip20::{QueryAnswer, QueryMsg};
     use shadeswap_shared::staking;
     use shadeswap_shared::utils::testing::TestingExt;    
@@ -29,7 +29,7 @@ pub mod integration_help_lib{
     use snip20_reference_impl::contract::{execute as snip20_execute, instantiate as snip20_instantiate, query as  snip20_query};
     use lp_token::contract::{execute as lp_execute, instantiate as lp_instantiate, query as  lp_query};
     use cosmwasm_std::to_binary;
-    use shadeswap_shared::msg::amm_pair::InitMsg as AMMPairInitMsg;  
+    use shadeswap_shared::msg::amm_pair::{InitMsg as AMMPairInitMsg, QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryResponse};  
     use crate::auth_query::auth_query::{{execute as auth_execute, instantiate as auth_instantiate, query as auth_query, InitMsg as AuthInitMsg}};
     use crate::util_addr::util_addr::{OWNER, TOKEN_B, TOKEN_A};
     use crate::factory_mock::factory_mock::{execute as factory_execute, query as factory_query,instantiate as factory_instantiate, InitMsg as FactoryInitMsg };
@@ -199,12 +199,47 @@ pub mod integration_help_lib{
             key: view_key.to_string(),
         }).unwrap();
     
-        let balance: snip20::QueryAnswer = router.query_test(contract.to_owned(), msg).unwrap();
-    
+        let balance: snip20::QueryAnswer = router.query_test(contract.to_owned(), msg).unwrap();    
         if let snip20::QueryAnswer::Balance { amount } = balance {
             return amount;
         }
         Uint128::zero()
+    }
+
+    pub fn get_amm_pair_config(router: &mut App, amm_pair_contract: &ContractInfo) 
+    -> (ContractLink, ContractLink, Option<ContractLink>, TokenPair, Option<CustomFee>)  {
+            let query: AMMPairQueryResponse = router.query_test(amm_pair_contract.to_owned(),to_binary(&AMMPairQueryMsg::GetConfig { }).unwrap()).unwrap();
+            match query {
+                AMMPairQueryResponse::GetConfig { 
+                    factory_contract, 
+                    lp_token, 
+                    staking_contract, 
+                    pair, 
+                    custom_fee 
+                } => {        
+                   return (factory_contract, lp_token,staking_contract, pair,custom_fee )
+                },
+                _ => panic!("Query Responsedoes not match")
+            }
+    }
+
+    pub fn get_pair_liquidity_pool_balance(router: &mut App, amm_pair_contract: &ContractInfo) 
+    -> (Uint128, Uint128, Uint128)  {
+            let query: AMMPairQueryResponse = router.query_test(amm_pair_contract.to_owned(),to_binary(&AMMPairQueryMsg::GetPairInfo {  }).unwrap()).unwrap();
+            match query {
+                AMMPairQueryResponse::GetPairInfo {
+                    liquidity_token: _,
+                    factory: _,
+                    pair: _,
+                    amount_0,
+                    amount_1,
+                    total_liquidity,
+                    contract_version: _,
+                } => {        
+                   return (total_liquidity, amount_0, amount_1)
+                },
+                _ => panic!("Query Responsedoes not match")
+            }
     }
 
   
@@ -212,7 +247,7 @@ pub mod integration_help_lib{
     -> StdResult<TestPermit>
     {
         //secretd tx sign-doc file --from a
-        let newPermit = TestPermit{
+        let new_permit = TestPermit{
             params: PermitData { data: to_binary(&QueryData {}).unwrap(), key: "0".to_string()},
             chain_id: Some(chain_id.to_string()),
             sequence: Some(Uint128::zero()),
@@ -223,7 +258,7 @@ pub mod integration_help_lib{
             account_number: Some(Uint128::zero()),
             memo: Some("".to_string())
         };
-        return Ok(newPermit);
+        return Ok(new_permit);
     }
 
     pub fn get_current_block_time(router: &App) -> Uint128 {
@@ -276,10 +311,23 @@ pub mod integration_help_lib{
         pair
     }
 
+    pub fn create_token_pair_with_native(token_contract: &ContractLink) -> TokenPair {
+        let pair =  TokenPair(
+            TokenType::NativeToken { 
+                denom: "uscrt".to_string() 
+            },
+            TokenType::CustomToken { 
+                contract_addr: token_contract.address.to_owned(), 
+                token_code_hash: token_contract.code_hash.to_owned(), 
+            },
+        );
+        pair
+    }
+
     pub fn get_contract_link_from_token_type(token_type: &TokenType) -> ContractLink{
         match token_type{
             TokenType::CustomToken { contract_addr, token_code_hash } => ContractLink { address: contract_addr.to_owned(), code_hash: token_code_hash.to_string()},
-            TokenType::NativeToken { denom } => ContractLink { address: Addr::unchecked(""), code_hash: "".to_string()},
+            TokenType::NativeToken { denom: _ } => ContractLink { address: Addr::unchecked(""), code_hash: "".to_string()},
         }
     }
 

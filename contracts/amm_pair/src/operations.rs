@@ -451,10 +451,7 @@ pub fn calculate_swap_result(
     // conver tand get avialble balance
     let tokens_pool = get_token_pool_balance(deps, env, config, offer)?;
     let token0_pool = tokens_pool[0];
-    let token1_pool = tokens_pool[1];
-    // calculate price
-    println!("pool_1 {:}", token0_pool.to_string());
-    println!("pool_2 {:}", token1_pool.to_string());
+    let token1_pool = tokens_pool[1];   
     // calculate fee
     let lp_fee = settings.lp_fee;
     let shade_dao_fee = settings.shade_dao_fee;
@@ -663,7 +660,6 @@ pub fn add_liquidity(
     
     let pair_contract_pool_liquidity =
     query_total_supply(deps.as_ref(), &lp_token)?;
-    println!("total pool amount {}", pair_contract_pool_liquidity);
     let lp_tokens = calculate_lp_tokens(
         &deposit,
         pool_balances,

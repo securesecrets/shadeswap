@@ -53,8 +53,7 @@ pub fn instantiate(
                 "Invalid Token Type for Reward Token".to_string(),
             ))
         }
-    };
-    let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
+    };    
     store_init_reward_token_and_timestamp(
         deps.storage,
         reward_token_address.to_owned(),

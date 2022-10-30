@@ -145,9 +145,12 @@ pub mod amm_pair_mock {
                     None => Err(StdError::generic_err(format!("Unknown reply id"))),
                 },
                 (INSTANTIATE_STAKING_CONTRACT_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
-                    Some(x) => {
-                        let contract_address = String::from_utf8(x.to_vec())?;
-                        println!("staking address {}", contract_address);
+                    Some(x) => {                        
+                        let mut temp = String::from_utf8(x.to_vec())?;
+                        temp = temp.replace("(", "");
+                        temp = temp.replace("\n", "");
+                        let address = &temp[..40];     
+                        let contract_address = Addr::unchecked(address); 
                         let config = config_r(deps.storage).load()?;
                         set_staking_contract(
                             deps.storage,
@@ -206,8 +209,6 @@ pub mod amm_pair_mock {
         )?);    
         match config.staking_contract_init {
             Some(c) => {
-                println!("register staking {}", c.contract_info.code_hash.clone());
-                println!("lp address {}", &c.contract_info.id);
                 println!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address.to_string());
                 response = response.add_submessage(SubMsg::reply_on_success(
                     CosmosMsg::Wasm(WasmMsg::Instantiate {

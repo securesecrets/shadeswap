@@ -31,7 +31,7 @@ pub fn staking_integration_tests_without_proxy() {
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{core::{TokenType}};
     use multi_test::help_lib::integration_help_lib::{generate_snip20_contract};
-    use multi_test::help_lib::integration_help_lib::print_events;
+    
     use crate::staking_help_query::query_claimable_reward;
        
     let staker_a_addr = Addr::unchecked(STAKER_A.to_owned());       

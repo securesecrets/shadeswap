@@ -32,7 +32,7 @@ pub mod integration_help_lib{
     use shadeswap_shared::msg::amm_pair::{InitMsg as AMMPairInitMsg, QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryResponse};  
     use crate::auth_query::auth_query::{{execute as auth_execute, instantiate as auth_instantiate, query as auth_query, InitMsg as AuthInitMsg}};
     use crate::util_addr::util_addr::{OWNER, TOKEN_B, TOKEN_A};
-    use crate::factory_mock::factory_mock::{execute as factory_execute, query as factory_query,instantiate as factory_instantiate, InitMsg as FactoryInitMsg };
+    use crate::factory::factory_mock::factory_mock::{execute as factory_execute, query as factory_query,instantiate as factory_instantiate, InitMsg as FactoryInitMsg };
     use crate::amm_pair::amm_pair_mock::amm_pair_mock::{execute as pair_execute, query as pair_query,instantiate as pair_instantiate };
     use crate::staking::staking_mock::staking_mock::{execute as staking_execute_mock, query as staking_query_mock,instantiate as staking_instantiate_mock, InitMsg as StakingInitMsg };
     type TestPermit = Permit<PermitData>;

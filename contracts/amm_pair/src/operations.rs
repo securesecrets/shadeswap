@@ -369,7 +369,7 @@ pub fn get_estimated_lp_token(
     deps: Deps,
     env: Env,
     deposit: TokenPairAmount,
-    slippage: Option<Decimal>,
+    _slippage: Option<Decimal>,
 ) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
     let Config {

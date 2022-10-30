@@ -1,5 +1,3 @@
-use cosmwasm_std::to_binary;
-
 use crate::c_std::{Response, Binary, StdResult};
 
 /// Take a Vec<u8> and pad it up to a multiple of `block_size`, using spaces at the end.

@@ -1,10 +1,9 @@
 pub mod staking_mock {
     use cosmwasm_std::{Response, StdResult, MessageInfo, DepsMut, Env, entry_point, to_binary, Deps, Binary, CosmosMsg, BankMsg, Coin, Addr, Attribute};
-    use schemars::JsonSchema;
-    use secret_multi_test::Contract;
+    use schemars::JsonSchema;    
     use serde::{Deserialize, Serialize};
-    use shadeswap_shared::{utils::{pad_query_result, pad_response_result}, staking::{ExecuteMsg, QueryMsg, QueryResponse}, core::TokenType};
-    use crate::util_addr::util_addr::OWNER;    
+    use shadeswap_shared::{utils::{pad_query_result, pad_response_result}, staking::{ExecuteMsg, QueryMsg}};
+
     pub const BLOCK_SIZE: usize = 256;
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -14,10 +13,10 @@ pub mod staking_mock {
 
     #[entry_point]
     pub fn instantiate(
-        deps: DepsMut,
+        _deps: DepsMut,
         env: Env,
         _info: MessageInfo,
-        msg: InitMsg,
+        _msg: InitMsg,
     ) -> StdResult<Response> { 
         println!("test init staking");
         let mut response = Response::new();
@@ -26,12 +25,12 @@ pub mod staking_mock {
     }
 
     #[entry_point]
-    pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         pad_query_result(
             match msg {
                 QueryMsg::GetContractOwner {  } =>to_binary(""),
                 QueryMsg::GetConfig {  } => to_binary(""),
-                QueryMsg::WithPermit { permit, query } => to_binary(""),
+                QueryMsg::WithPermit { permit: _, query: _ } => to_binary(""),
                 QueryMsg::GetAdmin {  } => to_binary(""),
             },
             BLOCK_SIZE,

@@ -1056,8 +1056,7 @@ pub mod help_test_lib {
         let seed = to_binary(&"SEED".to_string())?;
         let entropy = to_binary(&"ENTROPY".to_string())?;
         let mut deps_api = mock_dependencies(&[]);
-        let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);  
-        /// let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);       
         let mock_info = mock_info("CONTRACT_ADDRESS",&[]);
         let msg = InitMsg {
             pair: token_pair.clone(),

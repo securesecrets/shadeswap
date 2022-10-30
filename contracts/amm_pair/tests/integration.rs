@@ -1,26 +1,22 @@
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
-use shadeswap_shared::{msg::amm_pair::{{InitMsg,  ExecuteMsg, QueryMsg, QueryMsgResponse}}, core::{ContractLink, CustomFee, TokenPair}};
-use multi_test::help_lib::integration_help_lib::{mk_contract_link, mk_address};
+use shadeswap_shared::{msg::amm_pair::{{InitMsg,  ExecuteMsg, QueryMsg, QueryMsgResponse}}};
 use cosmwasm_std::{
-    testing::{mock_env},
-    to_binary, Addr, Empty, Binary, ContractInfo, Uint128,
+    to_binary, Addr, Empty, ContractInfo,
 };
 use shadeswap_shared::c_std::BlockInfo;
-use shadeswap_shared::utils::asset::Contract as AuthContract;
+
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 pub fn amm_pair_integration_tests_with_custom_token() {    
     use amm_pair::contract::{instantiate, query, execute};
-    use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance, get_current_block_time, 
-        store_init_staking_contract, store_init_factory_contract, snip20_contract_store, create_token_pair, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance};
+    use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, increase_allowance, store_init_factory_contract, 
+        create_token_pair, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance};
     use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp, from_binary, Api};
-    use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
-    
+    use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};    
     use shadeswap_shared::core::{ContractLink, ContractInstantiationInfo, TokenPair, TokenPairAmount, TokenAmount, CustomFee, Fee};
-    use shadeswap_shared::msg::amm_pair::InvokeMsg;
-    use shadeswap_shared::sha2::digest::generic_array::typenum::assert_type_eq;
-    use shadeswap_shared::staking::StakingContractInit;
+    use shadeswap_shared::msg::amm_pair::InvokeMsg; 
+    use shadeswap_shared::staking::StakingContractInit;   
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{core::{TokenType}};
     use multi_test::help_lib::integration_help_lib::{generate_snip20_contract};    
@@ -180,7 +176,6 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         &add_liqudity_msg,
         &[]
     ).unwrap();
-
    
     let query: QueryMsgResponse = router.query_test(amm_pair_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
     match query {
@@ -214,31 +209,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         }, 
         expected_return: None, 
         staking: Some(false) 
-    };
-
-    // let query: QueryMsgResponse = router.query_test(amm_pair_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
-    // match query {
-    //     QueryMsgResponse::GetConfig { 
-    //         factory_contract: _, 
-    //         lp_token, 
-    //         staking_contract: _, 
-    //         pair: _, 
-    //         custom_fee: _ 
-    //     } => {
-    //         let contract_info  =ContractInfo{
-    //             address: lp_token.address.clone(),
-    //             code_hash: lp_token.code_hash.to_string(),
-    //         };
-    //         let _ = set_viewing_key(&mut router, &contract_info, "seed", &owner_addr).unwrap();
-    //         let balance = get_snip20_balance(&mut router, &ContractInfo{
-    //             address: lp_token.address.clone(),
-    //             code_hash: lp_token.code_hash.to_string(),
-    //         }, OWNER, "seed");
-    //         assert_eq!(balance, Uint128::new(1000u128));
-          
-    //     },
-    //     _ => panic!("Query Responsedoes not match")
-    // }
+    };   
  
     let _ = router.execute_contract(
         owner_addr.to_owned(),
@@ -246,6 +217,30 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         &add_liqudity_msg,
         &[]
     ).unwrap();
+
+    let query: QueryMsgResponse = router.query_test(amm_pair_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
+    match query {
+        QueryMsgResponse::GetConfig { 
+            factory_contract: _, 
+            lp_token, 
+            staking_contract: _, 
+            pair: _, 
+            custom_fee: _ 
+        } => {
+            let contract_info  =ContractInfo{
+                address: lp_token.address.clone(),
+                code_hash: lp_token.code_hash.to_string(),
+            };
+            let _ = set_viewing_key(&mut router, &contract_info, "seed", &owner_addr).unwrap();
+            let balance = get_snip20_balance(&mut router, &ContractInfo{
+                address: lp_token.address.clone(),
+                code_hash: lp_token.code_hash.to_string(),
+            }, OWNER, "seed");
+            assert_eq!(balance, Uint128::new(100000000u128));
+          
+        },
+        _ => panic!("Query Responsedoes not match")
+    }
 
     let total_liquidity: (Uint128, Uint128, Uint128) = get_pair_liquidity_pool_balance(&mut router,&amm_pair_contract);
     assert_eq!(total_liquidity.0, Uint128::new(200000000u128));

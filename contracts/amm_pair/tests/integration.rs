@@ -10,7 +10,7 @@ use shadeswap_shared::utils::asset::Contract as AuthContract;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-pub fn amm_pair_integration_tests() {    
+pub fn amm_pair_integration_tests_with_custom_token() {    
     use amm_pair::contract::{instantiate, query, execute};
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance, get_current_block_time, 
         store_init_staking_contract, store_init_factory_contract, snip20_contract_store, create_token_pair, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance};
@@ -324,7 +324,7 @@ pub fn amm_pair_integration_tests() {
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-pub fn amm_pair_integration_tests_native_pair() {    
+pub fn amm_pair_integration_tests_native_token() {    
     use amm_pair::contract::{instantiate, query, execute};
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, increase_allowance, store_init_factory_contract, create_token_pair, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance, create_token_pair_with_native};
     use cosmwasm_std::{Uint128, Coin, Timestamp};

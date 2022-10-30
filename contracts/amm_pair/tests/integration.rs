@@ -13,7 +13,7 @@ use shadeswap_shared::utils::asset::Contract as AuthContract;
 pub fn amm_pair_integration_tests() {    
     use amm_pair::contract::{instantiate, query, execute};
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance, get_current_block_time, 
-        store_init_staking_contract, store_init_factory_contract, snip20_contract_store, create_token_pair, convert_to_contract_link, send_snip20_with_msg, staking_contract_store};
+        store_init_staking_contract, store_init_factory_contract, snip20_contract_store, create_token_pair, convert_to_contract_link, send_snip20_with_msg};
     use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp, from_binary, Api};
     use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
@@ -25,7 +25,7 @@ pub fn amm_pair_integration_tests() {
     use multi_test::help_lib::integration_help_lib::print_events;
     use multi_test::help_lib::integration_help_lib::snip20_lp_token_contract_store;
     use multi_test::amm_pair::amm_pair_mock::amm_pair_mock::reply;
-    // use staking::contract::{execute as staking_execute, instantiate as staking_instantiate, query as staking_query};
+    use staking::contract::{execute as staking_execute, instantiate as staking_instantiate, query as staking_query};
     let staker_a_addr = Addr::unchecked(STAKER_A.to_owned());       
     let staker_b_addr = Addr::unchecked(STAKER_B.to_owned());       
     let owner_addr = Addr::unchecked(OWNER);   
@@ -37,14 +37,14 @@ pub fn amm_pair_integration_tests() {
         chain_id: "chain_id".to_string(),
     });
 
-    // pub fn staking_contract_store() -> Box<dyn Contract<Empty>> {
-    //     let contract = ContractWrapper::new_with_empty(staking_execute, staking_instantiate, staking_query);
-    //     Box::new(contract)
-    // }
+    pub fn staking_contract_store() -> Box<dyn Contract<Empty>> {
+        let contract = ContractWrapper::new_with_empty(staking_execute, staking_instantiate, staking_query);
+        Box::new(contract)
+    }
 
     pub fn amm_contract_store() -> Box<dyn Contract<Empty>> {
         let contract = ContractWrapper::new_with_empty(execute, instantiate, query)
-        .with_reply(reply);
+        .with_reply_empty(reply);
         Box::new(contract)
     }
 

@@ -22,9 +22,7 @@ pub mod staking_mock {
         println!("test init staking");
         let mut response = Response::new();
         response.data = Some(env.contract.address.as_bytes().into());
-        Ok(response.add_attributes(vec![
-            Attribute::new("init_staking_contract", env.contract.address),
-        ])) 
+        Ok(response) 
     }
 
     #[entry_point]

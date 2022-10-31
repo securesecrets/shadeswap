@@ -6,9 +6,10 @@ use cosmwasm_std::Deps;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::Env;
 use cosmwasm_std::{Api, Binary, CanonicalAddr, Querier, StdError, StdResult, Storage};
+use shadeswap_shared::utils::asset::Contract;
 use shadeswap_shared::amm_pair::AMMSettings;
 use shadeswap_shared::core::Fee;
-use shadeswap_shared::core::{ContractInstantiationInfo, ContractLink};
+use shadeswap_shared::core::{ContractInstantiationInfo};
 use shadeswap_shared::msg::factory::InitMsg;
 pub use shadeswap_shared::{msg::factory::QueryResponse, Pagination};
 
@@ -21,8 +22,7 @@ pub mod test_contract {
     use crate::contract::instantiate;
     use crate::contract::query;
     use crate::operations::create_pair;
-    use crate::operations::create_signature;
-    use crate::state::EPHEMERAL_STORAGE_KEY;
+    use crate::operations::create_signature;    
     use crate::state::NextPairKey;
     use crate::state::config_r;
     use crate::state::PAGINATION_LIMIT;
@@ -86,6 +86,7 @@ pub mod test_contract {
                 amm_settings: Some(new_config.amm_settings.clone()),
                 lp_token_contract: Some(new_config.lp_token_contract.clone()),
                 api_key: Some("api_key".to_string()),
+                admin_auth: None,
             },
         )
         .unwrap();
@@ -171,8 +172,7 @@ pub mod test_contract {
             deps.as_mut(),
              mock_env(), 
              &mock_info("admin", &[]),
-             pair,  
-             Addr::unchecked("admin"),
+             pair,
              to_binary(&"entropy").unwrap(), 
              None,
             None);
@@ -249,7 +249,7 @@ pub fn create_init_msg_from_config(config: &Config) -> InitMsg{
         amm_settings: AMMSettings {
             lp_fee: Fee::new(28, 10000),
             shade_dao_fee: Fee::new(2, 10000),
-            shade_dao_address: ContractLink {
+            shade_dao_address: Contract {
                 address: Addr::unchecked("CALLBACKADDR"),
                 code_hash: "Test".to_string(),
             },
@@ -258,6 +258,10 @@ pub fn create_init_msg_from_config(config: &Config) -> InitMsg{
         prng_seed: to_binary(&"prng").unwrap(),
         api_key: "api_key".to_string(),
         authenticator: None,
+        admin_auth: shadeswap_shared::Contract { 
+            address: Addr::unchecked("admin"), 
+            code_hash: "".to_string()
+        },
     }
 }
 
@@ -267,6 +271,7 @@ pub fn create_query_response_from_config(config: &Config) ->QueryResponse {
         amm_settings: config.amm_settings.clone(),
         lp_token_contract: config.lp_token_contract.clone(),
         authenticator: None,
+        admin_auth: config.admin_auth.clone(),
     }
 }
 
@@ -391,7 +396,7 @@ fn mkconfig(id: u64) -> Config {
         amm_settings: AMMSettings {
             lp_fee: Fee::new(28, 10000),
             shade_dao_fee: Fee::new(2, 10000),
-            shade_dao_address: ContractLink {
+            shade_dao_address: Contract {
                 address: Addr::unchecked("CALLBACKADDR"),
                 code_hash: "Test".to_string(),
             },
@@ -403,6 +408,7 @@ fn mkconfig(id: u64) -> Config {
         prng_seed: to_binary(&"prng").unwrap(),
         api_key: "api_key".to_string(),
         authenticator: None,
+        admin_auth: shadeswap_shared::Contract { address: Addr::unchecked("admin"), code_hash: "".to_string() }
     })
 }
 

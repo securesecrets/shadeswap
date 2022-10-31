@@ -58,6 +58,7 @@ pub fn instantiate(
         deps.storage,
         reward_token_address.to_owned(),
         msg.daily_reward_amount,        
+        msg.valid_to
     )?;
 
     println!("test init staking");

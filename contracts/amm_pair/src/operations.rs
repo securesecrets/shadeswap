@@ -120,6 +120,7 @@ pub fn register_lp_token(
                         authenticator: factory_config.authenticator,
                         //default to same admin as amm_pair
                         admin: admin_r(deps.storage).load()?,
+                        valid_to: c.valid_to
                     })?,
                     code_hash: c.contract_info.code_hash.clone(),
                     funds: vec![],

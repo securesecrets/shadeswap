@@ -1000,6 +1000,7 @@ pub mod test_help_lib {
             },
             authenticator: None,
             admin: Addr::unchecked("Sender"),
+            valid_to: Uint128::new(3747905010000u128) 
         };
         assert!(instantiate(deps.branch(), env.clone(), info.clone(), msg).is_ok());
         let mut config = config_r(deps.storage).load()?;

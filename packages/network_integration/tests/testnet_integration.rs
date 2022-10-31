@@ -389,6 +389,7 @@ fn run_testnet() -> Result<()> {
                         contract_addr: Addr::unchecked(s_sREWARDSNIP20.address.clone()),
                         token_code_hash: s_sREWARDSNIP20.code_hash.to_string(),
                     },
+                    valid_to: Uint128::new(3747905010000u128),
                 }),
                 router_contract: Some(ContractLink{ address: Addr::unchecked(router_contract.address.clone()), code_hash: router_contract.code_hash.clone() })
             },

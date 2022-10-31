@@ -98,6 +98,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
                 contract_addr: reward_contract.address.to_owned(), 
                 token_code_hash: reward_contract.code_hash.to_owned()
             },
+            valid_to: Uint128::new(3747905010000u128) 
         }), 
         custom_fee: None, 
         callback: None 
@@ -406,6 +407,7 @@ pub fn amm_pair_integration_tests_native_token() {
                 contract_addr: reward_contract.address.to_owned(), 
                 token_code_hash: reward_contract.code_hash.to_owned()
             },
+            valid_to: Uint128::new(3747905010000u128) 
         }), 
         custom_fee: None, 
         callback: None 

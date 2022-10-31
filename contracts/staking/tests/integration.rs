@@ -64,6 +64,7 @@ pub fn staking_integration_tests_without_proxy() {
             code_hash: auth_contract.code_hash.to_owned()
         }),
         admin: Addr::unchecked(OWNER),
+        valid_to: Uint128::new(3747905010000u128) 
     };
 
     let staking_contract = router
@@ -275,6 +276,7 @@ pub fn staking_integration_tests_with_proxy() {
             code_hash: auth_contract.code_hash.to_owned()
         }),
         admin: Addr::unchecked(OWNER),
+        valid_to: Uint128::new(3747905010000u128) 
     };
 
     let staking_contract = router

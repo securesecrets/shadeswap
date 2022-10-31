@@ -40,6 +40,7 @@ pub fn store_init_reward_token_and_timestamp(
     storage: &mut dyn Storage,
     reward_token: ContractLink,
     emission_amount: Uint128,
+    current_timestamp: Uint128,
 ) -> StdResult<()> {
     // store reward token to the list
     let mut reward_token_list: Vec<Addr> = Vec::new();
@@ -50,7 +51,7 @@ pub fn store_init_reward_token_and_timestamp(
         &RewardTokenInfo {
             reward_token: reward_token.to_owned(),
             daily_reward_amount: emission_amount,
-            valid_to: Uint128::new(3747905010000u128),
+            valid_to: current_timestamp
         },
     )?;
     Ok(())
@@ -392,6 +393,7 @@ pub fn claim_rewards_for_all_stakers(
     Ok(())
 }
 
+
 pub fn get_actual_reward_tokens(
     storage: &dyn Storage,
 ) -> StdResult<Vec<RewardTokenInfo>> {
@@ -566,6 +568,7 @@ pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> Std
                 &staker,
                 &reward_token.reward_token,
             )?;
+            
             result_list.push(ClaimableInfo {
                 token_address: reward_token.reward_token.address.to_owned(),
                 amount: claimable_reward.amount + reward,

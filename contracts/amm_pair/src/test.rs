@@ -839,7 +839,8 @@ pub mod help_test_lib {
                 reward_token: TokenType::CustomToken {
                     contract_addr: Addr::unchecked("".to_string()),
                     token_code_hash: "".to_string(),
-                }
+                }, 
+                valid_to: Uint128::new(3747905010000u128) 
             }),
             prng_seed: to_binary(&"to_string".to_string())?,
         })

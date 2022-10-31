@@ -229,6 +229,7 @@ pub mod amm_pair_mock {
                             authenticator: None,
                             //default to same admin as amm_pair
                             admin: admin_r(deps.storage).load()?,
+                            valid_to: Uint128::new(3747905010000u128)
                         })?,
                         code_hash: c.contract_info.code_hash.clone(),
                         funds: vec![],

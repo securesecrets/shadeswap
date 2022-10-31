@@ -27,7 +27,6 @@ fn factory_integration_tests() {
     use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp};
     use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
-    use shadeswap_shared::core::ContractLink;
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{core::{TokenType}};
     use multi_test::help_lib::integration_help_lib::print_events;
@@ -58,7 +57,7 @@ fn factory_integration_tests() {
         prng_seed: to_binary(&"".to_string()).unwrap(),
         api_key: "api_key".to_string(),
         authenticator: None,
-        admin_auth: SContract { address: Addr::unchecked(owner.clone()), code_hash: "".to_string() }
+        admin_auth: SContract { address: Addr::unchecked(OWNER), code_hash: "".to_string() }
     };
     let factory_contract_id = router.store_code(contract_counter());
     let factory_contract = router
@@ -117,9 +116,8 @@ fn factory_integration_tests() {
         QueryResponse::ListAMMPairs { amm_pairs } => {
            assert_eq!(amm_pairs.len(), 1);
         },
-        QueryResponse::GetConfig { pair_contract, amm_settings, lp_token_contract, authenticator } => todo!(),
+        QueryResponse::GetConfig { pair_contract, amm_settings, lp_token_contract, authenticator , admin_auth: _} => todo!(),
         QueryResponse::GetAMMPairAddress { address } => todo!(),
-        QueryResponse::GetAdmin { address } => todo!(),
         QueryResponse::AuthorizeApiKey { authorized } => todo!(),        
     };
 
@@ -147,9 +145,8 @@ fn factory_integration_tests() {
         QueryResponse::ListAMMPairs { amm_pairs } => {
            assert_eq!(amm_pairs.len(), 2);
         },
-        QueryResponse::GetConfig { pair_contract, amm_settings, lp_token_contract, authenticator } => todo!(),
+        QueryResponse::GetConfig { pair_contract, amm_settings, lp_token_contract, authenticator, admin_auth: _ } => todo!(),
         QueryResponse::GetAMMPairAddress { address } => todo!(),
-        QueryResponse::GetAdmin { address } => todo!(),
         QueryResponse::AuthorizeApiKey { authorized } => todo!(),  
         _ => {}      
     };

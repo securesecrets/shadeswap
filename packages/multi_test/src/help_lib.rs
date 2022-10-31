@@ -15,13 +15,14 @@ pub mod integration_help_lib{
     use shadeswap_shared::staking;
     use shadeswap_shared::utils::testing::TestingExt;    
     use cosmwasm_std::{Addr, ContractInfo, StdResult, Uint128, Coin, Binary, WasmMsg};
+    use shadeswap_shared::Contract as SContract;
     use secret_multi_test::Contract;
     use secret_multi_test::ContractWrapper;
     use secret_multi_test::{App, Executor};    
     use shadeswap_shared::{
         msg::staking::{InitMsg, InvokeMsg}, 
         core::TokenPair, 
-        core::{TokenType, ContractLink}, 
+        core::{TokenType}, 
         snip20::{InitConfig, InstantiateMsg, self}, 
         query_auth::PermitData, 
         staking::QueryData
@@ -92,9 +93,9 @@ pub mod integration_help_lib{
 
     pub fn store_init_amm_pair_contract(
         router: &mut App,
-        token_0: &ContractLink,
-        token_1: &ContractLink,
-        factory: &ContractLink
+        token_0: &SContract,
+        token_1: &SContract,
+        factory: &SContract
     ) -> StdResult<ContractInfo>
     {        
         let contract_info = router.store_code(amm_pair_contract_store());   
@@ -111,7 +112,7 @@ pub mod integration_help_lib{
                 factory_info: factory.clone(),
                 prng_seed: to_binary("seed")?,
                 entropy: to_binary("seed")?,
-                admin: Some(mk_address(&OWNER).to_owned()),
+                admin_auth: todo!(),
                 staking_contract: None,
                 custom_fee: None,
                 callback: None,
@@ -123,8 +124,8 @@ pub mod integration_help_lib{
         Ok(contract)
     }
 
-    pub fn convert_to_contract_link(contract: &ContractInfo) -> ContractLink {
-        ContractLink{
+    pub fn convert_to_contract_link(contract: &ContractInfo) -> SContract {
+        SContract{
             address: contract.address.to_owned(),
             code_hash: contract.code_hash.to_owned(),
         }
@@ -173,8 +174,8 @@ pub mod integration_help_lib{
         return Addr::unchecked(address.to_string())
     }
 
-    pub fn mk_contract_link(address: &str) -> ContractLink{
-        return ContractLink{
+    pub fn mk_contract_link(address: &str) -> SContract{
+        return SContract{
             address: mk_address(address),
             code_hash: "".to_string(),
         }       
@@ -207,7 +208,7 @@ pub mod integration_help_lib{
     }
 
     pub fn get_amm_pair_config(router: &mut App, amm_pair_contract: &ContractInfo) 
-    -> (ContractLink, ContractLink, Option<ContractLink>, TokenPair, Option<CustomFee>)  {
+    -> (SContract, SContract, Option<SContract>, TokenPair, Option<CustomFee>)  {
             let query: AMMPairQueryResponse = router.query_test(amm_pair_contract.to_owned(),to_binary(&AMMPairQueryMsg::GetConfig { }).unwrap()).unwrap();
             match query {
                 AMMPairQueryResponse::GetConfig { 
@@ -297,7 +298,7 @@ pub mod integration_help_lib{
         Ok(respone)
     }
 
-    pub fn create_token_pair(token_0_contract: &ContractLink, token_1_contract: &ContractLink) -> TokenPair {
+    pub fn create_token_pair(token_0_contract: &SContract, token_1_contract: &SContract) -> TokenPair {
         let pair =  TokenPair(
             TokenType::CustomToken { 
                 contract_addr: token_0_contract.address.to_owned(), 
@@ -311,7 +312,7 @@ pub mod integration_help_lib{
         pair
     }
 
-    pub fn create_token_pair_with_native(token_contract: &ContractLink) -> TokenPair {
+    pub fn create_token_pair_with_native(token_contract: &SContract) -> TokenPair {
         let pair =  TokenPair(
             TokenType::NativeToken { 
                 denom: "uscrt".to_string() 
@@ -324,10 +325,10 @@ pub mod integration_help_lib{
         pair
     }
 
-    pub fn get_contract_link_from_token_type(token_type: &TokenType) -> ContractLink{
+    pub fn get_contract_link_from_token_type(token_type: &TokenType) -> SContract{
         match token_type{
-            TokenType::CustomToken { contract_addr, token_code_hash } => ContractLink { address: contract_addr.to_owned(), code_hash: token_code_hash.to_string()},
-            TokenType::NativeToken { denom: _ } => ContractLink { address: Addr::unchecked(""), code_hash: "".to_string()},
+            TokenType::CustomToken { contract_addr, token_code_hash } => SContract { address: contract_addr.to_owned(), code_hash: token_code_hash.to_string()},
+            TokenType::NativeToken { denom: _ } => SContract { address: Addr::unchecked(""), code_hash: "".to_string()},
         }
     }
 

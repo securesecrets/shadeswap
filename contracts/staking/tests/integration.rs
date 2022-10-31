@@ -19,6 +19,7 @@ pub fn staking_contract_store() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new_with_empty(execute, instantiate, query);
     Box::new(contract)
 }
+use shadeswap_shared::Contract as SContract;
 
 
 
@@ -29,7 +30,6 @@ pub fn staking_integration_tests_without_proxy() {
     use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp};
     use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
-    use shadeswap_shared::core::ContractLink;
     use shadeswap_shared::staking::{QueryMsg, AuthQuery};
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{core::{TokenType}};
@@ -59,14 +59,14 @@ pub fn staking_integration_tests_without_proxy() {
     let init_msg = InitMsg {
         daily_reward_amount: Uint128::new(30000u128),
         reward_token: TokenType::CustomToken { contract_addr:reward_contract.address.to_owned(), token_code_hash: reward_contract.code_hash.to_owned() },
-        pair_contract: ContractLink { address: Addr::unchecked("AMMPAIR"), code_hash: "".to_string() },
+        pair_contract: SContract { address: Addr::unchecked("AMMPAIR"), code_hash: "".to_string() },
         prng_seed: to_binary(&"password").unwrap(),
-        lp_token: ContractLink { address:lp_token_contract.address.to_owned(), code_hash: lp_token_contract.code_hash.to_owned() },
+        lp_token: SContract { address:lp_token_contract.address.to_owned(), code_hash: lp_token_contract.code_hash.to_owned() },
         authenticator: Some(AuthContract{
             address: auth_contract.address.to_owned(),
             code_hash: auth_contract.code_hash.to_owned()
         }),
-        admin_auth: Addr::unchecked(OWNER),
+        admin_auth: todo!(),
         valid_to: Uint128::new(3747905010000u128) 
     };
 
@@ -150,7 +150,7 @@ pub fn staking_integration_tests_without_proxy() {
     // set 2 reward token
     let reward_contract_b = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18).unwrap();    
     let set_reward_msg = ExecuteMsg::SetRewardToken { 
-        reward_token: ContractLink { 
+        reward_token: SContract { 
             address:reward_contract_b.address.to_owned(), 
             code_hash: reward_contract_b.code_hash.to_owned() 
         }, 
@@ -241,7 +241,6 @@ pub fn staking_integration_tests_with_proxy() {
     use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp};
     use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
-    use shadeswap_shared::core::ContractLink;
     use shadeswap_shared::staking::{QueryMsg, AuthQuery};
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{core::{TokenType}};
@@ -271,14 +270,14 @@ pub fn staking_integration_tests_with_proxy() {
     let init_msg = InitMsg {
         daily_reward_amount: Uint128::new(30000u128),
         reward_token: TokenType::CustomToken { contract_addr:reward_contract.address.to_owned(), token_code_hash: reward_contract.code_hash.to_owned() },
-        pair_contract: ContractLink { address: Addr::unchecked("AMMPAIR"), code_hash: "".to_string() },
+        pair_contract: SContract { address: Addr::unchecked("AMMPAIR"), code_hash: "".to_string() },
         prng_seed: to_binary(&"password").unwrap(),
-        lp_token: ContractLink { address:lp_token_contract.address.to_owned(), code_hash: lp_token_contract.code_hash.to_owned() },
+        lp_token: SContract { address:lp_token_contract.address.to_owned(), code_hash: lp_token_contract.code_hash.to_owned() },
         authenticator: Some(AuthContract{
             address: auth_contract.address.to_owned(),
             code_hash: auth_contract.code_hash.to_owned()
         }),
-        admin_auth: Addr::unchecked(OWNER),
+        admin_auth: todo!(),
         valid_to: Uint128::new(3747905010000u128) 
     };
 

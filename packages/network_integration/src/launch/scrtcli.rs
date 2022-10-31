@@ -20,7 +20,7 @@ use secretcli::{
 };
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings},
-    core::{ContractInstantiationInfo, ContractLink},
+    core::{ContractInstantiationInfo},
     msg::{
         amm_pair::{
             ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,

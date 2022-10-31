@@ -14,13 +14,14 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         create_token_pair, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance};
     use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp, from_binary, Api};
     use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};    
-    use shadeswap_shared::core::{ContractLink, ContractInstantiationInfo, TokenPair, TokenPairAmount, TokenAmount, CustomFee, Fee};
+    use shadeswap_shared::core::{ ContractInstantiationInfo, TokenPair, TokenPairAmount, TokenAmount, CustomFee, Fee};
     use shadeswap_shared::msg::amm_pair::InvokeMsg; 
     use shadeswap_shared::staking::StakingContractInit;   
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{core::{TokenType}};
     use multi_test::help_lib::integration_help_lib::{generate_snip20_contract};    
     use multi_test::help_lib::integration_help_lib::snip20_lp_token_contract_store;
+    use shadeswap_shared::Contract as SContract;
     use multi_test::amm_pair::amm_pair_mock::amm_pair_mock::reply;
     use staking::contract::{execute as staking_execute, instantiate as staking_instantiate, query as staking_query};
     let staker_a_addr = Addr::unchecked(STAKER_A.to_owned());       
@@ -73,7 +74,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         &convert_to_contract_link(&token_1_contract)
     );
 
-    let factory_link = ContractLink { 
+    let factory_link = SContract { 
         address:factory_contract_info.address,
         code_hash: factory_contract_info.code_hash
     };
@@ -88,7 +89,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         factory_info: factory_link.to_owned(), 
         prng_seed: to_binary("seed").unwrap(), 
         entropy: to_binary("seed").unwrap(),  
-        admin_auth: Some(owner_addr.to_owned()),
+        admin_auth: todo!(),
         staking_contract: Some(StakingContractInit{
             contract_info:  ContractInstantiationInfo { 
                 code_hash: staking_contract_info.code_hash.to_owned(), 
@@ -323,7 +324,7 @@ pub fn amm_pair_integration_tests_native_token() {
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, increase_allowance, store_init_factory_contract, create_token_pair, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance, create_token_pair_with_native};
     use cosmwasm_std::{Uint128, Coin, Timestamp};
     use multi_test::util_addr::util_addr::{OWNER, STAKER_A, STAKER_B};       
-    use shadeswap_shared::core::{ContractLink, ContractInstantiationInfo, TokenPairAmount, TokenAmount, CustomFee, Fee};
+    use shadeswap_shared::core::{ContractInstantiationInfo, TokenPairAmount, TokenAmount, CustomFee, Fee};
     use shadeswap_shared::msg::amm_pair::InvokeMsg;
     
     use shadeswap_shared::staking::StakingContractInit;
@@ -332,6 +333,7 @@ pub fn amm_pair_integration_tests_native_token() {
     use multi_test::help_lib::integration_help_lib::{generate_snip20_contract};    
     use multi_test::help_lib::integration_help_lib::snip20_lp_token_contract_store;
     use multi_test::amm_pair::amm_pair_mock::amm_pair_mock::reply;
+    use shadeswap_shared::Contract as SContract;
     use staking::contract::{execute as staking_execute, instantiate as staking_instantiate, query as staking_query};
     let staker_a_addr = Addr::unchecked(STAKER_A.to_owned());       
     let staker_b_addr = Addr::unchecked(STAKER_B.to_owned());       
@@ -380,7 +382,7 @@ pub fn amm_pair_integration_tests_native_token() {
         &convert_to_contract_link(&token_0_contract)
     );
 
-    let factory_link = ContractLink { 
+    let factory_link = SContract { 
         address:factory_contract_info.address,
         code_hash: factory_contract_info.code_hash
     };
@@ -395,7 +397,7 @@ pub fn amm_pair_integration_tests_native_token() {
         factory_info: factory_link.to_owned(), 
         prng_seed: to_binary("seed").unwrap(), 
         entropy: to_binary("seed").unwrap(),  
-        admin_auth: Some(owner_addr.to_owned()),
+        admin_auth: todo!(),
         staking_contract: Some(StakingContractInit{
             contract_info:  ContractInstantiationInfo { 
                 code_hash: staking_contract_info.code_hash.to_owned(), 

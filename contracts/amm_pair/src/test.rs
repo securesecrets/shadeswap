@@ -23,6 +23,7 @@ use shadeswap_shared::core::ContractInstantiationInfo;
 
 #[cfg(test)]
 pub mod tests {
+    use shadeswap_shared::Contract;
     use shadeswap_shared::core::{TokenPair, TokenPairAmount};
 
     use super::help_test_lib::{make_init_config, mk_amm_settings, mk_token_pair, mk_token_pair_amount, mk_token_pair_custom_addr};
@@ -192,7 +193,7 @@ pub mod tests {
             address_a.clone(),
             None,
             mk_custom_token_amount(Uint128::from(1000u128), &token_pair),
-            Some(signature),
+            None
         )?;
         let offer_amount = &native_swap.clone().attributes[2];
         assert_eq!(offer_amount.value, 65420.to_string());

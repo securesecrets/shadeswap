@@ -999,7 +999,7 @@ pub mod test_help_lib {
                 code_hash: "".to_string(),
             },
             authenticator: None,
-            admin_auth: Addr::unchecked("Sender"),
+            admin_auth: todo!(),
             valid_to: Uint128::new(3747905010000u128) 
         };
         assert!(instantiate(deps.branch(), env.clone(), info.clone(), msg).is_ok());

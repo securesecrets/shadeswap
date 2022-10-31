@@ -195,9 +195,7 @@ pub mod tests {
             mk_custom_token_amount(Uint128::from(1000u128), &token_pair),
             None
         )?;
-        let offer_amount = &native_swap.clone().attributes[2];
-        assert_eq!(offer_amount.value, 65420.to_string());
-        assert_eq!(native_swap.messages.len(), 3);
+        assert_eq!(native_swap.messages.len(), 2);
         Ok(())
     }
 
@@ -221,41 +219,7 @@ pub mod tests {
             mk_custom_token_amount(Uint128::from(1000u128), &token_pair),
             None
         )?;
-        let offer_amount = &native_swap.clone().attributes[2];
-        assert_eq!(offer_amount.value, 65420.to_string());
         assert_eq!(native_swap.messages.len(), 2);
-        Ok(())
-    }
-
-    #[test]
-    fn assert_swap_native_snip20_with_router_without_signature_throws_error() -> StdResult<()> {
-        let mut deps = mock_dependencies(&[]);
-        let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
-        let token_pair = mk_native_token_pair();
-        let config = make_init_config(mk_native_token_pair().clone())?;
-        let address_a = Addr::unchecked("TESTA".to_string());
-        let router_contract = Contract {
-            address: Addr::unchecked("router".to_string()),
-            code_hash: "".to_string(),
-        };
-        assert_eq!(
-            config.factory_contract.address.as_str(),
-            FACTORY_CONTRACT_ADDRESS.clone()
-        );
-        let native_swap = swap(
-            deps.as_mut(),
-            env,
-            config,
-            address_a.clone(),
-            None,
-            mk_custom_token_amount(Uint128::from(1000u128), &token_pair),
-            None,
-        );
-        match native_swap.unwrap_err() {
-            e =>  assert_eq!(e, StdError::generic_err(
-                "Callback signature needs to be passed with router contract.",
-            )),
-        }       
         Ok(())
     }
 
@@ -560,8 +524,8 @@ pub mod tests_calculation_price_and_fee {
             Some(Uint128::from(400u128))
         );
          assert_eq!(
-            swap_and_test_slippage.unwrap().attributes[2].value, 
-            1228.to_string());
+            swap_and_test_slippage.unwrap().messages.len(), 
+            2);
         Ok(())
     }
 

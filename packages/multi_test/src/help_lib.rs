@@ -1,40 +1,37 @@
 
 
-pub mod integration_help_lib{   
-    use std::ops::Add;
+pub mod integration_help_lib{       
     use std::time::{SystemTime, UNIX_EPOCH};
-    use cosmwasm_std::{CosmosMsg, StdError};
+    use cosmwasm_std::{StdError};
     use cosmwasm_std::Empty;
     use query_authentication::permit::Permit;
     use query_authentication::transaction::PermitSignature;
     use query_authentication::transaction::PubKey;
     use secret_multi_test::AppResponse;
     use secret_multi_test::next_block;
-    use shadeswap_shared::core::{ContractInstantiationInfo, CustomFee};
-    use shadeswap_shared::snip20::{QueryAnswer, QueryMsg};
-    use shadeswap_shared::staking;
+    use shadeswap_shared::core::{ CustomFee};
+    use shadeswap_shared::snip20::{QueryAnswer, QueryMsg};    
     use shadeswap_shared::utils::testing::TestingExt;    
-    use cosmwasm_std::{Addr, ContractInfo, StdResult, Uint128, Coin, Binary, WasmMsg};
+    use cosmwasm_std::{Addr, ContractInfo, StdResult, Uint128, Coin, Binary};
     use shadeswap_shared::Contract as SContract;
     use secret_multi_test::Contract;
     use secret_multi_test::ContractWrapper;
     use secret_multi_test::{App, Executor};    
     use shadeswap_shared::{
-        msg::staking::{InitMsg, InvokeMsg}, 
+        msg::staking::{InvokeMsg}, 
         core::TokenPair, 
         core::{TokenType}, 
         snip20::{InitConfig, InstantiateMsg, self}, 
         query_auth::PermitData, 
         staking::QueryData
     };
+    use crate::auth::auth_query::auth_query::{execute as auth_execute, InitMsg as AuthInitMsg, instantiate as auth_instantiate, query as auth_query};
+    use shadeswap_shared::msg::amm_pair::{QueryMsgResponse as AMMPairQueryResponse, QueryMsg as AMMPairQueryMsg};
     use snip20_reference_impl::contract::{execute as snip20_execute, instantiate as snip20_instantiate, query as  snip20_query};
     use lp_token::contract::{execute as lp_execute, instantiate as lp_instantiate, query as  lp_query};
     use cosmwasm_std::to_binary;
-    use shadeswap_shared::msg::amm_pair::{InitMsg as AMMPairInitMsg, QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryResponse};  
-    use crate::auth_query::auth_query::{{execute as auth_execute, instantiate as auth_instantiate, query as auth_query, InitMsg as AuthInitMsg}};
     use crate::util_addr::util_addr::{OWNER, TOKEN_B, TOKEN_A};
     use crate::factory::factory_mock::factory_mock::{execute as factory_execute, query as factory_query,instantiate as factory_instantiate, InitMsg as FactoryInitMsg };
-    use crate::amm_pair::amm_pair_mock::amm_pair_mock::{execute as pair_execute, query as pair_query,instantiate as pair_instantiate };
     use crate::staking::staking_mock::staking_mock::{execute as staking_execute_mock, query as staking_query_mock,instantiate as staking_instantiate_mock, InitMsg as StakingInitMsg };
     type TestPermit = Permit<PermitData>;
     
@@ -61,14 +58,19 @@ pub mod integration_help_lib{
     }
 
     
-    pub fn store_init_factory_contract(router: &mut App) 
+    pub fn store_init_factory_contract(
+        router: &mut App,
+        admin: &SContract    
+    ) 
     -> StdResult<ContractInfo>
     {        
         let contract_info = router.store_code(factory_contract_store());   
         let contract = router.instantiate_contract(
             contract_info, 
             mk_address(&OWNER).to_owned(), 
-            &FactoryInitMsg{}, 
+            &FactoryInitMsg{
+                admin_auth: admin.clone(),
+            }, 
             &[], 
             "staking", 
             Some(OWNER.to_string())
@@ -91,39 +93,7 @@ pub mod integration_help_lib{
         Ok(contract)
     }
 
-    pub fn store_init_amm_pair_contract(
-        router: &mut App,
-        token_0: &SContract,
-        token_1: &SContract,
-        factory: &SContract
-    ) -> StdResult<ContractInfo>
-    {        
-        let contract_info = router.store_code(amm_pair_contract_store());   
-        let lp_token_info =  router.store_code(snip20_lp_token_contract_store()); 
-        let contract = router.instantiate_contract(
-            contract_info, 
-            mk_address(&OWNER).to_owned(), 
-            &AMMPairInitMsg{
-                pair: create_token_pair(&token_0, &token_1),
-                lp_token_contract: ContractInstantiationInfo{
-                    code_hash: lp_token_info.code_hash,
-                    id: lp_token_info.code_id,
-                },
-                factory_info: factory.clone(),
-                prng_seed: to_binary("seed")?,
-                entropy: to_binary("seed")?,
-                admin_auth: todo!(),
-                staking_contract: None,
-                custom_fee: None,
-                callback: None,
-            }, 
-            &[], 
-            "amm_pairs", 
-            Some(OWNER.to_string())
-        ).unwrap();
-        Ok(contract)
-    }
-
+  
     pub fn convert_to_contract_link(contract: &ContractInfo) -> SContract {
         SContract{
             address: contract.address.to_owned(),
@@ -165,10 +135,7 @@ pub mod integration_help_lib{
         Box::new(contract)
     }
 
-    pub fn amm_pair_contract_store() -> Box<dyn Contract<Empty>> {
-        let contract = ContractWrapper::new_with_empty(pair_execute, pair_instantiate, pair_query);
-        Box::new(contract)
-    } 
+    
 
     pub fn mk_address(address: &str) -> Addr{
         return Addr::unchecked(address.to_string())
@@ -274,9 +241,9 @@ pub mod integration_help_lib{
         amount: Uint128,
         sender: &Addr       
     ) {
-        let viewing_key_response = set_viewing_key(router, &contract, "seed", sender).unwrap();
-        let deposit_resposne = deposit_snip20(router,&contract, amount, &sender).unwrap();
-        let mint_response = mint_snip20(router, amount, &recipient,&contract, &sender).unwrap();            
+        let _viewing_key_response = set_viewing_key(router, &contract, "seed", sender).unwrap();
+        let _deposit_resposne = deposit_snip20(router,&contract, amount, &sender).unwrap();
+        let _mint_response = mint_snip20(router, amount, &recipient,&contract, &sender).unwrap();            
     }
 
     pub fn increase_allowance(

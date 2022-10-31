@@ -6,7 +6,7 @@ pub mod snip20_lib {
         secretcli::{handle, query, Report},
     };
     use snip20_reference_impl::msg::QueryAnswer;
-
+    use shadeswap_shared::utils::asset::Contract;
     use crate::utils::{init_snip20_cli, InitConfig, GAS};
     use cosmwasm_std::Addr;
 
@@ -179,6 +179,7 @@ pub mod factory_lib {
         account_name: &str,
         backend: &str,
         reports: &mut Vec<Report>,
+        admin_contract: &str
     ) -> io::Result<NetContract> {
         println!("Creating New Factory");
         let lp_token = store_and_return_contract(
@@ -215,7 +216,7 @@ pub mod factory_lib {
             prng_seed: to_binary(&"".to_string()).unwrap(),
             api_key: API_KEY.to_string(),
             authenticator: None,
-            admin_auth: todo!(),
+            admin_auth: Contract{address: Addr::unchecked(admin_contract.to_string()), code_hash: "".to_string()},
         };
 
         let factory_contract =
@@ -345,6 +346,7 @@ pub mod router_lib {
         cli_types::NetContract,
         secretcli::{handle, init, Report},
     };
+    use shadeswap_shared::utils::asset::Contract;
     use shadeswap_shared::{
         c_std::{to_binary, Addr},
         msg::router::{ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg},
@@ -362,6 +364,7 @@ pub mod router_lib {
         account_name: &str,
         backend: &str,
         reports: &mut Vec<Report>,
+        admin: &str
     ) -> io::Result<NetContract> {
         println!(
             "Creating New Router Contract with Pair Code Hash {}",
@@ -370,7 +373,7 @@ pub mod router_lib {
         let router_msg = RouterInitMsg {
             prng_seed: to_binary(&"".to_string()).unwrap(),
             entropy: to_binary(&"".to_string()).unwrap(),
-            admin_auth: todo!(),
+            admin_auth: Contract { address: Addr::unchecked(admin.to_string()), code_hash: "".to_string()},
         };
 
         let router_contract = init(

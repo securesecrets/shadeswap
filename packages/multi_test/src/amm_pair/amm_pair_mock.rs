@@ -6,7 +6,7 @@ pub mod amm_pair_mock {
     use cosmwasm_std::{
         entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin, ContractInfo, CosmosMsg,
         Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
-        SubMsgResult, Uint128, WasmMsg,
+        SubMsgResult, Uint128, WasmMsg, QueryRequest, WasmQuery,
     };
     use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
     use schemars::JsonSchema;
@@ -18,8 +18,10 @@ pub mod amm_pair_mock {
         msg::amm_pair::{ExecuteMsg, InitMsg, QueryMsg, QueryMsgResponse, SwapResult},
         snip20::helpers::register_receive,
         staking::StakingContractInit,
-        utils::{pad_query_result, pad_response_result},
+        utils::{pad_query_result, pad_response_result}, amm_pair::AMMSettings,
     };
+    use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse, QueryMsg as FactoryQueryMsg};
+    
     pub const BLOCK_SIZE: usize = 256;
     //use crate::staking::staking_mock::staking_mock::InitMsg as StakingInitMsg;
     use shadeswap_shared::msg::staking::InitMsg as StakingInitMsg;
@@ -31,6 +33,12 @@ pub mod amm_pair_mock {
     pub static TOKEN_0: &[u8] = b"token_0";
     pub static TOKEN_1: &[u8] = b"token_1";
     pub static FACTORY: &[u8] = b"factory";
+
+    struct FactoryConfig {
+        amm_settings: AMMSettings,
+        authenticator: Option<Contract>,
+        admin_auth: Contract
+    }
 
     #[entry_point]
     pub fn instantiate(
@@ -255,6 +263,8 @@ pub mod amm_pair_mock {
             None,
             &lp_token_address.clone(),
         )?);
+
+        let factory_config = query_factory_config(deps.as_ref(), &config.factory_contract).unwrap();
         match config.staking_contract_init {
             Some(c) => {
                 println!(
@@ -279,7 +289,7 @@ pub mod amm_pair_mock {
                             },
                             authenticator: None,
                             //default to same admin as amm_pair
-                            admin_auth: todo!(),
+                            admin_auth: factory_config.admin_auth,
                             valid_to: Uint128::new(3747905010000u128),
                         })?,
                         code_hash: c.contract_info.code_hash.clone(),
@@ -302,6 +312,32 @@ pub mod amm_pair_mock {
 
     pub fn config_r(storage: &dyn Storage) -> ReadonlySingleton<Config> {
         singleton_read(storage, CONFIG)
+    }
+
+    fn query_factory_config(deps: Deps, factory: &Contract) -> StdResult<FactoryConfig> {
+        let result: FactoryQueryResponse =
+            deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+                contract_addr: factory.address.to_string(),
+                msg: to_binary(&FactoryQueryMsg::GetConfig {})?,
+                code_hash: factory.code_hash.to_string(),
+            }))?;
+    
+        match result {
+            FactoryQueryResponse::GetConfig {
+                pair_contract: _,
+                amm_settings,
+                lp_token_contract: _,
+                authenticator,
+                admin_auth
+            } => Ok(FactoryConfig {
+                amm_settings,
+                authenticator,
+                admin_auth
+            }),
+            _ => Err(StdError::generic_err(
+                "An error occurred while trying to retrieve factory settings.",
+            )),
+        }
     }
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]

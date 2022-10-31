@@ -20,7 +20,7 @@ pub mod tests {
         state::{
             claim_reward_info_r, proxy_staker_info_r, reward_token_list_r, reward_token_r,
             staker_index_r, staker_index_w, stakers_r, stakers_vk_r, total_staked_r,
-            ClaimRewardsInfo, Config, RewardTokenInfo, config_w,
+            ClaimRewardsInfo, Config, RewardTokenInfo, config_w, total_staked_w,
         },
         test::test_help_lib::{
             make_init_config, make_reward_token_contract, mock_custom_env, mock_dependencies,
@@ -65,6 +65,7 @@ pub mod tests {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let _config: Config = make_init_config(deps.as_mut(), env, Uint128::from(100u128))?;
+        total_staked_w(deps.as_mut().storage).save(&Uint128::new(100u128)).unwrap();
         let user_shares =
             calculate_staker_shares(deps.as_mut().storage, Uint128::from(100u128)).unwrap();
         assert_eq!(user_shares, Decimal::one());
@@ -953,7 +954,7 @@ pub mod test_help_lib {
     use shadeswap_shared::{
         core::{TokenType},
         snip20::{manager::Balance, QueryAnswer},
-        staking::InitMsg, Contract,
+        staking::InitMsg, Contract, admin::ValidateAdminPermissionResponse,
     };
 
     use crate::{
@@ -999,7 +1000,7 @@ pub mod test_help_lib {
                 code_hash: "".to_string(),
             },
             authenticator: None,
-            admin_auth: todo!(),
+            admin_auth: Contract { address: Addr::unchecked("admin"), code_hash: "".to_string() },
             valid_to: Uint128::new(3747905010000u128) 
         };
         assert!(instantiate(deps.branch(), env.clone(), info.clone(), msg).is_ok());
@@ -1060,6 +1061,11 @@ pub mod test_help_lib {
                                 })
                                 .unwrap();
                                 QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                            }
+                            "admin" => {
+                                QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(to_binary(&ValidateAdminPermissionResponse{
+                                    has_permission: true,
+                                }).unwrap()))
                             }
                             _factory_contract_address => {
                                 let balance = to_binary(&BalanceResponse {

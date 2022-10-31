@@ -1,18 +1,27 @@
-use cosmwasm_std::testing::mock_dependencies;
+use cosmwasm_std::Coin;
+use cosmwasm_std::Empty;
+use cosmwasm_std::OwnedDeps;
+use cosmwasm_std::QuerierResult;
+use cosmwasm_std::QueryRequest;
+use cosmwasm_std::WasmQuery;
+use cosmwasm_std::from_slice;
+use cosmwasm_std::testing::MockApi;
+use cosmwasm_std::testing::MockStorage;
 use cosmwasm_std::testing::mock_env;
 use cosmwasm_std::to_binary;
 use cosmwasm_std::Addr;
-use cosmwasm_std::Deps;
-use cosmwasm_std::DepsMut;
-use cosmwasm_std::Env;
-use cosmwasm_std::{Api, Binary, CanonicalAddr, Querier, StdError, StdResult, Storage};
+use cosmwasm_std::{DepsMut, Env};
+use shadeswap_shared::contract_interfaces::admin::ValidateAdminPermissionResponse;
+use cosmwasm_std::{Querier, StdResult};
+use serde::Deserialize;
+use serde::Serialize;
 use shadeswap_shared::utils::asset::Contract;
 use shadeswap_shared::amm_pair::AMMSettings;
 use shadeswap_shared::core::Fee;
 use shadeswap_shared::core::{ContractInstantiationInfo};
 use shadeswap_shared::msg::factory::InitMsg;
 pub use shadeswap_shared::{msg::factory::QueryResponse, Pagination};
-
+use shadeswap_shared::snip20::manager::Balance;
 use crate::state::Config;
 
 #[cfg(test)]
@@ -42,7 +51,7 @@ pub mod test_contract {
 
     #[test]
     fn init_ok() -> StdResult<()> {
-        let mut deps = mock_dependencies();
+        let mut deps = mock_dependencies(&[]);
         let config = mkconfig(0);
         let env = mock_env();
         assert!(instantiate(
@@ -61,7 +70,7 @@ pub mod test_contract {
 
     #[test]
     fn get_set_config_ok() -> StdResult<()> {
-        let mut deps = mock_dependencies();
+        let mut deps = mock_dependencies(&[]);
         let env = mock_env();
         instantiate(
             deps.as_mut(),
@@ -99,7 +108,7 @@ pub mod test_contract {
 
     #[test]
     fn register_amm_pair_ok() -> StdResult<()> {
-        let mut deps = mock_dependencies();
+        let mut deps = mock_dependencies(&[]);
         let env = mock_env();
         let config = mkconfig(0);
 
@@ -143,7 +152,7 @@ pub mod test_contract {
 
     #[test]
     fn create_pair_ok() -> StdResult<()> {
-        let ref mut deps = mock_dependencies();
+        let ref mut deps = mock_dependencies(&[]);
         let env = mock_env();
         let config = mkconfig(0);
         assert!(instantiate(
@@ -182,7 +191,7 @@ pub mod test_contract {
     }
     #[test]
     fn add_amm_pairs() {
-        let ref mut deps = mock_dependencies();
+        let ref mut deps = mock_dependencies(&[]);
         let config = mkconfig(0);
         let env = mock_env();
 
@@ -275,117 +284,48 @@ pub fn create_query_response_from_config(config: &Config) ->QueryResponse {
     }
 }
 
+    pub fn mock_dependencies(
+        _contract_balance: &[Coin],
+    ) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
+        OwnedDeps {
+            storage: MockStorage::default(),
+            api: MockApi::default(),
+            querier: MockQuerier { _portion: 100 },
+            custom_query_type: std::marker::PhantomData,
+        }
+    }
 
-// pub mod test_state {
-//     use shadeswap_shared::{amm_pair::AMMPair, core::Canonize};
+    
+    #[derive(Serialize, Deserialize)]
+    struct IntBalanceResponse {
+        pub balance: Balance,
+    }
 
-//     use super::*;
-
-//     fn swap_pair<A: Clone>(pair: &TokenPair) -> TokenPair {
-//         TokenPair(pair.1.clone(), pair.0.clone())
-//     }
-
-//     #[test]
-//     fn generate_pair_key_ok() -> StdResult<()> {
-//         fn cmp_pair<S: Storage, A: Api, Q: Querier>(
-//             deps: &Deps<S, A, Q>,
-//             pair: TokenPair<HumanAddr>,
-//         ) -> StdResult<()> {
-//             let stored_pair = pair.clone().canonize(&deps.api)?;
-//             let key = generate_pair_key(&stored_pair);
-
-//             let pair = swap_pair(&pair.clone());
-
-//             let stored_pair = pair.canonize(&deps.api)?;
-//             let swapped_key = generate_pair_key(&stored_pair);
-
-//             assert_eq!(key, swapped_key);
-
-//             Ok(())
-//         }
-
-//         let ref deps = mock_dependencies();
-
-//         cmp_pair(
-//             deps,
-//             TokenPair(
-//                 TokenType::CustomToken {
-//                     contract_addr: Addr::unchecked("first_addr".to_string()),
-//                     token_code_hash: "13123adasd".to_string(),
-//                 },
-//                 TokenType::CustomToken {
-//                     contract_addr: Addr::unchecked("scnd_addr".to_string()),
-//                     token_code_hash: "4534qwerqqw".to_string(),
-//                 },
-//             ),
-//         )?;
-
-//         cmp_pair(
-//             deps,
-//             TokenPair(
-//                 TokenType::NativeToken {
-//                     denom: "test1".to_string(),
-//                 },
-//                 TokenType::NativeToken {
-//                     denom: "test2".to_string(),
-//                 },
-//             ),
-//         )?;
-
-//         cmp_pair(
-//             deps,
-//             TokenPair(
-//                 TokenType::NativeToken {
-//                     denom: "test3".to_string(),
-//                 },
-//                 TokenType::CustomToken {
-//                     contract_addr: Addr::unchecked("third_addr".to_string()),
-//                     token_code_hash: "asd21312asd".to_string(),
-//                 },
-//             ),
-//         )?;
-
-//         Ok(())
-//     }
-
-//     #[test]
-//     fn store_and_get_amm_pairs_ok() {
-//         let ref mut deps = mock_dependencies();
-//         let mut amm_pairs: Vec<AMMPair> = vec![];
-//         amm_pairs.push(AMMPair {
-//             pair: TokenPair(
-//                 TokenType::CustomToken {
-//                     contract_addr: format!("token_0_addr_{}", 0).to_string(),
-//                     token_code_hash: format!("token_0_hash_{}", 0),
-//                 },
-//                 TokenType::CustomToken {
-//                     contract_addr: format!("token_1_addr_{}", 0).to_string(),
-//                     token_code_hash: format!("token_1_hash_{}", 0),
-//                 },
-//             ),
-//             address: format!("pair_addr_{}", 0).to_string(),
-//         });
-//         save_amm_pairs(deps, amm_pairs.clone()).unwrap();
-//         let result = load_amm_pairs(deps, pagination(0, 1)).unwrap();
-
-//         //Check Count was updated
-//         assert_eq!(1, load_amm_pairs_count(&mut deps.storage).unwrap());
-
-//         //Check number of result was returned
-//         assert_eq!(1, result.len());
-
-//         //Match result
-//         assert_eq!(amm_pairs[0], result[0]);
-//     }
-
-//     #[test]
-//     fn save_and_load_amm_pairs_count_ok() {
-//         let ref mut deps = mock_dependencies();
-//         save_amm_pairs_count(&mut deps.storage, 1).unwrap();
-//         assert_eq!(1, load_amm_pairs_count(&mut deps.storage).unwrap());
-//         assert_ne!(2, load_amm_pairs_count(&mut deps.storage).unwrap())
-//     }
-// }
+    pub struct MockQuerier {
+        _portion: u128,
+    }    
+    
+    impl Querier for MockQuerier {
+        fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
+            let request: QueryRequest<Empty> = from_slice(bin_request).unwrap();
+            match &request {
+                QueryRequest::Wasm(msg) => match msg {                  
+                    WasmQuery::Smart { contract_addr, code_hash: _, msg: _} => { 
+                        match contract_addr.as_str() {
+                            "admin"  => {
+                                QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(to_binary(&ValidateAdminPermissionResponse{
+                                    has_permission: true,
+                                }).unwrap()))
+                            },
+                            _ => unimplemented!(),
+                        }
+                    }
+                    _ => unimplemented!(),
+                },
+                _ => unimplemented!(),
+            }
+        }
+    }
 
 fn mkconfig(id: u64) -> Config {
     Config::from_init_msg(InitMsg {

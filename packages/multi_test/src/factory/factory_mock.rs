@@ -4,20 +4,25 @@ pub mod factory_mock {
         entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
         MessageInfo, Response, StdResult,
     };
+    use cosmwasm_storage::{singleton, singleton_read};
     use schemars::JsonSchema;
-    use secret_multi_test::Contract;
+    use shadeswap_shared::utils::asset::Contract;
     use serde::{Deserialize, Serialize};
     use shadeswap_shared::{
         amm_pair::AMMSettings,
-        core::{ContractInstantiationInfo, Fee, TokenType},
+        core::{ContractInstantiationInfo, Fee},
         factory::{ExecuteMsg, QueryMsg, QueryResponse},
         utils::{pad_query_result, pad_response_result},
     };
-    pub const BLOCK_SIZE: usize = 256;
     use shadeswap_shared::Contract as sContract;
 
+    pub static CONFIG: &[u8] = b"config";
+    pub const BLOCK_SIZE: usize = 256;   
+
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-    pub struct InitMsg {}
+    pub struct InitMsg {
+        pub admin_auth: Contract
+    }
 
     #[entry_point]
     pub fn instantiate(
@@ -26,6 +31,7 @@ pub mod factory_mock {
         _info: MessageInfo,
         msg: InitMsg,
     ) -> StdResult<Response> {
+        singleton(deps.storage, CONFIG).save(&msg.admin_auth)?;
         Ok(Response::new())
     }
 
@@ -35,26 +41,29 @@ pub mod factory_mock {
             match msg {
                 QueryMsg::ListAMMPairs { pagination } => to_binary(""),
                 QueryMsg::GetAMMPairAddress { pair } => to_binary(""),
-                QueryMsg::GetConfig => to_binary(&QueryResponse::GetConfig {
-                    pair_contract: ContractInstantiationInfo {
-                        code_hash: "".to_string(),
-                        id: 0u64,
-                    },
-                    amm_settings: AMMSettings {
-                        lp_fee: Fee::new(3, 100),
-                        shade_dao_fee: Fee::new(3, 100),
-                        shade_dao_address: sContract {
-                            address: Addr::unchecked(OWNER),
+                QueryMsg::GetConfig => {
+                    let admin_auth: Contract = singleton_read(deps.storage, CONFIG).load()?;
+                    to_binary(&QueryResponse::GetConfig {
+                        pair_contract: ContractInstantiationInfo {
                             code_hash: "".to_string(),
+                            id: 0u64,
                         },
-                    },
-                    lp_token_contract: ContractInstantiationInfo {
-                        code_hash: "".to_string(),
-                        id: 0u64,
-                    },
-                    authenticator: None,
-                    admin_auth: todo!(),
-                }),
+                        amm_settings: AMMSettings {
+                            lp_fee: Fee::new(3, 100),
+                            shade_dao_fee: Fee::new(3, 100),
+                            shade_dao_address: sContract {
+                                address: Addr::unchecked(OWNER),
+                                code_hash: "".to_string(),
+                            },
+                        },
+                        lp_token_contract: ContractInstantiationInfo {
+                            code_hash: "".to_string(),
+                            id: 0u64,
+                        },
+                        authenticator: None,
+                        admin_auth: admin_auth,
+                    })
+                },
                 QueryMsg::AuthorizeApiKey { api_key } => to_binary(""),
             },
             BLOCK_SIZE,

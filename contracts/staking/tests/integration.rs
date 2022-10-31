@@ -2,11 +2,7 @@ use snip20_reference_impl::contract::{
     execute as snip20_execute, instantiate as snip20_instantiate, query as snip20_query,
 };
 use staking::contract::{execute, instantiate, query};
-// use lp_token::contract::{execute as lp_execute, instantiate as lp_instantiate, query as lp_query};
-
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
-// use multi_test::{auth_query::execute};
-
 use shadeswap_shared::msg::staking::{{InitMsg, QueryResponse, ExecuteMsg}};
 use multi_test::help_lib::integration_help_lib::{mk_contract_link, mk_address};
 use cosmwasm_std::{
@@ -26,7 +22,8 @@ use shadeswap_shared::Contract as SContract;
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 pub fn staking_integration_tests_without_proxy() {        
-    use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance, get_current_block_time};
+    use multi_test::admin::admin_help::init_admin_contract;
+    use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance, get_current_block_time, convert_to_contract_link};
     use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp};
     use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
@@ -51,7 +48,7 @@ pub fn staking_integration_tests_without_proxy() {
 
     router.block_info().chain_id = CHAIN_ID.to_string();
     roll_blockchain(&mut router, 1).unwrap();
-
+    let admin_contract = init_admin_contract(&mut router, &owner_addr).unwrap();
     let reward_contract = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18).unwrap();    
     let staking_contract_info = router.store_code(staking_contract_store());
     let auth_contract = store_init_auth_contract(&mut router).unwrap();
@@ -66,7 +63,7 @@ pub fn staking_integration_tests_without_proxy() {
             address: auth_contract.address.to_owned(),
             code_hash: auth_contract.code_hash.to_owned()
         }),
-        admin_auth: todo!(),
+        admin_auth: convert_to_contract_link(&admin_contract),
         valid_to: Uint128::new(3747905010000u128) 
     };
 
@@ -237,7 +234,8 @@ pub fn staking_integration_tests_without_proxy() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 pub fn staking_integration_tests_with_proxy() {        
-    use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance, get_current_block_time, send_snip20_to_proxy_stake, set_viewing_key};
+    use multi_test::admin::admin_help::init_admin_contract;
+    use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance, get_current_block_time, send_snip20_to_proxy_stake, set_viewing_key, convert_to_contract_link};
     use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp};
     use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
@@ -262,7 +260,8 @@ pub fn staking_integration_tests_with_proxy() {
 
     router.block_info().chain_id = CHAIN_ID.to_string();
     roll_blockchain(&mut router, 1).unwrap();
-
+    let admin_contract = init_admin_contract(&mut router, &owner_addr).unwrap();
+    roll_blockchain(&mut router, 1).unwrap();
     let reward_contract = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18).unwrap();    
     let staking_contract_info = router.store_code(staking_contract_store());
     let auth_contract = store_init_auth_contract(&mut router).unwrap();
@@ -277,7 +276,7 @@ pub fn staking_integration_tests_with_proxy() {
             address: auth_contract.address.to_owned(),
             code_hash: auth_contract.code_hash.to_owned()
         }),
-        admin_auth: todo!(),
+        admin_auth: convert_to_contract_link(&admin_contract),
         valid_to: Uint128::new(3747905010000u128) 
     };
 

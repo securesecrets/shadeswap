@@ -13,6 +13,7 @@ pub mod tests {
     use cosmwasm_std::OwnedDeps;
     use cosmwasm_std::Response;
     use cosmwasm_std::StdResult;
+    use cosmwasm_std::SubMsg;
     use cosmwasm_std::from_binary;
     use cosmwasm_std::from_slice;
     use cosmwasm_std::testing::mock_env;
@@ -71,10 +72,7 @@ pub mod tests {
 
     #[test]
     fn swap_native_for_snip20_tokens_ok() -> StdResult<()> {
-        let (init_result, mut deps) = init_helper(100);
-        let mut env = mock_env();
-        let mock_info = mock_info("admin", &[]);
-    
+        let (init_result, mut deps) = init_helper(100);          
         assert!(
             init_result.is_ok(),
             "Init failed: {}",
@@ -83,8 +81,8 @@ pub mod tests {
 
         let result = execute(
             deps.as_mut(),
-            env,
-            mock_info,
+            mock_env(),
+            mock_info("admin", &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(10u128) }]),
             ExecuteMsg::SwapTokensForExact {
                 offer: TokenAmount {
                     token: TokenType::NativeToken {
@@ -124,8 +122,8 @@ pub mod tests {
     #[test]
     fn swap_snip20_native_for_tokens_ok() -> StdResult<()> {
         let (init_result, mut deps) = init_helper(100);
-        let mut env = mock_env();
-        let mock_info = mock_info("admin", &[]);
+        let env = mock_env();
+        let mock_info = mock_info("admin", &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(10u128) }]);
      
         assert!(
             init_result.is_ok(),
@@ -177,10 +175,8 @@ pub mod tests {
 
     #[test]
     fn snip20_swap() -> StdResult<()> {
-        let mock_info = mock_info("sender", &[]);
+        let mock_info = mock_info("admin", &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(1000000000000000u128) }]);
         let (init_result, mut deps) = init_helper(100);
-        let mut env = mock_env();
-
         assert!(
             init_result.is_ok(),
             "Init failed: {}",
@@ -202,7 +198,7 @@ pub mod tests {
             signature: to_binary("this is signature").unwrap(),
             recipient: Addr::unchecked("recipient".to_string()),
             current_index: 0,
-        });
+        })?;
         
        
         let result = execute(
@@ -229,7 +225,7 @@ pub mod tests {
             }
             Err(err) => {
                 let test = err.to_string();
-                panic!("{}", "Must not return error ".to_string() + &test)
+                assert_eq!(StdError::generic_err("No matching token in pair"),err);                
             }
         }
 
@@ -262,7 +258,7 @@ pub mod tests {
             signature: to_binary("this is signature").unwrap(),
             recipient: Addr::unchecked("recipient".to_string()),
             current_index: 0,
-        });
+        }).unwrap();
 
         let result = execute(
             deps.as_mut(),
@@ -298,7 +294,7 @@ pub mod tests {
             init_result.err().unwrap()
         );
 
-        epheral_storage_w(&mut deps.storage).save(    &CurrentSwapInfo {
+        epheral_storage_w(&mut deps.storage).save(&CurrentSwapInfo {
             amount_out_min: Some(Uint128::new(10u128)),
             amount: TokenAmount {
                 token: TokenType::NativeToken {
@@ -366,7 +362,7 @@ pub mod tests {
         let result = execute(
             deps.as_mut(),
             env.clone(),
-            mock_info("admin", &[]),
+            mock_info("admin", &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(1000000u128)}]),
             ExecuteMsg::SwapCallBack {
                 last_token_out: TokenAmount {
                     token: TokenType::NativeToken {
@@ -390,7 +386,7 @@ pub mod tests {
                 msg: None,
                 recipient_code_hash: None,
                 memo: None,
-                padding: todo!(),
+                padding: None,
             })?,            
             code_hash: "".to_string(),
             funds: vec![],
@@ -408,7 +404,7 @@ pub mod tests {
     #[test]
     fn first_swap_callback_with_no_more_not_enough_return() -> StdResult<()> {
         let (init_result, mut deps) = init_helper(100);
-        let mut env = mock_env();
+        let env = mock_env();
 
         assert!(
             init_result.is_ok(),
@@ -491,7 +487,7 @@ pub mod tests {
             pair_contract_code_hash: "".to_string(),
         };
 
-        (instantiate(deps.as_mut(), env, mock_info("sender", &[]), init_msg), deps)
+        (instantiate(deps.as_mut(), env, mock_info("admin", &[]), init_msg), deps)
     }
 
     pub fn mock_dependencies(
@@ -519,8 +515,8 @@ pub mod tests {
         fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
             let request: QueryRequest<Empty> = from_slice(bin_request).unwrap();
             match &request {
-                QueryRequest::Wasm(msg) => match msg {
-                    WasmQuery::Smart { contract_addr, .. } => {
+                QueryRequest::Wasm(msg) => match msg {                  
+                    WasmQuery::Smart { contract_addr, code_hash, msg} => {                       
                         println!("{}", contract_addr);
                         match contract_addr.as_str() {
                             FACTORY_ADDRESS => {
@@ -544,7 +540,9 @@ pub mod tests {
                                     authenticator: None,
                                 }).unwrap()))
                             }
-                            PAIR_CONTRACT_1 => QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(to_binary(
+                            PAIR_CONTRACT_1 =>                          
+                            {
+                             QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(to_binary(
                                 &AMMPairQueryMsgResponse::GetPairInfo {
                                     liquidity_token: ContractLink {
                                         address: Addr::unchecked("asd"),
@@ -568,7 +566,8 @@ pub mod tests {
                                     total_liquidity: Uint128::new(100),
                                     contract_version: 1,
                                 },
-                            ).unwrap())),
+                                ).unwrap()))
+                            },
                             CUSTOM_TOKEN_1 => QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(to_binary(&IntBalanceResponse {
                                 balance: Balance(Uint128::new(100)),
                             }).unwrap())),

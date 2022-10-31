@@ -40,7 +40,7 @@ pub fn store_init_reward_token_and_timestamp(
     storage: &mut dyn Storage,
     reward_token: Contract,
     emission_amount: Uint128,
-    _current_timestamp: Uint128,
+    current_timestamp: Uint128,
 ) -> StdResult<()> {
     // store reward token to the list
     let mut reward_token_list: Vec<Addr> = Vec::new();
@@ -51,7 +51,7 @@ pub fn store_init_reward_token_and_timestamp(
         &RewardTokenInfo {
             reward_token: reward_token.to_owned(),
             daily_reward_amount: emission_amount,
-            valid_to: Uint128::new(3747905010000u128),
+            valid_to: current_timestamp
         },
     )?;
     Ok(())
@@ -80,9 +80,10 @@ pub fn set_reward_token(
         reward_list_token.push(reward_token.address.to_owned());
     }
     reward_token_w(deps.storage).save(&reward_token.address.as_bytes(), &reward_token_info)?;
+    reward_token_list_w(deps.storage).save(&reward_list_token)?;
     Ok(Response::new().add_attributes(vec![
         Attribute::new("action", "set_reward_token"),
-        Attribute::new("owner", info.sender.to_string()),
+        Attribute::new("owner", info.sender.to_string()),       
         Attribute::new("daily_reward_amount", daily_reward_amount.to_string()),
         Attribute::new("valid_to", valid_to.to_string()),
     ]))
@@ -231,7 +232,7 @@ pub fn proxy_stake(
 
     // return response
     Ok(Response::new().add_attributes(vec![
-        Attribute::new("action", "stake"),
+        Attribute::new("action", "proxy stake"),
         Attribute::new("staker", staker.as_str()),
         Attribute::new("amount", amount),
     ]))
@@ -328,9 +329,7 @@ fn process_all_claimable_rewards(
 
         messages.push(cosmos_msg);
         claim_reward.amount = Uint128::zero();
-    }
-    // let mut staker_info = stakers_r(storage).load(receiver.as_bytes())?;
-    // staker_info.last_time_updated = timestamp;
+    }  
     claim_reward_info_w(storage).save(receiver.as_bytes(), &claim_reward_tokens)?;
     Ok(())
 }
@@ -396,7 +395,7 @@ pub fn claim_rewards_for_all_stakers(
 pub fn get_reward_tokens_info(storage: &dyn Storage) -> StdResult<Vec<RewardTokenInfo>> {
     let mut list_token: Vec<RewardTokenInfo> = Vec::new();
     let reward_list = reward_token_list_r(storage).load()?;
-    for addr in &reward_list {
+    for addr in &reward_list {       
         // load total reward token
         let reward_token: RewardTokenInfo = reward_token_r(storage).load(addr.as_bytes())?;
         list_token.push(reward_token.to_owned())
@@ -535,7 +534,7 @@ pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Bi
 }
 
 pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResult<Binary> {
-    // load stakers
+    // load stakers   
     let mut result_list: Vec<ClaimableInfo> = Vec::new();
     let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;
     let reward_token_list: Vec<RewardTokenInfo> = get_reward_tokens_info(deps.storage)?;
@@ -543,6 +542,7 @@ pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> Std
     for reward_token in reward_token_list.iter() {
         if reward_token.valid_to < staker_info.last_time_updated {
             let reward: Uint128;
+            println!("time {} - valid_to {}", time.to_string(), reward_token.valid_to.to_string());
             if time > reward_token.valid_to {
                 // calculate reward amount for each reward token
                 reward = calculate_incremental_staking_reward(
@@ -560,6 +560,24 @@ pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> Std
                 )?;
             }
             // load any existing claimable reward for specif user
+            let claimable_reward = find_claimable_reward_for_staker_by_reward_token(
+                deps.storage,
+                &staker,
+                &reward_token.reward_token,
+            )?;
+            
+            result_list.push(ClaimableInfo {
+                token_address: reward_token.reward_token.address.to_owned(),
+                amount: claimable_reward.amount + reward,
+            });
+        }
+        else{
+            let reward = calculate_incremental_staking_reward(
+                percentage,
+                staker_info.last_time_updated,
+                time,
+                reward_token.daily_reward_amount,
+            )?;
             let claimable_reward = find_claimable_reward_for_staker_by_reward_token(
                 deps.storage,
                 &staker,
@@ -584,6 +602,7 @@ pub fn proxy_unstake(
     amount: Uint128,
 ) -> StdResult<Response> {
     let caller = info.sender.clone();
+    println!("caller {}", caller.to_owned());
     let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
     let mut staker_info = stakers_r(deps.storage).load(for_addr.as_bytes())?;
     let proxy_staking_key = &generate_proxy_staking_key(&caller, &for_addr);

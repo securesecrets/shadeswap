@@ -119,7 +119,8 @@ pub fn register_lp_token(
                         },
                         authenticator: factory_config.authenticator,
                         //default to same admin as amm_pair
-                        admin_auth: config.admin_auth,
+                        admin_auth: factory_config.admin_auth,
+                        valid_to: c.valid_to
                     })?,
                     code_hash: c.contract_info.code_hash.clone(),
                     funds: vec![],
@@ -208,7 +209,7 @@ pub fn swap(
     )?;
 
     // check for the slippage expected value compare to actual value
-    if let Some(expected_return) = expected_return {
+    if let Some(expected_return) = expected_return {    
         if swap_result.result.return_amount.lt(&expected_return) {
             return Err(StdError::generic_err(
                 "Operation fell short of expected_return",
@@ -418,9 +419,7 @@ pub fn calculate_swap_result(
     // conver tand get avialble balance
     let tokens_pool = get_token_pool_balance(deps, env, config, offer)?;
     let token0_pool = tokens_pool[0];
-    let token1_pool = tokens_pool[1];
-    // calculate price
-
+    let token1_pool = tokens_pool[1];   
     // calculate fee
     let lp_fee = settings.lp_fee;
     let shade_dao_fee = settings.shade_dao_fee;
@@ -626,16 +625,16 @@ pub fn add_liquidity(
             }
         }
     }
-
+    
     let pair_contract_pool_liquidity =
     query_total_supply(deps.as_ref(), &lp_token)?;
-    println!("total pool amount {}", pair_contract_pool_liquidity);
     let lp_tokens = calculate_lp_tokens(
         &deposit,
         pool_balances,
         pair_contract_pool_liquidity,
     )?;
 
+  
     if let Some(e) = expected_return 
     {
         if e > lp_tokens {

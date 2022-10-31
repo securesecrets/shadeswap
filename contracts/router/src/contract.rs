@@ -2,11 +2,11 @@ use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut,
     Env, MessageInfo, Response, StdError, StdResult, Uint128, SubMsgResult, Reply,
 };
+use shadeswap_shared::Contract;
 use shadeswap_shared::admin::helpers::{validate_admin, AdminPermissions};
-use shadeswap_shared::router::InitMsg;
+use shadeswap_shared::router::{QueryMsgResponse, InitMsg};
 use shadeswap_shared::snip20::helpers::send_msg;
 use shadeswap_shared::utils::{pad_query_result, pad_response_result};
-use shadeswap_shared::Contract;
 use shadeswap_shared::{
     core::{TokenAmount, TokenType},
     router::{ExecuteMsg, InvokeMsg, QueryMsg},
@@ -197,7 +197,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     pad_query_result(
         match msg {
             QueryMsg::SwapSimulation { offer, path } => swap_simulation(deps, path, offer),
-            QueryMsg::GetConfig {} => return Ok(to_binary(&config_r(deps.storage).load()?)?),
+            QueryMsg::GetConfig {} => return Ok(to_binary(&QueryMsgResponse::GetConfig{ 
+            })?),
         },
         BLOCK_SIZE,
     )

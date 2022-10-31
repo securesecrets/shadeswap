@@ -54,15 +54,15 @@ pub fn instantiate(
                 "Invalid Token Type for Reward Token".to_string(),
             ))
         }
-    };
-    let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
+    };    
     store_init_reward_token_and_timestamp(
         deps.storage,
         reward_token_address.to_owned(),
-        msg.daily_reward_amount,
-        current_timestamp,
+        msg.daily_reward_amount,        
+        msg.valid_to
     )?;
 
+    println!("test init staking");
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
     Ok(response.add_attributes(vec![

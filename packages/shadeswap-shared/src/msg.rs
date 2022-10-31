@@ -405,6 +405,7 @@ pub mod staking {
         pub contract_info: ContractInstantiationInfo,
         pub daily_reward_amount: Uint128,
         pub reward_token: TokenType,
+        pub valid_to: Uint128
     }
 
     #[cw_serde]
@@ -414,6 +415,7 @@ pub mod staking {
     pub struct InitMsg {
         pub daily_reward_amount: Uint128,
         pub reward_token: TokenType,
+        pub valid_to: Uint128,
         pub pair_contract: Contract,
         pub prng_seed: Binary,
         pub lp_token: Contract,

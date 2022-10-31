@@ -19,7 +19,7 @@ pub fn space_pad(message: &mut Vec<u8>, block_size: usize) -> &mut Vec<u8> {
 // Users don't need to care about it as the type `T` has a default, and will
 // always be known in the context of the caller.
 pub fn pad_response_result(response: StdResult<Response>, block_size: usize) -> StdResult<Response>{
-    response.map(|mut response| {
+    response.map(|mut response| {       
         response.data = response.data.map(|mut data| {
             space_pad(&mut data.0, block_size);
             data

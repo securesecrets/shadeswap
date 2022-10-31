@@ -1,0 +1,12 @@
+#[cfg(not(target_arch = "wasm32"))]
+pub mod help_lib;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod auth_query;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod util_addr;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod factory;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod staking;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod amm_pair;

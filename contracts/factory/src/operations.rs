@@ -6,19 +6,19 @@ use crate::{
     },
 };
 use cosmwasm_std::{
-    to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
     Response, StdError, StdResult, Storage, WasmMsg,
 };
 use shadeswap_shared::{
     amm_pair::{generate_pair_key, AMMPair, AMMSettings},
-    core::{admin_r, Callback, ContractInstantiationInfo, ContractLink, TokenPair, ViewingKey},
+    core::{Callback, ContractInstantiationInfo, TokenPair, ViewingKey},
     msg::{
         amm_pair::InitMsg as AMMPairInitMsg,
         factory::{ExecuteMsg, QueryResponse},
         router::ExecuteMsg as RouterExecuteMsg,
     staking::StakingContractInit,
     },
-    Pagination,
+    Pagination, Contract,
 };
 
 pub fn register_amm_pair(
@@ -74,6 +74,7 @@ pub fn set_config(
     amm_settings: Option<AMMSettings>,
     storage: &mut dyn Storage,
     api_key: Option<String>,
+    admin_auth: Option<Contract>,
 ) -> StdResult<Response> {
     let mut config = config_r(storage).load()?;
     if let Some(new_value) = pair_contract {
@@ -90,6 +91,9 @@ pub fn set_config(
     if let Some(new_value) = api_key {
         config.api_key = ViewingKey(new_value);
     }
+    if let Some(new_value) = admin_auth {
+        config.admin_auth = new_value;
+    }
 
     config_w(storage).save(&config)?;
 
@@ -101,17 +105,15 @@ pub fn create_pair(
     env: Env,
     info: &MessageInfo,
     pair: TokenPair,
-    sender: Addr,
     entropy: Binary,
     staking_contract: Option<StakingContractInit>,
-    router_contract: Option<ContractLink>,
+    router_contract: Option<Contract>
 ) -> StdResult<Response> {
     let config = config_r(deps.storage).load()?;
-    let admin = admin_r(deps.storage).load()?;
     let signature = create_signature(&env, info)?;
     ephemeral_storage_w(deps.storage).save(&NextPairKey {
         pair: pair.clone(),
-        is_verified: admin == sender,
+        is_verified: true,
         key: signature.clone(),
     })?;
 
@@ -126,13 +128,13 @@ pub fn create_pair(
         msg: to_binary(&AMMPairInitMsg {
             pair: pair.clone(),
             lp_token_contract: config.lp_token_contract.clone(),
-            factory_info: ContractLink {
+            factory_info: Contract {
                 code_hash: env.contract.code_hash.clone(),
                 address: env.contract.address.clone(),
             },
             entropy,
             prng_seed: prng_seed_r(deps.storage).load()?,
-            admin: Some(admin_r(deps.storage).load()?),
+            admin_auth: config.admin_auth,
             staking_contract: staking_contract,
             custom_fee: None,
             callback: Some(Callback {
@@ -140,7 +142,7 @@ pub fn create_pair(
                     pair: pair.clone(),
                     signature: signature,
                 })?,
-                contract: ContractLink {
+                contract: Contract {
                     address: env.contract.address,
                     code_hash: env.contract.code_hash,
                 },
@@ -161,7 +163,7 @@ pub fn create_pair(
                         contract_addr: r.address.to_string(),
                         code_hash: r.code_hash.to_string(),
                         msg: to_binary(&RouterExecuteMsg::RegisterSNIP20Token {
-                            token_addr: contract_addr.clone(),
+                            token_addr: contract_addr.to_string(),
                             token_code_hash: token_code_hash.clone(),
                         })?,
                         funds: vec![],

@@ -3,12 +3,14 @@ use cosmwasm_std::Addr;
 
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Uint128;
-use network_integration::utils::API_KEY;
 use network_integration::utils::InitConfig;
+use network_integration::utils::ADMIN_FILE;
+use network_integration::utils::API_KEY;
 use query_authentication::permit::Permit;
 use query_authentication::transaction::PermitSignature;
 use query_authentication::transaction::PubKey;
 
+use shadeswap_shared::admin::RegistryAction;
 use shadeswap_shared::c_std::Binary;
 use shadeswap_shared::core::Fee;
 use shadeswap_shared::core::TokenAmount;
@@ -16,14 +18,16 @@ use shadeswap_shared::core::TokenPair;
 use shadeswap_shared::core::TokenPairAmount;
 use shadeswap_shared::core::TokenType;
 use shadeswap_shared::query_auth::PermitData;
+use shadeswap_shared::router::Hop;
 use shadeswap_shared::snip20;
 use shadeswap_shared::staking::AuthQuery;
-
+use shadeswap_shared::Contract;
 
 use cosmwasm_std::to_binary;
 use network_integration::utils::{
-    generate_label, init_snip20, print_contract, print_header, print_warning,
-    ACCOUNT_KEY, AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY, STAKER_KEY, STAKING_FILE, STORE_GAS, VIEW_KEY,
+    generate_label, init_snip20, print_contract, print_header, print_warning, ACCOUNT_KEY,
+    AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY, STAKER_KEY,
+    STAKING_FILE, STORE_GAS, VIEW_KEY,
 };
 use secretcli::{
     cli_types::NetContract,
@@ -32,12 +36,13 @@ use secretcli::{
 use serde_json::Result;
 use shadeswap_shared::staking::QueryData;
 use shadeswap_shared::{
-    amm_pair::{AMMSettings},
-    core::{ContractInstantiationInfo, ContractLink},
+    amm_pair::AMMSettings,
+    contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
+    core::ContractInstantiationInfo,
     msg::{
         amm_pair::{
-            ExecuteMsg as AMMPairHandlMsg,
-            QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
+            ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
+            QueryMsgResponse as AMMPairQueryMsgResponse,
         },
         factory::{
             ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg,
@@ -49,16 +54,13 @@ use shadeswap_shared::{
         },
         staking::{
             ExecuteMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
-            QueryResponse as StakingQueryMsgResponse,
-            StakingContractInit,
+            QueryResponse as StakingQueryMsgResponse, StakingContractInit,
         },
     },
     Pagination,
 };
 
 use std::time::{SystemTime, UNIX_EPOCH};
-
-
 
 pub fn get_current_timestamp() -> StdResult<Uint128> {
     let start = SystemTime::now();
@@ -125,7 +127,39 @@ fn run_testnet() -> Result<()> {
     print_warning("Storing Staking Contract");
     let staking_contract =
         store_and_return_contract(STAKING_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
+    print_header("\n\tInitializing Admin Contract");
 
+    let admin_msg = AdminInstantiateMsg {
+        super_admin: Some("secret1ap26qrlp8mcq2pg6r47w43l0y8zkqm8a450s03".to_string()),
+    };
+
+    let admin_contract = init(
+        &admin_msg,
+        &ADMIN_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+
+    let admin_register_msg = RegistryAction::RegisterAdmin {
+        user: "secret1ap26qrlp8mcq2pg6r47w43l0y8zkqm8a450s03".to_string(),
+    };
+
+    handle(
+        &admin_register_msg,
+        &admin_contract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        Some("1000000000000uscrt"),
+        &mut reports,
+        None,
+    )?;
+
+    print_contract(&admin_contract);
     print_header("Initializing sSCRT");
     let (_s_sSINIT, s_sCRT) = init_snip20(
         "SSCRT".to_string(),
@@ -312,7 +346,7 @@ fn run_testnet() -> Result<()> {
         amm_settings: AMMSettings {
             lp_fee: Fee::new(8, 100),
             shade_dao_fee: Fee::new(2, 100),
-            shade_dao_address: ContractLink {
+            shade_dao_address: Contract {
                 address: Addr::unchecked(s_sSHD.address.clone()),
                 code_hash: s_sSHD.code_hash.clone(),
             },
@@ -324,6 +358,10 @@ fn run_testnet() -> Result<()> {
         prng_seed: to_binary(&"".to_string()).unwrap(),
         api_key: API_KEY.to_string(),
         authenticator: None,
+        admin_auth: Contract {
+            address: Addr::unchecked(admin_contract.address.to_string()),
+            code_hash: admin_contract.code_hash.clone(),
+        },
     };
 
     let factory_contract = init(
@@ -339,13 +377,15 @@ fn run_testnet() -> Result<()> {
 
     print_contract(&factory_contract);
 
-
     print_header("\n\tInitializing Router");
 
     let router_msg = RouterInitMsg {
         prng_seed: to_binary(&"".to_string()).unwrap(),
         entropy: to_binary(&"".to_string()).unwrap(),
-        pair_contract_code_hash: s_ammPair.code_hash.clone(),
+        admin_auth: Contract {
+            address: Addr::unchecked(admin_contract.address.to_string()),
+            code_hash: admin_contract.code_hash.clone(),
+        },
     };
 
     let router_contract = init(
@@ -391,7 +431,10 @@ fn run_testnet() -> Result<()> {
                     },
                     valid_to: Uint128::new(3747905010000u128),
                 }),
-                router_contract: Some(ContractLink{ address: Addr::unchecked(router_contract.address.clone()), code_hash: router_contract.code_hash.clone() })
+                router_contract: Some(Contract {
+                    address: Addr::unchecked(router_contract.address.clone()),
+                    code_hash: router_contract.code_hash.clone(),
+                }),
             },
             &factory_contract,
             ACCOUNT_KEY,
@@ -416,27 +459,23 @@ fn run_testnet() -> Result<()> {
         },
     );
 
-
-
-
     {
         handle(
             &FactoryExecuteMsg::CreateAMMPair {
                 pair: test_native_pair.clone(),
                 entropy: to_binary(&"".to_string()).unwrap(),
                 staking_contract: None,
-                router_contract: None
-                // staking_contract: Some(StakingContractInit {
-                //     contract_info: ContractInstantiationInfo{
-                //         code_hash: staking_contract.code_hash.to_string(),
-                //         id: staking_contract.id.clone().parse::<u64>().unwrap(),
-                //     },
-                //     amount: Uint128::new(100000u128),
-                //     reward_token:  TokenType::CustomToken {
-                //         contract_addr: s_sCRT.address.clone().into(),
-                //         token_code_hash: s_sCRT.code_hash.to_string(),
-                //     },
-                // })
+                router_contract: None, // staking_contract: Some(StakingContractInit {
+                                       //     contract_info: ContractInstantiationInfo{
+                                       //         code_hash: staking_contract.code_hash.to_string(),
+                                       //         id: staking_contract.id.clone().parse::<u64>().unwrap(),
+                                       //     },
+                                       //     amount: Uint128::new(100000u128),
+                                       //     reward_token:  TokenType::CustomToken {
+                                       //         contract_addr: s_sCRT.address.clone().into(),
+                                       //         token_code_hash: s_sCRT.code_hash.to_string(),
+                                       //     },
+                                       // })
             },
             &factory_contract,
             ACCOUNT_KEY,
@@ -613,7 +652,7 @@ fn run_testnet() -> Result<()> {
 
             handle(
                 &RouterExecuteMsg::RegisterSNIP20Token {
-                    token_addr: Addr::unchecked(s_sCRT.address.clone()),
+                    token_addr: s_sCRT.address.clone(),
                     token_code_hash: s_sCRT.code_hash.to_string(),
                 },
                 &router_contract,
@@ -628,7 +667,7 @@ fn run_testnet() -> Result<()> {
 
             handle(
                 &RouterExecuteMsg::RegisterSNIP20Token {
-                    token_addr: Addr::unchecked(s_sSHD.address.clone()),
+                    token_addr: s_sSHD.address.clone(),
                     token_code_hash: s_sSHD.code_hash.to_string(),
                 },
                 &router_contract,
@@ -681,17 +720,15 @@ fn run_testnet() -> Result<()> {
                 )?;
 
                 if let AMMPairQueryMsgResponse::GetTradeHistory { data } = trade_count_info_query {
-                    assert_eq!(data.len(), 0u32  as usize);
+                    assert_eq!(data.len(), 0u32 as usize);
                 } else {
                     panic!("Trade count couldnt pass")
                 }
             }
 
             print_header("\n\t 1. - BUY 100 sSHD Initiating sSCRT to sSHD Swap ");
-            let old_scrt_balance =
-                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
-            let old_shd_balance =
-                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            let old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
             handle(
                 &snip20::ExecuteMsg::Send {
                     recipient: router_contract.address.to_string(),
@@ -699,8 +736,11 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(10)),
-                            paths: vec![ammPair.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -764,7 +804,6 @@ fn run_testnet() -> Result<()> {
                 }
             }
 
-            
             {
                 let trade_count_info_msg = AMMPairQueryMsg::GetTradeHistory {
                     pagination: Pagination {
@@ -791,10 +830,8 @@ fn run_testnet() -> Result<()> {
                 }
             }
 
-            let old_shd_balance =
-                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
-            let old_scrt_balance =
-                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            let old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             print_header("\n\t 2 - BUY 50 sSHD Initiating sSCRT to sSHD Swap ");
 
             handle(
@@ -804,8 +841,11 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
-                            paths: vec![ammPair.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -850,10 +890,8 @@ fn run_testnet() -> Result<()> {
             );
 
             print_header("\n\t 3 - SELL 2500 sSHD Initiating sSHD to sSCRT Swap ");
-            let old_shd_balance =
-                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
-            let old_scrt_balance =
-                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            let old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
                 &snip20::ExecuteMsg::Send {
                     recipient: router_contract.address.to_string(),
@@ -861,8 +899,11 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
-                            paths: vec![ammPair.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -907,10 +948,8 @@ fn run_testnet() -> Result<()> {
             );
 
             print_header("\n\t 4 - SELL 36500 sSHD Initiating sSHD to sSCRT Swap ");
-            let old_shd_balance =
-                get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
-            let old_scrt_balance =
-                get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+            let old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+            let old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
             handle(
                 &snip20::ExecuteMsg::Send {
                     recipient: router_contract.address.to_string(),
@@ -918,8 +957,11 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
-                            paths: vec![ammPair.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -975,8 +1017,11 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
-                            paths: vec![ammPair.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -1032,7 +1077,10 @@ fn run_testnet() -> Result<()> {
                         amount: Uint128::new(100),
                     },
                     expected_return: None,
-                    path: vec![amm_pair_2.address.clone()],
+                    path: vec![Hop {
+                        addr: amm_pair_2.address.clone(),
+                        code_hash: s_ammPair.code_hash.clone(),
+                    }],
                     recipient: None,
                 },
                 &router_contract,
@@ -1062,7 +1110,14 @@ fn run_testnet() -> Result<()> {
                         amount: Uint128::new(100),
                     },
                     expected_return: None,
-                    path: vec![amm_pair_2.address.clone(), ammPair.address.clone()],
+                    path: vec![Hop {
+                        addr: amm_pair_2.address.clone(),
+                        code_hash: s_ammPair.code_hash.clone(),
+                    },
+                    Hop {
+                        addr: ammPair.address.clone(),
+                        code_hash: s_ammPair.code_hash.clone(),
+                    }],
                     recipient: None,
                 },
                 &router_contract,
@@ -1095,8 +1150,15 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(10)),
-                            paths: vec![ammPair.address.clone(), amm_pair_2.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            },
+                            Hop {
+                                addr: amm_pair_2.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -1448,7 +1510,10 @@ fn run_testnet() -> Result<()> {
                             contract_addr: Addr::unchecked(s_sCRT.address.clone()),
                         },
                     },
-                    path: vec![ammPair.address.clone()],
+                    path: vec![Hop {
+                        addr: ammPair.address.clone(),
+                        code_hash: s_ammPair.code_hash.clone(),
+                    }],
                 };
 
                 let swap_result_response: RouterQueryResponse = query(
@@ -1489,14 +1554,10 @@ fn run_testnet() -> Result<()> {
                 if let AMMPairQueryMsgResponse::ShadeDAOInfo {
                     shade_dao_address,
                     shade_dao_fee: _,
-                    admin_address,
                     lp_fee: _,
+                    admin_auth: _,
                 } = shade_dao_response
                 {
-                    assert_ne!(
-                        admin_address.to_string(),
-                        Addr::unchecked("".to_string()).to_string()
-                    );
                     assert_ne!(
                         shade_dao_address.to_string(),
                         Addr::unchecked("".to_string()).to_string()
@@ -1549,6 +1610,7 @@ fn run_testnet() -> Result<()> {
                     lp_token: _,
                     daily_reward_amount,
                     amm_pair,
+                    admin_auth: _,
                 } = config_query_response
                 {
                     assert_eq!(
@@ -1568,7 +1630,6 @@ fn run_testnet() -> Result<()> {
                         amount_0: Uint128::new(10000000000),
                         amount_1: Uint128::new(10000000000),
                     },
-                    slippage: None,
                 };
                 let estimated_lp_token: AMMPairQueryMsgResponse = query(
                     &NetContract {
@@ -1704,105 +1765,6 @@ fn run_testnet() -> Result<()> {
                     );
                 }*/
             }
-        } else {
-            assert!(false, "Query returned unexpected response")
-        }
-    }
-
-    return Ok(());
-}
-
-#[test]
-fn run_test_deploy() -> Result<()> {
-    let account = account_address(ACCOUNT_KEY)?;
-    let shade_dao = account_address(SHADE_DAO_KEY)?;
-
-    println!("Using Account: {}", account.blue());
-
-    let _entropy = to_binary(&"ENTROPY".to_string()).unwrap();
-
-    let mut reports = vec![];
-
-    print_header("Storing all contracts");
-    print_warning("Storing LP Token Contract");
-    let s_lp =
-        store_and_return_contract(LPTOKEN20_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
-    print_warning("Storing AMM Pair Token Contract");
-    let s_ammPair =
-        store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
-    print_warning("Storing Staking Contract");
-    let _staking_contract =
-        store_and_return_contract(STAKING_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?;
-
-    print_header("\n\tInitializing Factory Contract");
-
-    let factory_msg = FactoryInitMsg {
-        pair_contract: ContractInstantiationInfo {
-            code_hash: s_ammPair.code_hash.to_string(),
-            id: s_ammPair.id.clone().parse::<u64>().unwrap(),
-        },
-        amm_settings: AMMSettings {
-            lp_fee: Fee::new(8, 100),
-            shade_dao_fee: Fee::new(2, 100),
-            shade_dao_address: ContractLink {
-                address: Addr::unchecked(String::from(shade_dao.to_string())),
-                code_hash: "".to_string(),
-            },
-        },
-        lp_token_contract: ContractInstantiationInfo {
-            code_hash: s_lp.code_hash.clone(),
-            id: s_lp.id.clone().parse::<u64>().unwrap(),
-        },
-        prng_seed: to_binary(&"".to_string()).unwrap(),
-        api_key: API_KEY.to_string(),
-        authenticator: None
-    };
-
-    let factory_contract = init(
-        &factory_msg,
-        FACTORY_FILE,
-        &*generate_label(8),
-        ACCOUNT_KEY,
-        Some(STORE_GAS),
-        Some(GAS),
-        Some("test"),
-        &mut reports,
-    )?;
-
-    print_contract(&factory_contract);
-
-    print_header("\n\tGetting Pairs from Factory");
-    {
-        let msg = FactoryQueryMsg::ListAMMPairs {
-            pagination: Pagination {
-                start: 0,
-                limit: 10,
-            },
-        };
-
-        let factory_query: FactoryQueryResponse = query(&factory_contract, msg, None)?;
-        if let FactoryQueryResponse::ListAMMPairs { amm_pairs } = factory_query {
-            assert_eq!(amm_pairs.len(), 0);
-
-            print_header("\n\tInitializing Router");
-
-            let router_msg = RouterInitMsg {
-                prng_seed: to_binary(&"".to_string()).unwrap(),
-                entropy: to_binary(&"".to_string()).unwrap(),
-                pair_contract_code_hash: s_ammPair.code_hash.to_string(),
-            };
-
-            let router_contract = init(
-                &router_msg,
-                ROUTER_FILE,
-                &*generate_label(8),
-                ACCOUNT_KEY,
-                Some(STORE_GAS),
-                Some(GAS),
-                Some("test"),
-                &mut reports,
-            )?;
-            print_contract(&router_contract);
         } else {
             assert!(false, "Query returned unexpected response")
         }

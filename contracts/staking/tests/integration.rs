@@ -1,3 +1,6 @@
+use snip20_reference_impl::contract::{
+    execute as snip20_execute, instantiate as snip20_instantiate, query as snip20_query,
+};
 use staking::contract::{execute, instantiate, query};
 // use lp_token::contract::{execute as lp_execute, instantiate as lp_instantiate, query as lp_query};
 
@@ -15,7 +18,7 @@ use shadeswap_shared::utils::asset::Contract as AuthContract;
 pub fn staking_contract_store() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new_with_empty(execute, instantiate, query);
     Box::new(contract)
-} 
+}
 
 
 
@@ -63,7 +66,7 @@ pub fn staking_integration_tests_without_proxy() {
             address: auth_contract.address.to_owned(),
             code_hash: auth_contract.code_hash.to_owned()
         }),
-        admin: Addr::unchecked(OWNER),
+        admin_auth: Addr::unchecked(OWNER),
         valid_to: Uint128::new(3747905010000u128) 
     };
 
@@ -82,7 +85,7 @@ pub fn staking_integration_tests_without_proxy() {
     // Assert Staking Config
     let query: QueryResponse = router.query_test(staking_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
     match query {
-        QueryResponse::Config { reward_token, lp_token, daily_reward_amount, amm_pair: _ } => {
+        QueryResponse::Config { reward_token, lp_token, daily_reward_amount, amm_pair: _, admin_auth: _ } => {
            assert_eq!(daily_reward_amount, Uint128::new(30000u128));
            assert_eq!(reward_token.address.to_string(), reward_contract.address.to_string());
            assert_eq!(lp_token.address.to_owned(), lp_token_contract.address.to_owned());
@@ -275,7 +278,7 @@ pub fn staking_integration_tests_with_proxy() {
             address: auth_contract.address.to_owned(),
             code_hash: auth_contract.code_hash.to_owned()
         }),
-        admin: Addr::unchecked(OWNER),
+        admin_auth: Addr::unchecked(OWNER),
         valid_to: Uint128::new(3747905010000u128) 
     };
 
@@ -294,7 +297,7 @@ pub fn staking_integration_tests_with_proxy() {
     // Assert Staking Config
     let query: QueryResponse = router.query_test(staking_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
     match query {
-        QueryResponse::Config { reward_token, lp_token, daily_reward_amount, amm_pair: _ } => {
+        QueryResponse::Config { reward_token, lp_token, daily_reward_amount, amm_pair: _, admin_auth: _ } => {
            assert_eq!(daily_reward_amount, Uint128::new(30000u128));
            assert_eq!(reward_token.address.to_string(), reward_contract.address.to_string());
            assert_eq!(lp_token.address.to_owned(), lp_token_contract.address.to_owned());

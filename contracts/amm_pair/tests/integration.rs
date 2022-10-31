@@ -88,7 +88,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         factory_info: factory_link.to_owned(), 
         prng_seed: to_binary("seed").unwrap(), 
         entropy: to_binary("seed").unwrap(),  
-        admin: Some(owner_addr.to_owned()),
+        admin_auth: Some(owner_addr.to_owned()),
         staking_contract: Some(StakingContractInit{
             contract_info:  ContractInstantiationInfo { 
                 code_hash: staking_contract_info.code_hash.to_owned(), 
@@ -259,9 +259,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
             amount: Uint128::new(1000u128),
         }, 
         expected_return: Some(Uint128::new(500u128)), 
-        to: Some(owner_addr.to_owned()), 
-        router_link: None, 
-        callback_signature: None 
+        to: Some(owner_addr.to_owned()),
     }).unwrap();
 
     let _ = send_snip20_with_msg(
@@ -397,7 +395,7 @@ pub fn amm_pair_integration_tests_native_token() {
         factory_info: factory_link.to_owned(), 
         prng_seed: to_binary("seed").unwrap(), 
         entropy: to_binary("seed").unwrap(),  
-        admin: Some(owner_addr.to_owned()),
+        admin_auth: Some(owner_addr.to_owned()),
         staking_contract: Some(StakingContractInit{
             contract_info:  ContractInstantiationInfo { 
                 code_hash: staking_contract_info.code_hash.to_owned(), 
@@ -554,9 +552,7 @@ pub fn amm_pair_integration_tests_native_token() {
             amount: Uint128::new(1000u128),
         }, 
         expected_return: Some(Uint128::new(500u128)), 
-        to: Some(owner_addr.to_owned()), 
-        router_link: None, 
-        callback_signature: None 
+        to: Some(owner_addr.to_owned())
     };
 
     let _ = router.execute_contract(

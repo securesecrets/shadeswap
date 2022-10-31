@@ -191,11 +191,11 @@ pub mod tests {
                 },
                 amount: Uint128::new(10u128),
             },
-            paths: vec![
+            path: vec![
                 Addr::unchecked(PAIR_CONTRACT_1.to_string()),
                 Addr::unchecked(PAIR_CONTRACT_2.to_string()),
             ],
-            signature: to_binary("this is signature").unwrap(),
+            next_token_in: TokenType::CustomToken { contract_addr: (), token_code_hash: () },
             recipient: Addr::unchecked("recipient".to_string()),
             current_index: 0,
         })?;
@@ -210,7 +210,7 @@ pub mod tests {
                 msg: Some(
                     to_binary(&InvokeMsg::SwapTokensForExact {
                         expected_return: Some(Uint128::new(1000u128)),
-                        paths: vec![Addr::unchecked(PAIR_CONTRACT_1.to_string())],
+                        path: vec![Addr::unchecked(PAIR_CONTRACT_1.to_string())],
                         recipient: None,
                     })
                     .unwrap(),
@@ -251,13 +251,13 @@ pub mod tests {
                 },
                 amount: Uint128::new(10u128),
             },
-            paths: vec![
+            path: vec![
                 Addr::unchecked(PAIR_CONTRACT_1.to_string()),
                 Addr::unchecked(PAIR_CONTRACT_2.to_string()),
             ],
-            signature: to_binary("this is signature").unwrap(),
             recipient: Addr::unchecked("recipient".to_string()),
             current_index: 0,
+            next_token_in: todo!(),
         }).unwrap();
 
         let result = execute(
@@ -302,13 +302,13 @@ pub mod tests {
                 },
                 amount: Uint128::new(10u128),
             },
-            paths: vec![
+            path: vec![
                 Addr::unchecked(PAIR_CONTRACT_1.to_string()),
                 Addr::unchecked(PAIR_CONTRACT_2.to_string()),
             ],
-            signature: to_binary("this is signature").unwrap(),
             recipient: Addr::unchecked("recipient".to_string()),
             current_index: 0,
+            next_token_in: todo!(),
         });
        
         let result = execute(
@@ -352,10 +352,10 @@ pub mod tests {
                     },
                     amount: Uint128::new(10u128),
                 },
-                paths: vec![Addr::unchecked(PAIR_CONTRACT_1.to_string())],
-                signature: to_binary("this is signature").unwrap(),
+                path: vec![Addr::unchecked(PAIR_CONTRACT_1.to_string())],
                 recipient: Addr::unchecked("recipient".to_string()),
                 current_index: 0,
+                next_token_in: todo!(),
             }
         )?;
 
@@ -421,10 +421,10 @@ pub mod tests {
                     },
                     amount: Uint128::new(10),
                 },
-                paths: vec![Addr::unchecked(PAIR_CONTRACT_1.to_string())],
-                signature: to_binary("this is signature").unwrap(),
+                path: vec![Addr::unchecked(PAIR_CONTRACT_1.to_string())],
                 recipient: Addr::unchecked("recipient".to_string()),
                 current_index: 0,
+                next_token_in: todo!(),
             }
         )?;
 
@@ -453,7 +453,7 @@ pub mod tests {
     fn mkconfig(env: Env, id: u64) -> Config {
         Config{
             viewing_key: "SHADE_ROUTER_KEY".to_string(),
-            pair_contract_code_hash: "".to_string(),
+            admin_auth: todo!(),
         }       
     }
     fn mkdeps() -> OwnedDeps<impl Storage, impl Api, impl Querier> {
@@ -466,8 +466,7 @@ pub mod tests {
             InitMsg {
                 prng_seed: to_binary(&"prng").unwrap(),
                 entropy: to_binary(&"entropy").unwrap(),
-                pair_contract_code_hash: "".to_string()
-               
+                admin_auth: todo!(),
             }
         }
     }
@@ -483,8 +482,8 @@ pub mod tests {
 
         let init_msg = InitMsg {
             prng_seed: to_binary(&"prng").unwrap(),
-            entropy: to_binary(&"entropy").unwrap(),            
-            pair_contract_code_hash: "".to_string(),
+            entropy: to_binary(&"entropy").unwrap(),
+            admin_auth: todo!(),
         };
 
         (instantiate(deps.as_mut(), env, mock_info("admin", &[]), init_msg), deps)
@@ -538,6 +537,7 @@ pub mod tests {
                                         id: 1,
                                     },
                                     authenticator: None,
+                                    admin_auth: todo!(),
                                 }).unwrap()))
                             }
                             PAIR_CONTRACT_1 =>                          

@@ -1,7 +1,7 @@
 use crate::{
     operations::{
-        add_amm_pairs, create_pair, list_pairs, query_amm_pair_address,
-        register_amm_pair, set_config,
+        add_amm_pairs, create_pair, list_pairs, query_amm_pair_address, register_amm_pair,
+        set_config,
     },
     state::{config_r, config_w, ephemeral_storage_r, ephemeral_storage_w, prng_seed_w, Config},
 };
@@ -10,8 +10,9 @@ use cosmwasm_std::{
     StdResult, SubMsgResult,
 };
 use shadeswap_shared::{
+    admin::helpers::{validate_admin, AdminPermissions},
     amm_pair::AMMPair,
-    core::{admin_r, admin_w, apply_admin_guard, ViewingKey},
+    core::ViewingKey,
     msg::factory::{ExecuteMsg, InitMsg, QueryMsg, QueryResponse},
     utils::{pad_query_result, pad_response_result},
     BLOCK_SIZE,
@@ -28,7 +29,6 @@ pub fn instantiate(
 ) -> StdResult<Response> {
     prng_seed_w(deps.storage).save(&msg.prng_seed)?;
     config_w(deps.storage).save(&Config::from_init_msg(msg))?;
-    admin_w(deps.storage).save(&_info.sender)?;
     Ok(Response::default())
 }
 
@@ -36,19 +36,25 @@ pub fn instantiate(
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     pad_response_result(
         match msg {
+            //Only admins can create pairs via factory
             ExecuteMsg::CreateAMMPair {
                 pair,
                 entropy,
                 staking_contract,
                 router_contract,
             } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 create_pair(
                     deps,
                     env,
                     &info,
                     pair,
-                    info.sender.clone(),
                     entropy,
                     staking_contract,
                     router_contract,
@@ -59,25 +65,34 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 lp_token_contract,
                 amm_settings,
                 api_key,
+                admin_auth,
             } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 set_config(
                     pair_contract,
                     lp_token_contract,
                     amm_settings,
                     deps.storage,
                     api_key,
+                    admin_auth
                 )
             }
             ExecuteMsg::AddAMMPairs { amm_pairs } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 add_amm_pairs(deps.storage, amm_pairs)
-            }
-            ExecuteMsg::SetAdmin { admin } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
-                admin_w(deps.storage).save(&admin)?;
-                Ok(Response::default())
-            }
+            },
             ExecuteMsg::RegisterAMMPair { pair, signature } => {
                 let config = ephemeral_storage_r(deps.storage).load()?;
                 if config.key != signature {
@@ -115,22 +130,18 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     lp_token_contract,
                     api_key: _,
                     authenticator,
+                    admin_auth
                 } = config_r(deps.storage).load()?;
                 to_binary(&QueryResponse::GetConfig {
                     pair_contract,
                     amm_settings,
                     lp_token_contract,
                     authenticator,
+                    admin_auth
                 })
             }
             QueryMsg::ListAMMPairs { pagination } => list_pairs(deps, pagination),
             QueryMsg::GetAMMPairAddress { pair } => query_amm_pair_address(&deps, pair),
-            QueryMsg::GetAdmin {} => {
-                let admin_address = admin_r(deps.storage).load()?;
-                to_binary(&QueryResponse::GetAdmin {
-                    address: admin_address.to_string(),
-                })
-            }
             QueryMsg::AuthorizeApiKey { api_key } => {
                 let config = config_r(deps.storage).load()?;
                 to_binary(&QueryResponse::AuthorizeApiKey {

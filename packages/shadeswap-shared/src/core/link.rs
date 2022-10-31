@@ -21,32 +21,6 @@ impl PartialEq for ContractInstantiationInfo {
     }
 }
 
-/// Info needed to talk to a contract instance.
-#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
-pub struct ContractLink {
-    pub address: Addr,
-    pub code_hash: CodeHash,
-}
-
-// Disregard code hash because it is case insensitive.
-// Converting to the same case first and the comparing is unnecessary
-// as providing the wrong code hash when calling a contract will result
-// in an error regardless and we have no way of checking that here.
-impl PartialEq for ContractLink {
-    fn eq(&self, other: &Self) -> bool {
-        self.address == other.address
-    }
-}
-
-impl From<Env> for ContractLink {
-    fn from(env: Env) -> ContractLink {
-        ContractLink {
-            address: env.contract.address,
-            code_hash: env.contract.code_hash,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -92,43 +66,5 @@ mod tests {
             }
         );
 
-        assert_eq!(
-            ContractLink {
-                address: Addr::unchecked("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
-                code_hash: "c1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084"
-                    .into()
-            },
-            ContractLink {
-                address: Addr::unchecked("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
-                code_hash: "c1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084"
-                    .into()
-            }
-        );
-
-        assert_eq!(
-            ContractLink {
-                address: Addr::unchecked("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
-                code_hash: "c1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084"
-                    .into()
-            },
-            ContractLink {
-                address: Addr::unchecked("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
-                code_hash: "C1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084"
-                    .into()
-            }
-        );
-
-        assert_ne!(
-            ContractLink {
-                address: Addr::unchecked("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml4"),
-                code_hash: "c1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084"
-                    .into()
-            },
-            ContractLink {
-                address: Addr::unchecked("secret1rgm2m5t530tdzyd99775n6vzumxa5luxcllml5"),
-                code_hash: "C1dc8261059fee1de9f1873cd1359ccd7a6bc5623772661fa3d55332eb652084"
-                    .into()
-            }
-        );
     }
 }

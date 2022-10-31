@@ -20,7 +20,7 @@ use secretcli::{
 };
 use shadeswap_shared::{
     amm_pair::{AMMPair, AMMSettings},
-    core::{ContractInstantiationInfo, ContractLink},
+    core::{ContractInstantiationInfo},
     msg::{
         amm_pair::{
             ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
@@ -426,7 +426,7 @@ fn main() -> io::Result<()> {
 //         amm_settings: AMMSettings{
 //             shade_dao_fee: Fee::new(8, 100),
 //             lp_fee: Fee::new(2, 8),
-//             shade_dao_address:  ContractLink {
+//             shade_dao_address:  Contract {
 //                 address: Addr::unchecked("".to_string()),
 //                 code_hash: "".to_string(),
 //             },

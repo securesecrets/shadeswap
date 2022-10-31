@@ -22,6 +22,7 @@ pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
 pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
 pub const ROUTER_FILE: &str = "../../compiled/router.wasm.gz";
 pub const STAKING_FILE: &str = "../../compiled/staking.wasm.gz";
+pub const ADMIN_FILE: &str = "../../misc/admin.wasm.gz";
 
 pub const STORE_GAS: &str = "100000000";
 pub const GAS: &str = "8000000";

@@ -4,7 +4,7 @@ use cosmwasm_std::{Binary, CosmosMsg, WasmMsg};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::{ContractLink};
+use crate::Contract;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 /// Info needed to have the other contract respond.
@@ -12,7 +12,7 @@ pub struct Callback {
     /// The message to call.
     pub msg: Binary,
     /// Info about the contract requesting the callback.
-    pub contract: ContractLink
+    pub contract: Contract
 }
 
 impl Into<CosmosMsg> for Callback {

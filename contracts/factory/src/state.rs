@@ -24,7 +24,8 @@ pub struct Config {
     pub amm_settings: AMMSettings,
     pub lp_token_contract: ContractInstantiationInfo,
     pub api_key: ViewingKey,
-    pub authenticator: Option<Contract>
+    pub authenticator: Option<Contract>,
+    pub admin_auth: Contract
 }
 
 impl Config {
@@ -35,6 +36,7 @@ impl Config {
             lp_token_contract: msg.lp_token_contract,
             api_key: ViewingKey(msg.api_key),
             authenticator: msg.authenticator,
+            admin_auth: msg.admin_auth
         }
     }
 }

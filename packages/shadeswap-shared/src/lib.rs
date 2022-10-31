@@ -1,6 +1,5 @@
 pub mod msg;
 pub use msg::*;
-pub mod amm_pair;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 pub use sha2;

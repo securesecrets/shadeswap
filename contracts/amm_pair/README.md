@@ -48,7 +48,7 @@ The Contract to hold Pair Between Swap Tokens.
 |-------------------|----------------------------------|----------------------------------------------------------------------------|----------|
 | pair              | TokenPair                        | Token Pair to hold two token                                               | no       |
 | lp_token_contract | ContractInstantiationInfo        | ContractInstantiationInfo                                                  | no       |
-| factory_info      | ContractLink                     | The token that will be airdropped                                          | no       |
+| factory_info      | Contract                     | The token that will be airdropped                                          | no       |
 | prng_seed         | Binary                           | seed to use for viewing key                                                | no       |
 | callback          | Callback                         | Callback to AmmPair Contract to register LP Token                          | yes      |
 | entropy           | Binary                           | Use to calculate viewing key                                               | no       |
@@ -129,8 +129,8 @@ Get information about the token pair.
 ##### Response
 ```json
 {
-  "liquidity_token": "LP Token ContractLink",
-  "factory": "Factory ContractLink",
+  "liquidity_token": "LP Token Contract",
+  "factory": "Factory Contract",
   "pair": "Token Pair with two Token Type",
   "amount_0": "Balance of Token 0",
   "amount_1": "Balance of Token 1",
@@ -151,8 +151,8 @@ Get Estimated Price for amount.
 ##### Response
 ```json
 {
-  "liquidity_token": "LP Token ContractLink",
-  "factory": "Factory ContractLink",
+  "liquidity_token": "LP Token Contract",
+  "factory": "Factory Contract",
   "pair": "Token Pair with two Token Type",
   "amount_0": "Balance of Token 0",
   "amount_1": "Balance of Token 1",
@@ -324,7 +324,7 @@ Swap Native Token.
 | offer     | TokenAmount | Amount and Token Type                   | no       |
 | expected_return | Uint128 | slippage, amount willing to accept    | yes      |
 | to | HumanAddr | The address to remove from LP                  | yes       |
-| router_link | ContractLink | Router Contract Info               | yes       |
+| router_link | Contract | Router Contract Info               | yes       |
 | callback_signature | Binary | signature to verify snip20        | yes       |
 ##### Response
 ```json
@@ -368,7 +368,7 @@ Swap Native Token.
 |-----------|----------------|--------------------------------------|----------|
 | expected_return | Uint128 | slippage, amount willing to accept    | yes      |
 | to | HumanAddr | The address to remove from LP                  | yes       |
-| router_link | ContractLink | Router Contract Info               | yes       |
+| router_link | Contract | Router Contract Info               | yes       |
 | callback_signature | Binary | signature to verify snip20        | yes       |
 ##### Response
 ```json

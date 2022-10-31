@@ -37,7 +37,7 @@ The Contract to hold Pair Between Swap Tokens.
 |-------------------|----------------------------------|----------------------------------------------------------------------------|----------|
 | staking_amount    | Uint128     | Total Reward Amount for staking | no       |
 | reward_token | TokenType   |   Reward Token Type              | no       |
-| contract | ContractLink | AMMPair Contract Address Link to register staking contract  | no    |
+| contract | Contract | AMMPair Contract Address Link to register staking contract  | no    |
 
 
 
@@ -114,7 +114,7 @@ Get  Staker Lp Token Information.
 {
   "staked_lp_token": "Uint128",
   "total_staked_lp_token": "Uint128",
-  "reward_token" : "ContractLink"
+  "reward_token" : "Contract"
 }
 ```
 
@@ -131,7 +131,7 @@ Get Reward Token Balance for staker
 ```json
 {
   "amount": "Uint128",
-  "reward_token" : "ContractLink"
+  "reward_token" : "Contract"
 }
 ```
 
@@ -213,7 +213,7 @@ Set either new reward token or update existing with emission_rate and valid to
 ##### Request
 | Name    | Type      | Description                                   | optional |
 |---------|-----------|-----------------------------------------------|----------|
-| reward_token | ContractLink |  Reward Token Contract Link         | no       |
+| reward_token | Contract |  Reward Token Contract Link         | no       |
 | amount | Uint128 |  Emission Rate                                 | no       |
 | valid_to | Uint128 |  Timestamp till Reward Token is valid - milliseconds       | no       |
 

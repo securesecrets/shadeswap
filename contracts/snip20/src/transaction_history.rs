@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Addr, Api, CanonicalAddr, Coin, StdError, StdResult, Storage, Uint128};
+use cosmwasm_std::{Addr, Api, CanonicalAddr, Coin, StdError, StdResult, Uint128, Storage};
 
 use secret_toolkit::storage::AppendStore;
 

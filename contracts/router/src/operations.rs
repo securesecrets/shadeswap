@@ -2,18 +2,17 @@ use std::str::FromStr;
 
 use cosmwasm_std::{
     to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
-    QueryRequest, Response, StdError, StdResult, Storage, Uint128, Uint256, WasmMsg, WasmQuery,
+    QueryRequest, Response, StdError, StdResult, Storage, SubMsg, Uint128, Uint256, WasmMsg,
+    WasmQuery,
 };
 use shadeswap_shared::{
     amm_pair::AMMSettings,
-    core::{
-        ContractInstantiationInfo, ContractLink, TokenAmount, TokenPair, TokenType
-    },
+    core::{ContractInstantiationInfo, TokenAmount, TokenPair, TokenType},
     msg::amm_pair::{
         ExecuteMsg as AMMPairExecuteMsg, InvokeMsg as AMMPairInvokeMsg,
         QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryReponse, SwapResult,
     },
-    router::QueryMsgResponse,
+    router::{Hop, QueryMsgResponse},
     snip20::{
         self,
         helpers::{register_receive, set_viewing_key_msg},
@@ -21,7 +20,10 @@ use shadeswap_shared::{
     Contract,
 };
 
-use crate::state::{config_r, config_w, epheral_storage_r, epheral_storage_w, CurrentSwapInfo};
+use crate::{
+    contract::{SHADE_ROUTER_KEY, SWAP_REPLY_ID},
+    state::{config_r, config_w, epheral_storage_r, epheral_storage_w, CurrentSwapInfo},
+};
 
 pub fn refresh_tokens(
     deps: DepsMut,
@@ -44,48 +46,44 @@ pub fn refresh_tokens(
     Ok(Response::new().add_messages(msg))
 }
 
-pub fn next_swap(
-    deps: DepsMut,
-    env: Env,
-    last_token_out: TokenAmount,
-    signature: Binary,
-) -> StdResult<Response> {
+pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<Response> {
     let current_trade_info: Option<CurrentSwapInfo> = epheral_storage_r(deps.storage).may_load()?;
-    let config = config_r(deps.storage).load()?;
     if let Some(mut info) = current_trade_info {
-        if signature != info.signature {
-            return Err(StdError::generic_err("".to_string()));
-        }
-        let pair_contract = query_pair_contract_config(
-            &deps.querier,
-            ContractLink {
-                address: info.paths[info.current_index as usize].clone(),
-                code_hash: config.pair_contract_code_hash.clone(),
-            },
-        )?;
-
-        let mut next_token_in = pair_contract.pair.0.clone();
-
-        if pair_contract.pair.1 == last_token_out.token {
-            next_token_in = pair_contract.pair.1;
-        }
 
         let token_in: TokenAmount = TokenAmount {
-            token: next_token_in.clone(),
-            amount: last_token_out.amount,
+            token: info.next_token_in.clone(),
+            amount: info.next_token_in.query_balance(
+                deps.as_ref(),
+                env.contract.address.to_string(),
+                SHADE_ROUTER_KEY.to_owned(),
+            )?,
         };
 
-        if info.paths.len() > (info.current_index + 1) as usize {
+        if info.path.len() > (info.current_index + 1) as usize {
+            let next_pair_contract = query_pair_contract_config(
+                &deps.querier,
+                Contract {
+                    address: info.path[info.current_index as usize + 1].addr.clone(),
+                    code_hash: info.path[info.current_index as usize + 1].code_hash.clone(),
+                },
+            )?;
+
             info.current_index = info.current_index + 1;
+
+            if next_pair_contract.pair.0 == info.next_token_in {
+                info.next_token_in = next_pair_contract.pair.1;
+            } else {
+                info.next_token_in = next_pair_contract.pair.0;
+            }
             epheral_storage_w(deps.storage).save(&info)?;
-            Ok(Response::new().add_messages(get_trade_with_callback(
+            response = get_trade_with_callback(
                 deps,
                 env,
                 token_in,
-                info.paths[(info.current_index) as usize].clone(),
-                config.pair_contract_code_hash.clone(),
-                info.signature,
-            )?))
+                info.path[(info.current_index) as usize].clone(),
+                response,
+            )?;
+            Ok(response)
         } else {
             if let Some(min_out) = info.amount_out_min {
                 if token_in.amount.lt(&min_out) {
@@ -99,13 +97,13 @@ pub fn next_swap(
             }
 
             epheral_storage_w(deps.storage).remove();
-            Ok(
-                Response::new().add_messages(vec![token_in.token.create_send_msg(
-                    env.contract.address.to_string(),
-                    info.recipient.to_string(),
-                    token_in.amount,
-                )?]),
-            )
+            response = response.add_messages(vec![token_in.token.create_send_msg(
+                env.contract.address.to_string(),
+                info.recipient.to_string(),
+                token_in.amount,
+            )?]);
+
+            Ok(response)
         }
     } else {
         Err(StdError::generic_err(
@@ -117,106 +115,107 @@ pub fn next_swap(
 pub fn swap_tokens_for_exact_tokens(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
     amount_in: TokenAmount,
     amount_out_min: Option<Uint128>,
-    paths: &Vec<Addr>,
+    path: &Vec<Hop>,
     sender: Addr,
     recipient: Option<Addr>,
+    mut response: Response,
 ) -> StdResult<Response> {
     //Validates whether the amount received is greater then the amount_out_min
-    let config = config_r(deps.storage).load()?;
-    let signature = create_signature(&env, info)?;
+
+    let next_pair_contract = query_pair_contract_config(
+        &deps.querier,
+        Contract {
+            address: path[0].addr.clone(),
+            code_hash: path[0].code_hash.clone(),
+        },
+    )?;
+
+    let next_token_in;
+    if next_pair_contract.pair.0 == amount_in.token {
+        next_token_in = next_pair_contract.pair.1;
+    } else {
+        next_token_in = next_pair_contract.pair.0;
+    }
+
     epheral_storage_w(deps.storage).save(&CurrentSwapInfo {
         amount: amount_in.clone(),
         amount_out_min: amount_out_min,
-        paths: paths.clone(),
-        signature: signature.clone(),
+        path: path.clone(),
         recipient: recipient.unwrap_or(sender),
         current_index: 0,
+        next_token_in: next_token_in,
     })?;
 
-    Ok(Response::new().add_messages(get_trade_with_callback(
+    response = get_trade_with_callback(
         deps,
         env,
         amount_in,
-        paths[0].clone(),
-        config.pair_contract_code_hash,
-        signature.clone(),
-    )?))
+        path[0].clone(),
+        response,
+    )?;
+
+    Ok(response)
 }
 
 fn get_trade_with_callback(
     _deps: DepsMut,
     env: Env,
     token_in: TokenAmount,
-    path: Addr,
-    code_hash: String,
-    signature: Binary,
-) -> StdResult<Vec<CosmosMsg>> {
-    let mut messages: Vec<CosmosMsg> = vec![];
+    hop: Hop,
+    mut response: Response,
+) -> StdResult<Response> {
 
     match &token_in.token {
         TokenType::NativeToken { denom } => {
             let msg = to_binary(&AMMPairExecuteMsg::SwapTokens {
                 expected_return: None,
                 to: None,
-                router_link: Some(ContractLink {
-                    address: env.contract.address.clone(),
-                    code_hash: env.contract.code_hash.clone(),
-                }),
-                offer: token_in.clone(),
-                callback_signature: Some(signature),
+                offer: token_in.clone()
             })?;
 
-            messages.push(
+            response = response.add_submessage(SubMsg::reply_always(
                 WasmMsg::Execute {
-                    contract_addr: path.to_string(),
-                    code_hash: code_hash,
+                    contract_addr: hop.addr.to_string(),
+                    code_hash: hop.code_hash,
                     msg,
                     funds: vec![Coin {
                         denom: denom.clone(),
                         amount: token_in.amount,
                     }],
-                }
-                .into(),
-            );
+                },
+                SWAP_REPLY_ID,
+            ));
         }
         TokenType::CustomToken {
             contract_addr,
             token_code_hash,
         } => {
             let msg = to_binary(&snip20::ExecuteMsg::Send {
-                recipient: path.to_string(),
+                recipient: hop.addr.to_string(),
                 amount: token_in.amount,
-                msg: Some(
-                    to_binary(&AMMPairInvokeMsg::SwapTokens {
-                        expected_return: None,
-                        to: Some(env.contract.address.clone()),
-                        router_link: Some(ContractLink {
-                            address: env.contract.address.clone(),
-                            code_hash: env.contract.code_hash.clone(),
-                        }),
-                        callback_signature: Some(signature),
-                    })?,
-                ),
+                msg: Some(to_binary(&AMMPairInvokeMsg::SwapTokens {
+                    expected_return: None,
+                    to: Some(env.contract.address.clone()),
+                })?),
                 padding: None,
                 recipient_code_hash: None,
                 memo: None,
             })?;
 
-            messages.push(
+            response = response.add_submessage(SubMsg::reply_always(
                 WasmMsg::Execute {
                     contract_addr: contract_addr.to_string(),
                     code_hash: token_code_hash.clone(),
                     msg,
                     funds: vec![],
-                }
-                .into(),
-            );
+                },
+                SWAP_REPLY_ID,
+            ));
         }
     };
-    return Ok(messages);
+    return Ok(response);
 }
 
 pub fn update_viewing_key(storage: &mut dyn Storage, viewing_key: String) -> StdResult<Response> {
@@ -228,7 +227,7 @@ pub fn update_viewing_key(storage: &mut dyn Storage, viewing_key: String) -> Std
 
 pub fn query_pair_contract_config(
     querier: &QuerierWrapper,
-    pair_contract_address: ContractLink,
+    pair_contract_address: Contract,
 ) -> StdResult<PairConfig> {
     let result: AMMPairQueryReponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: pair_contract_address.address.to_string(),
@@ -260,7 +259,7 @@ pub fn query_pair_contract_config(
     }
 }
 
-pub fn swap_simulation(deps: Deps, path: Vec<Addr>, offer: TokenAmount) -> StdResult<Binary> {
+pub fn swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount) -> StdResult<Binary> {
     let mut sum_total_fee_amount: Uint128 = Uint128::zero();
     let mut sum_lp_fee_amount: Uint128 = Uint128::zero();
     let mut sum_shade_dao_fee_amount: Uint128 = Uint128::zero();
@@ -269,9 +268,9 @@ pub fn swap_simulation(deps: Deps, path: Vec<Addr>, offer: TokenAmount) -> StdRe
     let config = config_r(deps.storage).load()?;
 
     for hop in path {
-        let contract = ContractLink {
-            address: hop,
-            code_hash: config.pair_contract_code_hash.clone(),
+        let contract = Contract {
+            address: hop.addr,
+            code_hash: hop.code_hash,
         };
         let contract_info: AMMPairQueryReponse =
             querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
@@ -346,11 +345,12 @@ pub fn swap_simulation(deps: Deps, path: Vec<Addr>, offer: TokenAmount) -> StdRe
 pub struct FactoryConfig {
     pub pair_contract: ContractInstantiationInfo,
     pub amm_settings: AMMSettings,
+    pub admin_auth: Contract,
 }
 
 pub struct PairConfig {
-    pub liquidity_token: ContractLink,
-    pub factory: ContractLink,
+    pub liquidity_token: Contract,
+    pub factory: Contract,
     pub pair: TokenPair,
     pub amount_0: Uint128,
     pub amount_1: Uint128,

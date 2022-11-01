@@ -392,7 +392,7 @@ pub mod factory {
 }
 
 pub mod staking {
-    use crate::{core::TokenType, query_auth::QueryPermit,Contract, stake_contract::ClaimableInfo};
+    use crate::{core::TokenType, query_auth::QueryPermit,Contract, stake_contract::{ClaimableInfo, RewardTokenInfo}};
 
     use super::*;
     use cosmwasm_schema::cw_serde;
@@ -457,7 +457,7 @@ pub mod staking {
             amount: Uint128,
             to: Addr,
             msg: Option<Binary>,
-        },
+        },        
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -485,6 +485,7 @@ pub mod staking {
     pub enum AuthQuery {
         GetStakerLpTokenInfo {},
         GetClaimReward { time: Uint128 },
+        GetRewardTokens {}
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
@@ -515,6 +516,9 @@ pub mod staking {
             daily_reward_amount: Uint128,
             amm_pair: Addr,
             admin_auth: Contract
+        },
+        RewardTokens{
+            tokens: Vec<RewardTokenInfo>
         }
     }
 }

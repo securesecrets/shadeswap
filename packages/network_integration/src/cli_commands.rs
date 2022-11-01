@@ -6,7 +6,6 @@ pub mod snip20_lib {
         secretcli::{handle, query, Report},
     };
     use snip20_reference_impl::msg::QueryAnswer;
-    use shadeswap_shared::utils::asset::Contract;
     use crate::utils::{init_snip20_cli, InitConfig, GAS};
     use cosmwasm_std::Addr;
 

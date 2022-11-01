@@ -9,17 +9,19 @@ use cosmwasm_std::{
 };
 use shadeswap_shared::core::TokenType;
 use shadeswap_shared::snip20;
-use shadeswap_shared::stake_contract::ClaimableInfo;
+use shadeswap_shared::stake_contract::{ClaimableInfo};
 use shadeswap_shared::staking::QueryResponse;
 use shadeswap_shared::{
     msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, Contract,
 };
+use crate::state::{RewardTokenInfo};
+use shadeswap_shared::stake_contract::RewardTokenInfo as ResponseRewardTokenInfo;
 
 use crate::state::{
     claim_reward_info_r, claim_reward_info_w, config_r, config_w, proxy_staker_info_r,
     proxy_staker_info_w, reward_token_list_r, reward_token_list_w, reward_token_r, reward_token_w,
     staker_index_r, staker_index_w, stakers_r, stakers_w, total_staked_r, total_staked_w,
-    total_stakers_r, total_stakers_w, ClaimRewardsInfo, ProxyStakingInfo, RewardTokenInfo,
+    total_stakers_r, total_stakers_w, ClaimRewardsInfo, ProxyStakingInfo,
     StakingInfo,
 };
 
@@ -243,6 +245,18 @@ pub fn get_total_stakers_count(storage: &dyn Storage) -> StdResult<Uint128> {
         Some(count) => Ok(count),
         None => Ok(Uint128::zero()),
     };
+}
+
+pub fn get_reward_token_to_list(storage:& dyn Storage) 
+    -> StdResult<Binary> {
+        let list: Vec<RewardTokenInfo> = get_reward_tokens_info(storage)?;
+        let mut response: Vec<ResponseRewardTokenInfo> = vec![];
+        for i in list.iter(){
+            response.push(i.to_owned().to_reward_token_response())
+        }
+        to_binary(&QueryResponse::RewardTokens{
+            tokens: response
+        })
 }
 
 pub fn claim_rewards(deps: DepsMut, info: MessageInfo, env: Env) -> StdResult<Response> {

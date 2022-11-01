@@ -277,7 +277,9 @@ pub fn amm_pair_integration_tests_with_custom_token() {
     // REMOVE LIQUIDITY
     roll_blockchain(&mut router, 1).unwrap();
     let remove_msg = to_binary(&InvokeMsg::RemoveLiquidity { 
-        from: Some(owner_addr.clone())
+        from: Some(owner_addr.clone()),
+        single_sided: false,
+        single_sided_withdraw_in_token0: None,
     }).unwrap();
     
     let config = get_amm_pair_config(&mut router, &amm_pair_contract);
@@ -568,7 +570,9 @@ pub fn amm_pair_integration_tests_native_token() {
     // REMOVE LIQUIDITY
     roll_blockchain(&mut router, 1).unwrap();
     let remove_msg = to_binary(&InvokeMsg::RemoveLiquidity { 
-        from: Some(owner_addr.clone())
+        from: Some(owner_addr.clone()),
+        single_sided: false,
+        single_sided_withdraw_in_token0: None,
     }).unwrap();
     
     let config = get_amm_pair_config(&mut router, &amm_pair_contract);

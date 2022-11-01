@@ -1,9 +1,9 @@
-pub mod amm_pair_lib{
+pub mod amm_pairs_lib{
     use cosmwasm_std::{ContractInfo, StdResult, Addr, to_binary, Empty};
     use secret_multi_test::{App, ContractWrapper, Executor, Contract};
     use shadeswap_shared::{core::ContractInstantiationInfo};
     use shadeswap_shared::msg::amm_pair::InitMsg;
-    use crate::admin::admin_mock::admin_mock::{execute, instantiate, query};
+    use crate::amm_pairs::amm_pairs_mock::amm_pairs_mock::{execute, instantiate, query};
     use crate::help_lib::integration_help_lib::{snip20_lp_token_contract_store, create_token_pair};
     use shadeswap_shared::utils::asset::Contract as SContract;
     

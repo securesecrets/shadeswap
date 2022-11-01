@@ -13,9 +13,9 @@ pub fn amm_pair_integration_tests_with_custom_token() {
     use multi_test::admin::admin_help::init_admin_contract;
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, increase_allowance, store_init_factory_contract, 
         create_token_pair, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance};
-    use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp, from_binary, Api};
-    use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};    
-    use shadeswap_shared::core::{ ContractInstantiationInfo, TokenPair, TokenPairAmount, TokenAmount, CustomFee, Fee};
+    use cosmwasm_std::{Uint128, Coin, Timestamp};
+    use multi_test::util_addr::util_addr::{OWNER};    
+    use shadeswap_shared::core::{ ContractInstantiationInfo, TokenPairAmount, TokenAmount, CustomFee, Fee};
     use shadeswap_shared::msg::amm_pair::InvokeMsg; 
     use shadeswap_shared::staking::StakingContractInit;   
     use shadeswap_shared::utils::testing::TestingExt;
@@ -23,10 +23,8 @@ pub fn amm_pair_integration_tests_with_custom_token() {
     use multi_test::help_lib::integration_help_lib::{generate_snip20_contract};    
     use multi_test::help_lib::integration_help_lib::snip20_lp_token_contract_store;
     use shadeswap_shared::Contract as SContract;
-    use multi_test::amm_pair::amm_pair_mock::amm_pair_mock::reply;
-    use staking::contract::{execute as staking_execute, instantiate as staking_instantiate, query as staking_query};
-    let staker_a_addr = Addr::unchecked(STAKER_A.to_owned());       
-    let staker_b_addr = Addr::unchecked(STAKER_B.to_owned());       
+    use multi_test::amm_pairs::amm_pairs_mock::amm_pairs_mock::reply;
+    use staking::contract::{execute as staking_execute, instantiate as staking_instantiate, query as staking_query};  
     let owner_addr = Addr::unchecked(OWNER);   
     
     let mut router = App::default();  
@@ -43,7 +41,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
 
     pub fn amm_contract_store() -> Box<dyn Contract<Empty>> {
         let contract = ContractWrapper::new_with_empty(execute, instantiate, query)
-        .with_reply_empty(reply);
+        .with_reply(reply);
         Box::new(contract)
     }
 
@@ -119,7 +117,10 @@ pub fn amm_pair_integration_tests_with_custom_token() {
 
     // Assert AMM PAIR Config
     roll_blockchain(&mut router, 2).unwrap();
-    let query: QueryMsgResponse = router.query_test(amm_pair_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
+    let query: QueryMsgResponse = router.query_test(
+        amm_pair_contract.to_owned(),
+        to_binary(&QueryMsg::GetConfig { }).unwrap()
+    ).unwrap();
     match query {
         QueryMsgResponse::GetConfig { 
             factory_contract, 
@@ -334,11 +335,9 @@ pub fn amm_pair_integration_tests_native_token() {
     use shadeswap_shared::{core::{TokenType}};
     use multi_test::help_lib::integration_help_lib::{generate_snip20_contract};    
     use multi_test::help_lib::integration_help_lib::snip20_lp_token_contract_store;
-    use multi_test::amm_pair::amm_pair_mock::amm_pair_mock::reply;
+    use multi_test::amm_pairs::amm_pairs_mock::amm_pairs_mock::reply;
     use shadeswap_shared::Contract as SContract;
-    use staking::contract::{execute as staking_execute, instantiate as staking_instantiate, query as staking_query};
-    let staker_a_addr = Addr::unchecked(STAKER_A.to_owned());       
-    let staker_b_addr = Addr::unchecked(STAKER_B.to_owned());       
+    use staking::contract::{execute as staking_execute, instantiate as staking_instantiate, query as staking_query};   
     let owner_addr = Addr::unchecked(OWNER);   
     
     let mut router = App::default();  

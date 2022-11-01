@@ -26,12 +26,13 @@ pub mod integration_help_lib{
         staking::QueryData
     };
     use crate::auth::auth_query::auth_query::{execute as auth_execute, InitMsg as AuthInitMsg, instantiate as auth_instantiate, query as auth_query};
+    use crate::factory::factory_lib::factory_lib::factory_contract_store;
+    use crate::factory::factory_mock::factory_mock::InitMsg;
     use shadeswap_shared::msg::amm_pair::{QueryMsgResponse as AMMPairQueryResponse, QueryMsg as AMMPairQueryMsg};
     use snip20_reference_impl::contract::{execute as snip20_execute, instantiate as snip20_instantiate, query as  snip20_query};
     use lp_token::contract::{execute as lp_execute, instantiate as lp_instantiate, query as  lp_query};
     use cosmwasm_std::to_binary;
-    use crate::util_addr::util_addr::{OWNER, TOKEN_B, TOKEN_A};
-    use crate::factory::factory_mock::factory_mock::{execute as factory_execute, query as factory_query,instantiate as factory_instantiate, InitMsg as FactoryInitMsg };
+    use crate::util_addr::util_addr::{OWNER, TOKEN_B, TOKEN_A}; 
     use crate::staking::staking_mock::staking_mock::{execute as staking_execute_mock, query as staking_query_mock,instantiate as staking_instantiate_mock, InitMsg as StakingInitMsg };
     type TestPermit = Permit<PermitData>;
     
@@ -56,7 +57,6 @@ pub mod integration_help_lib{
         ).unwrap();
         Ok(auth_contract)
     }
-
     
     pub fn store_init_factory_contract(
         router: &mut App,
@@ -68,7 +68,7 @@ pub mod integration_help_lib{
         let contract = router.instantiate_contract(
             contract_info, 
             mk_address(&OWNER).to_owned(), 
-            &FactoryInitMsg{
+            &InitMsg{
                 admin_auth: admin.clone(),
             }, 
             &[], 
@@ -130,12 +130,6 @@ pub mod integration_help_lib{
         Box::new(contract)
     }
 
-    pub fn factory_contract_store() -> Box<dyn Contract<Empty>> {
-        let contract = ContractWrapper::new_with_empty(factory_execute, factory_instantiate, factory_query);
-        Box::new(contract)
-    }
-
-    
 
     pub fn mk_address(address: &str) -> Addr{
         return Addr::unchecked(address.to_string())

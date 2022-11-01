@@ -1,26 +1,19 @@
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
-use shadeswap_shared::msg::router::{{InitMsg,  ExecuteMsg, QueryMsg, QueryMsgResponse}};
-use multi_test::help_lib::integration_help_lib::{mk_contract_link, mk_address};
+use shadeswap_shared::msg::router::{InitMsg, ExecuteMsg, QueryMsg};
 use cosmwasm_std::{
-    testing::{mock_env, MockApi},
-    to_binary, Addr, Empty, Binary, ContractInfo, Uint128,
+    to_binary, Addr, Empty,
 };
-
-use shadeswap_shared::utils::asset::Contract as AuthContract;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 pub fn router_integration_tests() {    
     use multi_test::admin::admin_help::init_admin_contract;
-    use multi_test::amm_pair::amm_pair_lib::amm_pair_lib::store_init_amm_pair_contract;
+    use multi_test::amm_pairs::amm_pairs_lib::amm_pairs_lib::store_init_amm_pair_contract;
     use router::contract::{instantiate, query, execute, reply};
-    use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, 
-        send_snip20_to_stake, snip20_send, increase_allowance, 
-        get_current_block_time, store_init_staking_contract, store_init_factory_contract, 
-        snip20_contract_store, staking_contract_store, convert_to_contract_link
-    };
-    use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp, from_binary};
-    use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
+    use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, store_init_factory_contract, 
+        convert_to_contract_link};
+    use cosmwasm_std::{Uint128, Coin};
+    use multi_test::util_addr::util_addr::{OWNER, STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
     use shadeswap_shared::core::{TokenAmount};
     use shadeswap_shared::msg::amm_pair::InvokeMsg;
@@ -123,9 +116,9 @@ pub fn router_integration_tests() {
         QueryMsgResponse::SwapSimulation {
             total_fee_amount,
             lp_fee_amount,
-            shade_dao_fee_amount,
+            shade_dao_fee_amount:_,
             result,
-            price,
+            price:_,
         } => {
         // Verify result not actual amount
            assert_ne!(total_fee_amount, Uint128::zero());
@@ -167,7 +160,7 @@ pub fn router_integration_tests() {
         recipient: Some(owner_addr.to_string())
     };
 
-    let response = router.execute_contract(
+    let _response = router.execute_contract(
         owner_addr.to_owned(), 
         &router_contract, 
         &execute_swap,  

@@ -1,13 +1,9 @@
-use snip20_reference_impl::contract::{
-    execute as snip20_execute, instantiate as snip20_instantiate, query as snip20_query,
-};
 use staking::contract::{execute, instantiate, query};
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
 use shadeswap_shared::msg::staking::{{InitMsg, QueryResponse, ExecuteMsg}};
 use multi_test::help_lib::integration_help_lib::{mk_contract_link, mk_address};
 use cosmwasm_std::{
-    testing::{mock_env, MockApi},
-    to_binary, Addr, Empty, Binary, ContractInfo, Uint128,
+    to_binary, Addr, Empty,
 };
 
 use shadeswap_shared::utils::asset::Contract as AuthContract;

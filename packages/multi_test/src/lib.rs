@@ -9,6 +9,6 @@ pub mod factory;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod staking;
 #[cfg(not(target_arch = "wasm32"))]
-pub mod amm_pair;
+pub mod amm_pairs;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod admin;

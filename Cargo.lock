@@ -610,6 +610,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "factory",
  "lp-token",
  "query-authentication",
  "rand_chacha 0.2.2",

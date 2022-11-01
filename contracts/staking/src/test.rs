@@ -11,7 +11,6 @@ pub const SENDER: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 pub mod tests {
     use super::*;
     use crate::{
-        contract::instantiate,
         operations::{
             calculate_incremental_staking_reward, calculate_staker_shares, claim_rewards,
             claim_rewards_for_all_stakers, generate_proxy_staking_key, get_total_stakers_count,
@@ -19,7 +18,7 @@ pub mod tests {
         },
         state::{
             claim_reward_info_r, proxy_staker_info_r, reward_token_list_r, reward_token_r,
-            staker_index_r, staker_index_w, stakers_r, stakers_vk_r, total_staked_r,
+            staker_index_r, stakers_r, total_staked_r,
             ClaimRewardsInfo, Config, RewardTokenInfo, config_w, total_staked_w,
         },
         test::test_help_lib::{
@@ -28,20 +27,14 @@ pub mod tests {
         },
     };
     use cosmwasm_std::{
-        from_binary, from_slice,
-        testing::{mock_info, MockApi, MockStorage},
-        to_binary, to_vec, Addr, AllBalanceResponse, Api, BalanceResponse, BankQuery, BlockInfo,
-        Coin, Decimal, Empty, Env, MessageInfo, Querier, QuerierResult, QueryRequest, StdError,
-        StdResult, Storage, Uint128, WasmQuery, Response,
-    };
-    use secret_multi_test::Contract;
-    use shadeswap_shared::{msg::factory::{
-        QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
-    }, utils::testing::assert_error};
+        testing::{mock_info, MockApi, MockStorage}, Addr, Decimal, MessageInfo, StdError,
+        StdResult, Uint128};    
+    
+    use shadeswap_shared::{utils::testing::assert_error};
     use shadeswap_shared::{
         c_std::{CustomQuery, Deps, OwnedDeps},
         core::{TokenType},
-        msg::staking::{ExecuteMsg, InitMsg, QueryMsg, QueryResponse},
+        msg::staking::{InitMsg, QueryResponse},
     };
 
     #[test]
@@ -214,8 +207,7 @@ pub mod tests {
     fn assert_unstake_set_claimable_to_zero() -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
-        let env_b = mock_custom_env(CONTRACT_ADDRESS, 1571797854, 1534);
-        let stake_mock_info = mock_info(LP_TOKEN, &[]);
+              let stake_mock_info = mock_info(LP_TOKEN, &[]);
         let unstake_mock_info = mock_info(STAKER_A, &[]);
         let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
@@ -317,7 +309,7 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);               
         let mut _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;     
         _config.reward_token = TokenType::NativeToken { denom:"uscrt".to_string() };
-        config_w(&mut deps.storage).save(&_config);
+        config_w(&mut deps.storage).save(&_config)?;
 
         let error_msg = get_config(deps.as_ref());
         match error_msg {

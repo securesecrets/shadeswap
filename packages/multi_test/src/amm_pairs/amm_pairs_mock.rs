@@ -1,15 +1,13 @@
-pub mod amm_pair_mock {
+pub mod amm_pairs_mock {
     use crate::{
-        help_lib::integration_help_lib::get_contract_link_from_token_type,
-        util_addr::util_addr::OWNER,
+        help_lib::integration_help_lib::get_contract_link_from_token_type        
     };
     use cosmwasm_std::{
-        entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin, ContractInfo, CosmosMsg,
+        entry_point, to_binary, Addr, Binary, CosmosMsg,
         Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
         SubMsgResult, Uint128, WasmMsg, QueryRequest, WasmQuery,
     };
     use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
-    use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
     use shadeswap_shared::{
         core::{
@@ -21,7 +19,6 @@ pub mod amm_pair_mock {
         utils::{pad_query_result, pad_response_result}, amm_pair::AMMSettings,
     };
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse, QueryMsg as FactoryQueryMsg};
-    
     pub const BLOCK_SIZE: usize = 256;
     //use crate::staking::staking_mock::staking_mock::InitMsg as StakingInitMsg;
     use shadeswap_shared::msg::staking::InitMsg as StakingInitMsg;
@@ -38,6 +35,19 @@ pub mod amm_pair_mock {
         amm_settings: AMMSettings,
         authenticator: Option<Contract>,
         admin_auth: Contract
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+    pub struct Config {
+        pub factory_contract: Contract,
+        pub lp_token: Contract,
+        pub staking_contract: Option<Contract>,
+        pub pair: TokenPair,
+        pub viewing_key: ViewingKey,
+        pub custom_fee: Option<CustomFee>,
+        pub staking_contract_init: Option<StakingContractInit>,
+        pub prng_seed: Binary,
+        pub admin_auth: Contract
     }
 
     #[entry_point]
@@ -65,6 +75,7 @@ pub mod amm_pair_mock {
             staking_contract: None,
             staking_contract_init: msg.staking_contract,
             prng_seed: msg.prng_seed,
+            admin_auth: msg.admin_auth
         };
         singleton(deps.storage, CONFIG).save(&config)?;
         match msg.callback {
@@ -171,7 +182,7 @@ pub mod amm_pair_mock {
                     to: _,
                     msg: _msg,
                 } => Ok(Response::new()),
-                ExecuteMsg::SetConfig { admin_auth } => todo!(),
+                ExecuteMsg::SetConfig { admin_auth } => Ok(Response::new()),
             },
             BLOCK_SIZE,
         )
@@ -338,24 +349,6 @@ pub mod amm_pair_mock {
                 "An error occurred while trying to retrieve factory settings.",
             )),
         }
-    }
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-    pub struct Config {
-        pub factory_contract: Contract,
-        pub lp_token: Contract,
-        pub staking_contract: Option<Contract>,
-        pub pair: TokenPair,
-        pub viewing_key: ViewingKey,
-        pub custom_fee: Option<CustomFee>,
-        pub staking_contract_init: Option<StakingContractInit>,
-        pub prng_seed: Binary,
-    }
-
-    #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-    pub enum DirectionType {
-        Buy,
-        Sell,
-        Unknown,
-    }
+   }
+   
 }

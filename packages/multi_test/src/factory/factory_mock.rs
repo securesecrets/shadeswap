@@ -1,7 +1,7 @@
 pub mod factory_mock {
     use crate::util_addr::util_addr::OWNER;
     use cosmwasm_std::{
-        entry_point, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
+        entry_point, to_binary, Addr, Binary, Deps, DepsMut, Env,
         MessageInfo, Response, StdResult,
     };
     use cosmwasm_storage::{singleton, singleton_read};
@@ -42,6 +42,7 @@ pub mod factory_mock {
                 QueryMsg::ListAMMPairs { pagination } => to_binary(""),
                 QueryMsg::GetAMMPairAddress { pair } => to_binary(""),
                 QueryMsg::GetConfig => {
+                    println!("getconfig factory");
                     let admin_auth: Contract = singleton_read(deps.storage, CONFIG).load()?;
                     to_binary(&QueryResponse::GetConfig {
                         pair_contract: ContractInstantiationInfo {
@@ -61,7 +62,7 @@ pub mod factory_mock {
                             id: 0u64,
                         },
                         authenticator: None,
-                        admin_auth: admin_auth,
+                        admin_auth: admin_auth.clone(),
                     })
                 },
                 QueryMsg::AuthorizeApiKey { api_key } => to_binary(""),

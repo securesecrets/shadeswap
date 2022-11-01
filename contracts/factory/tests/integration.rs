@@ -2,7 +2,8 @@ use cosmwasm_std::{
     to_binary, Addr, Empty, ContractInfo, StdResult,
 };
 use factory::contract::{execute, instantiate, query};
-use multi_test::{help_lib::integration_help_lib::{convert_to_contract_link, roll_blockchain, generate_snip20_contract, store_init_auth_contract}, amm_pair::amm_pair_lib::amm_pair_lib::store_init_amm_pair_contract};
+use multi_test::{help_lib::integration_help_lib::{convert_to_contract_link, roll_blockchain, generate_snip20_contract, store_init_auth_contract}, 
+    amm_pairs::amm_pairs_lib::amm_pairs_lib::store_init_amm_pair_contract};
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
 use shadeswap_shared::{utils::testing::TestingExt, core::{ContractInstantiationInfo, }, factory::{InitMsg, QueryResponse, QueryMsg}, Contract as SContract};
 
@@ -15,7 +16,7 @@ pub fn contract_counter() -> Box<dyn Contract<Empty>> {
 #[test]
 fn factory_integration_tests() {
     use multi_test::admin::admin_help::init_admin_contract;
-    use multi_test::amm_pair::amm_pair_lib::amm_pair_lib::amm_pair_contract_store;
+    use multi_test::amm_pairs::amm_pairs_lib::amm_pairs_lib::amm_pair_contract_store;
     use multi_test::help_lib::integration_help_lib::{generate_snip20_contract, snip_20_balance_query, convert_to_contract_link, create_token_pair};
     use shadeswap_shared::Pagination;
     use shadeswap_shared::amm_pair::AMMPair;

@@ -23,7 +23,6 @@ use shadeswap_shared::core::TokenType;
 use shadeswap_shared::snip20::QueryMsg;
 use shadeswap_shared::{
     amm_pair::AMMSettings,
-    core::ContractLink,
     msg::{
         amm_pair::ExecuteMsg as AMMPairHandlMsg,
         factory::{
@@ -193,7 +192,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
         amm_settings: AMMSettings {
             lp_fee: Fee::new(2, 100),
             shade_dao_fee: Fee::new(1, 100),
-            shade_dao_address: ContractLink {
+            shade_dao_address: Contract {
                 address: Addr::unchecked(
                     "secret1hfvezhepf6ahwry0gzhcra6zsdmva5xhphhzdh".to_string(),
                 ),
@@ -242,7 +241,6 @@ fn redeploy_infra() -> serde_json::Result<()> {
             let router_msg = RouterInitMsg {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
                 entropy: to_binary(&"".to_string()).unwrap(),
-                pair_contract_code_hash: s_amm_pair.code_hash.clone(),
                 admin_auth: Contract { address: Addr::unchecked(admin_contract.address.to_string()), 
                     code_hash: admin_contract.code_hash.clone()}
             };
@@ -261,7 +259,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
 
             handle(
                 &RouterExecuteMsg::RegisterSNIP20Token {
-                    token_addr: Addr::unchecked(usdt_contract.address.clone()),
+                    token_addr: usdt_contract.address.clone(),
                     token_code_hash: usdt_contract.code_hash.to_string(),
                 },
                 &NetContract {
@@ -281,7 +279,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
 
             handle(
                 &RouterExecuteMsg::RegisterSNIP20Token {
-                    token_addr: Addr::unchecked(btc_contract.address.clone()),
+                    token_addr: btc_contract.address.clone(),
                     token_code_hash: btc_contract.code_hash.to_string(),
                 },
                 &NetContract {
@@ -314,6 +312,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
                                 contract_addr: Addr::unchecked(usdt_contract.address.clone()),
                                 token_code_hash: usdt_contract.code_hash.to_string(),
                             },
+                            valid_to: Uint128::new(3747905010000u128)
                         }),
                         router_contract: None,
                     },
@@ -710,7 +709,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
         amm_settings: AMMSettings {
             lp_fee: Fee::new(8, 100),
             shade_dao_fee: Fee::new(2, 100),
-            shade_dao_address: ContractLink {
+            shade_dao_address: Contract {
                 address: Addr::unchecked(
                     "secret1hfvezhepf6ahwry0gzhcra6zsdmva5xhphhzdh".to_string(),
                 ),
@@ -759,7 +758,6 @@ fn deploy_fresh() -> serde_json::Result<()> {
             let router_msg = RouterInitMsg {
                 prng_seed: to_binary(&"".to_string()).unwrap(),
                 entropy: to_binary(&"".to_string()).unwrap(),
-                pair_contract_code_hash: s_amm_pair.code_hash.clone(),
                 admin_auth: Contract { address: Addr::unchecked(admin_contract.address.to_string()), 
                     code_hash: admin_contract.code_hash.clone()}
             };
@@ -778,7 +776,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
 
             handle(
                 &RouterExecuteMsg::RegisterSNIP20Token {
-                    token_addr: Addr::unchecked(usdt_contract.address.clone()),
+                    token_addr: usdt_contract.address.clone(),
                     token_code_hash: usdt_contract.code_hash.to_string(),
                 },
                 &NetContract {
@@ -798,7 +796,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
 
             handle(
                 &RouterExecuteMsg::RegisterSNIP20Token {
-                    token_addr: Addr::unchecked(btc_contract.address.clone()),
+                    token_addr: btc_contract.address.clone(),
                     token_code_hash: btc_contract.code_hash.to_string(),
                 },
                 &NetContract {
@@ -818,7 +816,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
 
             handle(
                 &RouterExecuteMsg::RegisterSNIP20Token {
-                    token_addr: Addr::unchecked(eth_contract.address.clone()),
+                    token_addr: eth_contract.address.clone(),
                     token_code_hash: eth_contract.code_hash.to_string(),
                 },
                 &NetContract {
@@ -851,8 +849,9 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 contract_addr: Addr::unchecked(usdt_contract.address.clone()),
                                 token_code_hash: usdt_contract.code_hash.to_string(),
                             },
+                            valid_to: Uint128::new(3747905010000u128) 
                         }),
-                        router_contract: Some(ContractLink {
+                        router_contract: Some(Contract {
                             address: Addr::unchecked(router_contract.clone().address),
                             code_hash: router_contract.clone().code_hash,
                         }),
@@ -883,8 +882,9 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 contract_addr: Addr::unchecked(usdt_contract.address.clone()),
                                 token_code_hash: usdt_contract.code_hash.to_string(),
                             },
+                            valid_to: Uint128::new(3747905010000u128)
                         }),
-                        router_contract: Some(ContractLink {
+                        router_contract: Some(Contract {
                             address: Addr::unchecked(router_contract.address),
                             code_hash: router_contract.code_hash,
                         }),

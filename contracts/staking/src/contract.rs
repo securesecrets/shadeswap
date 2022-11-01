@@ -3,7 +3,7 @@ use cosmwasm_std::{
     DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128,
 };
 use shadeswap_shared::{
-    core::{ContractLink, TokenType},
+    core::{TokenType},
     query_auth::helpers::{authenticate_permit, PermitAuthentication},
     snip20::helpers::send_msg,
     staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
@@ -15,7 +15,7 @@ use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staking_stake_lp_token_info,
         proxy_stake, proxy_unstake, set_reward_token, stake, store_init_reward_token_and_timestamp,
-        unstake, update_authenticator,
+        unstake, update_authenticator, get_reward_token_to_list,
     },
     state::{config_r, config_w, prng_seed_w, Config},
 };
@@ -41,11 +41,11 @@ pub fn instantiate(
     prng_seed_w(deps.storage).save(&msg.prng_seed.as_slice().to_vec())?;
 
     // store reward token to the list
-    let reward_token_address: ContractLink = match msg.reward_token {
+    let reward_token_address: Contract = match msg.reward_token {
         TokenType::CustomToken {
             contract_addr,
             token_code_hash,
-        } => ContractLink {
+        } => Contract {
             address: contract_addr.to_owned(),
             code_hash: token_code_hash.to_owned(),
         },
@@ -54,15 +54,15 @@ pub fn instantiate(
                 "Invalid Token Type for Reward Token".to_string(),
             ))
         }
-    };
-    let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
+    };    
     store_init_reward_token_and_timestamp(
         deps.storage,
         reward_token_address.to_owned(),
-        msg.daily_reward_amount,
-        current_timestamp,
+        msg.daily_reward_amount,        
+        msg.valid_to
     )?;
 
+    println!("test init staking");
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
     Ok(response.add_attributes(vec![
@@ -223,5 +223,6 @@ pub fn auth_queries(deps: Deps, _env: Env, msg: AuthQuery, user: Addr) -> StdRes
     match msg {
         AuthQuery::GetClaimReward { time } => get_claim_reward_for_user(deps, user, time),
         AuthQuery::GetStakerLpTokenInfo {} => get_staking_stake_lp_token_info(deps, user),
+        AuthQuery::GetRewardTokens {  } => get_reward_token_to_list(deps.storage),
     }
 }

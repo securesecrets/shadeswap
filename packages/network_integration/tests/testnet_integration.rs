@@ -10,7 +10,6 @@ use query_authentication::permit::Permit;
 use query_authentication::transaction::PermitSignature;
 use query_authentication::transaction::PubKey;
 
-use shadeswap_shared::Contract;
 use shadeswap_shared::admin::RegistryAction;
 use shadeswap_shared::c_std::Binary;
 use shadeswap_shared::core::Fee;
@@ -19,8 +18,10 @@ use shadeswap_shared::core::TokenPair;
 use shadeswap_shared::core::TokenPairAmount;
 use shadeswap_shared::core::TokenType;
 use shadeswap_shared::query_auth::PermitData;
+use shadeswap_shared::router::Hop;
 use shadeswap_shared::snip20;
 use shadeswap_shared::staking::AuthQuery;
+use shadeswap_shared::Contract;
 
 use cosmwasm_std::to_binary;
 use network_integration::utils::{
@@ -37,7 +38,7 @@ use shadeswap_shared::staking::QueryData;
 use shadeswap_shared::{
     amm_pair::AMMSettings,
     contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
-    core::{ContractInstantiationInfo, ContractLink},
+    core::ContractInstantiationInfo,
     msg::{
         amm_pair::{
             ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
@@ -69,7 +70,7 @@ pub fn get_current_timestamp() -> StdResult<Uint128> {
     Ok(Uint128::from(since_the_epoch.as_millis()))
 }
 
-// #[test]
+#[test]
 fn run_testnet() -> Result<()> {
     let account = account_address(ACCOUNT_KEY)?;
     let _shade_dao = account_address(SHADE_DAO_KEY)?;
@@ -143,10 +144,9 @@ fn run_testnet() -> Result<()> {
         &mut reports,
     )?;
 
-    let admin_register_msg = RegistryAction::RegisterAdmin { 
-        user: "secret1ap26qrlp8mcq2pg6r47w43l0y8zkqm8a450s03".to_string()
+    let admin_register_msg = RegistryAction::RegisterAdmin {
+        user: "secret1ap26qrlp8mcq2pg6r47w43l0y8zkqm8a450s03".to_string(),
     };
-
 
     handle(
         &admin_register_msg,
@@ -346,7 +346,7 @@ fn run_testnet() -> Result<()> {
         amm_settings: AMMSettings {
             lp_fee: Fee::new(8, 100),
             shade_dao_fee: Fee::new(2, 100),
-            shade_dao_address: ContractLink {
+            shade_dao_address: Contract {
                 address: Addr::unchecked(s_sSHD.address.clone()),
                 code_hash: s_sSHD.code_hash.clone(),
             },
@@ -358,8 +358,10 @@ fn run_testnet() -> Result<()> {
         prng_seed: to_binary(&"".to_string()).unwrap(),
         api_key: API_KEY.to_string(),
         authenticator: None,
-        admin_auth: Contract { address: Addr::unchecked(admin_contract.address.to_string()), 
-            code_hash: admin_contract.code_hash.clone()}
+        admin_auth: Contract {
+            address: Addr::unchecked(admin_contract.address.to_string()),
+            code_hash: admin_contract.code_hash.clone(),
+        },
     };
 
     let factory_contract = init(
@@ -380,9 +382,10 @@ fn run_testnet() -> Result<()> {
     let router_msg = RouterInitMsg {
         prng_seed: to_binary(&"".to_string()).unwrap(),
         entropy: to_binary(&"".to_string()).unwrap(),
-        pair_contract_code_hash: s_ammPair.code_hash.clone(),
-        admin_auth: Contract { address: Addr::unchecked(admin_contract.address.to_string()), 
-            code_hash: admin_contract.code_hash.clone()}
+        admin_auth: Contract {
+            address: Addr::unchecked(admin_contract.address.to_string()),
+            code_hash: admin_contract.code_hash.clone(),
+        },
     };
 
     let router_contract = init(
@@ -426,8 +429,9 @@ fn run_testnet() -> Result<()> {
                         contract_addr: Addr::unchecked(s_sREWARDSNIP20.address.clone()),
                         token_code_hash: s_sREWARDSNIP20.code_hash.to_string(),
                     },
+                    valid_to: Uint128::new(3747905010000u128),
                 }),
-                router_contract: Some(ContractLink {
+                router_contract: Some(Contract {
                     address: Addr::unchecked(router_contract.address.clone()),
                     code_hash: router_contract.code_hash.clone(),
                 }),
@@ -648,7 +652,7 @@ fn run_testnet() -> Result<()> {
 
             handle(
                 &RouterExecuteMsg::RegisterSNIP20Token {
-                    token_addr: Addr::unchecked(s_sCRT.address.clone()),
+                    token_addr: s_sCRT.address.clone(),
                     token_code_hash: s_sCRT.code_hash.to_string(),
                 },
                 &router_contract,
@@ -663,7 +667,7 @@ fn run_testnet() -> Result<()> {
 
             handle(
                 &RouterExecuteMsg::RegisterSNIP20Token {
-                    token_addr: Addr::unchecked(s_sSHD.address.clone()),
+                    token_addr: s_sSHD.address.clone(),
                     token_code_hash: s_sSHD.code_hash.to_string(),
                 },
                 &router_contract,
@@ -732,8 +736,11 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(10)),
-                            paths: vec![ammPair.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -834,8 +841,11 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
-                            paths: vec![ammPair.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -889,8 +899,11 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
-                            paths: vec![ammPair.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -944,8 +957,11 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
-                            paths: vec![ammPair.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -1001,8 +1017,11 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
-                            paths: vec![ammPair.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -1058,7 +1077,10 @@ fn run_testnet() -> Result<()> {
                         amount: Uint128::new(100),
                     },
                     expected_return: None,
-                    path: vec![amm_pair_2.address.clone()],
+                    path: vec![Hop {
+                        addr: amm_pair_2.address.clone(),
+                        code_hash: s_ammPair.code_hash.clone(),
+                    }],
                     recipient: None,
                 },
                 &router_contract,
@@ -1088,7 +1110,14 @@ fn run_testnet() -> Result<()> {
                         amount: Uint128::new(100),
                     },
                     expected_return: None,
-                    path: vec![amm_pair_2.address.clone(), ammPair.address.clone()],
+                    path: vec![Hop {
+                        addr: amm_pair_2.address.clone(),
+                        code_hash: s_ammPair.code_hash.clone(),
+                    },
+                    Hop {
+                        addr: ammPair.address.clone(),
+                        code_hash: s_ammPair.code_hash.clone(),
+                    }],
                     recipient: None,
                 },
                 &router_contract,
@@ -1121,8 +1150,15 @@ fn run_testnet() -> Result<()> {
                     msg: Some(
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(10)),
-                            paths: vec![ammPair.address.clone(), amm_pair_2.address.clone()],
-                            recipient: Some(Addr::unchecked(account.to_string())),
+                            path: vec![Hop {
+                                addr: ammPair.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            },
+                            Hop {
+                                addr: amm_pair_2.address.clone(),
+                                code_hash: s_ammPair.code_hash.clone(),
+                            }],
+                            recipient: Some(account.to_string()),
                         })
                         .unwrap(),
                     ),
@@ -1474,7 +1510,10 @@ fn run_testnet() -> Result<()> {
                             contract_addr: Addr::unchecked(s_sCRT.address.clone()),
                         },
                     },
-                    path: vec![ammPair.address.clone()],
+                    path: vec![Hop {
+                        addr: ammPair.address.clone(),
+                        code_hash: s_ammPair.code_hash.clone(),
+                    }],
                 };
 
                 let swap_result_response: RouterQueryResponse = query(
@@ -1516,7 +1555,7 @@ fn run_testnet() -> Result<()> {
                     shade_dao_address,
                     shade_dao_fee: _,
                     lp_fee: _,
-                    admin_auth: _
+                    admin_auth: _,
                 } = shade_dao_response
                 {
                     assert_ne!(
@@ -1571,7 +1610,7 @@ fn run_testnet() -> Result<()> {
                     lp_token: _,
                     daily_reward_amount,
                     amm_pair,
-                    admin_auth: _
+                    admin_auth: _,
                 } = config_query_response
                 {
                     assert_eq!(
@@ -1590,7 +1629,7 @@ fn run_testnet() -> Result<()> {
                         pair: test_pair.clone(),
                         amount_0: Uint128::new(10000000000),
                         amount_1: Uint128::new(10000000000),
-                    }
+                    },
                 };
                 let estimated_lp_token: AMMPairQueryMsgResponse = query(
                     &NetContract {
@@ -1733,7 +1772,6 @@ fn run_testnet() -> Result<()> {
 
     return Ok(());
 }
-
 
 pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Uint128 {
     let msg = snip20::QueryMsg::Balance {

@@ -9,17 +9,19 @@ use cosmwasm_std::{
 };
 use shadeswap_shared::core::TokenType;
 use shadeswap_shared::snip20;
-use shadeswap_shared::stake_contract::ClaimableInfo;
+use shadeswap_shared::stake_contract::{ClaimableInfo};
 use shadeswap_shared::staking::QueryResponse;
 use shadeswap_shared::{
-    core::ContractLink, msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, Contract,
+    msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, Contract,
 };
+use crate::state::{RewardTokenInfo};
+use shadeswap_shared::stake_contract::RewardTokenInfo as ResponseRewardTokenInfo;
 
 use crate::state::{
     claim_reward_info_r, claim_reward_info_w, config_r, config_w, proxy_staker_info_r,
     proxy_staker_info_w, reward_token_list_r, reward_token_list_w, reward_token_r, reward_token_w,
     staker_index_r, staker_index_w, stakers_r, stakers_w, total_staked_r, total_staked_w,
-    total_stakers_r, total_stakers_w, ClaimRewardsInfo, ProxyStakingInfo, RewardTokenInfo,
+    total_stakers_r, total_stakers_w, ClaimRewardsInfo, ProxyStakingInfo,
     StakingInfo,
 };
 
@@ -29,7 +31,7 @@ pub fn calculate_staker_shares(storage: &dyn Storage, amount: Uint128) -> StdRes
         None => Uint128::zero(),
     };
     if total_staking_amount.is_zero() {
-        return Ok(Decimal::one());
+        return Ok(Decimal::zero());
     }
 
     let user_share = Decimal::from_ratio(amount, total_staking_amount);
@@ -38,9 +40,9 @@ pub fn calculate_staker_shares(storage: &dyn Storage, amount: Uint128) -> StdRes
 
 pub fn store_init_reward_token_and_timestamp(
     storage: &mut dyn Storage,
-    reward_token: ContractLink,
+    reward_token: Contract,
     emission_amount: Uint128,
-    _current_timestamp: Uint128,
+    current_timestamp: Uint128,
 ) -> StdResult<()> {
     // store reward token to the list
     let mut reward_token_list: Vec<Addr> = Vec::new();
@@ -51,7 +53,7 @@ pub fn store_init_reward_token_and_timestamp(
         &RewardTokenInfo {
             reward_token: reward_token.to_owned(),
             daily_reward_amount: emission_amount,
-            valid_to: Uint128::new(3747905010000u128),
+            valid_to: current_timestamp
         },
     )?;
     Ok(())
@@ -61,7 +63,7 @@ pub fn set_reward_token(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    reward_token: ContractLink,
+    reward_token: Contract,
     daily_reward_amount: Uint128,
     valid_to: Uint128,
 ) -> StdResult<Response> {
@@ -76,13 +78,14 @@ pub fn set_reward_token(
     let result = reward_list_token
         .iter()
         .find(|&x| x.to_owned() == reward_token.address.to_owned());
-    if result == None {
+    if result.is_none() {
         reward_list_token.push(reward_token.address.to_owned());
     }
     reward_token_w(deps.storage).save(&reward_token.address.as_bytes(), &reward_token_info)?;
+    reward_token_list_w(deps.storage).save(&reward_list_token)?;
     Ok(Response::new().add_attributes(vec![
         Attribute::new("action", "set_reward_token"),
-        Attribute::new("owner", info.sender.to_string()),
+        Attribute::new("owner", info.sender.to_string()),       
         Attribute::new("daily_reward_amount", daily_reward_amount.to_string()),
         Attribute::new("valid_to", valid_to.to_string()),
     ]))
@@ -231,7 +234,7 @@ pub fn proxy_stake(
 
     // return response
     Ok(Response::new().add_attributes(vec![
-        Attribute::new("action", "stake"),
+        Attribute::new("action", "proxy stake"),
         Attribute::new("staker", staker.as_str()),
         Attribute::new("amount", amount),
     ]))
@@ -242,6 +245,18 @@ pub fn get_total_stakers_count(storage: &dyn Storage) -> StdResult<Uint128> {
         Some(count) => Ok(count),
         None => Ok(Uint128::zero()),
     };
+}
+
+pub fn get_reward_token_to_list(storage:& dyn Storage) 
+    -> StdResult<Binary> {
+        let list: Vec<RewardTokenInfo> = get_reward_tokens_info(storage)?;
+        let mut response: Vec<ResponseRewardTokenInfo> = vec![];
+        for i in list.iter(){
+            response.push(i.to_owned().to_reward_token_response())
+        }
+        to_binary(&QueryResponse::RewardTokens{
+            tokens: response
+        })
 }
 
 pub fn claim_rewards(deps: DepsMut, info: MessageInfo, env: Env) -> StdResult<Response> {
@@ -328,9 +343,7 @@ fn process_all_claimable_rewards(
 
         messages.push(cosmos_msg);
         claim_reward.amount = Uint128::zero();
-    }
-    // let mut staker_info = stakers_r(storage).load(receiver.as_bytes())?;
-    // staker_info.last_time_updated = timestamp;
+    }  
     claim_reward_info_w(storage).save(receiver.as_bytes(), &claim_reward_tokens)?;
     Ok(())
 }
@@ -350,8 +363,7 @@ pub fn claim_rewards_for_all_stakers(
         let mut staker_info = stakers_r(storage).load(staker_address.as_bytes())?;
 
         let staker_share = calculate_staker_shares(storage, staker_info.amount)?;
-        let reward_token_list: Vec<RewardTokenInfo> =
-            get_reward_tokens_info(storage)?;
+        let reward_token_list: Vec<RewardTokenInfo> = get_reward_tokens_info(storage)?;
         for reward_token in reward_token_list.iter() {
             // calculate reward amount for each reward token
             let mut reward = find_claimable_reward_for_staker_by_reward_token(
@@ -394,12 +406,10 @@ pub fn claim_rewards_for_all_stakers(
     Ok(())
 }
 
-pub fn get_reward_tokens_info(
-    storage: &dyn Storage,
-) -> StdResult<Vec<RewardTokenInfo>> {
+pub fn get_reward_tokens_info(storage: &dyn Storage) -> StdResult<Vec<RewardTokenInfo>> {
     let mut list_token: Vec<RewardTokenInfo> = Vec::new();
     let reward_list = reward_token_list_r(storage).load()?;
-    for addr in &reward_list {
+    for addr in &reward_list {       
         // load total reward token
         let reward_token: RewardTokenInfo = reward_token_r(storage).load(addr.as_bytes())?;
         list_token.push(reward_token.to_owned())
@@ -421,7 +431,7 @@ pub fn get_all_claimable_reward_for_staker(
 pub fn find_claimable_reward_for_staker_by_reward_token(
     storage: &dyn Storage,
     staker_address: &Addr,
-    reward_token: &ContractLink,
+    reward_token: &Contract,
 ) -> StdResult<ClaimRewardsInfo> {
     let all_claimable_reward = get_all_claimable_reward_for_staker(storage, staker_address)?;
     let result = match all_claimable_reward
@@ -441,7 +451,7 @@ pub fn find_claimable_reward_for_staker_by_reward_token(
 pub fn find_claimable_reward_index_for_staker(
     storage: &dyn Storage,
     staker_address: &Addr,
-    reward_token: &ContractLink,
+    reward_token: &Contract,
 ) -> StdResult<Option<usize>> {
     let all_claimable_reward = get_all_claimable_reward_for_staker(storage, staker_address)?;
     return Ok(all_claimable_reward
@@ -453,7 +463,7 @@ pub fn save_claimable_amount_staker_by_reward_token(
     storage: &mut dyn Storage,
     amount: Uint128,
     staker_address: &Addr,
-    reward_token: &ContractLink,
+    reward_token: &Contract,
 ) -> StdResult<()> {
     let mut list_claimable_reward = get_all_claimable_reward_for_staker(storage, &staker_address)?;
     let claimable_reward_index =
@@ -503,14 +513,14 @@ pub fn get_config(deps: Deps) -> StdResult<Binary> {
     } = config.reward_token.clone()
     {
         let response = QueryResponse::Config {
-            reward_token: ContractLink {
+            reward_token: Contract {
                 address: contract_addr.clone(),
                 code_hash: token_code_hash.clone(),
             },
             lp_token: config.lp_token.clone(),
             daily_reward_amount: config.daily_reward_amount.clone(),
             amm_pair: config.amm_pair.clone(),
-            admin_auth: config.admin_auth
+            admin_auth: config.admin_auth,
         };
         return to_binary(&response);
     } else {
@@ -538,14 +548,15 @@ pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Bi
 }
 
 pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResult<Binary> {
-    // load stakers
+    // load stakers   
     let mut result_list: Vec<ClaimableInfo> = Vec::new();
     let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;
-    let reward_token_list: Vec<RewardTokenInfo> = get_reward_tokens_info(deps.storage, )?;
+    let reward_token_list: Vec<RewardTokenInfo> = get_reward_tokens_info(deps.storage)?;
     let percentage = calculate_staker_shares(deps.storage, staker_info.amount)?;
     for reward_token in reward_token_list.iter() {
         if reward_token.valid_to < staker_info.last_time_updated {
             let reward: Uint128;
+            println!("time {} - valid_to {}", time.to_string(), reward_token.valid_to.to_string());
             if time > reward_token.valid_to {
                 // calculate reward amount for each reward token
                 reward = calculate_incremental_staking_reward(
@@ -563,6 +574,24 @@ pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> Std
                 )?;
             }
             // load any existing claimable reward for specif user
+            let claimable_reward = find_claimable_reward_for_staker_by_reward_token(
+                deps.storage,
+                &staker,
+                &reward_token.reward_token,
+            )?;
+            
+            result_list.push(ClaimableInfo {
+                token_address: reward_token.reward_token.address.to_owned(),
+                amount: claimable_reward.amount + reward,
+            });
+        }
+        else{
+            let reward = calculate_incremental_staking_reward(
+                percentage,
+                staker_info.last_time_updated,
+                time,
+                reward_token.daily_reward_amount,
+            )?;
             let claimable_reward = find_claimable_reward_for_staker_by_reward_token(
                 deps.storage,
                 &staker,
@@ -587,6 +616,7 @@ pub fn proxy_unstake(
     amount: Uint128,
 ) -> StdResult<Response> {
     let caller = info.sender.clone();
+    println!("caller {}", caller.to_owned());
     let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
     let mut staker_info = stakers_r(deps.storage).load(for_addr.as_bytes())?;
     let proxy_staking_key = &generate_proxy_staking_key(&caller, &for_addr);
@@ -604,7 +634,7 @@ pub fn proxy_unstake(
             ));
         }
 
-        staker_info.amount -= staker_info.amount;
+        staker_info.amount -= amount;
         staker_info.last_time_updated = current_timestamp;
         stakers_w(deps.storage).save(for_addr.as_bytes(), &staker_info)?;
 
@@ -735,7 +765,7 @@ pub fn unstake(
 pub fn create_send_msg(
     recipient: String,
     amount: Uint128,
-    token_link: ContractLink,
+    token_link: Contract,
 ) -> StdResult<CosmosMsg> {
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: token_link.address.to_string(),

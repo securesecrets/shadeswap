@@ -11,7 +11,7 @@ use cosmwasm_std::{
 };
 use shadeswap_shared::{
     amm_pair::{generate_pair_key, AMMPair, AMMSettings},
-    core::{Callback, ContractInstantiationInfo, ContractLink, TokenPair, ViewingKey},
+    core::{Callback, ContractInstantiationInfo, TokenPair, ViewingKey},
     msg::{
         amm_pair::InitMsg as AMMPairInitMsg,
         factory::{ExecuteMsg, QueryResponse},
@@ -107,7 +107,7 @@ pub fn create_pair(
     pair: TokenPair,
     entropy: Binary,
     staking_contract: Option<StakingContractInit>,
-    router_contract: Option<ContractLink>
+    router_contract: Option<Contract>
 ) -> StdResult<Response> {
     let config = config_r(deps.storage).load()?;
     let signature = create_signature(&env, info)?;
@@ -128,7 +128,7 @@ pub fn create_pair(
         msg: to_binary(&AMMPairInitMsg {
             pair: pair.clone(),
             lp_token_contract: config.lp_token_contract.clone(),
-            factory_info: ContractLink {
+            factory_info: Contract {
                 code_hash: env.contract.code_hash.clone(),
                 address: env.contract.address.clone(),
             },
@@ -142,7 +142,7 @@ pub fn create_pair(
                     pair: pair.clone(),
                     signature: signature,
                 })?,
-                contract: ContractLink {
+                contract: Contract {
                     address: env.contract.address,
                     code_hash: env.contract.code_hash,
                 },
@@ -163,7 +163,7 @@ pub fn create_pair(
                         contract_addr: r.address.to_string(),
                         code_hash: r.code_hash.to_string(),
                         msg: to_binary(&RouterExecuteMsg::RegisterSNIP20Token {
-                            token_addr: contract_addr.clone(),
+                            token_addr: contract_addr.to_string(),
                             token_code_hash: token_code_hash.clone(),
                         })?,
                         funds: vec![],

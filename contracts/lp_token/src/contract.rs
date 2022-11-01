@@ -109,9 +109,7 @@ pub fn instantiate(
     MintersStore::save(deps.storage, minters)?;
 
     ViewingKey::set_seed(deps.storage, &prng_seed_hashed);
-    let mut response = Response::new();
-
-    println!("{}",env.contract.address.to_string());
+    let mut response = Response::new();   
     response.data = Some(env.contract.address.as_bytes().into());
     Ok(response)
 }

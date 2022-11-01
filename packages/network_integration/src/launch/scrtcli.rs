@@ -1,155 +1,58 @@
-// use std::{io, string};
-// use std::env;
-// use std::io::{Write};
-// use std::io::BufRead;
-// use network_integration::cli_menu::parse_args;
-// use secretcli::cli_types::StoredContract;
-// use shadeswap_shared::core::{ TokenPair, TokenPairAmount, TokenType, Fee, ViewingKey};
-// use shadeswap_shared::router;
-// use cosmwasm_std::{Uint128, Addr};
-// use cosmwasm_std::to_binary;
-// use colored::Colorize;
-// use network_integration::utils::{
-//     generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
-//     AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY, 
-//     STAKING_FILE, VIEW_KEY, InitConfig, init_contract_factory, init_snip20_cli,
-// };
-// use secretcli::{
-//     cli_types::NetContract,
-//     secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
-// };
-// use shadeswap_shared::{
-//     amm_pair::{AMMPair, AMMSettings},
-//     core::{ContractInstantiationInfo, ContractLink},
-//     msg::{
-//         amm_pair::{
-//             ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
-//             QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
-//         },
-//         factory::{
-//             ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg,
-//             QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
-//         },
-//         router::{
-//             ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
-//             QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
-//         },
-//         staking::{
-//             ExecuteMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
-//             QueryResponse as StakingQueryMsgResponse,
-//         },
-//     },
-//     stake_contract::StakingContractInit,
-//     Pagination,
-// };
-
-// pub const SNIP20_FILE: &str = "../../compiled/snip20.wasm.gz";
-// // pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
-// // pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
-// // pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
-// // pub const ROUTER_FILE: &str = "../../compiled/router.wasm.gz";
-// // pub const STAKING_FILE: &str = "../../compiled/staking.wasm.gz";
+use std::{io, string};
+use std::env;
+use std::io::{Write};
+use std::io::BufRead;
+use network_integration::cli_menu::parse_args;
+use secretcli::cli_types::StoredContract;
+use shadeswap_shared::core::{ TokenPair, TokenPairAmount, TokenType, Fee, ViewingKey};
+use shadeswap_shared::router;
+use cosmwasm_std::{Uint128, Addr};
+use cosmwasm_std::to_binary;
+use colored::Colorize;
+use network_integration::utils::{
+    generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
+    AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY, 
+    STAKING_FILE, VIEW_KEY, InitConfig, init_contract_factory, init_snip20_cli,
+};
+use secretcli::{
+    cli_types::NetContract,
+    secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
+};
+use shadeswap_shared::{
+    amm_pair::{AMMPair, AMMSettings},
+    core::{ContractInstantiationInfo},
+    msg::{
+        amm_pair::{
+            ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
+            QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
+        },
+        factory::{
+            ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg,
+            QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
+        },
+        router::{
+            ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
+            QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
+        },
+        staking::{
+            ExecuteMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
+            QueryResponse as StakingQueryMsgResponse,
+        },
+    },
+    stake_contract::StakingContractInit,
+    Pagination,
+};
 
 
-// pub const STORE_GAS: &str = "10000000";
-
-// fn main() -> io::Result<()> {
+fn main() -> io::Result<()> {
      
-//     // let account_name = read_string("Account Name ")?;
-//     // let keyring_backend = read_string("Keyring Backend ")?;
-//     let mut reports = vec![];   
-//     let args: Vec<String> = env::args().collect();
-//     parse_args(&args, &mut reports)?;
-   
-//     // while true 
-//     // {      
-//     //     print_options()?;
-//     //     let input = read_input()?;
-//     //     if input == 10
-//     //     {
-//     //         let stdout = io::stdout();
-//     //         let mut handle = stdout.lock();
-//     //         handle.write_all(b"Exiting Secretd Cli.\n\t")?; 
-//     //         handle.flush()?;             
-//     //         break;
-//     //     }
-
-//     //     if input == 1{
-//     //         let mut reports = vec![];   
-//     //         let contract = create_new_snip_20(&account_name.trim(), &keyring_backend.trim(), &mut reports)?;
-//     //     }
-
-//     //     if input == 2{
-//     //         create_new_deployment(account_name.trim(), keyring_backend.trim())?;
-//     //     }
-
-//     //     if input == 3{
-//     //         let mut reports = vec![];  
-//     //         add_new_pair_into_existing_factory(&account_name.trim(), &keyring_backend.trim(), &mut reports)?;
-//     //     }
-
-//     //     if input == 4 {
-//     //         let mut reports = vec![];  
-//     //         let contract = create_snip20_and_register(&account_name.trim(), &keyring_backend.trim(),
-//     //             &mut reports)?;
-//     //     }
-
-        
-//     //     if input == 5 {
-//     //         let mut reports = vec![];  
-
-//     //         let btc_contrat = NetContract{
-//     //             label : "".to_string(),
-//     //             id : "12143".to_string(),
-//     //             address: "secret1yn7jaxaukswkrqykvnz8rs8dvc4nqqty4dut9l".to_string(),
-//     //             code_hash: "DFE53F3E3FFF02E59077AD4986FF6B620B084E2B3A4E9CE133155EABE105FFF1".to_string()
-//     //         };            
-
-//     //         let etc_contrat = NetContract{
-//     //             label : "".to_string(),
-//     //             id : "12144".to_string(),
-//     //             address: "secret1hvgu4gt8w20j5m3vc8tjvgewff3rx88ewewyq8".to_string(),
-//     //             code_hash: "DFE53F3E3FFF02E59077AD4986FF6B620B084E2B3A4E9CE133155EABE105FFF1".to_string()
-//     //         };
-
-//     //         let usdt_contrat = NetContract{
-//     //             label : "".to_string(),
-//     //             id : "".to_string(),
-//     //             address: "secret199mjvc9ggw9yh23lr5xya2dxw7qemeqktzw2wc".to_string(),
-//     //             code_hash: "DFE53F3E3FFF02E59077AD4986FF6B620B084E2B3A4E9CE133155EABE105FFF1".to_string()
-//     //         };
-
-//     //         let recipient = read_string("Recipient address: ")?;
-//     //         let amount = read_amount("Amount:: ")?;
-//     //         // _ = mint_snip20(&account_name.trim(), &
-//     //         //         keyring_backend.trim(),
-//     //         //         Addr::unchecked(recipient.clone().trim()),
-//     //         //         Uint128(1000000),
-//     //         //         "1000000uscrt",
-//     //         //         &mut reports,
-//     //         //         btc_contrat.clone())?;       
-            
-//     //         _ = mint_snip20(
-//     //             &account_name.trim(), 
-//     //             &keyring_backend.trim(),
-//     //             Addr::unchecked(recipient.clone().trim()),
-//     //             Uint128::from(1000000u128),
-//     //             "1000000uscrt",
-//     //             &mut reports,
-//     //             usdt_contrat.clone())?;    
-            
-          
-//     //         _ = mint_snip20(&account_name.trim(), &
-//     //                 keyring_backend.trim(),
-//     //                 Addr::unchecked(recipient.clone().trim()),
-//     //                 Uint128::from(1000000u128),
-//     //                 "1000000uscrt",
-//     //                 &mut reports,
-//     //                 etc_contrat.clone())?;                 
-//     //     }
-//     // }    
-//     Ok(())
-// }
+    // let account_name = read_string("Account Name ")?;
+    // let keyring_backend = read_string("Keyring Backend ")?;
+    let mut reports = vec![];   
+    let args: Vec<String> = env::args().collect();
+    parse_args(&args, &mut reports)?; 
+    Ok(())
+}
 
 // fn print_options() -> io::Result<()>
 // {
@@ -523,7 +426,7 @@
 //         amm_settings: AMMSettings{
 //             shade_dao_fee: Fee::new(8, 100),
 //             lp_fee: Fee::new(2, 8),
-//             shade_dao_address:  ContractLink {
+//             shade_dao_address:  Contract {
 //                 address: Addr::unchecked("".to_string()),
 //                 code_hash: "".to_string(),
 //             },

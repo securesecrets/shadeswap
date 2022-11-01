@@ -1,666 +1,575 @@
-// #[cfg(test)]
-// pub mod tests {
-//     use crate::contract::init;
-//     use crate::contract::EPHEMERAL_STORAGE_KEY;
-//     use crate::state::config_read;
-//     use crate::state::Config;
-//     use crate::state::CurrentSwapInfo;
-//     use cosmwasm_std::from_binary;
-//     use cosmwasm_std::from_slice;
-//     use cosmwasm_std::testing::mock_dependencies;
-//     use cosmwasm_std::testing::mock_env;
-//     use cosmwasm_std::testing::MockApi;
-//     use cosmwasm_std::testing::MockStorage;
-//     use cosmwasm_std::to_binary;
-//     use cosmwasm_std::to_vec;
-//     use cosmwasm_std::AllBalanceResponse;
-//     use cosmwasm_std::Api;
-//     use cosmwasm_std::BalanceResponse;
-//     use cosmwasm_std::BankQuery;
-//     use cosmwasm_std::Coin;
-//     use cosmwasm_std::CosmosMsg;
-//     use cosmwasm_std::Empty;
-//     use cosmwasm_std::Env;
-//     use cosmwasm_std::Extern;
-//     use cosmwasm_std::HumanAddr;
-//     use cosmwasm_std::InitResponse;
-//     use cosmwasm_std::Querier;
-//     use cosmwasm_std::QuerierResult;
-//     use cosmwasm_std::QueryRequest;
-//     use cosmwasm_std::StdError;
-//     use cosmwasm_std::Storage;
-//     use cosmwasm_std::Uint128;
-//     use cosmwasm_std::WasmMsg;
-//     use cosmwasm_std::WasmQuery;
-//     use secret_toolkit::snip20::Balance;
-//     use shadeswap_shared::core::ContractInstantiationInfo;
-//     use shadeswap_shared::core::ContractLink;
-//     use shadeswap_shared::scrt_storage::load;
-//     use shadeswap_shared::scrt_storage::save;
+#[cfg(test)]
+pub mod tests {    
+    use crate::contract::SWAP_REPLY_ID;
+    use crate::contract::execute;
+    use crate::contract::instantiate;
+    use crate::state::Config;
+    use crate::state::CurrentSwapInfo;    
+    use crate::state::config_r;
+    use crate::state::epheral_storage_r;
+    use crate::state::epheral_storage_w;
+    use cosmwasm_std::Addr;
+    use cosmwasm_std::OwnedDeps;
+    use cosmwasm_std::Response;
+    use cosmwasm_std::StdResult;
+    use cosmwasm_std::SubMsg;    
+    use cosmwasm_std::from_slice;
+    use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::testing::MockApi;
+    use cosmwasm_std::testing::MockStorage;
+    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::to_binary;
+    
+    use serde::Deserialize;
+    use serde::Serialize;
+    use shadeswap_shared::admin::ValidateAdminPermissionResponse;
+    use shadeswap_shared::core::TokenPair;
+    use shadeswap_shared::msg::amm_pair::{ExecuteMsg as AMMPairExecuteMsg};
+    use shadeswap_shared::msg::factory::{ QueryResponse as FactoryQueryResponse};
+    use shadeswap_shared::msg::amm_pair::{QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse};
+    use cosmwasm_std::Api;
+    use cosmwasm_std::Coin;
+    use cosmwasm_std::CosmosMsg;
+    use cosmwasm_std::Empty;
+    use cosmwasm_std::Env;
+    use cosmwasm_std::Querier;
+    use cosmwasm_std::QuerierResult;
+    use shadeswap_shared::utils::asset::Contract;
+    use cosmwasm_std::QueryRequest;
+    use cosmwasm_std::StdError;
+    use cosmwasm_std::Storage;
+    use cosmwasm_std::Uint128;
+    use cosmwasm_std::WasmMsg;
+    use cosmwasm_std::WasmQuery;
+    use shadeswap_shared::core::ContractInstantiationInfo;
+    use shadeswap_shared::core::Fee;
+    use shadeswap_shared::core::TokenAmount;
+    use shadeswap_shared::core::TokenType;
+    use shadeswap_shared::router::ExecuteMsg;
+    use shadeswap_shared::router::Hop;
+    use shadeswap_shared::router::InitMsg;
+    use shadeswap_shared::router::InvokeMsg;
+    use shadeswap_shared::snip20;
+    use shadeswap_shared::snip20::manager::Balance;
 
-//     use crate::contract::handle;
-//     use cosmwasm_std::StdResult;
-//     use serde::{de::DeserializeOwned, Deserialize, Serialize};
-//     use shadeswap_shared::custom_fee::Fee;
-//     use shadeswap_shared::{
-//         msg::{
-//             amm_pair::QueryMsgResponse as AMMPairQueryMsgResponse,
-//             factory::QueryResponse as FactoryQueryResponse,
-//             router::{ExecuteMsg, InitMsg, InvokeMsg},
-//         },
-//         secret_toolkit::snip20::{self},
-//         TokenAmount, TokenPair, TokenType,
-//     };
+    pub const FACTORY_ADDRESS: &str = "FACTORY_ADDRESS";
+    pub const PAIR_CONTRACT_1: &str = "paircontracta";
+    pub const PAIR_CONTRACT_2: &str = "paircontractb";
+    pub const CUSTOM_TOKEN_1: &str = "CUSTOM_TOKEN_1";
 
-//     pub const FACTORY_ADDRESS: &str = "FACTORY_ADDRESS";
-//     pub const PAIR_CONTRACT_1: &str = "PAIR_CONTRACT_1";
-//     pub const PAIR_CONTRACT_2: &str = "PAIR_CONTRACT_2";
-//     pub const CUSTOM_TOKEN_1: &str = "CUSTOM_TOKEN_1";
+    #[test]
+    fn ok_init() -> StdResult<()> {
+        let ref mut deps = mkdeps();
+        let env = mock_env();
+        let config = mkconfig(env.clone(), 0);
+        let mock_info = mock_info("admin", &[]);
+        assert!(instantiate(deps.as_mut(), env.clone(),mock_info, (&config).into()).is_ok());
+        assert_eq!(config, config_r(deps.as_mut().storage).load()?);
+        Ok(())
+    }
 
-//     #[test]
-//     fn ok_init() -> StdResult<()> {
-//         let ref mut deps = mkdeps();
-//         let env = mkenv("admin");
-//         let config = mkconfig(env.clone(), 0);
-//         assert!(init(deps, env.clone(), (&config).into()).is_ok());
-//         assert_eq!(config, config_read(deps)?);
-//         Ok(())
-//     }
+    #[test]
+    fn swap_native_for_snip20_tokens_ok() -> StdResult<()> {
+        let (init_result, mut deps) = init_helper();          
+        assert!(
+            init_result.is_ok(),
+            "Init failed: {}",
+            init_result.err().unwrap()
+        );
 
-//     #[test]
-//     fn swap_native_for_snip20_tokens_ok() -> StdResult<()> {
-//         let (init_result, mut deps) = init_helper(100);
-//         let mut env = mkenv("admin");
+        let result = execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info("admin", &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(10u128) }]),
+            ExecuteMsg::SwapTokensForExact {
+                offer: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".to_string(),
+                    },
+                    amount: Uint128::new(10u128),
+                },
+                expected_return: None,
+                path: vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}],
+                recipient: None,
+            },
+        )
+        .unwrap();
 
-//         env.message.sent_funds = vec![Coin {
-//             denom: "uscrt".into(),
-//             amount: Uint128(10),
-//         }];
+        assert!(result.messages.len() > 0);
+        let result = epheral_storage_r(&deps.storage).load();
+        match result {
+            Ok(info) => {
+                assert_eq!(
+                    info.amount,
+                    TokenAmount {
+                        token: TokenType::NativeToken {
+                            denom: "uscrt".to_string(),
+                        },
+                        amount: Uint128::new(10u128),
+                    }
+                );
 
-//         assert!(
-//             init_result.is_ok(),
-//             "Init failed: {}",
-//             init_result.err().unwrap()
-//         );
+                assert_eq!(info.path, vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}]);
+            }
+            Err(_) => panic!("Ephemeral storage should not be empty!"),
+        }
 
-//         let result = handle(
-//             &mut deps,
-//             env,
-//             ExecuteMsg::SwapTokensForExact {
-//                 offer: TokenAmount {
-//                     token: TokenType::NativeToken {
-//                         denom: "uscrt".into(),
-//                     },
-//                     amount: Uint128(10),
-//                 },
-//                 expected_return: None,
-//                 path: vec![HumanAddr("token_addr".into())],
-//                 recipient: None,
-//             },
-//         )
-//         .unwrap();
+        Ok(())
+    }
 
-//         assert!(result.messages.len() > 0);
-//         let result: Option<CurrentSwapInfo> = load(&deps.storage, EPHEMERAL_STORAGE_KEY)?;
-//         match result {
-//             Some(info) => {
-//                 assert_eq!(
-//                     info.amount,
-//                     TokenAmount {
-//                         token: TokenType::NativeToken {
-//                             denom: "uscrt".into(),
-//                         },
-//                         amount: Uint128(10),
-//                     }
-//                 );
+    #[test]
+    fn swap_snip20_native_for_tokens_ok() -> StdResult<()> {
+        let (init_result, mut deps) = init_helper();
+        let env = mock_env();
+        let mock_info = mock_info("admin", &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(10u128) }]);
+     
+        assert!(
+            init_result.is_ok(),
+            "Init failed: {}",
+            init_result.err().unwrap()
+        );
 
-//                 assert_eq!(info.paths, vec![HumanAddr("token_addr".into())]);
-//             }
-//             None => panic!("Ephemeral storage should not be empty!"),
-//         }
+        let result = execute(
+            deps.as_mut(),
+            env,
+            mock_info,
+            ExecuteMsg::SwapTokensForExact {
+                offer: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".to_string(),
+                    },
+                    amount: Uint128::new(10u128),
+                },
+                expected_return: None,
+                path: vec![Hop{addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}],
+                recipient: Some("sender_addr".to_string()),
+            },
+        )
+        .unwrap();
 
-//         Ok(())
-//     }
+        assert!(result.messages.len() > 0);
+        let result = epheral_storage_r(&deps.storage).load();
+        match result {
+            Ok(info) => {
+                assert_eq!(
+                    info.amount,
+                    TokenAmount {
+                        token: TokenType::NativeToken {
+                            denom: "uscrt".to_string(),
+                        },
+                        amount: Uint128::new(10u128),
+                    }
+                );
+                assert_eq!(
+                    info.path,
+                    vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}]
+                );
+            }
+            Err(_) => panic!("Ephemeral storage should not be empty!"),
+        }
 
-//     /*#[test]
-//     fn swap_snip20_native_for_tokens_ok() -> StdResult<()> {
-//         let (init_result, mut deps) = init_helper(100);
-//         let mut env = mkenv("admin");
+        Ok(())
+    }
 
-//         env.message.sent_funds = vec![Coin {
-//             denom: "uscrt".into(),
-//             amount: Uint128(10),
-//         }];
+    #[test]
+    fn snip20_swap() -> StdResult<()> {
+        let mock_info = mock_info("admin", &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(1000000000000000u128) }]);
+        let (init_result, mut deps) = init_helper();
+        assert!(
+            init_result.is_ok(),
+            "Init failed: {}",
+            init_result.err().unwrap()
+        );
 
-//         assert!(
-//             init_result.is_ok(),
-//             "Init failed: {}",
-//             init_result.err().unwrap()
-//         );
+        epheral_storage_w(&mut deps.storage).save( &CurrentSwapInfo {
+            amount_out_min: Some(Uint128::new(10u128)),
+            amount: TokenAmount {
+                token: TokenType::NativeToken {
+                    denom: "uscrt".to_string(),
+                },
+                amount: Uint128::new(10u128),
+            },
+            path: vec![
+                Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()},
+                Hop{ addr: Addr::unchecked(PAIR_CONTRACT_2.to_string()), code_hash: "".to_string()},
+            ],
+            next_token_in: TokenType::CustomToken { contract_addr: Addr::unchecked("token_1"), token_code_hash: "".to_string() },
+            recipient: Addr::unchecked("recipient".to_string()),
+            current_index: 0,
+        })?;
+        
+       
+        let result = execute(
+            deps.as_mut(),
+            mock_env(),
+            mock_info,
+            ExecuteMsg::Receive {
+                from: "recipient".to_string(),
+                msg: Some(
+                    to_binary(&InvokeMsg::SwapTokensForExact {
+                        expected_return: Some(Uint128::new(1000u128)),
+                        path: vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}],
+                        recipient: None
+                    })
+                    .unwrap(),
+                ),
+                amount: Uint128::new(100u128),
+            },
+        );
 
-//         let result = handle(
-//             &mut deps,
-//             env,
-//             snip20::SwapTokensForExact {
-//                 offer: TokenAmount {
-//                     token: TokenType::NativeToken {
-//                         denom: "uscrt".into(),
-//                     },
-//                     amount: Uint128(10),
-//                 },
-//                 expected_return: None,
-//                 path: vec![HumanAddr("token_addr".into())],
-//             },
-//         )
-//         .unwrap();
+        match result {
+            Ok(info) => {
+                println!("{:?}", info.messages);
+            }
+            Err(err) => {
+                let test = err.to_string();
+                assert_eq!(StdError::generic_err("No matching token in pair"),err);                
+            }
+        }
 
-//         assert!(result.messages.len() > 0);
-//         let result: Option<CurrentSwapInfo> = load(&deps.storage, EPHEMERAL_STORAGE_KEY)?;
-//         match result {
-//             Some(info) => {
-//                 assert_eq!(
-//                     info.amount,
-//                     TokenAmount {
-//                         token: TokenType::NativeToken {
-//                             denom: "uscrt".into(),
-//                         },
-//                         amount: Uint128(10),
-//                     }
-//                 );
-//                 assert_eq!(
-//                     info.paths,
-//                     vec![HumanAddr("token_addr".into())]
-//                 );
-//             }
-//             None => panic!("Ephemeral storage should not be empty!"),
-//         }
+        Ok(())
+    }
 
-//         Ok(())
-//     }*/
+    #[test]
+    fn first_swap_callback_with_one_more_ok() -> StdResult<()> {
+        let (init_result, mut deps) = init_helper();
+        let env = mock_env();
 
-//     #[test]
-//     fn snip20_swap() -> StdResult<()> {
-//         let (init_result, mut deps) = init_helper(100);
-//         let mut env = mkenv("admin");
+        assert!(
+            init_result.is_ok(),
+            "Init failed: {}",
+            init_result.err().unwrap()
+        );
 
-//         assert!(
-//             init_result.is_ok(),
-//             "Init failed: {}",
-//             init_result.err().unwrap()
-//         );
+        epheral_storage_w(&mut deps.storage).save(&CurrentSwapInfo {
+            amount: TokenAmount {
+                token: TokenType::NativeToken {
+                    denom: "uscrt".into(),
+                },
+                amount: Uint128::new(10u128),
+            },
+            amount_out_min: Some(Uint128::new(10u128)),
+            path: vec![
+                Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()},
+                Hop{ addr: Addr::unchecked(PAIR_CONTRACT_2.to_string()), code_hash: "".to_string()},
+            ],
+            recipient: Addr::unchecked("recipient".to_string()),
+            current_index: 0,
+            next_token_in:  TokenType::NativeToken {
+                denom: "uscrt".into(),
+            },
+        })?;
+       
+        let result = execute(
+            deps.as_mut(),
+            env,
+            mock_info("admin", &[Coin{denom: "uscrt".to_string(), amount: Uint128::new(10u128) }]),
+            ExecuteMsg::SwapTokensForExact { 
+                offer: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".to_string(),
+                    },
+                    amount: Uint128::new(10u128),
+                },
+                expected_return: None,
+                path: vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}],
+                recipient: None,
+            }
+        )
+        .unwrap();
 
-//         save(
-//             &mut deps.storage,
-//             EPHEMERAL_STORAGE_KEY,
-//             &CurrentSwapInfo {
-//                 amount_out_min: Some(Uint128(10)),
-//                 amount: TokenAmount {
-//                     token: TokenType::NativeToken {
-//                         denom: "uscrt".into(),
-//                     },
-//                     amount: Uint128(10),
-//                 },
-//                 paths: vec![
-//                     HumanAddr(PAIR_CONTRACT_1.into()),
-//                     HumanAddr(PAIR_CONTRACT_2.into()),
-//                 ],
-//                 signature: to_binary("this is signature").unwrap(),
-//                 recipient: HumanAddr("recipient".into()),
-//                 current_index: 0,
-//             },
-//         )?;
+        let msg = to_binary(&AMMPairExecuteMsg::SwapTokens {
+            expected_return: None,
+            to: None,
+            offer: TokenAmount {
+                token: TokenType::NativeToken {
+                    denom: "uscrt".to_string(),
+                },
+                amount: Uint128::new(10u128),
+            },
+        })?;
 
-//         let result = handle(
-//             &mut deps,
-//             mkenv("CUSTOM_TOKEN_1"),
-//             ExecuteMsg::Receive {
-//                 from: HumanAddr("recipient".into()),
-//                 msg: Some(
-//                     to_binary(&InvokeMsg::SwapTokensForExact {
-//                         expected_return: Some(Uint128(1000)),
-//                         paths: vec![PAIR_CONTRACT_1.into()],
-//                         recipient: None,
-//                     })
-//                     .unwrap(),
-//                 ),
-//                 amount: Uint128(100),
-//             },
-//         );
+        assert_eq!(result.messages[0],SubMsg::reply_always(
+            WasmMsg::Execute {
+                contract_addr: PAIR_CONTRACT_1.to_string(),
+                code_hash: "".to_string(),
+                msg,
+                funds: vec![Coin {
+                    denom: "uscrt".to_string(),
+                    amount: Uint128::new(10u128),
+                }],
+            },
+            SWAP_REPLY_ID,
+        ));
 
-//         match result {
-//             Ok(info) => {
-//                 println!("{:?}", info.messages);
-//             }
-//             Err(err) => {
-//                 let test = err.to_string();
-//                 panic!("{}", "Must not return error ".to_string() + &test)
-//             }
-//         }
+        Ok(())
+    }
 
-//         Ok(())
-//     }
+    #[test]
+    fn first_swap_callback_with_no_more_ok() -> StdResult<()> {
+        let (init_result, mut deps) = init_helper();
+        let env = mock_env();
 
-//     #[test]
-//     fn first_swap_callback_with_one_more_unauthorized() -> StdResult<()> {
-//         let (init_result, mut deps) = init_helper(100);
-//         let mut env = mkenv("admin");
+        assert!(
+            init_result.is_ok(),
+            "Init failed: {}",
+            init_result.err().unwrap()
+        );
 
-//         assert!(
-//             init_result.is_ok(),
-//             "Init failed: {}",
-//             init_result.err().unwrap()
-//         );
+        epheral_storage_w(&mut deps.storage).save(
+            &CurrentSwapInfo {
+                amount_out_min: Some(Uint128::new(10u128)),
+                amount: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".into(),
+                    },
+                    amount: Uint128::new(10u128),
+                },
+                path: vec![
+                    Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()},
+                ],
+                recipient: Addr::unchecked("recipient".to_string()),
+                current_index: 0,
+                next_token_in: TokenType::NativeToken {
+                    denom: "uscrt".into(),
+                },
+            }
+        )?;
 
-//         save(
-//             &mut deps.storage,
-//             EPHEMERAL_STORAGE_KEY,
-//             &CurrentSwapInfo {
-//                 amount_out_min: Some(Uint128(10)),
-//                 amount: TokenAmount {
-//                     token: TokenType::NativeToken {
-//                         denom: "uscrt".into(),
-//                     },
-//                     amount: Uint128(10),
-//                 },
-//                 paths: vec![
-//                     HumanAddr(PAIR_CONTRACT_1.into()),
-//                     HumanAddr(PAIR_CONTRACT_2.into()),
-//                 ],
-//                 signature: to_binary("this is signature").unwrap(),
-//                 recipient: HumanAddr("recipient".into()),
-//                 current_index: 0,
-//             },
-//         )?;
+        let result = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_info("admin", &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(10u128)}]),
+            ExecuteMsg::SwapTokensForExact { 
+                offer: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".to_string(),
+                    },
+                    amount: Uint128::new(10u128),
+                },
+                expected_return: None,
+                path: vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}],
+                recipient: None,
+            },
+        )
+        .unwrap();
 
-//         let result = handle(
-//             &mut deps,
-//             env,
-//             ExecuteMsg::SwapCallBack {
-//                 last_token_out: TokenAmount {
-//                     token: TokenType::NativeToken {
-//                         denom: "uscrt".into(),
-//                     },
-//                     amount: Uint128(100),
-//                 },
-//                 signature: to_binary("wrong signature").unwrap(),
-//             },
-//         );
+        let msg = to_binary(&AMMPairExecuteMsg::SwapTokens {
+            expected_return: None,
+            to: None,
+            offer: TokenAmount {
+                token: TokenType::NativeToken {
+                    denom: "uscrt".to_string(),
+                },
+                amount: Uint128::new(10u128),
+            },
+        })?;
+        assert_eq!(result.messages[0],SubMsg::reply_always(
+            WasmMsg::Execute {
+                contract_addr: PAIR_CONTRACT_1.to_string(),
+                code_hash: "".to_string(),
+                msg,
+                funds: vec![Coin {
+                    denom: "uscrt".to_string(),
+                    amount: Uint128::new(10u128),
+                }],
+            },
+            SWAP_REPLY_ID,
+        ));
+   
+        Ok(())
+    }
 
-//         match result {
-//             Err(StdError::Unauthorized { .. }) => {}
-//             _ => panic!("Must return unauthorized error"),
-//         }
+    #[test]
+    fn first_swap_callback_with_no_more_not_enough_return() -> StdResult<()> {
+        let (init_result, mut deps) = init_helper();
+        let env = mock_env();
 
-//         Ok(())
-//     }
+        assert!(
+            init_result.is_ok(),
+            "Init failed: {}",
+            init_result.err().unwrap()
+        );
 
-//     #[test]
-//     fn first_swap_callback_with_one_more_ok() -> StdResult<()> {
-//         let (init_result, mut deps) = init_helper(100);
-//         let mut env = mkenv("admin");
+        epheral_storage_w(&mut deps.storage).save(
+            &CurrentSwapInfo {
+                amount_out_min: Some(Uint128::new(100)),
+                amount: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".into(),
+                    },
+                    amount: Uint128::new(10),
+                },
+                path: vec![
+                    Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()},
+                ],
+                recipient: Addr::unchecked("recipient".to_string()),
+                current_index: 0,
+                next_token_in: TokenType::NativeToken {
+                    denom: "uscrt".into(),
+                },
+            }
+        )?;
 
-//         assert!(
-//             init_result.is_ok(),
-//             "Init failed: {}",
-//             init_result.err().unwrap()
-//         );
+        let result = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_info("admin", &[]),
+            ExecuteMsg::SwapTokensForExact {
+                offer: TokenAmount {
+                    token: TokenType::NativeToken {
+                        denom: "uscrt".to_string(),
+                    },
+                    amount: Uint128::new(10u128),
+                },
+                expected_return: None,
+                path: vec![Hop{ addr: Addr::unchecked("token_addr".to_string()), code_hash: "".to_string()}],
+                recipient: None,
+            },
+        );
 
-//         save(
-//             &mut deps.storage,
-//             EPHEMERAL_STORAGE_KEY,
-//             &CurrentSwapInfo {
-//                 amount_out_min: Some(Uint128(10)),
-//                 amount: TokenAmount {
-//                     token: TokenType::NativeToken {
-//                         denom: "uscrt".into(),
-//                     },
-//                     amount: Uint128(10),
-//                 },
-//                 paths: vec![
-//                     HumanAddr(PAIR_CONTRACT_1.into()),
-//                     HumanAddr(PAIR_CONTRACT_2.into()),
-//                 ],
-//                 signature: to_binary("this is signature").unwrap(),
-//                 recipient: HumanAddr("recipient".into()),
-//                 current_index: 0,
-//             },
-//         )?;
+        match result {
+            Err(StdError::GenericErr { .. }) => {}
+            _ => panic!("Must return error"),
+        }
+        Ok(())
+    }
 
-//         let result = handle(
-//             &mut deps,
-//             env,
-//             ExecuteMsg::SwapCallBack {
-//                 last_token_out: TokenAmount {
-//                     token: TokenType::NativeToken {
-//                         denom: "uscrt".into(),
-//                     },
-//                     amount: Uint128(10),
-//                 },
-//                 signature: to_binary("this is signature").unwrap(),
-//             },
-//         )
-//         .unwrap();
+    fn mkconfig(env: Env, id: u64) -> Config {
+        Config{
+            viewing_key: "SHADE_ROUTER_KEY".to_string(),
+            admin_auth: Contract{address: Addr::unchecked("".to_string()), code_hash: "".to_string()},
+        }       
+    }
+    fn mkdeps() -> OwnedDeps<impl Storage, impl Api, impl Querier> {
+        mock_dependencies(&[])
+    }
+   
 
-//         println!("{:?}", result.messages);
+    impl Into<InitMsg> for &Config {
+        fn into(self) -> InitMsg {
+            InitMsg {
+                prng_seed: to_binary(&"prng").unwrap(),
+                entropy: to_binary(&"entropy").unwrap(),
+                admin_auth: Contract{address: Addr::unchecked("".to_string()), code_hash: "".to_string()},
+            }
+        }
+    }
 
-//         Ok(())
-//     }
+    fn init_helper(
+    ) -> (
+        StdResult<Response>,
+        OwnedDeps<MockStorage, MockApi, MockQuerier>,
+    ) {
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_env();
 
-//     #[test]
-//     fn first_swap_callback_with_no_more_ok() -> StdResult<()> {
-//         let (init_result, mut deps) = init_helper(100);
-//         let mut env = mkenv("admin");
+        let init_msg = InitMsg {
+            prng_seed: to_binary(&"prng").unwrap(),
+            entropy: to_binary(&"entropy").unwrap(),
+            admin_auth: Contract { 
+                address: Addr::unchecked("admin_auth".to_string()), 
+                code_hash: "".to_string()
+            },
+        };
 
-//         assert!(
-//             init_result.is_ok(),
-//             "Init failed: {}",
-//             init_result.err().unwrap()
-//         );
+        (instantiate(deps.as_mut(), env, mock_info("admin", &[]), init_msg), deps)
+    }
 
-//         save(
-//             &mut deps.storage,
-//             EPHEMERAL_STORAGE_KEY,
-//             &CurrentSwapInfo {
-//                 amount_out_min: Some(Uint128(10)),
-//                 amount: TokenAmount {
-//                     token: TokenType::NativeToken {
-//                         denom: "uscrt".into(),
-//                     },
-//                     amount: Uint128(10),
-//                 },
-//                 paths: vec![HumanAddr(PAIR_CONTRACT_1.into())],
-//                 signature: to_binary("this is signature").unwrap(),
-//                 recipient: HumanAddr("recipient".into()),
-//                 current_index: 0,
-//             },
-//         )?;
+    pub fn mock_dependencies(
+        _contract_balance: &[Coin],
+    ) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
+        OwnedDeps {
+            storage: MockStorage::default(),
+            api: MockApi::default(),
+            querier: MockQuerier { portion: 100 },
+            custom_query_type: std::marker::PhantomData,
+        }
+    }
 
-//         let result = handle(
-//             &mut deps,
-//             env.clone(),
-//             ExecuteMsg::SwapCallBack {
-//                 last_token_out: TokenAmount {
-//                     token: TokenType::NativeToken {
-//                         denom: "uscrt".into(),
-//                     },
-//                     amount: Uint128(10),
-//                 },
-//                 signature: to_binary("this is signature").unwrap(),
-//             },
-//         )
-//         .unwrap();
+    
+    #[derive(Serialize, Deserialize)]
+    struct IntBalanceResponse {
+        pub balance: Balance,
+    }
 
-//         assert_eq!(result.messages.len(), 1);
-
-//         println!("{:?}", result.messages[0]);
-//         let test: CosmosMsg<WasmMsg> = CosmosMsg::Wasm(WasmMsg::Execute {
-//             contract_addr: HumanAddr::from(CUSTOM_TOKEN_1),
-//             callback_code_hash: "hash".into(),
-//             msg: to_binary(&snip20::ExecuteMsg::Send {
-//                 recipient: HumanAddr("recipient".into()),
-//                 amount: Uint128(10),
-//                 padding: None,
-//                 msg: None,
-//                 recipient_code_hash: None,
-//                 memo: None,
-//             })?,
-//             send: vec![],
-//         });
-//         println!("{:?}", test);
-//         assert!(result.messages.contains(&CosmosMsg::Wasm(WasmMsg::Execute {
-//             contract_addr: HumanAddr::from(CUSTOM_TOKEN_1),
-//             callback_code_hash: "hash".into(),
-//             msg: to_binary(&snip20::ExecuteMsg::Send {
-//                 recipient: HumanAddr("recipient".into()),
-//                 amount: Uint128(10), //This is how much balance the address has
-//                 padding: None,
-//                 msg: None,
-//                 recipient_code_hash: None,
-//                 memo: None,
-//             })?,
-//             send: vec![]
-//         })));
-//         Ok(())
-//     }
-
-//     #[test]
-//     fn first_swap_callback_with_no_more_not_enough_return() -> StdResult<()> {
-//         let (init_result, mut deps) = init_helper(100);
-//         let mut env = mkenv("admin");
-
-//         assert!(
-//             init_result.is_ok(),
-//             "Init failed: {}",
-//             init_result.err().unwrap()
-//         );
-
-//         save(
-//             &mut deps.storage,
-//             EPHEMERAL_STORAGE_KEY,
-//             &CurrentSwapInfo {
-//                 amount_out_min: Some(Uint128(100)),
-//                 amount: TokenAmount {
-//                     token: TokenType::NativeToken {
-//                         denom: "uscrt".into(),
-//                     },
-//                     amount: Uint128(10),
-//                 },
-//                 paths: vec![HumanAddr(PAIR_CONTRACT_1.into())],
-//                 signature: to_binary("this is signature").unwrap(),
-//                 recipient: HumanAddr("recipient".into()),
-//                 current_index: 0,
-//             },
-//         )?;
-
-//         let result = handle(
-//             &mut deps,
-//             env.clone(),
-//             ExecuteMsg::SwapCallBack {
-//                 last_token_out: TokenAmount {
-//                     token: TokenType::NativeToken {
-//                         denom: "uscrt".into(),
-//                     },
-//                     amount: Uint128(10),
-//                 },
-//                 signature: to_binary("this is signature").unwrap(),
-//             },
-//         );
-
-//         match result {
-//             Err(StdError::GenericErr { .. }) => {}
-//             _ => panic!("Must return error"),
-//         }
-//         Ok(())
-//     }
-
-//     /*
-
-//         //*** */
-//         #[test]
-//         fn swap_tokens_for_exact_tokens() -> StdResult<()> {
-//             Ok(())
-//         }
-//     */
-//     fn mkconfig(env: Env, id: u64) -> Config<HumanAddr> {
-//         Config::from_init_msg(
-//             env,
-//             InitMsg {
-//                 factory_address: ContractLink {
-//                     address: HumanAddr(String::from(FACTORY_ADDRESS)),
-//                     code_hash: "Test".to_string(),
-//                 },
-//                 prng_seed: to_binary(&"prng").unwrap(),
-//                 entropy: to_binary(&"entropy").unwrap(),
-//                 viewing_key: None,
-//             },
-//         )
-//     }
-//     fn mkdeps() -> Deps<impl Storage, impl Api, impl Querier> {
-//         mock_dependencies(30, &[])
-//     }
-//     fn mkenv(sender: impl Into<HumanAddr>) -> Env {
-//         mock_env(sender, &[])
-//     }
-
-//     impl Into<InitMsg> for &Config<HumanAddr> {
-//         fn into(self) -> InitMsg {
-//             InitMsg {
-//                 factory_address: self.factory_address.clone(),
-//                 prng_seed: to_binary(&"prng").unwrap(),
-//                 entropy: to_binary(&"entropy").unwrap(),
-//                 viewing_key: None,
-//             }
-//         }
-//     }
-
-//     fn init_helper(
-//         contract_bal: u128,
-//     ) -> (
-//         StdResult<InitResponse>,
-//         Deps<MockStorage, MockApi, MockQuerier>,
-//     ) {
-//         let mut deps = mock_deps();
-//         let env = mock_env("admin", &[]);
-
-//         let init_msg = InitMsg {
-//             factory_address: ContractLink {
-//                 address: HumanAddr(String::from(FACTORY_ADDRESS)),
-//                 code_hash: "Test".to_string(),
-//             },
-//             prng_seed: to_binary(&"prng").unwrap(),
-//             entropy: to_binary(&"entropy").unwrap(),
-//             viewing_key: None,
-//         };
-
-//         (init(&mut deps, env, init_msg), deps)
-//     }
-
-//     fn mock_deps() -> Deps<MockStorage, MockApi, MockQuerier> {
-//         Extern {
-//             storage: MockStorage::default(),
-//             api: MockApi::new(123),
-//             querier: MockQuerier { portion: 2500 },
-//         }
-//     }
-//     struct MockQuerier {
-//         portion: u128,
-//     }
-//     impl Querier for MockQuerier {
-//         fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
-//             let request: QueryRequest<Empty> = from_slice(bin_request).unwrap();
-//             match &request {
-//                 QueryRequest::Wasm(msg) => match msg {
-//                     WasmQuery::Smart { contract_addr, .. } => {
-//                         println!("{}", contract_addr);
-//                         match contract_addr.as_str() {
-//                             FACTORY_ADDRESS => {
-//                                 QuerierResult::Ok(to_binary(&FactoryQueryResponse::GetConfig {
-//                                     pair_contract: ContractInstantiationInfo {
-//                                         code_hash: "".to_string(),
-//                                         id: 1,
-//                                     },
-//                                     amm_settings: shadeswap_shared::amm_pair::AMMSettings {
-//                                         lp_fee: Fee::new(28, 10000),
-//                                         shade_dao_fee: Fee::new(2, 10000),
-//                                         shade_dao_address: ContractLink {
-//                                             address: HumanAddr(String::from("DAO")),
-//                                             code_hash: "".to_string(),
-//                                         },
-//                                     },
-//                                     lp_token_contract: ContractInstantiationInfo {
-//                                         code_hash: "".to_string(),
-//                                         id: 1,
-//                                     },
-//                                 }))
-//                             }
-//                             PAIR_CONTRACT_1 => QuerierResult::Ok(to_binary(
-//                                 &AMMPairQueryMsgResponse::GetPairInfo {
-//                                     liquidity_token: ContractLink {
-//                                         address: HumanAddr::from("asd"),
-//                                         code_hash: "".to_string(),
-//                                     },
-//                                     factory: ContractLink {
-//                                         address: HumanAddr::from("asd"),
-//                                         code_hash: "".to_string(),
-//                                     },
-//                                     pair: TokenPair(
-//                                         TokenType::CustomToken {
-//                                             contract_addr: CUSTOM_TOKEN_1.into(),
-//                                             token_code_hash: "hash".into(),
-//                                         },
-//                                         TokenType::NativeToken {
-//                                             denom: "denom".into(),
-//                                         },
-//                                     ),
-//                                     amount_0: Uint128(100),
-//                                     amount_1: Uint128(101),
-//                                     total_liquidity: Uint128(100),
-//                                     contract_version: 1,
-//                                 },
-//                             )),
-//                             CUSTOM_TOKEN_1 => QuerierResult::Ok(to_binary(&IntBalanceResponse {
-//                                 balance: Balance {
-//                                     amount: Uint128(100),
-//                                 },
-//                             })),
-//                             _ => unimplemented!(),
-//                         }
-//                     }
-//                     _ => unimplemented!(),
-//                 },
-//                 _ => unimplemented!(),
-//             }
-//         }
-
-//         fn query<T: DeserializeOwned>(&self, request: &QueryRequest<Empty>) -> StdResult<T> {
-//             self.custom_query(request)
-//         }
-
-//         fn custom_query<T: serde::Serialize, U: DeserializeOwned>(
-//             &self,
-//             request: &QueryRequest<T>,
-//         ) -> StdResult<U> {
-//             let raw = match to_vec(request) {
-//                 Ok(raw) => raw,
-//                 Err(e) => {
-//                     return Err(StdError::generic_err(format!(
-//                         "Serializing QueryRequest: {}",
-//                         e
-//                     )))
-//                 }
-//             };
-//             match self.raw_query(&raw) {
-//                 Err(sys) => Err(StdError::generic_err(format!(
-//                     "Querier system error: {}",
-//                     sys
-//                 ))),
-//                 Ok(Err(err)) => Err(err),
-//                 // in theory we would process the response, but here it is the same type, so just pass through
-//                 Ok(Ok(res)) => from_binary(&res),
-//             }
-//         }
-
-//         fn query_balance<U: Into<HumanAddr>>(&self, address: U, denom: &str) -> StdResult<Coin> {
-//             let request = BankQuery::Balance {
-//                 address: address.into(),
-//                 denom: denom.to_string(),
-//             }
-//             .into();
-//             let res: BalanceResponse = self.query(&request)?;
-//             Ok(res.amount)
-//         }
-
-//         fn query_all_balances<U: Into<HumanAddr>>(&self, address: U) -> StdResult<Vec<Coin>> {
-//             let request = BankQuery::AllBalances {
-//                 address: address.into(),
-//             }
-//             .into();
-//             let res: AllBalanceResponse = self.query(&request)?;
-//             Ok(res.amount)
-//         }
-//     }
-//     #[derive(Serialize, Deserialize)]
-//     struct IntBalanceResponse {
-//         pub balance: Balance,
-//     }
-// }
+    pub struct MockQuerier {
+        portion: u128,
+    }    
+    
+    impl Querier for MockQuerier {
+        fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
+            let request: QueryRequest<Empty> = from_slice(bin_request).unwrap();
+            match &request {
+                QueryRequest::Wasm(msg) => match msg {                  
+                    WasmQuery::Smart { contract_addr, code_hash, msg} => {                       
+                        println!("{}", contract_addr);
+                        match contract_addr.as_str() {
+                            FACTORY_ADDRESS => {
+                                QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(to_binary(&FactoryQueryResponse::GetConfig {
+                                    pair_contract: ContractInstantiationInfo {
+                                        code_hash: "".to_string(),
+                                        id: 1,
+                                    },
+                                    amm_settings: shadeswap_shared::amm_pair::AMMSettings {
+                                        lp_fee: Fee::new(28, 10000),
+                                        shade_dao_fee: Fee::new(2, 10000),
+                                        shade_dao_address: Contract {
+                                            address: Addr::unchecked(String::from("DAO")),
+                                            code_hash: "".to_string(),
+                                        },
+                                    },
+                                    lp_token_contract: ContractInstantiationInfo {
+                                        code_hash: "".to_string(),
+                                        id: 1,
+                                    },
+                                    authenticator: None,
+                                    admin_auth: Contract { address: Addr::unchecked("admin_auth".to_string()), code_hash: "".to_string() },
+                                }).unwrap()))
+                            }
+                            "admin_auth" => {
+                                QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(to_binary(&ValidateAdminPermissionResponse{
+                                    has_permission: true,
+                                }).unwrap()))
+                            },
+                            PAIR_CONTRACT_1 =>                          
+                            {
+                             QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(to_binary(
+                                &AMMPairQueryMsgResponse::GetPairInfo {
+                                    liquidity_token: Contract {
+                                        address: Addr::unchecked("asd"),
+                                        code_hash: "".to_string(),
+                                    },
+                                    factory: Contract {
+                                        address: Addr::unchecked("asd"),
+                                        code_hash: "".to_string(),
+                                    },
+                                    pair: TokenPair(
+                                        TokenType::CustomToken {
+                                            contract_addr: Addr::unchecked(CUSTOM_TOKEN_1.to_string()),
+                                            token_code_hash: "hash".into(),
+                                        },
+                                        TokenType::NativeToken {
+                                            denom: "denom".into(),
+                                        },
+                                    ),
+                                    amount_0: Uint128::new(100),
+                                    amount_1: Uint128::new(101),
+                                    total_liquidity: Uint128::new(100),
+                                    contract_version: 1,
+                                },
+                                ).unwrap()))
+                            },
+                            CUSTOM_TOKEN_1 => QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(to_binary(&IntBalanceResponse {
+                                balance: Balance(Uint128::new(100)),
+                            }).unwrap())),
+                            _ => unimplemented!(),
+                        }
+                    }
+                    _ => unimplemented!(),
+                },
+                _ => unimplemented!(),
+            }
+        }
+    } 
+}

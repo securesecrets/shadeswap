@@ -364,20 +364,46 @@ pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Bi
     to_binary(&simulation_result)
 }
 
+fn lp_virtual_swap(deps: Deps, env: &Env, amm_settings: &AMMSettings, config: &Config, deposit: &TokenPairAmount, total_lp_token_supply: Uint128, pool_balances: [Uint128; 2]) -> StdResult<TokenPairAmount> {
+    let mut new_deposit = deposit.clone();
+
+    if !total_lp_token_supply.is_zero() {
+        //determine which token should be swapped for other
+        let ten_to_18th = Uint128::from(1_000_000_000_000_000_000u128);
+        let token0_ratio = (deposit.amount_0 * ten_to_18th) / pool_balances[0]; //actual decimal doesn't matter here since these values are only compared to each other, never used in math
+        let token1_ratio = (deposit.amount_1 * ten_to_18th) / pool_balances[1];
+        if token0_ratio > token1_ratio {
+            let extra_token0_amount = deposit.amount_0 - pool_balances[0].multiply_ratio(deposit.amount_1, pool_balances[1]);
+            let half_of_extra = extra_token0_amount / Uint128::from(2u32);
+            let offer = TokenAmount { token: new_deposit.pair.0.clone(), amount: half_of_extra };
+            
+            let swap = calculate_swap_result(deps, env, &amm_settings, &config, &offer, Some(false))?;
+
+            new_deposit.amount_0 = deposit.amount_0 - half_of_extra;
+            new_deposit.amount_1 = deposit.amount_1 + swap.result.return_amount;
+        } else if token1_ratio > token0_ratio {
+            let extra_token1_amount = deposit.amount_1 - pool_balances[1].multiply_ratio(deposit.amount_0, pool_balances[0]);
+            let half_of_extra = extra_token1_amount / Uint128::from(2u32);
+            let offer = TokenAmount { token: new_deposit.pair.1.clone(), amount: half_of_extra };
+
+            let swap = calculate_swap_result(deps, env, &amm_settings, &config, &offer, Some(false))?;
+
+            new_deposit.amount_0 = deposit.amount_0 + swap.result.return_amount;
+            new_deposit.amount_1 = deposit.amount_1 - half_of_extra;
+        }
+    }
+    Ok(new_deposit)
+}
+
 pub fn get_estimated_lp_token(
     deps: Deps,
     env: Env,
-    deposit: TokenPairAmount
+    deposit: &TokenPairAmount
 ) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
-    let Config {
-        pair,
-        viewing_key,
-        lp_token,
-        ..
-    } = config;
+    let amm_settings = query_factory_config(deps, &config.factory_contract)?.amm_settings;
 
-    if pair != deposit.pair {
+    if config.pair != deposit.pair {
         return Err(StdError::generic_err(
             "The provided tokens dont match those managed by the contract.",
         ));
@@ -386,11 +412,14 @@ pub fn get_estimated_lp_token(
     let pool_balances =
         deposit
             .pair
-            .query_balances(deps, env.contract.address.to_string(), viewing_key.0)?;
+            .query_balances(deps, env.contract.address.to_string(), config.viewing_key.0.clone())?;
 
-    let pair_contract_pool_liquidity = query_total_supply(deps, &lp_token)?;
+    let pair_contract_pool_liquidity = query_total_supply(deps, &config.lp_token)?;
+
+    let new_deposit = lp_virtual_swap(deps, &env, &amm_settings, &config, &deposit, pair_contract_pool_liquidity, pool_balances)?;
+
     let lp_tokens = calculate_lp_tokens(
-        &deposit,
+        &new_deposit,
         pool_balances,
         pair_contract_pool_liquidity,
     )?;
@@ -676,35 +705,11 @@ pub fn add_liquidity(
         }
     }
 
-    let mut new_deposit = deposit.clone();
-
-    //determine which token should be swapped for other
-    let ten_to_18th = Uint128::from(1_000_000_000_000_000_000u128);
-    let token0_ratio = (deposit.amount_0 * ten_to_18th) / pool_balances[0]; //actual decimal doesn't matter here since these values are only compared to each other, never used in math
-    let token1_ratio = (deposit.amount_1 * ten_to_18th) / pool_balances[1];
-    if token0_ratio > token1_ratio {
-        let extra_token0_amount = deposit.amount_0 - pool_balances[0].multiply_ratio(deposit.amount_1, pool_balances[1]);
-        let half_of_extra = extra_token0_amount / Uint128::from(2u32);
-        let offer = TokenAmount { token: deposit.pair.0, amount: half_of_extra };
-        
-        let swap = calculate_swap_result(deps.as_ref(), &env, &amm_settings, &config, &offer, Some(false))?;
-
-        new_deposit.amount_0 = deposit.amount_0 - half_of_extra;
-        new_deposit.amount_1 = deposit.amount_1 + swap.result.return_amount;
-    } else if token1_ratio > token0_ratio {
-        let extra_token1_amount = deposit.amount_1 - pool_balances[1].multiply_ratio(deposit.amount_0, pool_balances[0]);
-        let half_of_extra = extra_token1_amount / Uint128::from(2u32);
-        let offer = TokenAmount { token: deposit.pair.1, amount: half_of_extra };
-
-        let swap = calculate_swap_result(deps.as_ref(), &env, &amm_settings, &config, &offer, Some(false))?;
-
-        new_deposit.amount_0 = deposit.amount_0 + swap.result.return_amount;
-        new_deposit.amount_1 = deposit.amount_1 - half_of_extra;
-    }
-
     let pair_contract_pool_liquidity =
     query_total_supply(deps.as_ref(), &config.lp_token)?;
-    println!("total pool amount {}", pair_contract_pool_liquidity);
+
+    let new_deposit = lp_virtual_swap(deps.as_ref(), &env, &amm_settings, &config, &deposit, pair_contract_pool_liquidity, pool_balances)?;
+
     let lp_tokens = calculate_lp_tokens(
         &new_deposit,
         pool_balances,

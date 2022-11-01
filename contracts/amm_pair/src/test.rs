@@ -292,12 +292,13 @@ pub mod tests_calculation_price_and_fee {
 
     use super::*;
 
-    use cosmwasm_std::Decimal;
+    use cosmwasm_std::{Decimal, from_binary};
 
     use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount};
+    use shadeswap_shared::msg::amm_pair::QueryMsgResponse;
 
     use crate::operations::{
-        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity,
+        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity, get_estimated_lp_token,
     };
 
     use crate::test::help_test_lib::{
@@ -562,6 +563,40 @@ pub mod tests_calculation_price_and_fee {
         assert_eq!(withdraw0, Uint128::zero());
         assert!(withdraw1 > Uint128::from(100u32));
 
+    }
+
+    #[test]
+    fn assert_estimation_works_for_imbalanced_liquidity() {
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string())).unwrap();              
+        let mock_info = mock_info("Sender", &[]);
+
+        let deposit = TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(200u128),
+                amount_1: Uint128::from(100u128)
+            };
+
+        let estimated_lp_bin = get_estimated_lp_token(deps.as_ref(), mock_env(), &deposit).unwrap();
+        let msg = from_binary::<QueryMsgResponse>(&estimated_lp_bin).unwrap();
+        let estimated_lp = match msg {
+            QueryMsgResponse::EstimatedLiquidity { lp_token, total_lp_token: _ } => lp_token,
+            _ => { panic!("Unexpected msg type from estimated lp") },
+        };
+
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            deposit,
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        assert_eq!(lp_tokens_received, estimated_lp);
     }
 
     #[test]

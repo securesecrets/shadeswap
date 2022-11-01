@@ -369,7 +369,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             QueryMsg::SwapSimulation { offer } => swap_simulation(deps, env, offer),
             QueryMsg::GetShadeDaoInfo {} => get_shade_dao_info(deps),
             QueryMsg::GetEstimatedLiquidity { deposit } => {
-                get_estimated_lp_token(deps, env, deposit)
+                get_estimated_lp_token(deps, env, &deposit)
             }
             QueryMsg::GetConfig {} => {
                 let config = config_r(deps.storage).load()?;

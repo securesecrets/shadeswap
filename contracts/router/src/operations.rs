@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
+    to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, QuerierWrapper,
     QueryRequest, Response, StdError, StdResult, Storage, SubMsg, Uint128, Uint256, WasmMsg,
     WasmQuery,
 };
@@ -265,7 +265,6 @@ pub fn swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount) -> StdRes
     let mut sum_shade_dao_fee_amount: Uint128 = Uint128::zero();
     let mut next_in = offer.clone();
     let querier = &deps.querier;
-    let config = config_r(deps.storage).load()?;
 
     for hop in path {
         let contract = Contract {
@@ -356,17 +355,6 @@ pub struct PairConfig {
     pub amount_1: Uint128,
     pub total_liquidity: Uint128,
     pub contract_version: u32,
-}
-
-pub(crate) fn create_signature(env: &Env, info: MessageInfo) -> StdResult<Binary> {
-    to_binary(
-        &[
-            info.sender.as_bytes(),
-            &env.block.height.to_be_bytes(),
-            &env.block.time.seconds().to_be_bytes(),
-        ]
-        .concat(),
-    )
 }
 
 fn register_pair_token(

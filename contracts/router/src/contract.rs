@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut,
-    Env, MessageInfo, Response, StdError, StdResult, Uint128, SubMsgResult, Reply,
+    Env, MessageInfo, Response, StdError, StdResult, Uint128, Reply,
 };
 use shadeswap_shared::Contract;
 use shadeswap_shared::admin::helpers::{validate_admin, AdminPermissions};

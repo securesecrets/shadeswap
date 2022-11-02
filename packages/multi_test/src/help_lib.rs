@@ -104,7 +104,7 @@ pub mod integration_help_lib{
 
     pub fn roll_blockchain(router: &mut App, count: u128) -> StdResult<()>{
         let temp_count = count + 1;
-        for i in 1..temp_count {            
+        for _i in 1..temp_count {            
             router.update_block(next_block);         
         }
         Ok(())
@@ -331,7 +331,7 @@ pub mod integration_help_lib{
         stake_contract: &ContractInfo,
         amount: Uint128,
         staker: &Addr,
-        proxy_addr: &Addr,
+        _proxy_addr: &Addr,
         sender: &Addr
     ) -> StdResult<AppResponse>{        
         let invoke_msg = to_binary(&InvokeMsg::ProxyStake { 

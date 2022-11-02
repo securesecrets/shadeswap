@@ -1,47 +1,6 @@
-use std::{io, string};
+use std::{io};
 use std::env;
-use std::io::{Write};
-use std::io::BufRead;
 use network_integration::cli_menu::parse_args;
-use secretcli::cli_types::StoredContract;
-use shadeswap_shared::core::{ TokenPair, TokenPairAmount, TokenType, Fee, ViewingKey};
-use shadeswap_shared::router;
-use cosmwasm_std::{Uint128, Addr};
-use cosmwasm_std::to_binary;
-use colored::Colorize;
-use network_integration::utils::{
-    generate_label, init_snip20, print_contract, print_header, print_vec, print_warning,
-    AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY, 
-    STAKING_FILE, VIEW_KEY, InitConfig, init_contract_factory, init_snip20_cli,
-};
-use secretcli::{
-    cli_types::NetContract,
-    secretcli::{account_address, handle, init, query, store_and_return_contract, Report},
-};
-use shadeswap_shared::{
-    amm_pair::{AMMPair, AMMSettings},
-    core::{ContractInstantiationInfo},
-    msg::{
-        amm_pair::{
-            ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg,
-            QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
-        },
-        factory::{
-            ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg,
-            QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
-        },
-        router::{
-            ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
-            QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
-        },
-        staking::{
-            ExecuteMsg as StakingMsgHandle, QueryMsg as StakingQueryMsg,
-            QueryResponse as StakingQueryMsgResponse,
-        },
-    },
-    stake_contract::StakingContractInit,
-    Pagination,
-};
 
 
 fn main() -> io::Result<()> {

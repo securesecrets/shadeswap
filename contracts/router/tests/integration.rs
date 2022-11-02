@@ -8,7 +8,7 @@ use cosmwasm_std::{
 #[test]
 pub fn router_integration_tests() {    
     use multi_test::admin::admin_help::init_admin_contract;
-    use multi_test::amm_pairs::amm_pairs_lib::amm_pairs_lib::store_init_amm_pair_contract;
+    use multi_test::amm_pairs::amm_pairs_lib::amm_pairs_lib::{init_amm_pair};
     use router::contract::{instantiate, query, execute, reply};
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, store_init_factory_contract, 
         convert_to_contract_link};
@@ -57,13 +57,17 @@ pub fn router_integration_tests() {
     roll_blockchain(&mut router, 1).unwrap();
     let admin_contract = init_admin_contract(&mut router, &owner_addr).unwrap();
     let factory_contract = store_init_factory_contract(&mut router, &convert_to_contract_link(&admin_contract)).unwrap();
-    let amm_pair_contract = store_init_amm_pair_contract(
+    let amm_pair_contract = init_amm_pair(
         &mut router, 
+        &owner_addr,
         &convert_to_contract_link(&token_0_contract), 
         &convert_to_contract_link(&token_1_contract), 
         &convert_to_contract_link(&factory_contract),
         &convert_to_contract_link(&admin_contract),
-        &owner_addr
+        false,
+        "seed",
+        None,
+        None
     ).unwrap();
     
     // Create Router

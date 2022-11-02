@@ -232,7 +232,7 @@ pub mod tests {
         config_w(deps.as_mut().storage).save(&_config)?;
         let amount = Uint128::new(1000u128);
         let result = get_estimated_lp_token(deps.as_ref(), env, 
-            mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount));
+            &mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount));
         match result.unwrap_err() {
             e =>  assert_eq!(e, StdError::generic_err(
                 "The provided tokens dont match those managed by the contract.",

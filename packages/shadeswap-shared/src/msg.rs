@@ -227,8 +227,8 @@ pub mod amm_pair {
         },
         RemoveLiquidity {
             from: Option<Addr>,
-            single_sided: bool,
-            single_sided_withdraw_in_token0: Option<bool>,
+            single_sided_withdraw_type: Option<TokenType>, //None means 50/50 balanced withdraw, and a value here tells which token to send the withdraw in
+            single_sided_expected_return: Option<Uint128>, //this field will be ignored on balanced withdraws
         },
     }
     #[derive(Serialize, Deserialize, JsonSchema,  Clone, Debug)]

@@ -308,7 +308,7 @@ pub mod tests_calculation_price_and_fee {
         make_init_config_test_calculate_price_fee, mk_amm_settings_a,
         mk_custom_token_amount_test_calculation_price_fee,
         mk_native_token_pair_test_calculation_price_fee, mk_token_pair_test_calculation_price_fee,
-        mock_custom_env, mock_dependencies,
+        mock_custom_env, mock_dependencies, testing_str_to_token_type,
     };
 
     #[test]
@@ -568,8 +568,8 @@ pub mod tests_calculation_price_and_fee {
             mock_env(),
             Uint128::from(100000u32),
             Addr::unchecked("Sender"),
-            true,
-            Some(true),
+            Some(testing_str_to_token_type(CUSTOM_TOKEN_1)),
+            None,
         ).unwrap();
         let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
         let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
@@ -582,8 +582,8 @@ pub mod tests_calculation_price_and_fee {
             mock_env(),
             Uint128::from(100000u32),
             Addr::unchecked("Sender"),
-            true,
-            Some(false),
+            Some(testing_str_to_token_type(CUSTOM_TOKEN_2)),
+            None,
         ).unwrap();
         let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
         let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
@@ -654,7 +654,7 @@ pub mod tests_calculation_price_and_fee {
             mock_env(),
             balanced_lp_tokens_received,
             Addr::unchecked("Sender"),
-            false,
+            None,
             None,
         ).unwrap();
         let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
@@ -683,7 +683,7 @@ pub mod tests_calculation_price_and_fee {
             mock_env(),
             sslp_tokens_received,
             Addr::unchecked("Sender"),
-            false,
+            None,
             None,
         ).unwrap();
         let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
@@ -708,12 +708,24 @@ pub mod tests_calculation_price_and_fee {
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let imbalanced_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
 
+        //test sslp withdraw slippage limit works
+        let withdraw_expect_err = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            imbalanced_tokens_received,
+            Addr::unchecked("Sender"),
+            Some(testing_str_to_token_type(CUSTOM_TOKEN_1)),
+            Some(Uint128::new(1000000000000000u128)),
+        );
+        assert!(withdraw_expect_err.is_err());
+        assert_eq!(withdraw_expect_err.err().unwrap(), StdError::generic_err("Single sided withdraw returned less than the expected amount"));
+
         let withdraw_result = remove_liquidity(
             deps.as_mut(),
             mock_env(),
             imbalanced_tokens_received,
             Addr::unchecked("Sender"),
-            false,
+            None,
             None,
         ).unwrap();
         let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
@@ -1273,16 +1285,17 @@ pub mod help_test_lib {
 
     pub fn mk_token_pair_test_calculation_price_fee() -> TokenPair {
         let pair = TokenPair(
-            TokenType::CustomToken {
-                contract_addr: Addr::unchecked(CUSTOM_TOKEN_1.to_string().clone()),
-                token_code_hash: CUSTOM_TOKEN_1.to_string(),
-            },
-            TokenType::CustomToken {
-                contract_addr: Addr::unchecked(CUSTOM_TOKEN_2.to_string().clone()),
-                token_code_hash: CUSTOM_TOKEN_2.to_string(),
-            },
+            testing_str_to_token_type(CUSTOM_TOKEN_1),
+            testing_str_to_token_type(CUSTOM_TOKEN_2),
         );
         pair
+    }
+
+    pub fn testing_str_to_token_type(address: &str) -> TokenType {
+            TokenType::CustomToken {
+                contract_addr: Addr::unchecked(address.to_string().clone()),
+                token_code_hash: address.to_string(),
+            }
     }
 
     pub fn mk_custom_token_amount_test_calculation_price_fee(

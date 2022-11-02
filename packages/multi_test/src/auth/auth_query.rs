@@ -1,4 +1,3 @@
-
 pub mod auth_query{
     use cosmwasm_std::{Response, StdResult, MessageInfo, DepsMut, Env, entry_point, to_binary, Deps, Binary, CosmosMsg, BankMsg, Coin, Addr};
     use query_authentication::transaction::{PubKey, PubKeyValue};
@@ -32,7 +31,7 @@ pub mod auth_query{
         pad_query_result(
             match msg {
                 QueryMsg::Config {  } => to_binary(""),
-                QueryMsg::ValidateViewingKey { user, key } => to_binary(""),
+                QueryMsg::ValidateViewingKey { user:_, key:_ } => to_binary(""),
                 QueryMsg::ValidatePermit { permit } => {
                     let pub_key = permit.signature.pub_key.value.clone(); 
                     let pub_key_value = PubKeyValue(pub_key);                  

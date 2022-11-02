@@ -2,14 +2,10 @@ use cosmwasm_std::{
     to_binary, Addr, Empty, ContractInfo, StdResult,
 };
 use factory::contract::{execute, instantiate, query};
-use multi_test::help_lib::integration_help_lib::{convert_to_contract_link, roll_blockchain, store_init_amm_pair_contract, generate_snip20_contract};
+use multi_test::{help_lib::integration_help_lib::{convert_to_contract_link, roll_blockchain, generate_snip20_contract, store_init_auth_contract}, 
+    amm_pairs::amm_pairs_lib::amm_pairs_lib::store_init_amm_pair_contract};
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
-use shadeswap_shared::{
-    core::{ContractInstantiationInfo, },
-    factory::{InitMsg, QueryResponse, QueryMsg},
-    utils::testing::TestingExt,
-    Contract as SContract
-};
+use shadeswap_shared::{utils::testing::TestingExt, core::{ContractInstantiationInfo, }, factory::{InitMsg, QueryResponse, QueryMsg}, Contract as SContract};
 
 pub fn contract_counter() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new_with_empty(execute, instantiate, query);
@@ -19,23 +15,20 @@ pub fn contract_counter() -> Box<dyn Contract<Empty>> {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn factory_integration_tests() {
-    use multi_test::help_lib::integration_help_lib::{store_init_amm_pair_contract, generate_snip20_contract, snip_20_balance_query, convert_to_contract_link, create_token_pair, amm_pair_contract_store};
+    use multi_test::admin::admin_help::init_admin_contract;
+    use multi_test::amm_pairs::amm_pairs_lib::amm_pairs_lib::amm_pair_contract_store;
+    use multi_test::help_lib::integration_help_lib::{generate_snip20_contract, snip_20_balance_query, convert_to_contract_link, create_token_pair};
     use shadeswap_shared::Pagination;
     use shadeswap_shared::amm_pair::AMMPair;
     use shadeswap_shared::factory::ExecuteMsg;
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance, get_current_block_time, send_snip20_to_proxy_stake, set_viewing_key};
-    use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp};
+    use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp, OwnedDeps};
     use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
-    use multi_test::util_addr::util_blockchain::CHAIN_ID;
-    use shadeswap_shared::utils::testing::TestingExt;
-    use shadeswap_shared::{core::{TokenType}};
-    use multi_test::help_lib::integration_help_lib::print_events;
-       
-    let staker_a_addr = Addr::unchecked(STAKER_A.to_owned());       
-    let staker_b_addr = Addr::unchecked(STAKER_B.to_owned());       
+        use shadeswap_shared::utils::testing::TestingExt;    
+         
     let owner_addr = Addr::unchecked(OWNER);   
     let mut router = App::default();     
-
+    let auth_contract = init_admin_contract(&mut router, &owner_addr).unwrap();
     let amm_pair_contract_id = router.store_code(amm_pair_contract_store());
     let init_msg = InitMsg {
         pair_contract: ContractInstantiationInfo {
@@ -57,7 +50,7 @@ fn factory_integration_tests() {
         prng_seed: to_binary(&"".to_string()).unwrap(),
         api_key: "api_key".to_string(),
         authenticator: None,
-        admin_auth: SContract { address: Addr::unchecked(OWNER), code_hash: "".to_string() }
+        admin_auth: convert_to_contract_link(&auth_contract)
     };
     let factory_contract_id = router.store_code(contract_counter());
     let factory_contract = router
@@ -75,7 +68,7 @@ fn factory_integration_tests() {
     roll_blockchain(&mut router, 1).unwrap();
     let query: QueryResponse = router.query_test(factory_contract.clone(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
     match query {
-        QueryResponse::GetConfig { pair_contract: _, amm_settings, lp_token_contract: _, authenticator: _, admin_auth } => {
+        QueryResponse::GetConfig { pair_contract: _, amm_settings, lp_token_contract: _, authenticator: _, admin_auth: _} => {
             assert_eq!(amm_settings.lp_fee, shadeswap_shared::core::Fee { nom: 2, denom: 100 });
             assert_eq!(amm_settings.shade_dao_fee, shadeswap_shared::core::Fee { nom: 2, denom: 100 });
         },
@@ -83,7 +76,13 @@ fn factory_integration_tests() {
     }
 
     // Assert Add Amm_Pair
-    let (token_0_contract, token_1_contract, mock_amm_pairs) = setup_create_amm_pairs(&mut router,  "ETH", "USDT",&factory_contract).unwrap();
+    let (token_0_contract, token_1_contract, mock_amm_pairs) = setup_create_amm_pairs(
+        &mut router,  
+        "ETH", 
+        "USDT",
+        &factory_contract,
+    &owner_addr).unwrap();
+
     roll_blockchain(&mut router, 1).unwrap();
     let pair = create_token_pair(
         &convert_to_contract_link(&token_0_contract), 
@@ -116,12 +115,17 @@ fn factory_integration_tests() {
         QueryResponse::ListAMMPairs { amm_pairs } => {
            assert_eq!(amm_pairs.len(), 1);
         },
-        QueryResponse::GetConfig { pair_contract, amm_settings, lp_token_contract, authenticator , admin_auth: _} => todo!(),
-        QueryResponse::GetAMMPairAddress { address } => todo!(),
-        QueryResponse::AuthorizeApiKey { authorized } => todo!(),        
+        QueryResponse::GetConfig { pair_contract: _, amm_settings: _, lp_token_contract: _, authenticator: _ , admin_auth: _} => todo!(),
+        QueryResponse::GetAMMPairAddress { address: _ } => todo!(),
+        QueryResponse::AuthorizeApiKey { authorized: _ } => todo!(),        
     };
-
-    let (token_0_contract, token_1_contract, mock_amm_pairs) = setup_create_amm_pairs(&mut router,  "BTC", "ETH",&factory_contract).unwrap();
+    roll_blockchain(&mut router, 1).unwrap();
+    let (token_0_contract, token_1_contract, _mock_amm_pair) = setup_create_amm_pairs(
+        &mut router,  
+        "BTC", 
+        "ETH",
+        &factory_contract,
+    &owner_addr).unwrap();
     let create_msg = ExecuteMsg::CreateAMMPair { 
         pair: create_token_pair(
             &convert_to_contract_link(&token_0_contract), 
@@ -145,26 +149,30 @@ fn factory_integration_tests() {
         QueryResponse::ListAMMPairs { amm_pairs } => {
            assert_eq!(amm_pairs.len(), 2);
         },
-        QueryResponse::GetConfig { pair_contract, amm_settings, lp_token_contract, authenticator, admin_auth: _ } => todo!(),
-        QueryResponse::GetAMMPairAddress { address } => todo!(),
-        QueryResponse::AuthorizeApiKey { authorized } => todo!(),  
+        QueryResponse::GetConfig { pair_contract: _, amm_settings: _, lp_token_contract:_, authenticator: _, admin_auth: _ } => todo!(),
+        QueryResponse::GetAMMPairAddress { address: _ } => todo!(),
+        QueryResponse::AuthorizeApiKey { authorized: _ } => todo!(),  
         _ => {}      
     };
 
 }
 
 
-pub fn setup_create_amm_pairs(router: &mut App, symbol_0: &str, symbol_1: &str, factory_contract: &ContractInfo) 
+pub fn setup_create_amm_pairs(router: &mut App, symbol_0: &str, symbol_1: &str, factory_contract: &ContractInfo, sender: &Addr) 
     -> StdResult<(cosmwasm_std::ContractInfo, cosmwasm_std::ContractInfo, cosmwasm_std::ContractInfo)> {
     let token_0_contract = generate_snip20_contract(router, symbol_0.to_string(), symbol_0.to_string(), 18).unwrap();
     roll_blockchain(router, 1).unwrap();
     let token_1_contract = generate_snip20_contract(router, symbol_1.to_string(), symbol_1.to_string(), 18).unwrap();
     roll_blockchain(router, 1).unwrap();
+    // auth contract
+    let auth_query_contract = store_init_auth_contract(router)?;
     let mock_amm_pairs = store_init_amm_pair_contract(
         router, 
         &convert_to_contract_link(&token_0_contract), 
         &convert_to_contract_link(&token_1_contract),
-        &convert_to_contract_link(factory_contract)
+        &convert_to_contract_link(factory_contract),
+        &convert_to_contract_link(&auth_query_contract),
+        &sender
     ).unwrap();
     let response = (token_0_contract, token_1_contract, mock_amm_pairs);
     Ok(response)

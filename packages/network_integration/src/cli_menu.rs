@@ -60,18 +60,19 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
     }
 
     if args_command == CMDCREATEFACTORY {
-        if args.len() != 4 {
+        if args.len() != 5 {
             return Err(Error::new(ErrorKind::Other, "Please provide all args"));
         } 
 
         let account_name = args[2].clone();
         let backend = args[3].clone();      
-        let factory: NetContract = create_factory_contract(&account_name, &backend, reports)?;
+        let admin = args[4].clone();
+        let factory: NetContract = create_factory_contract(&account_name, &backend, reports, &admin)?;
         print_contract_details_cli(factory, "Factory".to_string());
     }
 
     if args_command == CMDCREATEROUTER{
-        if args.len() != 6 {
+        if args.len() != 7 {
             return Err(Error::new(ErrorKind::Other, "Please provide all args"));
         } 
 
@@ -79,7 +80,8 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
         let backend = args[3].clone(); 
         let _viewing_key = args[4].clone();    
         let code_hash = args[5].clone(); 
-        let router: NetContract = create_router_contract(code_hash.clone(), &account_name, &backend,  reports)?;
+        let admin = args[6].clone();
+        let router: NetContract = create_router_contract(code_hash.clone(), &account_name, &backend,  reports, &admin)?;
         print_contract_details_cli(router, "Router".to_string());
     }
 
@@ -295,8 +297,8 @@ pub fn print_help() -> io::Result<()>
     let mut handle = stdout.lock();
     handle.write_all(b"Welcome to the Shadeswap CLI.")?;
     handle.write_all(b"\n\t1. Command:: snip20 <account_name> <keyring_backend> <name> <symbol> <decimal> <viewing_key> <enable_redeem> <enable_deposit> <enable_burn> <enable_mint> <total_supply> -- Create new Snip20 Contract")?;
-    handle.write_all(b"\n\t2. Command:: factory <account_name> <keyring_backend> -- Create new Factory Contract")?;
-    handle.write_all(b"\n\t3. Command:: router <account_name> <keyring_backend>  <viewing_key> <pair_contract_code_hash> -- Create new Router Contract")?;
+    handle.write_all(b"\n\t2. Command:: factory <account_name> <keyring_backend> <admin_addr> -- Create new Factory Contract")?;
+    handle.write_all(b"\n\t3. Command:: router <account_name> <keyring_backend>  <viewing_key> <pair_contract_code_hash> <admin_addr> -- Create new Router Contract")?;
     handle.write_all(b"\n\t4. Command:: store_amm_pair <account_name> <keyring_backend> -- Store AMM Pair Contract")?;
     handle.write_all(b"\n\t5. Command:: reg_snip20 <account_name> <keyring_backend> <snip20_address> <snip20_code_hash> <router_address> -- Register Snip20 to Router")?;
     handle.write_all(b"\n\t6. Command:: allow_snip20 <account_name> <keyring_backend> <snip20_address> <spender> <amount> -- Increase Allowance for SNIP20")?;

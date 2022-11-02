@@ -15,7 +15,7 @@ use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staking_stake_lp_token_info,
         proxy_stake, proxy_unstake, set_reward_token, stake, store_init_reward_token_and_timestamp,
-        unstake, update_authenticator,
+        unstake, update_authenticator, get_reward_token_to_list,
     },
     state::{config_r, config_w, prng_seed_w, Config},
 };
@@ -223,5 +223,6 @@ pub fn auth_queries(deps: Deps, _env: Env, msg: AuthQuery, user: Addr) -> StdRes
     match msg {
         AuthQuery::GetClaimReward { time } => get_claim_reward_for_user(deps, user, time),
         AuthQuery::GetStakerLpTokenInfo {} => get_staking_stake_lp_token_info(deps, user),
+        AuthQuery::GetRewardTokens {  } => get_reward_token_to_list(deps.storage),
     }
 }

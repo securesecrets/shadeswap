@@ -15,7 +15,6 @@ use shadeswap_shared::{
     msg::{
         amm_pair::{QueryMsgResponse, SwapInfo, SwapResult, TradeHistory},
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
-        router::ExecuteMsg as RouterExecuteMsg,
         staking::{InitMsg as StakingInitMsg, InvokeMsg as StakingInvokeMsg},
     },
     snip20::{

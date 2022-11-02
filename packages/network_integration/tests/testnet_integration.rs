@@ -1571,7 +1571,7 @@ fn run_testnet() -> Result<()> {
                         time: get_current_timestamp().unwrap(),
                     },
                 };
-                let claims_reward_response: StakingQueryMsgResponse = query(
+                let _claims_reward_response: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
                         id: "".to_string(),
@@ -1609,7 +1609,7 @@ fn run_testnet() -> Result<()> {
                     reward_token,
                     lp_token: _,
                     daily_reward_amount,
-                    amm_pair,
+                    amm_pair: _,
                     admin_auth: _,
                 } = config_query_response
                 {

@@ -324,9 +324,9 @@ pub fn amm_pair_integration_tests_with_custom_token() {
 pub fn amm_pair_integration_tests_native_token() {    
     use amm_pair::contract::{instantiate, query, execute};
     use multi_test::admin::admin_help::init_admin_contract;
-    use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, increase_allowance, store_init_factory_contract, create_token_pair, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance, create_token_pair_with_native};
+    use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, increase_allowance, store_init_factory_contract, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance, create_token_pair_with_native};
     use cosmwasm_std::{Uint128, Coin, Timestamp};
-    use multi_test::util_addr::util_addr::{OWNER, STAKER_A, STAKER_B};       
+    use multi_test::util_addr::util_addr::{OWNER};       
     use shadeswap_shared::core::{ContractInstantiationInfo, TokenPairAmount, TokenAmount, CustomFee, Fee};
     use shadeswap_shared::msg::amm_pair::InvokeMsg;
     

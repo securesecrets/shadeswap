@@ -155,7 +155,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
         Some("test"),
     )?;
 
-    let admin_contract = store_and_return_contract(
+    let _admin_contract = store_and_return_contract(
         &ADMIN_FILE.replace("../", ""),
         ACCOUNT_KEY,
         Some(STORE_GAS),
@@ -673,7 +673,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
         Some("test"),
     )?;
 
-    let admin_contract = store_and_return_contract(
+    let _admin_contract = store_and_return_contract(
         &ADMIN_FILE.replace("../", ""),
         ACCOUNT_KEY,
         Some(STORE_GAS),

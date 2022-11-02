@@ -24,7 +24,7 @@ pub mod auth_query{
     }
 
     #[entry_point]
-    pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         pad_query_result(
             match msg {
                 QueryMsg::Config {  } => to_binary(""),
@@ -45,14 +45,14 @@ pub mod auth_query{
 
     
     #[entry_point]
-    pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+    pub fn execute(_deps: DepsMut, _env: Env, _info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
         pad_response_result(
             match msg {
-                ExecuteMsg::SetAdminAuth { admin, padding } => Ok(Response::new()),
-                ExecuteMsg::SetRunState { state, padding } => Ok(Response::new()),
-                ExecuteMsg::SetViewingKey { key, padding } => Ok(Response::new()),
-                ExecuteMsg::CreateViewingKey { entropy, padding } => Ok(Response::new()),
-                ExecuteMsg::BlockPermitKey { key, padding } => Ok(Response::new()),
+                ExecuteMsg::SetAdminAuth { admin: _, padding: _ } => Ok(Response::new()),
+                ExecuteMsg::SetRunState { state: _, padding: _ } => Ok(Response::new()),
+                ExecuteMsg::SetViewingKey { key: _, padding: _ } => Ok(Response::new()),
+                ExecuteMsg::CreateViewingKey { entropy: _, padding: _ } => Ok(Response::new()),
+                ExecuteMsg::BlockPermitKey { key: _, padding: _ } => Ok(Response::new()),
             },
             BLOCK_SIZE,
         )

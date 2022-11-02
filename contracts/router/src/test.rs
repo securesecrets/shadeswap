@@ -26,10 +26,10 @@ pub mod tests {
     use shadeswap_shared::core::TokenPair;
     use shadeswap_shared::msg::amm_pair::{ExecuteMsg as AMMPairExecuteMsg};
     use shadeswap_shared::msg::factory::{ QueryResponse as FactoryQueryResponse};
-    use shadeswap_shared::msg::amm_pair::{QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse};
+    use shadeswap_shared::msg::amm_pair::{QueryMsgResponse as AMMPairQueryMsgResponse};
     use cosmwasm_std::Api;
     use cosmwasm_std::Coin;
-    use cosmwasm_std::CosmosMsg;
+    
     use cosmwasm_std::Empty;
     use cosmwasm_std::Env;
     use cosmwasm_std::Querier;
@@ -49,7 +49,7 @@ pub mod tests {
     use shadeswap_shared::router::Hop;
     use shadeswap_shared::router::InitMsg;
     use shadeswap_shared::router::InvokeMsg;
-    use shadeswap_shared::snip20;
+    
     use shadeswap_shared::snip20::manager::Balance;
 
     pub const FACTORY_ADDRESS: &str = "FACTORY_ADDRESS";
@@ -222,7 +222,7 @@ pub mod tests {
                 println!("{:?}", info.messages);
             }
             Err(err) => {
-                let test = err.to_string();
+                let _test = err.to_string();
                 assert_eq!(StdError::generic_err("No matching token in pair"),err);                
             }
         }
@@ -435,7 +435,7 @@ pub mod tests {
         Ok(())
     }
 
-    fn mkconfig(env: Env, id: u64) -> Config {
+    fn mkconfig(_env: Env, _id: u64) -> Config {
         Config{
             viewing_key: "SHADE_ROUTER_KEY".to_string(),
             admin_auth: Contract{address: Addr::unchecked("".to_string()), code_hash: "".to_string()},
@@ -502,7 +502,7 @@ pub mod tests {
             let request: QueryRequest<Empty> = from_slice(bin_request).unwrap();
             match &request {
                 QueryRequest::Wasm(msg) => match msg {                  
-                    WasmQuery::Smart { contract_addr, code_hash, msg} => {                       
+                    WasmQuery::Smart { contract_addr, code_hash: _, msg: _} => {                       
                         println!("{}", contract_addr);
                         match contract_addr.as_str() {
                             FACTORY_ADDRESS => {

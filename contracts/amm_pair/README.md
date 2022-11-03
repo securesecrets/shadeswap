@@ -10,7 +10,8 @@
             * [SetConfig](#SetConfig)        
             * [RecoverFunds](#RecoverFunds)                
     * [User](#User)
-        * Messages   
+        * Messages
+            * [Receive](#Receive)  
             * [AddLiquidityToAMMContract](#AddLiquidityToAMMContract)
             * [SwapTokens](#SwapTokens)
             * [SetViewingKey](#SetViewingKey)
@@ -23,17 +24,11 @@
             * [GetStakingContract](#GetStakingContract)  
             * [GetEstimatedPrice](#GetEstimatedPrice)
             * [GetEstimatedLiquidity](#GetEstimatedLiquidity)
-    * [Hooks]
-        * Messages
-            * [Receive](#Receive)
     * [Invoke]
         * Messages
             * [SwapTokens](#SwapTokens(Callback))
             * [RemoveLiquidity](#RemoveLiquidity)
-    <!-- * [Callback]
-        * Messages
-            * [SwapTokens (Callback)](#SwapTokens(Callback)) -->
-            
+
 
 # Introduction
 The Contract to hold Pair Between Swap Tokens.
@@ -361,6 +356,27 @@ Update the viewing Key for a Pair.
 }
 ```
 
+#### Receive
+Extension of the SNIP20 receive callback used when receiving SNIP20 tokens used for trades.
+
+
+##### Request
+
+|Name|Type|Description|Optional|
+|-|-|-|-|
+| from | HumanAddr | who invokes the callback                  | no      |
+| amount | Uint128 | amount sent               | no       |
+| msg | Binary | Message to Invoke in Pair Contract                  | yes       |
+
+
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
 
 #### AddLiquidityToAMMContract
 Add Liquidity to the Pool and Staking Contract if configured.
@@ -424,30 +440,3 @@ Remove liquidity for address and remove from staking if applicable.
   }
 }
 ```
-
-
-## Callback
-### Messages
-
-#### Receive
-Receiver Callback.
-
-##### Request
-
-| Name      | Type        | Description                             | optional |
-|-----------|----------------|--------------------------------------|----------|
-| from | HumanAddr | who invokes the callback                  | no      |
-| amount | Uint128 | amount sent               | no       |
-| msg |  | Message to Invoke in Pair Contract                  | yes       |
-
-
-##### Response
-```json
-{
-  "complete_task": {
-    "status": "success"
-  }
-}
-```
-
-

@@ -319,7 +319,7 @@ Get All addresses from whitelist.
 ### Messages
 
 #### SwapTokens
-Swap Tokens.
+Swap Native Tokens.
 
 ##### Request
 

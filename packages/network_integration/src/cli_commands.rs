@@ -1,6 +1,6 @@
 pub mod snip20_lib {
     use std::io;
-
+    use serde_json::Result;
     use secretcli::{
         cli_types::NetContract,
         secretcli::{handle, query, Report},
@@ -70,7 +70,7 @@ pub mod snip20_lib {
         enable_deposit: bool,
         enable_redeem: bool,
         public_total_sypply: bool,
-    ) -> io::Result<NetContract> {
+    ) -> Result<NetContract> {
         let config = InitConfig {
             enable_burn: Some(enable_burn),
             enable_mint: Some(enable_mint),
@@ -155,7 +155,7 @@ pub mod snip20_lib {
 pub mod factory_lib {
     use std::io;
 
-    use cosmwasm_std::Uint128;
+    use cosmwasm_std::{Uint128, Binary};
     use secretcli::{
         cli_types::NetContract,
         secretcli::{handle, store_and_return_contract, Report},
@@ -178,7 +178,15 @@ pub mod factory_lib {
         account_name: &str,
         backend: &str,
         reports: &mut Vec<Report>,
-        admin_contract: &str
+        admin_contract: &str,
+        api_key:&str,
+        seed: &str,
+        shade_dao_address: &str,
+        lp_fee_nom: u8,
+        lp_fee_denom: u16,
+        shade_dao_fee_nom: u8,
+        shade_dao_fee_denom: u16,  
+        auth_addr: Option<String>,       
     ) -> io::Result<NetContract> {
         println!("Creating New Factory");
         let lp_token = store_and_return_contract(
@@ -187,6 +195,11 @@ pub mod factory_lib {
             Some(STORE_GAS),
             Some(backend),
         )?;
+
+        let authenticator = match auth_addr {
+            Some(addr) => Some(Contract{address: Addr::unchecked(addr), code_hash: "".to_string()}),
+            None => None,
+        };
 
         let pair_contract = store_and_return_contract(
             &AMM_PAIR_FILE,
@@ -201,10 +214,10 @@ pub mod factory_lib {
                 id: pair_contract.id.clone().parse::<u64>().unwrap(),
             },
             amm_settings: AMMSettings {
-                shade_dao_fee: Fee::new(8, 100),
-                lp_fee: Fee::new(2, 8),
+                shade_dao_fee: Fee::new(shade_dao_fee_nom, shade_dao_fee_denom),
+                lp_fee: Fee::new(lp_fee_nom, lp_fee_denom),
                 shade_dao_address: Contract {
-                    address: Addr::unchecked("".to_string()),
+                    address: Addr::unchecked(shade_dao_address.to_string()),
                     code_hash: "".to_string(),
                 },
             },
@@ -212,9 +225,9 @@ pub mod factory_lib {
                 code_hash: lp_token.code_hash.to_string().clone(),
                 id: lp_token.id.clone().parse::<u64>().unwrap(),
             },
-            prng_seed: to_binary(&"".to_string()).unwrap(),
+            prng_seed: to_binary(seed).unwrap(),
             api_key: API_KEY.to_string(),
-            authenticator: None,
+            authenticator: authenticator,
             admin_auth: Contract{address: Addr::unchecked(admin_contract.to_string()), code_hash: "".to_string()},
         };
 
@@ -297,6 +310,63 @@ pub mod factory_lib {
         )?;
         Ok(())
     }
+
+    pub fn send_snip_with_msg(
+        account_name: &str,
+        backend: &str,
+        token_addr: &str,
+        snip_20_amount: Uint128,
+        recipient: &str,
+        recipient_code_hash: Option<String>,
+        msg: Option<String>,
+        reports: &mut Vec<Report>,
+    ) -> io::Result<()> {
+        println!(
+            "Send to SNIP20 - token {} - amount {} - recipient {}",
+            token_addr.to_string(),
+            snip_20_amount.to_string(),
+            recipient.to_string()
+        );
+
+        let msg_binary: Option<Binary> = match msg{
+            Some(mg) => Some(to_binary(&mg).unwrap()),
+            None => None,
+        };
+
+        let rec_code_hash = match recipient_code_hash{
+            Some(hash) => Some(hash),
+            None => None,
+        };
+
+        let net_contract = NetContract {
+            label: "".to_string(),
+            id: "".to_string(),
+            address: token_addr.to_string(),
+            code_hash: "".to_string(),
+        };
+
+        let msg = snip20_reference_impl::msg::ExecuteMsg::Send { 
+            recipient: Addr::unchecked(token_addr.to_string()), 
+            recipient_code_hash: rec_code_hash, 
+            amount: snip_20_amount, 
+            msg: msg_binary, 
+            memo: None, 
+            padding: None 
+        };
+
+        handle(
+            &msg,
+            &net_contract,
+            account_name,
+            Some(GAS),
+            Some(backend),
+            None,
+            reports,
+            None,
+        )?;
+        Ok(())
+    }
+
 
     pub fn increase_allowance(
         spender: String,
@@ -483,6 +553,8 @@ pub mod amm_pair_lib {
         reward_contract_address: String,
         reward_contract_code_hash: String,
         reward_amount: Uint128,
+        valid_to: Uint128,
+        router_contract: Option<String>,
         reports: &mut Vec<Report>,
     ) -> io::Result<()> {
         println!(
@@ -497,6 +569,14 @@ pub mod amm_pair_lib {
             id: "".to_string(),
             address: factory_addr.clone(),
             code_hash: "".to_string(),
+        };
+
+        let router_contr: Option<Contract> = match router_contract{
+            Some(contract) => Some(Contract{ 
+                address: Addr::unchecked(contract), 
+                code_hash: "".to_string(),
+            }),
+            None => None
         };
 
         let pairs = TokenPair(
@@ -526,9 +606,9 @@ pub mod amm_pair_lib {
                         contract_addr: Addr::unchecked(reward_contract_address.clone()),
                         token_code_hash: reward_contract_code_hash.to_string(),
                     },
-                    valid_to: Uint128::new(3747905010000u128),
+                    valid_to: valid_to,
                 }),
-                router_contract: None,
+                router_contract: router_contr,
             },
             &factory_contract,
             account_name,
@@ -550,6 +630,7 @@ pub mod amm_pair_lib {
         token_0_address: String,
         token_1_address: String,
         token_code_hash: String,
+        router_contract: Option<String>,
         reports: &mut Vec<Report>,
     ) -> io::Result<()> {
         println!(

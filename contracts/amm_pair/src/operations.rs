@@ -315,6 +315,7 @@ pub fn get_shade_dao_info(deps: Deps) -> StdResult<Binary> {
 pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Binary> {
     let config_settings = config_r(deps.storage).load()?;
     let amm_settings = query_factory_config(deps, &config_settings.factory_contract)?.amm_settings;
+    println!("testwv");
     let swap_result = calculate_swap_result(
         deps,
         &env,

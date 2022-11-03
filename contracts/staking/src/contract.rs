@@ -62,7 +62,6 @@ pub fn instantiate(
         msg.valid_to
     )?;
 
-    println!("test init staking");
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
     Ok(response.add_attributes(vec![

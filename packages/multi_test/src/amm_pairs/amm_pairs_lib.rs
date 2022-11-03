@@ -1,14 +1,16 @@
 pub mod amm_pairs_lib{
-    use cosmwasm_std::{ContractInfo, StdResult, Addr, to_binary, Empty};
+    use cosmwasm_std::{ContractInfo, StdResult, Addr, to_binary, Empty, Uint128};
     use secret_multi_test::{App, ContractWrapper, Executor, Contract};
-    use shadeswap_shared::core::{ContractInstantiationInfo, CustomFee};
-    use shadeswap_shared::msg::amm_pair::InitMsg;
+    use shadeswap_shared::amm_pair::{AMMSettings, AMMPair};
+    use shadeswap_shared::core::{ContractInstantiationInfo, CustomFee, Callback, Fee, TokenPair, TokenType, TokenPairAmount};
+    use shadeswap_shared::msg::amm_pair::{InitMsg, ExecuteMsg, QueryMsg, QueryMsgResponse};
     use crate::amm_pairs::amm_pairs_mock::amm_pairs_mock::{execute, instantiate, query};
     use crate::help_lib::integration_help_lib::{snip20_lp_token_contract_store, create_token_pair};
     use shadeswap_shared::utils::asset::Contract as SContract;
+    use crate::amm_pairs::amm_pairs_mock::amm_pairs_mock::reply;
     use amm_pair::contract::{execute as amm_pair_execute, instantiate as amm_pair_instantiate, query as amm_pair_query };
     use shadeswap_shared::staking::StakingContractInit;
-
+    
     pub fn store_init_amm_pair_contract(       
         router: &mut App, 
         sender: &Addr, 
@@ -19,7 +21,8 @@ pub mod amm_pairs_lib{
         store_code: Box<dyn Contract<Empty>>,
         seed: &str,
         staking_contract: Option<StakingContractInit>,
-        custom_fee: Option<CustomFee>      
+        custom_fee: Option<CustomFee> ,
+        router_callback:  Option<Callback>     
     ) -> StdResult<ContractInfo>
     {             
         let contract_info = router.store_code(store_code);
@@ -39,13 +42,90 @@ pub mod amm_pairs_lib{
                 admin_auth: admin_auth.clone() ,
                 staking_contract: staking_contract,
                 custom_fee: custom_fee,
-                callback: None,
+                callback: router_callback,
             }, 
             &[], 
             "amm_pairs", 
             Some(sender.to_string())
         ).unwrap();
         Ok(contract)       
+    }
+
+    pub fn create_amm_settings(
+        lp_fee_nom: u8,
+        lp_fee_denom: u16,
+        shade_fee_nom: u8,
+        shade_fee_denom: u16,
+        shade_dao_address: &Addr
+    ) -> AMMSettings
+    {
+        AMMSettings{
+            lp_fee: Fee::new(lp_fee_nom, lp_fee_denom),
+            shade_dao_fee: Fee::new(shade_fee_nom, shade_fee_denom),
+            shade_dao_address: SContract { address: shade_dao_address.clone(), code_hash: "".to_string() },
+        }
+    }
+
+    pub fn create_amm_pairs(
+        address: &Addr,
+        enabled: bool,
+        token_pair: TokenPair
+    ) -> AMMPair{
+        AMMPair { 
+            pair: token_pair, 
+            address: address.clone(), 
+            enabled: enabled  }
+    }
+
+    pub fn create_native_token(denom: &str) -> TokenType{
+        TokenType::NativeToken { denom: denom.to_string() }
+    }
+
+    pub fn create_custom_token(contract: &ContractInfo) -> TokenType{
+        TokenType::CustomToken { 
+            contract_addr: contract.address.clone(), 
+            token_code_hash: contract.code_hash.clone() } 
+    }
+
+    pub fn create_token_pair_amount(
+        token_pair: &TokenPair, 
+        amount_0: Uint128, 
+        amount_1: Uint128) -> TokenPairAmount{
+        TokenPairAmount{
+            pair: token_pair.clone(),
+            amount_0: amount_0,
+            amount_1: amount_1,
+        }
+    }
+
+    pub fn add_liquidity_to_amm_pairs(
+        router: &mut App,
+        contract: &ContractInfo,
+        pair: &TokenPair,       
+        amount_0: Uint128,
+        amount_1: Uint128,
+        expected_return: Option<Uint128>,
+        staking: Option<bool>,
+        sender: &Addr
+    ) -> StdResult<()>{
+        let add_liq_msg = ExecuteMsg::AddLiquidityToAMMContract { 
+            deposit: create_token_pair_amount(
+                &pair,
+                            amount_0,
+                            amount_1
+            ), 
+            expected_return: expected_return, 
+            staking: staking 
+        };
+
+        let _  = router.execute_contract(
+            sender.to_owned(),                
+            contract, 
+            &add_liq_msg,
+            &[]
+        ).unwrap();
+
+        Ok(())
     }
 
     pub fn init_amm_pair(      
@@ -58,8 +138,9 @@ pub mod amm_pairs_lib{
         mock: bool,
         seed: &str,
         staking_contract: Option<StakingContractInit>,
-        custom_fee: Option<CustomFee>
-    ) -> Result<ContractInfo, cosmwasm_std::StdError> {
+        custom_fee: Option<CustomFee>,
+        router_callback:  Option<Callback>   
+    ) -> StdResult<ContractInfo> {
         // Create AMM_Pair or Mock
         if mock {
             return store_init_amm_pair_contract(
@@ -72,7 +153,8 @@ pub mod amm_pairs_lib{
                 amm_pair_contract_store(), 
                 seed,
                 staking_contract,
-                custom_fee) 
+                custom_fee,
+                router_callback) 
         }
      
         return  store_init_amm_pair_contract(
@@ -85,7 +167,8 @@ pub mod amm_pairs_lib{
             amm_pair_contract_store_in(), 
             seed,
             staking_contract,
-            custom_fee
+            custom_fee,
+            router_callback
         ) 
     }
 
@@ -95,7 +178,7 @@ pub mod amm_pairs_lib{
     } 
 
     pub fn amm_pair_contract_store_in() -> Box<dyn Contract<Empty>> {
-        let contract = ContractWrapper::new_with_empty(amm_pair_execute, amm_pair_instantiate, amm_pair_query);
+        let contract = ContractWrapper::new_with_empty(amm_pair_execute, amm_pair_instantiate, query).with_reply(reply);
         Box::new(contract)
     } 
 

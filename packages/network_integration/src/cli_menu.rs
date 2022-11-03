@@ -1,12 +1,11 @@
 use std::io::{self, Write, Error, ErrorKind};
-
 use secretcli::cli_types::StoredContract;
 use secretcli::{secretcli::Report, cli_types::NetContract};
 use shadeswap_shared::c_std::Uint128;
 
 use crate::cli_commands::amm_pair_lib::{store_amm_pair, store_staking_contract, add_amm_pairs_with_staking, list_pair_from_factory, add_amm_pairs_no_staking, add_liquidity, set_reward_token};
 use crate::cli_commands::snip20_lib::{create_new_snip_20, balance_snip20_query, set_viewing_key};
-use crate::cli_commands::factory_lib::{create_factory_contract, mint_snip20, increase_allowance, deposit_snip20};
+use crate::cli_commands::factory_lib::{create_factory_contract, mint_snip20, increase_allowance, deposit_snip20, send_snip_with_msg};
 use crate::cli_commands::router_lib::{create_router_contract, register_snip20_router};
 pub const HELP: &str = "help";
 pub const CMDCREATESNIP20: &str = "snip20";
@@ -25,6 +24,7 @@ pub const CMDSETREWARDTOKEN: &str = "set_reward_token";
 pub const CMDDEPOSITSNIP20: &str = "deposit";
 pub const CMDSETVIEWINGKEY: &str = "set_viewing_key";
 pub const CMDADDLIQUIDITY: &str = "add_liquidity";
+pub const CMDSENDMSGSNIP20: &str = "send_with_msg";
 
 pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
 {
@@ -59,15 +59,73 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
         print_contract_details_cli(snip20, "Snip20".to_string());        
     }
 
+    if args_command == CMDSENDMSGSNIP20 {
+        if args.len() < 7 {
+            return Err(Error::new(ErrorKind::Other, "Please provide all args"));
+        } 
+        let account_name = args[2].clone();
+        let backend = args[3].clone();
+        let token_addr = args[4].clone();
+        let amount = args[5].clone().parse::<u128>().unwrap();
+        let recipient = args[6].clone();
+        // OPTION
+        let mut recipient_code_hash: Option<String> = None;
+        if args.len() >= 8 {
+            recipient_code_hash = Some(args[7].clone());
+        }
+        let mut msg: Option<String> = None;
+        if args.len() >= 9 {
+            msg = Some(args[8].clone());
+        }
+        let _ = send_snip_with_msg(
+            &account_name,
+            &backend,
+            &token_addr,
+        Uint128::new(amount),
+            &recipient,
+            recipient_code_hash,
+            msg,
+            reports
+        )?;    
+    }
+
     if args_command == CMDCREATEFACTORY {
-        if args.len() != 5 {
+        if args.len() < 12 {
             return Err(Error::new(ErrorKind::Other, "Please provide all args"));
         } 
 
         let account_name = args[2].clone();
         let backend = args[3].clone();      
         let admin = args[4].clone();
-        let factory: NetContract = create_factory_contract(&account_name, &backend, reports, &admin)?;
+        let api_key = args[5].clone();
+        let seed = args[6].clone();
+        let shade_dao_address = args[7].clone();
+        let lp_fee_nom = args[8].clone().parse::<u8>().unwrap();
+        let lp_fee_denom = args[9].clone().parse::<u16>().unwrap();
+        let shade_dao_fee_nom = args[10].clone().parse::<u8>().unwrap();
+        let shade_dao_fee_denom = args[11].clone().parse::<u16>().unwrap();
+        
+        let mut auth_addr: Option<String> = None;
+        if args.len() == 13 {
+            auth_addr = Some(args[12].clone());
+        }
+        let auth_address = args[12].clone();
+        
+
+        let factory: NetContract = create_factory_contract(&
+            account_name, 
+            &backend, 
+            reports,
+            &admin,
+            &api_key,
+            &seed,
+            &shade_dao_address,
+            lp_fee_nom,
+            lp_fee_denom,
+            shade_dao_fee_nom,
+            shade_dao_fee_denom,
+            auth_addr
+        )?;
         print_contract_details_cli(factory, "Factory".to_string());
     }
 
@@ -214,21 +272,50 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
         let token_1 = args[6].clone();
         let token_hash = args[7].clone();
         let staking = args[8].clone(); 
-        let staking_enabled =  staking.parse::<bool>().unwrap();   
+        let staking_enabled =  staking.parse::<bool>().unwrap();  
+        let mut router_contract: Option<String> = None;
+
         if staking_enabled == true {          
-            if args.len() != 11 {
+            if args.len() < 13 {
                 return Err(Error::new(ErrorKind::Other, "Please provide all args"));
             } 
             let reward_addr = args[9].clone();
             let reward_addr_code_hash = args[11].clone();
             let amount = args[10].clone();
             let amount_u128 = amount.parse::<u128>().unwrap();
+            let valid_to = args[12].clone().parse::<u128>().unwrap();           
+            if args.len() == 14 {
+                router_contract = Some(args[13].clone());
+            }
 
-            add_amm_pairs_with_staking(factory_addr.clone(),&backend, &account_name, token_0.clone(),token_1.clone(),token_hash.clone(),             
-            reward_addr, reward_addr_code_hash, Uint128::from(amount_u128),reports)?;
+            add_amm_pairs_with_staking(
+                factory_addr.clone(),
+                &backend, 
+                &account_name, 
+                token_0.clone(),
+                token_1.clone(),
+                token_hash.clone(),         
+                reward_addr, 
+                reward_addr_code_hash, 
+                Uint128::from(amount_u128),
+                Uint128::new(valid_to),
+                router_contract,
+                reports)?;
         }
         else{
-            add_amm_pairs_no_staking(factory_addr.clone(),&backend, &account_name, token_0.clone(),token_1.clone(),token_hash.clone(),reports)?;
+            if args.len() == 10 {
+                router_contract = Some(args[9].clone());
+            }
+            add_amm_pairs_no_staking(
+                factory_addr.clone(),
+                &backend, 
+                &account_name, 
+                token_0.clone(),
+                token_1.clone(),
+                token_hash.clone(),
+                router_contract,
+                reports
+            )?;            
         }
       
         println!("Adding AMM Pair has to Factory {} has been completed", factory_addr.clone());        
@@ -297,20 +384,21 @@ pub fn print_help() -> io::Result<()>
     let mut handle = stdout.lock();
     handle.write_all(b"Welcome to the Shadeswap CLI.")?;
     handle.write_all(b"\n\t1. Command:: snip20 <account_name> <keyring_backend> <name> <symbol> <decimal> <viewing_key> <enable_redeem> <enable_deposit> <enable_burn> <enable_mint> <total_supply> -- Create new Snip20 Contract")?;
-    handle.write_all(b"\n\t2. Command:: factory <account_name> <keyring_backend> <admin_addr> -- Create new Factory Contract")?;
+    handle.write_all(b"\n\t2. Command:: factory <account_name> <keyring_backend> <admin_addr> <api_key> <seed> <shade_dao_address> <lp_nom> <lp_denom> <shade_nom> <shade_denom> Option<auth_addr> -- Create new Factory Contract")?;
     handle.write_all(b"\n\t3. Command:: router <account_name> <keyring_backend>  <viewing_key> <pair_contract_code_hash> <admin_addr> -- Create new Router Contract")?;
     handle.write_all(b"\n\t4. Command:: store_amm_pair <account_name> <keyring_backend> -- Store AMM Pair Contract")?;
     handle.write_all(b"\n\t5. Command:: reg_snip20 <account_name> <keyring_backend> <snip20_address> <snip20_code_hash> <router_address> -- Register Snip20 to Router")?;
     handle.write_all(b"\n\t6. Command:: allow_snip20 <account_name> <keyring_backend> <snip20_address> <spender> <amount> -- Increase Allowance for SNIP20")?;
     handle.write_all(b"\n\t7. Command:: mint_snip20 <account_name> <keyring_backend> <snip20_address> <recipient> <amount> <amount_uscrt> -- Mint Snip20")?;
     handle.write_all(b"\n\t8. Command:: store_stake <account_name> <keyring_backend> -- Store Staking Contract Contract")?;
-    handle.write_all(b"\n\t9. Command:: add_amm_pair <account_name> <keyring_backend> <factory_addr> <token__addr> <token_1_addr> <token_code_hash> <staking - bool>? - if yes additional args <reward_addr> <reward_addr_code_hash> <reward_amount> -- Add new Pair for Factory")?;
+    handle.write_all(b"\n\t9. Command:: add_amm_pair <account_name> <keyring_backend> <factory_addr> <token__addr> <token_1_addr> <token_code_hash> <staking - bool>? - if yes additional args <reward_addr> <reward_addr_code_hash> <reward_amount> <valid_to>) -- Add new Pair for Factory")?;
     handle.write_all(b"\n\t10. Command:: list_amm_pair <factory_addr> <start> <limit> -- List All Pairs for Factory")?;
     handle.write_all(b"\n\t11. Command:: add_liq <account_name> <keyring_backend> <pair_addr> <token_0_addr> <token_1_addr> <token_code_hash> <amount_0> <amount_1> <staking - bool> -- Add Liquidity to the AMM Pair")?;
     handle.write_all(b"\n\t12. Command:: snip20_bal <snip20_addr> <spender> <viewing_key> -- Balance Snip 20 for spender")?;
     handle.write_all(b"\n\t13. Command:: set_reward_token <account_name> <keyring_backend> <staking_addr> <reward_token_addr> <reward_token_hash> <amount> <valid_to> -- Set Reward Token for Staking Contract")?;
     handle.write_all(b"\n\t14. Command:: deposit <account_name> <keyring_backend> <token_addr> <amount> -- Deposit to Snip20 Token")?;
     handle.write_all(b"\n\t15. Command:: set_viewing_key <account_name> <keyring_backend> <token_addr> <key> -- Set Viewing Key")?;
+    handle.write_all(b"\n\t16. Command:: send_with_msg <account_name> <keyring_backend> <token_addr> <amount> <recipient> <recipient_hash> <msg> -- Send Amount & Msg with Callback")?;
     handle.write_all(b"\n")?;
     handle.flush()?;
   

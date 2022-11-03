@@ -278,8 +278,8 @@ pub fn amm_pair_integration_tests_with_custom_token() {
     roll_blockchain(&mut router, 1).unwrap();
     let remove_msg = to_binary(&InvokeMsg::RemoveLiquidity { 
         from: Some(owner_addr.clone()),
-        single_sided: false,
-        single_sided_withdraw_in_token0: None,
+        single_sided_withdraw_type: None,
+        single_sided_expected_return: None,
     }).unwrap();
     
     let config = get_amm_pair_config(&mut router, &amm_pair_contract);
@@ -571,8 +571,8 @@ pub fn amm_pair_integration_tests_native_token() {
     roll_blockchain(&mut router, 1).unwrap();
     let remove_msg = to_binary(&InvokeMsg::RemoveLiquidity { 
         from: Some(owner_addr.clone()),
-        single_sided: false,
-        single_sided_withdraw_in_token0: None,
+        single_sided_withdraw_type: None,
+        single_sided_expected_return: None,
     }).unwrap();
     
     let config = get_amm_pair_config(&mut router, &amm_pair_contract);
@@ -624,8 +624,9 @@ pub fn test_sslp_with_two_virtual_providers() {
     use amm_pair::contract::{instantiate, query, execute};
     use multi_test::admin::admin_help::init_admin_contract;
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, increase_allowance, store_init_factory_contract, create_token_pair, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance, create_token_pair_with_native};
-    use cosmwasm_std::{Uint128, Coin, Timestamp, from_binary, Response};
+    use cosmwasm_std::{Uint128, Coin, Timestamp, from_binary, Response, StdError};
     use multi_test::util_addr::util_addr::{OWNER, STAKER_A, STAKER_B};       
+    use secret_multi_test::AppResponse;
     use shadeswap_shared::core::{ContractInstantiationInfo, TokenPairAmount, TokenAmount, CustomFee, Fee};
     use shadeswap_shared::msg::amm_pair::InvokeMsg;
     
@@ -756,6 +757,24 @@ pub fn test_sslp_with_two_virtual_providers() {
         &convert_to_contract_link(&token_0_contract));
     increase_allowance(&mut router, &token_0_contract, Uint128::new(10000000000000u128), &amm_pair_contract.address, &owner_addr).unwrap();
     roll_blockchain(&mut router, 1).unwrap(); 
+
+     // *** test expected return
+     let add_liqudity_msg = ExecuteMsg::AddLiquidityToAMMContract { 
+        deposit: TokenPairAmount{
+            pair: pair.clone(),
+            amount_0: Uint128::new(100000000u128),
+            amount_1: Uint128::new(100000000u128),
+        }, 
+        expected_return: Some(Uint128::new(100000001u128)), 
+        staking: Some(false) 
+    };
+    let result = router.execute_contract(
+        owner_addr.to_owned(),
+        &amm_pair_contract,
+        &add_liqudity_msg,
+        &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(100000000u128) }]
+    );
+    assert!(result.is_err());
     
      // *** user 1 add balanced liqidity without staking
      let add_liqudity_msg = ExecuteMsg::AddLiquidityToAMMContract { 
@@ -806,12 +825,12 @@ pub fn test_sslp_with_two_virtual_providers() {
     assert_eq!(total_liquidity.2, Uint128::new(100000000u128));
     
 
-     // *** user 2 add imbalanced liqidity without staking
+     // *** user 2 add sslp liqidity without staking
      let add_liqudity_msg = ExecuteMsg::AddLiquidityToAMMContract { 
         deposit: TokenPairAmount{
             pair: pair.clone(),
-            amount_0: Uint128::new(200000000u128),
-            amount_1: Uint128::new(100000000u128),
+            amount_0: Uint128::new(200u128),
+            amount_1: Uint128::zero(),
         }, 
         expected_return: None, 
         staking: Some(false) 
@@ -821,43 +840,82 @@ pub fn test_sslp_with_two_virtual_providers() {
         owner_addr.to_owned(),
         &amm_pair_contract,
         &add_liqudity_msg,
-        &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(200000000u128) }]
+        &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(200u128) }]
     ).unwrap();
 
-    let query: QueryMsgResponse = router.query_test(amm_pair_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
-    match query {
-        QueryMsgResponse::GetConfig { 
-            factory_contract: _, 
-            lp_token, 
-            staking_contract: _, 
-            pair: _, 
-            custom_fee: _ 
-        } => {
-            let contract_info  =ContractInfo{
-                address: lp_token.address.clone(),
-                code_hash: lp_token.code_hash.to_string(),
-            };
-            let _ = set_viewing_key(&mut router, &contract_info, "seed", &owner_addr).unwrap();
-            let balance = get_snip20_balance(&mut router, &ContractInfo{
-                address: lp_token.address.clone(),
-                code_hash: lp_token.code_hash.to_string(),
-            }, OWNER, "seed");
-          
-        },
-        _ => panic!("Query Responsedoes not match")
-    }
-
     let total_liquidity: (Uint128, Uint128, Uint128) = get_pair_liquidity_pool_balance(&mut router,&amm_pair_contract);
-    // assert_eq!(total_liquidity.0, Uint128::new(100000000u128));
-    assert_eq!(total_liquidity.1, Uint128::new(300000000u128));
-    assert_eq!(total_liquidity.2, Uint128::new(200000000u128));
-     
-    // *** user 1 withdraws all their liquidity, should get original amount back because no trades have been executed
+    let user2_lp_balance = total_liquidity.0 - user1_lp_balance;
+    assert!(total_liquidity.1 < Uint128::new(100000200u128) && total_liquidity.1 > Uint128::new(100000000u128));
+    assert_eq!(total_liquidity.2, Uint128::new(100000000u128));
+
+    // *** user 2 withdraws all their liquidity
     roll_blockchain(&mut router, 1).unwrap();
     let remove_msg = to_binary(&InvokeMsg::RemoveLiquidity { 
         from: Some(owner_addr.clone()),
-        single_sided: false,
-        single_sided_withdraw_in_token0: None,
+        single_sided_withdraw_type: Some(TokenType::NativeToken { denom: "uscrt".to_string() }),
+        single_sided_expected_return: None,
+    }).unwrap();
+    
+    let config = get_amm_pair_config(&mut router, &amm_pair_contract);
+    let app_response = send_snip20_with_msg(
+        &mut router,
+        &ContractInfo { 
+            address: config.1.address, 
+            code_hash: config.1.code_hash },
+        &amm_pair_contract,
+        user2_lp_balance,
+        &owner_addr,
+        &remove_msg
+    ).unwrap();
+    let total_liquidity: (Uint128, Uint128, Uint128) = get_pair_liquidity_pool_balance(&mut router,&amm_pair_contract);
+    assert_eq!(total_liquidity.0, Uint128::new(100000000u128));
+    assert!(total_liquidity.1 > Uint128::new(100000000u128));
+    assert_eq!(total_liquidity.2, Uint128::new(100000000u128));
+
+    // *** test expected return on withdraw
+    roll_blockchain(&mut router, 1).unwrap();
+    let remove_msg = to_binary(&InvokeMsg::RemoveLiquidity { 
+        from: Some(owner_addr.clone()),
+        single_sided_withdraw_type: Some(TokenType::NativeToken { denom: "uscrt".to_string() }),
+        single_sided_expected_return: Some(Uint128::new(300000000u128)),
+    }).unwrap();
+    
+    let config = get_amm_pair_config(&mut router, &amm_pair_contract);
+    // let response = send_snip20_with_msg(
+    //     &mut router,
+    //     &ContractInfo { 
+    //         address: config.1.address.clone(), 
+    //         code_hash: config.1.code_hash.clone() },
+    //     &amm_pair_contract,
+    //     user1_lp_balance,
+    //     &owner_addr,
+    //     &remove_msg
+    // );
+    let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
+        recipient: amm_pair_contract.address.to_owned(),
+        recipient_code_hash: Some(amm_pair_contract.code_hash.clone()),
+        amount: user1_lp_balance,
+        msg: Some(remove_msg.clone()),
+        memo: None,
+        padding: None,
+    };
+    let contract = &ContractInfo { 
+            address: config.1.address.clone(), 
+            code_hash: config.1.code_hash.clone() };
+    let response = router.execute_contract(
+        owner_addr.to_owned(),
+        &contract.clone(),
+        &msg,
+        &[], // 
+    );
+    assert!(response.is_err());
+     
+    // *** user 1 withdraws all their liquidity, should get original amount back because no trades have been executed and all sslp removed
+    roll_blockchain(&mut router, 1).unwrap();
+    let remove_msg = to_binary(&InvokeMsg::RemoveLiquidity { 
+        from: Some(owner_addr.clone()),
+        single_sided_withdraw_type: None,
+        single_sided_expected_return: None,
     }).unwrap();
     
     let config = get_amm_pair_config(&mut router, &amm_pair_contract);
@@ -872,17 +930,11 @@ pub fn test_sslp_with_two_virtual_providers() {
         &remove_msg
     ).unwrap();
 
-    let data = app_response.data.unwrap();
-    let response = from_binary::<Response>(&data).unwrap();
-    let withdraw0 = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
-    let withdraw1 = Uint128::from_str(&response.attributes.get(4).unwrap().value).unwrap();
-    println!("{} {}", withdraw0, withdraw1);
 
     let total_liquidity: (Uint128, Uint128, Uint128) = get_pair_liquidity_pool_balance(&mut router,&amm_pair_contract);
-    println!("after withdraw: {:?}", total_liquidity);
-    // assert_eq!(total_liquidity.0, Uint128::new(199999000u128));
-    // assert_eq!(total_liquidity.1, Uint128::new(199999970u128));
-    // assert_eq!(total_liquidity.2, Uint128::new(199998062u128));
+    assert_eq!(total_liquidity.0, Uint128::zero());
+    assert_eq!(total_liquidity.1, Uint128::zero());
+    assert_eq!(total_liquidity.2, Uint128::zero());
     
 }
 

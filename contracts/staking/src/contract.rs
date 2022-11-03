@@ -5,7 +5,7 @@ use cosmwasm_std::{
 use shadeswap_shared::{
     core::{TokenType},
     query_auth::helpers::{authenticate_permit, PermitAuthentication},
-    snip20::helpers::send_msg,
+    snip20::helpers::{send_msg, register_receive},
     staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
     utils::{pad_query_result, pad_response_result},
     Contract, admin::helpers::{validate_admin, AdminPermissions},
@@ -33,12 +33,20 @@ pub fn instantiate(
         amm_pair: _info.sender.clone(),
         daily_reward_amount: msg.daily_reward_amount,
         reward_token: msg.reward_token.to_owned(),
-        lp_token: msg.lp_token,
+        lp_token: msg.lp_token.clone(),
         authenticator: msg.authenticator,
         admin_auth: msg.admin_auth,
     };
     config_w(deps.storage).save(&config)?;
     prng_seed_w(deps.storage).save(&msg.prng_seed.as_slice().to_vec())?;
+
+    let mut messages: Vec<CosmosMsg> = vec![];
+
+    messages.push(register_receive(
+        env.contract.code_hash.clone(),
+        None,
+        &msg.lp_token
+    )?);
 
     // store reward token to the list
     let reward_token_address: Contract = match msg.reward_token {
@@ -65,7 +73,7 @@ pub fn instantiate(
     println!("test init staking");
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
-    Ok(response.add_attributes(vec![
+    Ok(response.add_messages(messages).add_attributes(vec![
         Attribute::new("staking_contract_addr", env.contract.address),
         Attribute::new("reward_token", reward_token_address.address.to_string()),
         Attribute::new("daily_reward_amount", msg.daily_reward_amount),

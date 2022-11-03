@@ -732,7 +732,6 @@ fn calculate_lp_tokens(
     pool_balances: [Uint128; 2],
     pair_contract_pool_liquidity: Uint128,
 ) -> Result<Uint128, StdError> {
-
     let lp_tokens: Uint128 ;
     if pair_contract_pool_liquidity.is_zero() {
         // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where

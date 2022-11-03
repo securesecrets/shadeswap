@@ -539,10 +539,11 @@ pub fn update_authenticator(
 }
 
 pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Binary> {
-    let staker_info = stakers_r(deps.storage).load(&staker.as_bytes())?;
+    let staker_amount = stakers_r(deps.storage).may_load(&staker.as_bytes())?.map_or_else(|| Uint128::zero(), |v| v.amount);
+
     let response_msg = QueryResponse::StakerLpTokenInfo {
-        staked_lp_token: staker_info.amount,
-        total_staked_lp_token: total_staked_r(deps.storage).load()?,
+        staked_lp_token: staker_amount,
+        total_staked_lp_token: total_staked_r(deps.storage).may_load()?.map_or_else(|| Uint128::zero(), |v| v),
     };
     to_binary(&response_msg)
 }

@@ -440,14 +440,18 @@ pub mod amm_pair_lib {
         c_std::{to_binary, Addr},
         core::{ContractInstantiationInfo, TokenPair, TokenPairAmount, TokenType},
         msg::{
-            amm_pair::ExecuteMsg as AMMPairHandlMsg,
+            amm_pair::{
+                ExecuteMsg as AMMPairHandlMsg,
+                QueryMsg as AMMPairQueryMsg,
+                QueryMsgResponse as AMMPairQueryMsgResponse
+            },
             factory::{
                 ExecuteMsg as FactoryExecuteMsg, QueryMsg as FactoryQueryMsg,
                 QueryResponse as FactoryQueryResponse,
             },
             staking::{ExecuteMsg as StakingExecuteMsg, StakingContractInit},
         },
-        Contract, Pagination,
+        Contract, Pagination, amm_pair::AMMPair,
     };
     use std::io;
 
@@ -595,7 +599,7 @@ pub mod amm_pair_lib {
         Ok(())
     }
 
-    pub fn list_pair_from_factory(factory_addr: String, start: u64, limit: u8) -> io::Result<()> {
+    pub fn list_pair_from_factory(factory_addr: String, start: u64, limit: u8) -> io::Result<Vec<AMMPair>> {
         let factory_contract = NetContract {
             label: "".to_string(),
             id: "".to_string(),
@@ -613,9 +617,9 @@ pub mod amm_pair_lib {
             for i in 0..amm_pairs.len() {
                 println!("{:?}", amm_pairs[i]);
             }
+            return Ok(amm_pairs);
         }
-
-        Ok(())
+        return Ok(vec![]);
     }
 
     pub fn get_token_type(pairs: TokenPair) -> io::Result<(String, String)> {
@@ -675,6 +679,26 @@ pub mod amm_pair_lib {
         .unwrap();
 
         Ok(())
+    }
+
+    pub fn get_staking_contract(amm_pair_address: &str) -> io::Result<Option<Contract>> {
+        let staking_contract_msg = AMMPairQueryMsg::GetStakingContract {};
+        let staking_contract_query: AMMPairQueryMsgResponse = query(
+            &NetContract {
+                label: "".to_string(),
+                id: "".to_string(),
+                address: amm_pair_address.to_string(),
+                code_hash:"".to_string(),
+            },
+            staking_contract_msg,
+            None,
+        )?;
+        if let AMMPairQueryMsgResponse::StakingContractInfo { staking_contract } =
+            staking_contract_query
+        {
+            return Ok(staking_contract)
+        }
+        return Ok(None);
     }
 
     pub fn add_liquidity(

@@ -85,11 +85,15 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     pad_response_result(
         match msg {
             ExecuteMsg::ProxyUnstake { for_addr, amount } => {
-                proxy_unstake(deps, env, info, for_addr, amount)
+                let checked_for_addr = deps.api.addr_validate(&for_addr)?;
+                proxy_unstake(deps, env, info, checked_for_addr, amount)
             }
             ExecuteMsg::Receive {
                 from, amount, msg, ..
-            } => receiver_callback(deps, env, info, from, amount, msg),
+            } => {
+                let checked_from = deps.api.addr_validate(&from)?;
+                receiver_callback(deps, env, info, checked_from, amount, msg)
+            },
             ExecuteMsg::ClaimRewards {} => claim_rewards(deps, info, env),
             ExecuteMsg::Unstake {
                 amount,
@@ -150,7 +154,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                         contract_addr,
                         token_code_hash,
                     } => vec![send_msg(
-                        to,
+                        deps.api.addr_validate(&to)?,
                         amount,
                         msg,
                         None,
@@ -192,13 +196,15 @@ fn receiver_callback(
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err("Sender was not LP Token".to_string()));
                 }
-                stake(deps, env, info, amount, from)
+                let checked_from = deps.api.addr_validate(&from)?;
+                stake(deps, env, info, amount, checked_from)
             }
             InvokeMsg::ProxyStake { for_addr } => {
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err("Sender was not LP Token".to_string()));
                 }
-                proxy_stake(deps, env, info, amount, from, for_addr)
+                let checked_for_addr = deps.api.addr_validate(&for_addr)?;
+                proxy_stake(deps, env, info, amount, from, checked_for_addr)
             }
         },
         BLOCK_SIZE,

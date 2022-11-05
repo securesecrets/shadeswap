@@ -365,7 +365,7 @@ pub fn staking_integration_tests_with_proxy() {
     
     // Assert Unstake amount < total amount 
     roll_blockchain(&mut router, 100).unwrap();
-    let unstake_msg = ExecuteMsg::ProxyUnstake { for_addr: staker_a_addr.to_owned(), amount: Uint128::new(1000u128) };
+    let unstake_msg = ExecuteMsg::ProxyUnstake { for_addr: staker_a_addr.to_string(), amount: Uint128::new(1000u128) };
     let _ = router.execute_contract(owner_addr.to_owned(), &staking_contract, &unstake_msg, &[]).unwrap();
     // ASSERT Claimable reward    
     let permit_query = query_claimable_reward(&router, 

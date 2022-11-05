@@ -313,8 +313,7 @@ fn redeploy_infra() -> serde_json::Result<()> {
                                 token_code_hash: usdt_contract.code_hash.to_string(),
                             },
                             valid_to: Uint128::new(3747905010000u128)
-                        }),
-                        router_contract: None,
+                        })
                     },
                     &factory_contract,
                     ACCOUNT_KEY,
@@ -851,10 +850,6 @@ fn deploy_fresh() -> serde_json::Result<()> {
                             },
                             valid_to: Uint128::new(3747905010000u128) 
                         }),
-                        router_contract: Some(Contract {
-                            address: Addr::unchecked(router_contract.clone().address),
-                            code_hash: router_contract.clone().code_hash,
-                        }),
                     },
                     &factory_contract,
                     ACCOUNT_KEY,
@@ -883,11 +878,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 token_code_hash: usdt_contract.code_hash.to_string(),
                             },
                             valid_to: Uint128::new(3747905010000u128)
-                        }),
-                        router_contract: Some(Contract {
-                            address: Addr::unchecked(router_contract.address),
-                            code_hash: router_contract.code_hash,
-                        }),
+                        })
                     },
                     &factory_contract,
                     ACCOUNT_KEY,

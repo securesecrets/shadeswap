@@ -19,7 +19,8 @@ use shadeswap_shared::{
     lp_token::{InitConfig, InstantiateMsg},
     msg::amm_pair::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse},
     snip20::helpers::send_msg,
-    utils::{pad_query_result, pad_response_result}, Contract,
+    utils::{pad_query_result, pad_response_result, try_addr_validate_option},
+    Contract,
 };
 
 const AMM_PAIR_CONTRACT_VERSION: u32 = 1;
@@ -52,7 +53,7 @@ pub fn instantiate(
             "SHADESWAP Liquidity Provider (LP) token for {}-{}",
             &msg.pair.0, &msg.pair.1
         ),
-        admin: Some(env.contract.address.clone()),
+        admin: Some(env.contract.address.to_string()),
         symbol: format!(
             "{}/{} LP",
             query_token_symbol(deps.querier, &msg.pair.0)?,
@@ -121,7 +122,10 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         match msg {
             ExecuteMsg::Receive {
                 from, amount, msg, ..
-            } => receiver_callback(deps, env, info, from, amount, msg),
+            } => {
+                let checked_addr = deps.api.addr_validate(&from)?;
+                receiver_callback(deps, env, info, checked_addr, amount, msg)
+            }
             ExecuteMsg::AddLiquidityToAMMContract {
                 deposit,
                 expected_return,
@@ -147,17 +151,21 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     &info.sender,
                     &config.admin_auth,
                 )?;
-                add_address_to_whitelist(deps.storage, address)
+                add_address_to_whitelist(deps.storage, deps.api.addr_validate(&address)?)
             }
             ExecuteMsg::RemoveWhitelistAddresses { addresses } => {
                 let config = config_r(deps.storage).load()?;
+                let checked_addresses = addresses
+                    .iter()
+                    .flat_map(|v| deps.api.addr_validate(&v))
+                    .collect();
                 validate_admin(
                     &deps.querier,
                     AdminPermissions::ShadeSwapAdmin,
                     &info.sender,
                     &config.admin_auth,
                 )?;
-                remove_addresses_from_whitelist(deps.storage, addresses, env)
+                remove_addresses_from_whitelist(deps.storage, checked_addresses, env)
             }
             ExecuteMsg::SwapTokens {
                 offer,
@@ -170,12 +178,13 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 offer.assert_sent_native_token_balance(&info)?;
                 let config_settings = config_r(deps.storage).load()?;
                 let sender = info.sender.clone();
+                let checked_to = try_addr_validate_option(deps.api, to)?;
                 swap(
                     deps,
                     env,
                     config_settings,
                     sender,
-                    to,
+                    checked_to,
                     offer,
                     expected_return,
                 )
@@ -212,7 +221,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                         contract_addr,
                         token_code_hash,
                     } => vec![send_msg(
-                        to,
+                        deps.api.addr_validate(&to)?,
                         amount,
                         msg,
                         None,
@@ -254,7 +263,7 @@ fn receiver_callback(
         match from_binary(&msg)? {
             InvokeMsg::SwapTokens {
                 to,
-                expected_return
+                expected_return,
             } => {
                 for token in config.pair.into_iter() {
                     match token {
@@ -265,18 +274,21 @@ fn receiver_callback(
                                     amount,
                                 };
 
+                                let checked_to =
+                                    Some(deps.api.addr_validate(&to.ok_or_else(|| {
+                                        StdError::generic_err(
+                                            "No recipient sent with invoke.".to_string(),
+                                        )
+                                    })?)?);
+
                                 return swap(
                                     deps,
                                     env,
                                     config,
                                     from,
-                                    Some(to.ok_or_else(|| {
-                                        StdError::generic_err(
-                                            "No recipient sent with invoke.".to_string(),
-                                        )
-                                    })?),
+                                    checked_to,
                                     offer,
-                                    expected_return
+                                    expected_return,
                                 );
                             }
                         }
@@ -294,8 +306,12 @@ fn receiver_callback(
                         "LP Token was not sent to remove liquidity.".to_string(),
                     ));
                 }
+
                 match from {
-                    Some(address) => remove_liquidity(deps, env, amount, address),
+                    Some(address) => {
+                        let checked_address = deps.api.addr_validate(&address)?;
+                        remove_liquidity(deps, env, amount, checked_address)
+                    }
                     None => remove_liquidity(deps, env, amount, from_caller),
                 }
             }
@@ -334,7 +350,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 query_factory_authorize_api_key(deps, &config.factory_contract, api_key)?;
                 let data = load_trade_history_query(deps, pagination)?;
                 to_binary(&QueryMsgResponse::GetTradeHistory { data })
-            },
+            }
             QueryMsg::GetWhiteListAddress {} => {
                 let stored_addr = whitelist_r(deps.storage).load()?;
                 to_binary(&QueryMsgResponse::GetWhiteListAddress {

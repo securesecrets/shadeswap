@@ -104,7 +104,7 @@ pub fn router_integration_tests() {
     roll_blockchain(&mut router, 1).unwrap();
     let swap_query = QueryMsg::SwapSimulation { 
         offer: offer.to_owned(),
-        path: vec![Hop{addr: amm_pair_contract.address.to_owned(), code_hash: amm_pair_contract.code_hash.clone()}] 
+        path: vec![Hop{addr: amm_pair_contract.address.to_string(), code_hash: amm_pair_contract.code_hash.clone()}] 
     };
 
     let query_response:QueryMsgResponse = router.query_test(
@@ -131,7 +131,7 @@ pub fn router_integration_tests() {
 
     let invoke_msg = to_binary(&InvokeMsg::SwapTokens { 
         expected_return: Some(Uint128::new(1000u128)), 
-        to: Some(staker_a_addr.to_owned()), 
+        to: Some(staker_a_addr.to_string()), 
     }).unwrap();
    
     let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
@@ -156,7 +156,7 @@ pub fn router_integration_tests() {
     let execute_swap = ExecuteMsg::SwapTokensForExact { 
         offer:offer.to_owned(),
         expected_return: Some(Uint128::new(1000u128)), 
-        path: vec![Hop{addr: amm_pair_contract.address.to_owned(), code_hash: amm_pair_contract.code_hash.clone()}],
+        path: vec![Hop{addr: amm_pair_contract.address.to_string(), code_hash: amm_pair_contract.code_hash.clone()}],
         recipient: Some(owner_addr.to_string())
     };
 

@@ -90,8 +90,7 @@ pub mod factory_mock {
                 ExecuteMsg::CreateAMMPair {
                     pair: _,
                     entropy: _,
-                    staking_contract: _,
-                    router_contract: _,
+                    staking_contract: _
                 } => Ok(Response::new()),
                 ExecuteMsg::AddAMMPairs { amm_pairs: _ } => Ok(Response::new()),
                 ExecuteMsg::RegisterAMMPair { pair: _, signature: _ } => Ok(Response::new()),

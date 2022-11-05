@@ -17,7 +17,7 @@ use shadeswap_shared::{
         self,
         helpers::{register_receive, set_viewing_key_msg},
     },
-    Contract,
+    Contract, BLOCK_SIZE,
 };
 
 use crate::{
@@ -33,6 +33,7 @@ pub fn refresh_tokens(
 ) -> StdResult<Response> {
     let mut msg = vec![];
     let config = config_r(deps.storage).load()?;
+    set_viewing_key_msg(SHADE_ROUTER_KEY.to_string(), None, &Contract{ address: token_address.clone(), code_hash: token_code_hash.clone() })?;
     register_pair_token(
         &env,
         &mut msg,
@@ -63,7 +64,7 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
             let next_pair_contract = query_pair_contract_config(
                 &deps.querier,
                 Contract {
-                    address: info.path[info.current_index as usize + 1].addr.clone(),
+                    address: deps.api.addr_validate(&info.path[info.current_index as usize + 1].addr.clone())?,
                     code_hash: info.path[info.current_index as usize + 1].code_hash.clone(),
                 },
             )?;
@@ -127,7 +128,7 @@ pub fn swap_tokens_for_exact_tokens(
     let next_pair_contract = query_pair_contract_config(
         &deps.querier,
         Contract {
-            address: path[0].addr.clone(),
+            address: deps.api.addr_validate(&path[0].addr.clone())?,
             code_hash: path[0].code_hash.clone(),
         },
     )?;
@@ -197,7 +198,7 @@ fn get_trade_with_callback(
                 amount: token_in.amount,
                 msg: Some(to_binary(&AMMPairInvokeMsg::SwapTokens {
                     expected_return: None,
-                    to: Some(env.contract.address.clone()),
+                    to: Some(env.contract.address.to_string()),
                 })?),
                 padding: None,
                 recipient_code_hash: None,
@@ -268,7 +269,7 @@ pub fn swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount) -> StdRes
 
     for hop in path {
         let contract = Contract {
-            address: hop.addr,
+            address: deps.api.addr_validate(&hop.addr)?,
             code_hash: hop.code_hash,
         };
         let contract_info: AMMPairQueryReponse =

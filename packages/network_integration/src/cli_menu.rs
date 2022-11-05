@@ -210,10 +210,11 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
         let account_name = args[2].clone();
         let backend = args[3].clone();     
         let factory_addr = args[4].clone();
-        let token_0 = args[5].clone();
-        let token_1 = args[6].clone();
-        let token_hash = args[7].clone();
-        let staking = args[8].clone(); 
+        let factory_code_hash = args[5].clone();
+        let token_0 = args[6].clone();
+        let token_1 = args[7].clone();
+        let token_hash = args[8].clone();
+        let staking = args[9].clone(); 
         let staking_enabled =  staking.parse::<bool>().unwrap();   
         if staking_enabled == true {          
             if args.len() != 11 {
@@ -224,7 +225,7 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
             let amount = args[10].clone();
             let amount_u128 = amount.parse::<u128>().unwrap();
 
-            add_amm_pairs_with_staking(factory_addr.clone(),&backend, &account_name, token_0.clone(),token_1.clone(),token_hash.clone(),             
+            add_amm_pairs_with_staking(factory_addr.clone(), factory_code_hash,&backend, &account_name, token_0.clone(),token_1.clone(),token_hash.clone(),             
             reward_addr, reward_addr_code_hash, Uint128::from(amount_u128),reports)?;
         }
         else{
@@ -304,7 +305,7 @@ pub fn print_help() -> io::Result<()>
     handle.write_all(b"\n\t6. Command:: allow_snip20 <account_name> <keyring_backend> <snip20_address> <spender> <amount> -- Increase Allowance for SNIP20")?;
     handle.write_all(b"\n\t7. Command:: mint_snip20 <account_name> <keyring_backend> <snip20_address> <recipient> <amount> <amount_uscrt> -- Mint Snip20")?;
     handle.write_all(b"\n\t8. Command:: store_stake <account_name> <keyring_backend> -- Store Staking Contract Contract")?;
-    handle.write_all(b"\n\t9. Command:: add_amm_pair <account_name> <keyring_backend> <factory_addr> <token__addr> <token_1_addr> <token_code_hash> <staking - bool>? - if yes additional args <reward_addr> <reward_addr_code_hash> <reward_amount> -- Add new Pair for Factory")?;
+    handle.write_all(b"\n\t9. Command:: add_amm_pair <account_name> <keyring_backend> <factory_addr> <factory_code_hash> <token__addr> <token_1_addr> <token_code_hash> <staking - bool>? - if yes additional args <reward_addr> <reward_addr_code_hash> <reward_amount> -- Add new Pair for Factory")?;
     handle.write_all(b"\n\t10. Command:: list_amm_pair <factory_addr> <start> <limit> -- List All Pairs for Factory")?;
     handle.write_all(b"\n\t11. Command:: add_liq <account_name> <keyring_backend> <pair_addr> <token_0_addr> <token_1_addr> <token_code_hash> <amount_0> <amount_1> <staking - bool> -- Add Liquidity to the AMM Pair")?;
     handle.write_all(b"\n\t12. Command:: snip20_bal <snip20_addr> <spender> <viewing_key> -- Balance Snip 20 for spender")?;

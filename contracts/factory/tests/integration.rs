@@ -132,8 +132,7 @@ fn factory_integration_tests() {
             &convert_to_contract_link(&token_1_contract)
         ), 
         entropy: to_binary("seed").unwrap(), 
-        staking_contract: None, 
-        router_contract: None 
+        staking_contract: None
     };
     
     let _ = router.execute_contract(

@@ -479,6 +479,7 @@ pub mod amm_pair_lib {
 
     pub fn add_amm_pairs_with_staking(
         factory_addr: String,
+        factory_code_hash: String,
         backend: &str,
         account_name: &str,
         token_0_address: String,
@@ -500,7 +501,7 @@ pub mod amm_pair_lib {
             label: "".to_string(),
             id: "".to_string(),
             address: factory_addr.clone(),
-            code_hash: "".to_string(),
+            code_hash: factory_code_hash,
         };
 
         let pairs = TokenPair(
@@ -531,8 +532,7 @@ pub mod amm_pair_lib {
                         token_code_hash: reward_contract_code_hash.to_string(),
                     },
                     valid_to: Uint128::new(3747905010000u128),
-                }),
-                router_contract: None,
+                })
             },
             &factory_contract,
             account_name,
@@ -584,8 +584,7 @@ pub mod amm_pair_lib {
             &FactoryExecuteMsg::CreateAMMPair {
                 pair: pairs.clone(),
                 entropy: to_binary(&"".to_string()).unwrap(),
-                staking_contract: None,
-                router_contract: None,
+                staking_contract: None
             },
             &factory_contract,
             account_name,

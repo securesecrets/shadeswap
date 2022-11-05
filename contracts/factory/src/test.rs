@@ -183,8 +183,7 @@ pub mod test_contract {
              &mock_info("admin", &[]),
              pair,
              to_binary(&"entropy").unwrap(), 
-             None,
-            None);
+             None,);
 
         assert!(result.is_ok());
         Ok(())

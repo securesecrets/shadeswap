@@ -89,7 +89,7 @@ pub mod tests {
                     amount: Uint128::new(10u128),
                 },
                 expected_return: None,
-                path: vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}],
+                path: vec![Hop{ addr: PAIR_CONTRACT_1.to_string(), code_hash: "".to_string()}],
                 recipient: None,
             },
         )
@@ -109,7 +109,7 @@ pub mod tests {
                     }
                 );
 
-                assert_eq!(info.path, vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}]);
+                assert_eq!(info.path, vec![Hop{ addr: PAIR_CONTRACT_1.to_string(), code_hash: "".to_string()}]);
             }
             Err(_) => panic!("Ephemeral storage should not be empty!"),
         }
@@ -141,7 +141,7 @@ pub mod tests {
                     amount: Uint128::new(10u128),
                 },
                 expected_return: None,
-                path: vec![Hop{addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}],
+                path: vec![Hop{addr: PAIR_CONTRACT_1.to_string(), code_hash: "".to_string()}],
                 recipient: Some("sender_addr".to_string()),
             },
         )
@@ -162,7 +162,7 @@ pub mod tests {
                 );
                 assert_eq!(
                     info.path,
-                    vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}]
+                    vec![Hop{ addr: PAIR_CONTRACT_1.to_string(), code_hash: "".to_string()}]
                 );
             }
             Err(_) => panic!("Ephemeral storage should not be empty!"),
@@ -190,8 +190,8 @@ pub mod tests {
                 amount: Uint128::new(10u128),
             },
             path: vec![
-                Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()},
-                Hop{ addr: Addr::unchecked(PAIR_CONTRACT_2.to_string()), code_hash: "".to_string()},
+                Hop{ addr: PAIR_CONTRACT_1.to_string(), code_hash: "".to_string()},
+                Hop{ addr: PAIR_CONTRACT_2.to_string(), code_hash: "".to_string()},
             ],
             next_token_in: TokenType::CustomToken { contract_addr: Addr::unchecked("token_1"), token_code_hash: "".to_string() },
             recipient: Addr::unchecked("recipient".to_string()),
@@ -208,7 +208,7 @@ pub mod tests {
                 msg: Some(
                     to_binary(&InvokeMsg::SwapTokensForExact {
                         expected_return: Some(Uint128::new(1000u128)),
-                        path: vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}],
+                        path: vec![Hop{ addr: PAIR_CONTRACT_1.to_string(), code_hash: "".to_string()}],
                         recipient: None
                     })
                     .unwrap(),
@@ -250,8 +250,8 @@ pub mod tests {
             },
             amount_out_min: Some(Uint128::new(10u128)),
             path: vec![
-                Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()},
-                Hop{ addr: Addr::unchecked(PAIR_CONTRACT_2.to_string()), code_hash: "".to_string()},
+                Hop{ addr: PAIR_CONTRACT_1.to_string(), code_hash: "".to_string()},
+                Hop{ addr: PAIR_CONTRACT_2.to_string(), code_hash: "".to_string()},
             ],
             recipient: Addr::unchecked("recipient".to_string()),
             current_index: 0,
@@ -272,7 +272,7 @@ pub mod tests {
                     amount: Uint128::new(10u128),
                 },
                 expected_return: None,
-                path: vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}],
+                path: vec![Hop{ addr: PAIR_CONTRACT_1.to_string(), code_hash: "".to_string()}],
                 recipient: None,
             }
         )
@@ -326,7 +326,7 @@ pub mod tests {
                     amount: Uint128::new(10u128),
                 },
                 path: vec![
-                    Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()},
+                    Hop{ addr: PAIR_CONTRACT_1.to_string(), code_hash: "".to_string()},
                 ],
                 recipient: Addr::unchecked("recipient".to_string()),
                 current_index: 0,
@@ -348,7 +348,7 @@ pub mod tests {
                     amount: Uint128::new(10u128),
                 },
                 expected_return: None,
-                path: vec![Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()}],
+                path: vec![Hop{ addr: PAIR_CONTRACT_1.to_string(), code_hash: "".to_string()}],
                 recipient: None,
             },
         )
@@ -401,7 +401,7 @@ pub mod tests {
                     amount: Uint128::new(10),
                 },
                 path: vec![
-                    Hop{ addr: Addr::unchecked(PAIR_CONTRACT_1.to_string()), code_hash: "".to_string()},
+                    Hop{ addr: PAIR_CONTRACT_1.to_string(), code_hash: "".to_string()},
                 ],
                 recipient: Addr::unchecked("recipient".to_string()),
                 current_index: 0,
@@ -423,7 +423,7 @@ pub mod tests {
                     amount: Uint128::new(10u128),
                 },
                 expected_return: None,
-                path: vec![Hop{ addr: Addr::unchecked("token_addr".to_string()), code_hash: "".to_string()}],
+                path: vec![Hop{ addr: "token_addr".to_string(), code_hash: "".to_string()}],
                 recipient: None,
             },
         );

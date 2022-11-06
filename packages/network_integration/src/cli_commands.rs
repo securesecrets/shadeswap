@@ -523,6 +523,8 @@ pub mod amm_pair_lib {
 
     use crate::utils::{GAS, STORE_GAS};
 
+    use super::factory_lib::increase_allowance;
+
     pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
     pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
     pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
@@ -543,27 +545,23 @@ pub mod amm_pair_lib {
         Ok(stored_amm_pairs)
     }
 
-    pub fn add_amm_pairs_with_staking(
+    pub fn add_amm_pairs(
         factory_addr: String,
         backend: &str,
         account_name: &str,
         token_0_address: String,
+        token_0_code_hash: String,
         token_1_address: String,
-        token_code_hash: String,
-        reward_contract_address: String,
-        reward_contract_code_hash: String,
-        reward_amount: Uint128,
-        valid_to: Uint128,
-        router_contract: Option<String>,
+        token_1_code_hash: String,
+        entropy: &str,
+        router_contract: Option<Contract>,
+        reward_contract_address: Option<String>,
+        reward_contract_code_hash: Option<String>,
+        reward_amount: Option<u128>,
+        valid_to: Option<u128>,     
         reports: &mut Vec<Report>,
     ) -> io::Result<()> {
-        println!(
-            "Creating New Pairs for factory {} - token_0 {} - token_1 {} - amount {} with staking",
-            factory_addr.clone(),
-            token_0_address.clone(),
-            token_1_address.clone(),
-            reward_amount
-        );
+    
         let factory_contract = NetContract {
             label: "".to_string(),
             id: "".to_string(),
@@ -571,98 +569,56 @@ pub mod amm_pair_lib {
             code_hash: "".to_string(),
         };
 
-        let router_contr: Option<Contract> = match router_contract{
-            Some(contract) => Some(Contract{ 
-                address: Addr::unchecked(contract), 
-                code_hash: "".to_string(),
-            }),
-            None => None
-        };
-
-        let pairs = TokenPair(
-            TokenType::CustomToken {
-                contract_addr: Addr::unchecked(token_0_address.clone()),
-                token_code_hash: token_code_hash.clone(),
-            },
-            TokenType::CustomToken {
-                contract_addr: Addr::unchecked(token_1_address.clone()),
-                token_code_hash: token_code_hash.clone(),
-            },
-        );
+       let mut pairs:Option<TokenPair> = None;     
+        if &token_0_address == "" {
+            pairs = Some(TokenPair(
+                TokenType::NativeToken { 
+                    denom:"uscrt".to_string()
+                }, 
+                TokenType::CustomToken {
+                    contract_addr: Addr::unchecked(token_1_address.clone()),
+                    token_code_hash: token_1_code_hash.clone(),
+                },
+            ));
+        }
+        else{
+            pairs = Some(TokenPair(
+                TokenType::CustomToken {
+                    contract_addr: Addr::unchecked(token_0_address.clone()),
+                    token_code_hash: token_0_code_hash.clone(),
+                },
+                TokenType::CustomToken {
+                    contract_addr: Addr::unchecked(token_1_address.clone()),
+                    token_code_hash: token_1_code_hash.clone(),
+                },
+            ));
+        }
 
         let staking_contract = store_staking_contract(&account_name, &backend)?;
-
-        handle(
-            &FactoryExecuteMsg::CreateAMMPair {
-                pair: pairs.clone(),
-                entropy: to_binary(&"".to_string()).unwrap(),
-                staking_contract: Some(StakingContractInit {
+        let staking_contract_init: Option<StakingContractInit> =  match reward_contract_address {
+            Some(msg) => {
+                Some(StakingContractInit {
                     contract_info: ContractInstantiationInfo {
                         code_hash: staking_contract.code_hash.to_string(),
                         id: staking_contract.id.clone().parse::<u64>().unwrap(),
                     },
-                    daily_reward_amount: Uint128::from(reward_amount),
+                    daily_reward_amount: Uint128::from(reward_amount.unwrap()),
                     reward_token: TokenType::CustomToken {
-                        contract_addr: Addr::unchecked(reward_contract_address.clone()),
-                        token_code_hash: reward_contract_code_hash.to_string(),
+                        contract_addr: Addr::unchecked(msg.clone()),
+                        token_code_hash: reward_contract_code_hash.unwrap().to_string(),
                     },
-                    valid_to: valid_to,
-                }),
-                router_contract: router_contr,
-            },
-            &factory_contract,
-            account_name,
-            Some(GAS),
-            Some(backend),
-            None,
-            reports,
-            None,
-        )
-        .unwrap();
-
-        Ok(())
-    }
-
-    pub fn add_amm_pairs_no_staking(
-        factory_addr: String,
-        backend: &str,
-        account_name: &str,
-        token_0_address: String,
-        token_1_address: String,
-        token_code_hash: String,
-        router_contract: Option<String>,
-        reports: &mut Vec<Report>,
-    ) -> io::Result<()> {
-        println!(
-            "Creating New Pairs for factory {} - token_0 {} - token_1 {} - no staking",
-            factory_addr.clone(),
-            token_0_address.clone(),
-            token_1_address.clone()
-        );
-        let factory_contract = NetContract {
-            label: "".to_string(),
-            id: "".to_string(),
-            address: factory_addr.clone(),
-            code_hash: "".to_string(),
-        };
-
-        let pairs = TokenPair(
-            TokenType::CustomToken {
-                contract_addr: Addr::unchecked(token_0_address.clone()),
-                token_code_hash: token_code_hash.clone(),
-            },
-            TokenType::CustomToken {
-                contract_addr: Addr::unchecked(token_1_address.clone()),
-                token_code_hash: token_code_hash.clone(),
-            },
-        );
-
+                    valid_to: Uint128::new(valid_to.unwrap()),
+                })      
+            }     
+            None => None
+        };    
+       
         handle(
             &FactoryExecuteMsg::CreateAMMPair {
-                pair: pairs.clone(),
-                entropy: to_binary(&"".to_string()).unwrap(),
-                staking_contract: None,
-                router_contract: None,
+                pair: pairs.unwrap().clone(),
+                entropy: to_binary(&entropy).unwrap(),
+                staking_contract: staking_contract_init,
+                router_contract: router_contract,
             },
             &factory_contract,
             account_name,
@@ -673,8 +629,86 @@ pub mod amm_pair_lib {
             None,
         )
         .unwrap();
+
         Ok(())
     }
+
+    // pub fn add_amm_pairs_no_staking(
+    //     factory_addr: String,
+    //     backend: &str,
+    //     account_name: &str,
+    //     token_0_address: String,
+    //     token_0_code_hash: String,
+    //     token_1_address: String,
+    //     token_1_code_hash: String,
+    //     entropy: &str,
+    //     router_contract: Option<String>,
+    //     reports: &mut Vec<Report>,
+    // ) -> io::Result<()> {
+    //     println!(
+    //         "Creating New Pairs for factory {} - token_0 {} - token_1 {} - no staking",
+    //         factory_addr.clone(),
+    //         token_0_address.clone(),
+    //         token_1_address.clone()
+    //     );
+    //     let factory_contract = NetContract {
+    //         label: "".to_string(),
+    //         id: "".to_string(),
+    //         address: factory_addr.clone(),
+    //         code_hash: "".to_string(),
+    //     };
+
+    //     let mut pairs:Option<TokenPair> = None;
+    //     if &token_0_address == "" {
+    //         pairs = Some(TokenPair(
+    //             TokenType::NativeToken { 
+    //                 denom:"uscrt".to_string()
+    //             }, 
+    //             TokenType::CustomToken {
+    //                 contract_addr: Addr::unchecked(token_1_address.clone()),
+    //                 token_code_hash: token_1_code_hash.clone(),
+    //             },
+    //         ));
+    //     }
+    //     else{
+    //         pairs = Some(TokenPair(
+    //             TokenType::CustomToken {
+    //                 contract_addr: Addr::unchecked(token_0_address.clone()),
+    //                 token_code_hash: token_0_code_hash.clone(),
+    //             },
+    //             TokenType::CustomToken {
+    //                 contract_addr: Addr::unchecked(token_1_address.clone()),
+    //                 token_code_hash: token_1_code_hash.clone(),
+    //             },
+    //         ));
+    //     }
+
+    //     let router_contr: Option<Contract> = match router_contract{
+    //         Some(contract) => Some(Contract{ 
+    //             address: Addr::unchecked(contract), 
+    //             code_hash: "".to_string(),
+    //         }),
+    //         None => None
+    //     };
+
+    //     handle(
+    //         &FactoryExecuteMsg::CreateAMMPair {
+    //             pair: pairs.unwrap().clone(),
+    //             entropy: to_binary(&entropy).unwrap(),
+    //             staking_contract: None,
+    //             router_contract: router_contr,
+    //         },
+    //         &factory_contract,
+    //         account_name,
+    //         Some(GAS),
+    //         Some(backend),
+    //         None,
+    //         reports,
+    //         None,
+    //     )
+    //     .unwrap();
+    //     Ok(())
+    // }
 
     pub fn list_pair_from_factory(factory_addr: String, start: u64, limit: u8) -> io::Result<()> {
         let factory_contract = NetContract {
@@ -763,11 +797,13 @@ pub mod amm_pair_lib {
         backend: &str,
         pair_addr: String,
         token_0_addr: String,
+        token_0_code_hash: String,
         token_1_addr: String,
-        token_code_hash: String,
+        token_1_code_hash: String,
         amount_0: Uint128,
         amount_1: Uint128,
         staking_opt: bool,
+        exp_return: &str,
         reports: &mut Vec<Report>,
     ) -> io::Result<()> {
         let pair_contract = NetContract {
@@ -777,37 +813,68 @@ pub mod amm_pair_lib {
             code_hash: "".to_string(),
         };
 
-        let pair = TokenPair(
-            TokenType::CustomToken {
-                contract_addr: Addr::unchecked(token_0_addr.clone()),
-                token_code_hash: token_code_hash.clone(),
-            },
-            TokenType::CustomToken {
-                contract_addr: Addr::unchecked(token_1_addr.clone()),
-                token_code_hash: token_code_hash.clone(),
-            },
-        );
+        let mut pair: Option<TokenPair> = None;
+        let mut native_amount: Option<String> = None;       
+        if token_0_addr == ""{
+            let mut amo = amount_0.to_owned().to_string();
+            let denom = "uscrt".to_string();   
+            amo.push_str(&denom)        ;
+            native_amount = Some(amo.to_string());
+            pair = Some(TokenPair(
+                TokenType::NativeToken { 
+                    denom: "uscrt".to_string()
+                }, 
+                TokenType::CustomToken {
+                    contract_addr: Addr::unchecked(token_1_addr.clone()),
+                    token_code_hash: token_1_code_hash.clone(),
+                }));
+
+            // increase allowance
+            increase_allowance(pair_addr.to_owned(), amount_1, token_1_addr, account_name, backend, reports).unwrap();
+        }
+        else{
+            // increase allowance
+            increase_allowance(pair_addr.to_owned(), amount_0, token_0_addr.to_owned(), account_name, backend, reports).unwrap();
+            increase_allowance(pair_addr.to_owned(), amount_1, token_1_addr.to_owned(), account_name, backend, reports).unwrap();
+
+            pair = Some(TokenPair(
+                TokenType::CustomToken {
+                    contract_addr: Addr::unchecked(token_0_addr.clone()),
+                    token_code_hash: token_0_code_hash.clone(),
+                },
+                TokenType::CustomToken {
+                    contract_addr: Addr::unchecked(token_1_addr.clone()),
+                    token_code_hash: token_1_code_hash.clone(),
+                },
+            ));
+        }
+
+        let mut expected_return: Option<Uint128> = None;
+        if exp_return != "" {
+            expected_return = Some(Uint128::new(exp_return.parse::<u128>().unwrap()));
+        }       
 
         let mut staking: Option<bool> = None;
         if staking_opt == true {
             staking = Some(true);
         }
 
+        
         handle(
             &AMMPairHandlMsg::AddLiquidityToAMMContract {
                 deposit: TokenPairAmount {
-                    pair: pair.clone(),
+                    pair: pair.unwrap(),
                     amount_0: amount_0,
                     amount_1: amount_1,
                 },
-                expected_return: None,
+                expected_return: expected_return,
                 staking: staking,
             },
             &pair_contract,
             account_name,
             Some(GAS),
             Some(backend),
-            None,
+            native_amount.as_ref().map(String::as_ref),
             reports,
             None,
         )

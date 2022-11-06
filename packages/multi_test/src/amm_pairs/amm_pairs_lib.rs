@@ -1,9 +1,10 @@
 pub mod amm_pairs_lib{
-    use cosmwasm_std::{ContractInfo, StdResult, Addr, to_binary, Empty, Uint128};
+    use cosmwasm_std::{ContractInfo, StdResult, Addr, to_binary, Empty, Uint128, Coin};
     use secret_multi_test::{App, ContractWrapper, Executor, Contract};
     use shadeswap_shared::amm_pair::{AMMSettings, AMMPair};
     use shadeswap_shared::core::{ContractInstantiationInfo, CustomFee, Callback, Fee, TokenPair, TokenType, TokenPairAmount};
     use shadeswap_shared::msg::amm_pair::{InitMsg, ExecuteMsg, QueryMsg, QueryMsgResponse};
+    use shadeswap_shared::utils::testing::TestingExt;
     use crate::amm_pairs::amm_pairs_mock::amm_pairs_mock::{execute, instantiate, query};
     use crate::help_lib::integration_help_lib::{snip20_lp_token_contract_store, create_token_pair};
     use shadeswap_shared::utils::asset::Contract as SContract;
@@ -66,6 +67,25 @@ pub mod amm_pairs_lib{
         }
     }
 
+    pub fn get_amm_pair_info_query_liquidity(
+        router: &mut App,
+        contract: &ContractInfo
+    ) -> StdResult<Uint128>{
+        let query = to_binary(&QueryMsg::GetPairInfo {  })?;
+        let query_response: QueryMsgResponse = router.query_test(contract.clone(), query).unwrap();
+        match query_response{
+            QueryMsgResponse::GetPairInfo { 
+                liquidity_token:_, 
+                factory:_, 
+                pair:_, 
+                amount_0: _, 
+                amount_1: _, 
+                total_liquidity, 
+                contract_version:_ } => Ok(total_liquidity),
+            _ => panic!("wrong query response")
+        }
+    }
+
     pub fn create_amm_pairs(
         address: &Addr,
         enabled: bool,
@@ -106,6 +126,7 @@ pub mod amm_pairs_lib{
         amount_1: Uint128,
         expected_return: Option<Uint128>,
         staking: Option<bool>,
+        funds: Vec<Coin>,
         sender: &Addr
     ) -> StdResult<()>{
         let add_liq_msg = ExecuteMsg::AddLiquidityToAMMContract { 
@@ -122,7 +143,7 @@ pub mod amm_pairs_lib{
             sender.to_owned(),                
             contract, 
             &add_liq_msg,
-            &[]
+            &funds
         ).unwrap();
 
         Ok(())

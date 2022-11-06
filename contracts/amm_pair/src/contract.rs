@@ -246,10 +246,9 @@ fn receiver_callback(
     let msg = msg.ok_or_else(|| {
         StdError::generic_err("Receiver callback \"msg\" parameter cannot be empty.")
     })?;
-
     let config = config_r(deps.storage).load()?;
     let from_caller = from.clone();
-
+    println!("Test {}", from.to_string());
     pad_response_result(
         match from_binary(&msg)? {
             InvokeMsg::SwapTokens {
@@ -288,7 +287,7 @@ fn receiver_callback(
                     "No matching token in pair".to_string(),
                 ))
             }
-            InvokeMsg::RemoveLiquidity { from } => {
+            InvokeMsg::RemoveLiquidity { from } => {                
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err(
                         "LP Token was not sent to remove liquidity.".to_string(),

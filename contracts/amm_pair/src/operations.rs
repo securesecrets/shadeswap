@@ -183,7 +183,7 @@ pub fn query_calculate_price(
         &config_settings,
         &offer,        
         exclude_fee,
-    )?;
+    )?;  
     Ok(swap_result)
 }
 
@@ -281,8 +281,8 @@ pub fn swap(
         shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
     };
 
-    store_trade_history(deps, &trade_history)?;
-    
+    store_trade_history(deps, &trade_history)?; 
+    println!("result {} ", swap_result.result.return_amount);  
     Ok(Response::new().add_messages(messages))
 }
 
@@ -314,8 +314,7 @@ pub fn get_shade_dao_info(deps: Deps) -> StdResult<Binary> {
 
 pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Binary> {
     let config_settings = config_r(deps.storage).load()?;
-    let amm_settings = query_factory_config(deps, &config_settings.factory_contract)?.amm_settings;
-    println!("testwv");
+    let amm_settings = query_factory_config(deps, &config_settings.factory_contract)?.amm_settings; 
     let swap_result = calculate_swap_result(
         deps,
         &env,
@@ -449,7 +448,6 @@ pub fn calculate_swap_result(
     let result_swap = SwapResult {
         return_amount: swap_amount,
     };
-
     Ok(SwapInfo {
         lp_fee_amount: lp_fee_amount,
         shade_dao_fee_amount: shade_dao_fee_amount,
@@ -524,6 +522,8 @@ pub fn remove_liquidity(
         env.contract.address.to_string(),
         viewing_key.0,
     )?;
+    
+  
     let withdraw_amount = amount;
     let total_liquidity = liquidity_pair_contract;
 
@@ -560,6 +560,7 @@ pub fn remove_liquidity(
             Attribute::new("withdrawn_share", amount),
             Attribute::new("refund_assets", format!("{}, {}", &pair.0, &pair.1)),
         ]))
+    
 }
 
 pub fn calculate_price(

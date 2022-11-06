@@ -346,7 +346,7 @@ pub mod factory_lib {
         };
 
         let msg = snip20_reference_impl::msg::ExecuteMsg::Send { 
-            recipient: Addr::unchecked(token_addr.to_string()), 
+            recipient: Addr::unchecked(recipient.to_string()), 
             recipient_code_hash: rec_code_hash, 
             amount: snip_20_amount, 
             msg: msg_binary, 

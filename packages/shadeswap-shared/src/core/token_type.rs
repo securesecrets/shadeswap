@@ -66,6 +66,7 @@ impl TokenType {
     ) -> StdResult<Uint128> {
         match self {
             TokenType::NativeToken { denom } => {
+                println!("NATIVE");
                 let result = deps.querier.query_balance(exchange_addr, denom)?;
                 Ok(result.amount)
             }
@@ -73,6 +74,7 @@ impl TokenType {
                 contract_addr,
                 token_code_hash,
             } => {                
+                println!("SNIP");
                 balance_query(&deps.querier,  deps.api.addr_validate(&exchange_addr)?, viewing_key,  &Contract {
                     address: contract_addr.clone(),
                     code_hash: token_code_hash.clone(),

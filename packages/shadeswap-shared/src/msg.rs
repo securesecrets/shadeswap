@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct CountResponse {
     pub count: i32,
 }
+use crate::{core::{TokenAmount, TokenType}, Contract, utils::ExecuteCallback};
 
 pub mod router {
     use cosmwasm_std::Addr;
@@ -35,7 +36,7 @@ pub mod router {
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct Hop {
-        pub addr: Addr,
+        pub addr: String,
         pub code_hash: String
     }
 
@@ -65,6 +66,10 @@ pub mod router {
             to: String,
             msg: Option<Binary>,
         },
+    }
+
+    impl ExecuteCallback for ExecuteMsg {
+        const BLOCK_SIZE: usize = 256;
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -188,19 +193,19 @@ pub mod amm_pair {
             /// The token type to swap from.
             offer: TokenAmount,
             expected_return: Option<Uint128>,
-            to: Option<Addr>
+            to: Option<String>
         },
         // SNIP20 receiver interface
         Receive {
-            from: Addr,
+            from: String,
             msg: Option<Binary>,
             amount: Uint128,
         },
         AddWhiteListAddress {
-            address: Addr,
+            address: String,
         },
         RemoveWhitelistAddresses {
-            addresses: Vec<Addr>,
+            addresses: Vec<String>,
         },
         SetConfig {
             admin_auth: Option<Contract>
@@ -214,19 +219,24 @@ pub mod amm_pair {
         RecoverFunds {
             token: TokenType,
             amount: Uint128,
-            to: Addr,
+            to: String,
             msg: Option<Binary>,
         },
     }
+
+    impl ExecuteCallback for ExecuteMsg {
+        const BLOCK_SIZE: usize = 256;
+    }
+
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
         SwapTokens {
             expected_return: Option<Uint128>,
-            to: Option<Addr>,
+            to: Option<String>,
         },
         RemoveLiquidity {
-            from: Option<Addr>,
+            from: Option<String>,
         },
     }
     #[derive(Serialize, Deserialize, JsonSchema,  Clone, Debug)]
@@ -347,8 +357,6 @@ pub mod factory {
             pair: TokenPair,
             entropy: Binary,
             staking_contract: Option<StakingContractInit>,
-            // This is used to optionally register the token
-            router_contract: Option<Contract>,
         },
         AddAMMPairs {
             amm_pairs: Vec<AMMPair>,
@@ -357,6 +365,10 @@ pub mod factory {
             pair: TokenPair,
             signature: Binary,
         },
+    }
+
+    impl ExecuteCallback for ExecuteMsg {
+        const BLOCK_SIZE: usize = 256;
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -429,7 +441,7 @@ pub mod staking {
     pub enum ExecuteMsg {
         ClaimRewards {},
         ProxyUnstake {
-            for_addr: Addr,
+            for_addr: String,
             amount: Uint128,
         },
         Unstake {
@@ -437,7 +449,7 @@ pub mod staking {
             remove_liqudity: Option<bool>,
         },
         Receive {
-            from: Addr,
+            from: String,
             msg: Option<Binary>,
             amount: Uint128,
         },
@@ -455,17 +467,21 @@ pub mod staking {
         RecoverFunds {
             token: TokenType,
             amount: Uint128,
-            to: Addr,
+            to: String,
             msg: Option<Binary>,
         },        
+    }
+
+    impl ExecuteCallback for ExecuteMsg {
+        const BLOCK_SIZE: usize = 256;
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
-        Stake { from: Addr },
+        Stake { from: String },
         ProxyStake {
-            for_addr: Addr
+            for_addr: String
         }
     }
 
@@ -514,7 +530,7 @@ pub mod staking {
             reward_token: Contract,
             lp_token: Contract,
             daily_reward_amount: Uint128,
-            amm_pair: Addr,
+            amm_pair: String,
             admin_auth: Contract
         },
         RewardTokens{
@@ -552,7 +568,7 @@ pub mod lp_token {
     #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
     pub struct InstantiateMsg {
         pub name: String,
-        pub admin: Option<Addr>,
+        pub admin: Option<String>,
         pub symbol: String,
         pub decimals: u8,
         pub initial_balances: Option<Vec<InitialBalance>>,

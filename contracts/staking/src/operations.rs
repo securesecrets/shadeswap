@@ -2,20 +2,23 @@
 // needs to check for the amount
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
 
-use cosmwasm_std::Binary;
+use cosmwasm_std::{Binary, DecimalRangeExceeded};
 use cosmwasm_std::{
-    to_binary, wasm_execute, Addr, Attribute, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    to_binary, Addr, Attribute, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use shadeswap_shared::core::TokenType;
 use shadeswap_shared::snip20;
 use shadeswap_shared::stake_contract::{ClaimableInfo};
 use shadeswap_shared::staking::QueryResponse;
+use shadeswap_shared::utils::ExecuteCallback;
 use shadeswap_shared::{
     msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, Contract,
 };
 use crate::state::{RewardTokenInfo};
 use shadeswap_shared::stake_contract::RewardTokenInfo as ResponseRewardTokenInfo;
+
+const SECONDS_IN_DAY:Uint128 = Uint128::new(24u128 * 60u128 * 60u128);
 
 use crate::state::{
     claim_reward_info_r, claim_reward_info_w, config_r, config_w, proxy_staker_info_r,
@@ -324,22 +327,17 @@ fn process_all_claimable_rewards(
     let mut claim_reward_tokens = claim_reward_info_r(storage).load(receiver.as_bytes())?;
     for claim_reward in claim_reward_tokens.iter_mut() {
         // send all remaing reward token
-        let msg = snip20::ExecuteMsg::Send {
+        let cosmos_msg = snip20::ExecuteMsg::Send {
             recipient: receiver.to_owned(),
             recipient_code_hash: None,
             amount: claim_reward.amount,
             msg: None,
             memo: None,
             padding: None,
-        };
-
-        let cosmos_msg = wasm_execute(
-            claim_reward.reward_token_addr.to_owned(),
-            claim_reward.reward_token_code_hash.to_owned(),
-            &msg,
-            vec![],
-        )?
-        .into();
+        }.to_cosmos_msg(&Contract{
+            address: claim_reward.reward_token_addr.to_owned(),
+            code_hash: claim_reward.reward_token_code_hash.to_owned(),
+        }, vec![])?;
 
         messages.push(cosmos_msg);
         claim_reward.amount = Uint128::zero();
@@ -492,11 +490,10 @@ pub fn calculate_incremental_staking_reward(
     to_timestamp: Uint128,
     emmision_rate: Uint128,
 ) -> StdResult<Uint128> {
-    let seconds_in_day = Uint128::new(24u128 * 60u128 * 60u128);
     if last_timestamp < to_timestamp {
         let time_dif = to_timestamp - last_timestamp;
-        let total_available_reward = emmision_rate.multiply_ratio(time_dif, seconds_in_day);
-        let converted_total_reward = Decimal::from_atomics(total_available_reward, 0).unwrap();
+        let total_available_reward = emmision_rate.multiply_ratio(time_dif, SECONDS_IN_DAY);
+        let converted_total_reward = Decimal::from_atomics(total_available_reward, 0).or_else(|_|Err(StdError::generic_err("Decimal range exceeded on total available rewards.")))?;
         let result = converted_total_reward.checked_mul(percentage)?;
         Ok(result.atomics().checked_div(DECIMAL_FRACTIONAL)?)
     } else {
@@ -519,7 +516,7 @@ pub fn get_config(deps: Deps) -> StdResult<Binary> {
             },
             lp_token: config.lp_token.clone(),
             daily_reward_amount: config.daily_reward_amount.clone(),
-            amm_pair: config.amm_pair.clone(),
+            amm_pair: config.amm_pair.to_string(),
             admin_auth: config.admin_auth,
         };
         return to_binary(&response);
@@ -539,10 +536,11 @@ pub fn update_authenticator(
 }
 
 pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Binary> {
-    let staker_info = stakers_r(deps.storage).load(&staker.as_bytes())?;
+    let staker_amount = stakers_r(deps.storage).may_load(&staker.as_bytes())?.map_or_else(|| Uint128::zero(), |v| v.amount);
+
     let response_msg = QueryResponse::StakerLpTokenInfo {
-        staked_lp_token: staker_info.amount,
-        total_staked_lp_token: total_staked_r(deps.storage).load()?,
+        staked_lp_token: staker_amount,
+        total_staked_lp_token: total_staked_r(deps.storage).may_load()?.map_or_else(|| Uint128::zero(), |v| v),
     };
     to_binary(&response_msg)
 }
@@ -649,22 +647,14 @@ pub fn proxy_unstake(
         // send back amount of lp token to pair contract to send pair token back with burn
         let config = config_r(deps.storage).load()?;
 
-        let msg = snip20::ExecuteMsg::Transfer {
+        let cosmos_msg = snip20::ExecuteMsg::Transfer {
             recipient: caller.to_string(),
             amount: amount,
             memo: None,
             padding: None,
-        };
+        }.to_cosmos_msg(&config.lp_token, vec![])?;
 
-        let coms_msg = wasm_execute(
-            config.lp_token.address.to_string(),
-            config.lp_token.code_hash.clone(),
-            &msg,
-            vec![],
-        )?
-        .into();
-
-        messages.push(coms_msg);
+        messages.push(cosmos_msg);
         Ok(Response::new().add_messages(messages).add_attributes(vec![
             Attribute::new("action", "unstake"),
             Attribute::new("amount", amount),
@@ -709,44 +699,28 @@ pub fn unstake(
         if let Some(true) = remove_liqudity {
             // SEND LP Token back to Pair Contract With Remove Liquidity
             let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity {
-                from: Some(caller.clone()),
+                from: Some(caller.to_string()),
             })?;
-            let msg = snip20::ExecuteMsg::Send {
+            let cosmos_msg = snip20::ExecuteMsg::Send {
                 recipient: config.amm_pair.to_string(),
                 recipient_code_hash: None,
                 amount: amount,
                 msg: Some(remove_liquidity_msg.clone()),
                 memo: None,
                 padding: None,
-            };
+            }.to_cosmos_msg(&config.lp_token, vec![])?;
 
-            let coms_msg = wasm_execute(
-                config.lp_token.address.to_string(),
-                config.lp_token.code_hash.clone(),
-                &msg,
-                vec![],
-            )?
-            .into();
-
-            messages.push(coms_msg);
+            messages.push(cosmos_msg);
         } else {
             // SEND LP Token back to Staker And User Will Manually Remove Liquidity
-            let msg = snip20::ExecuteMsg::Transfer {
+            let cosmos_msg = snip20::ExecuteMsg::Transfer {
                 recipient: caller.to_string(),
                 amount: amount,
                 memo: None,
                 padding: None,
-            };
+            }.to_cosmos_msg(&config.lp_token, vec![])?;;
 
-            let coms_msg = wasm_execute(
-                config.lp_token.address.to_string(),
-                config.lp_token.code_hash.clone(),
-                &msg,
-                vec![],
-            )?
-            .into();
-
-            messages.push(coms_msg);
+            messages.push(cosmos_msg);
         }
         Ok(Response::new().add_messages(messages).add_attributes(vec![
             Attribute::new("action", "unstake"),

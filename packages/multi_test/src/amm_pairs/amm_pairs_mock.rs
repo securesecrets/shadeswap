@@ -93,7 +93,7 @@ pub mod amm_pairs_mock {
     }
 
     #[entry_point]
-    pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         pad_query_result(
             match msg {
                 QueryMsg::GetConfig {} => to_binary(""),
@@ -122,13 +122,13 @@ pub mod amm_pairs_mock {
                     to_binary(&response)
                 }
                 QueryMsg::GetTradeHistory {
-                    api_key,
-                    pagination,
+                    api_key: _,
+                    pagination: _,
                 } => to_binary(""),
                 QueryMsg::GetWhiteListAddress {} => to_binary(""),
                 QueryMsg::GetTradeCount {} => to_binary(""),
                 QueryMsg::GetStakingContract {} => to_binary(""),
-                QueryMsg::GetEstimatedPrice { offer, exclude_fee } => to_binary(""),
+                QueryMsg::GetEstimatedPrice { offer: _, exclude_fee: _ } => to_binary(""),
                 QueryMsg::SwapSimulation { offer } => {
                     let response = QueryMsgResponse::SwapSimulation {
                         total_fee_amount: Uint128::new(150u128),
@@ -142,7 +142,7 @@ pub mod amm_pairs_mock {
                     return to_binary(&response);
                 }
                 QueryMsg::GetShadeDaoInfo {} => to_binary(""),
-                QueryMsg::GetEstimatedLiquidity { deposit } => to_binary(""),
+                QueryMsg::GetEstimatedLiquidity { deposit: _ } => to_binary(""),
             },
             BLOCK_SIZE,
         )
@@ -150,39 +150,39 @@ pub mod amm_pairs_mock {
 
     #[entry_point]
     pub fn execute(
-        deps: DepsMut,
-        env: Env,
-        info: MessageInfo,
+        _deps: DepsMut,
+        _env: Env,
+        _info: MessageInfo,
         msg: ExecuteMsg,
     ) -> StdResult<Response> {
         pad_response_result(
             match msg {
                 ExecuteMsg::AddLiquidityToAMMContract {
-                    deposit,
-                    expected_return,
-                    staking,
+                    deposit: _,
+                    expected_return: _,
+                    staking: _,
                 } => Ok(Response::new()),
                 ExecuteMsg::SwapTokens {
                     offer: _,
-                    expected_return,
-                    to,
+                    expected_return: _,
+                    to: _,
                 } => Ok(Response::new()),
                 ExecuteMsg::Receive {
                     from: _,
-                    msg,
-                    amount,
+                    msg: _,
+                    amount: _,
                 } => Ok(Response::new()),
-                ExecuteMsg::AddWhiteListAddress { address } => Ok(Response::new()),
-                ExecuteMsg::RemoveWhitelistAddresses { addresses } => Ok(Response::new()),
+                ExecuteMsg::AddWhiteListAddress { address: _ } => Ok(Response::new()),
+                ExecuteMsg::RemoveWhitelistAddresses { addresses: _ } => Ok(Response::new()),
                 ExecuteMsg::SetCustomPairFee { custom_fee: _ } => Ok(Response::new()),
                 ExecuteMsg::SetViewingKey { viewing_key: _ } => Ok(Response::new()),
                 ExecuteMsg::RecoverFunds {
                     token: _,
-                    amount,
+                    amount: _,
                     to: _,
                     msg: _msg,
                 } => Ok(Response::new()),
-                ExecuteMsg::SetConfig { admin_auth } => Ok(Response::new()),
+                ExecuteMsg::SetConfig { admin_auth: _ } => Ok(Response::new()),
             },
             BLOCK_SIZE,
         )

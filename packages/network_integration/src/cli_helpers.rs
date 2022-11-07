@@ -46,6 +46,8 @@ pub struct InitMsg {
 }
 
 impl InitMsg {
+
+    #[allow(dead_code)]
     pub fn config(&self) -> InitConfig {
         self.config.clone().unwrap_or_default()
     }

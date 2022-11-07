@@ -5,7 +5,7 @@ use cosmwasm_std::{
 use shadeswap_shared::{
     core::{TokenType},
     query_auth::helpers::{authenticate_permit, PermitAuthentication},
-    snip20::helpers::send_msg,
+    snip20::helpers::{send_msg, register_receive},
     staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
     utils::{pad_query_result, pad_response_result},
     Contract, admin::helpers::{validate_admin, AdminPermissions},
@@ -33,12 +33,20 @@ pub fn instantiate(
         amm_pair: _info.sender.clone(),
         daily_reward_amount: msg.daily_reward_amount,
         reward_token: msg.reward_token.to_owned(),
-        lp_token: msg.lp_token,
+        lp_token: msg.lp_token.clone(),
         authenticator: msg.authenticator,
         admin_auth: msg.admin_auth,
     };
     config_w(deps.storage).save(&config)?;
     prng_seed_w(deps.storage).save(&msg.prng_seed.as_slice().to_vec())?;
+
+    let mut messages: Vec<CosmosMsg> = vec![];
+
+    messages.push(register_receive(
+        env.contract.code_hash.clone(),
+        None,
+        &msg.lp_token
+    )?);
 
     // store reward token to the list
     let reward_token_address: Contract = match msg.reward_token {
@@ -64,7 +72,7 @@ pub fn instantiate(
 
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
-    Ok(response.add_attributes(vec![
+    Ok(response.add_messages(messages).add_attributes(vec![
         Attribute::new("staking_contract_addr", env.contract.address),
         Attribute::new("reward_token", reward_token_address.address.to_string()),
         Attribute::new("daily_reward_amount", msg.daily_reward_amount),
@@ -76,11 +84,15 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     pad_response_result(
         match msg {
             ExecuteMsg::ProxyUnstake { for_addr, amount } => {
-                proxy_unstake(deps, env, info, for_addr, amount)
+                let checked_for_addr = deps.api.addr_validate(&for_addr)?;
+                proxy_unstake(deps, env, info, checked_for_addr, amount)
             }
             ExecuteMsg::Receive {
                 from, amount, msg, ..
-            } => receiver_callback(deps, env, info, from, amount, msg),
+            } => {
+                let checked_from = deps.api.addr_validate(&from)?;
+                receiver_callback(deps, env, info, checked_from, amount, msg)
+            },
             ExecuteMsg::ClaimRewards {} => claim_rewards(deps, info, env),
             ExecuteMsg::Unstake {
                 amount,
@@ -141,7 +153,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                         contract_addr,
                         token_code_hash,
                     } => vec![send_msg(
-                        to,
+                        deps.api.addr_validate(&to)?,
                         amount,
                         msg,
                         None,
@@ -183,13 +195,15 @@ fn receiver_callback(
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err("Sender was not LP Token".to_string()));
                 }
-                stake(deps, env, info, amount, from)
+                let checked_from = deps.api.addr_validate(&from)?;
+                stake(deps, env, info, amount, checked_from)
             }
             InvokeMsg::ProxyStake { for_addr } => {
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err("Sender was not LP Token".to_string()));
                 }
-                proxy_stake(deps, env, info, amount, from, for_addr)
+                let checked_for_addr = deps.api.addr_validate(&for_addr)?;
+                proxy_stake(deps, env, info, amount, from, checked_for_addr)
             }
         },
         BLOCK_SIZE,

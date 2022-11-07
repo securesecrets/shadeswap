@@ -104,7 +104,7 @@ pub mod integration_help_lib{
 
     pub fn roll_blockchain(router: &mut App, count: u128) -> StdResult<()>{
         let temp_count = count + 1;
-        for i in 1..temp_count {            
+        for _i in 1..temp_count {            
             router.update_block(next_block);         
         }
         Ok(())
@@ -303,7 +303,7 @@ pub mod integration_help_lib{
         sender: &Addr
     ) -> StdResult<AppResponse>{        
         let invoke_msg = to_binary(&InvokeMsg::Stake {
-            from: staker.to_owned(),
+            from: staker.to_string(),
         })?;
        
         let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
@@ -331,11 +331,11 @@ pub mod integration_help_lib{
         stake_contract: &ContractInfo,
         amount: Uint128,
         staker: &Addr,
-        proxy_addr: &Addr,
+        _proxy_addr: &Addr,
         sender: &Addr
     ) -> StdResult<AppResponse>{        
         let invoke_msg = to_binary(&InvokeMsg::ProxyStake { 
-            for_addr: staker.to_owned()})?;
+            for_addr: staker.to_string()})?;
        
         let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
             recipient: stake_contract.address.to_owned(),

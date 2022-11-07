@@ -1,12 +1,9 @@
 pub mod auth_query{
-    use cosmwasm_std::{Response, StdResult, MessageInfo, DepsMut, Env, entry_point, to_binary, Deps, Binary, CosmosMsg, BankMsg, Coin, Addr};
-    use query_authentication::transaction::{PubKey, PubKeyValue};
+    use cosmwasm_std::{Response, StdResult, MessageInfo, DepsMut, Env, entry_point, to_binary, Deps, Binary};
+    use query_authentication::transaction::{PubKeyValue};
     use schemars::JsonSchema;
-    use secret_multi_test::Contract;
     use serde::{Deserialize, Serialize};
-    use shadeswap_shared::{utils::{pad_query_result, pad_response_result}, query_auth::{ExecuteMsg, QueryMsg, QueryAnswer}, core::TokenType};
-
-    use crate::util_addr::util_addr::OWNER;
+    use shadeswap_shared::{utils::{pad_query_result, pad_response_result}, query_auth::{ExecuteMsg, QueryMsg, QueryAnswer}};
     
     pub const BLOCK_SIZE: usize = 256;
 
@@ -18,16 +15,16 @@ pub mod auth_query{
 
     #[entry_point]
     pub fn instantiate(
-        deps: DepsMut,
-        env: Env,
+        _deps: DepsMut,
+        _env: Env,
         _info: MessageInfo,
-        msg: InitMsg,
+        _msg: InitMsg,
     ) -> StdResult<Response> {    
         Ok(Response::new())   
     }
 
     #[entry_point]
-    pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         pad_query_result(
             match msg {
                 QueryMsg::Config {  } => to_binary(""),
@@ -48,14 +45,14 @@ pub mod auth_query{
 
     
     #[entry_point]
-    pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+    pub fn execute(_deps: DepsMut, _env: Env, _info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
         pad_response_result(
             match msg {
-                ExecuteMsg::SetAdminAuth { admin, padding } => Ok(Response::new()),
-                ExecuteMsg::SetRunState { state, padding } => Ok(Response::new()),
-                ExecuteMsg::SetViewingKey { key, padding } => Ok(Response::new()),
-                ExecuteMsg::CreateViewingKey { entropy, padding } => Ok(Response::new()),
-                ExecuteMsg::BlockPermitKey { key, padding } => Ok(Response::new()),
+                ExecuteMsg::SetAdminAuth { admin: _, padding: _ } => Ok(Response::new()),
+                ExecuteMsg::SetRunState { state: _, padding: _ } => Ok(Response::new()),
+                ExecuteMsg::SetViewingKey { key: _, padding: _ } => Ok(Response::new()),
+                ExecuteMsg::CreateViewingKey { entropy: _, padding: _ } => Ok(Response::new()),
+                ExecuteMsg::BlockPermitKey { key: _, padding: _ } => Ok(Response::new()),
             },
             BLOCK_SIZE,
         )

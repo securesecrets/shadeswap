@@ -1,6 +1,6 @@
 pub mod staking_mock {
     use cosmwasm_std::{
-        entry_point, to_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut,
+        entry_point, to_binary, Binary, Deps, DepsMut,
         Env, MessageInfo, Response, StdResult,
     };
     use schemars::JsonSchema;
@@ -45,33 +45,33 @@ pub mod staking_mock {
 
     #[entry_point]
     pub fn execute(
-        deps: DepsMut,
-        env: Env,
-        info: MessageInfo,
+        _deps: DepsMut,
+        _env: Env,
+        _info: MessageInfo,
         msg: ExecuteMsg,
     ) -> StdResult<Response> {
         pad_response_result(
             match msg {
                 ExecuteMsg::ClaimRewards {} => Ok(Response::new()),
-                ExecuteMsg::ProxyUnstake { for_addr, amount } => Ok(Response::new()),
+                ExecuteMsg::ProxyUnstake { for_addr: _, amount: _ } => Ok(Response::new()),
                 ExecuteMsg::Unstake {
-                    amount,
-                    remove_liqudity,
+                    amount: _,
+                    remove_liqudity: _,
                 } => Ok(Response::new()),
-                ExecuteMsg::Receive { from, msg, amount } => Ok(Response::new()),
+                ExecuteMsg::Receive { from: _, msg: _, amount: _ } => Ok(Response::new()),
                 ExecuteMsg::SetRewardToken {
-                    reward_token,
-                    daily_reward_amount,
-                    valid_to,
+                    reward_token: _,
+                    daily_reward_amount: _,
+                    valid_to: _,
                 } => Ok(Response::new()),
-                ExecuteMsg::SetAuthenticator { authenticator } => Ok(Response::new()),
+                ExecuteMsg::SetAuthenticator { authenticator: _ } => Ok(Response::new()),
                 ExecuteMsg::RecoverFunds {
-                    token,
-                    amount,
-                    to,
-                    msg,
+                    token: _,
+                    amount: _,
+                    to: _,
+                    msg: _,
                 } => Ok(Response::new()),
-                ExecuteMsg::SetConfig { admin_auth } => todo!(),
+                ExecuteMsg::SetConfig { admin_auth: _ } => todo!(),
             },
             BLOCK_SIZE,
         )

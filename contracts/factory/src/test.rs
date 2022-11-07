@@ -10,7 +10,7 @@ use cosmwasm_std::testing::MockStorage;
 use cosmwasm_std::testing::mock_env;
 use cosmwasm_std::to_binary;
 use cosmwasm_std::Addr;
-use cosmwasm_std::{DepsMut, Env};
+
 use shadeswap_shared::contract_interfaces::admin::ValidateAdminPermissionResponse;
 use cosmwasm_std::{Querier, StdResult};
 use serde::Deserialize;
@@ -183,8 +183,7 @@ pub mod test_contract {
              &mock_info("admin", &[]),
              pair,
              to_binary(&"entropy").unwrap(), 
-             None,
-            None);
+             None,);
 
         assert!(result.is_ok());
         Ok(())

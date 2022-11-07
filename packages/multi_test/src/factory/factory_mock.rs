@@ -27,7 +27,7 @@ pub mod factory_mock {
     #[entry_point]
     pub fn instantiate(
         deps: DepsMut,
-        env: Env,
+        _env: Env,
         _info: MessageInfo,
         msg: InitMsg,
     ) -> StdResult<Response> {
@@ -36,11 +36,11 @@ pub mod factory_mock {
     }
 
     #[entry_point]
-    pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         pad_query_result(
             match msg {
-                QueryMsg::ListAMMPairs { pagination } => to_binary(""),
-                QueryMsg::GetAMMPairAddress { pair } => to_binary(""),
+                QueryMsg::ListAMMPairs { pagination: _ } => to_binary(""),
+                QueryMsg::GetAMMPairAddress { pair: _ } => to_binary(""),
                 QueryMsg::GetConfig => {
                     println!("getconfig factory");
                     let admin_auth: Contract = singleton_read(deps.storage, CONFIG).load()?;
@@ -65,7 +65,7 @@ pub mod factory_mock {
                         admin_auth: admin_auth.clone(),
                     })
                 },
-                QueryMsg::AuthorizeApiKey { api_key } => to_binary(""),
+                QueryMsg::AuthorizeApiKey { api_key: _ } => to_binary(""),
             },
             BLOCK_SIZE,
         )
@@ -73,28 +73,27 @@ pub mod factory_mock {
 
     #[entry_point]
     pub fn execute(
-        deps: DepsMut,
-        env: Env,
-        info: MessageInfo,
+        _deps: DepsMut,
+        _env: Env,
+        _info: MessageInfo,
         msg: ExecuteMsg,
     ) -> StdResult<Response> {
         pad_response_result(
             match msg {
                 ExecuteMsg::SetConfig {
-                    pair_contract,
-                    lp_token_contract,
-                    amm_settings,
-                    api_key,
-                    admin_auth,
+                    pair_contract: _,
+                    lp_token_contract: _,
+                    amm_settings: _,
+                    api_key: _,
+                    admin_auth: _,
                 } => Ok(Response::new()),
                 ExecuteMsg::CreateAMMPair {
-                    pair,
-                    entropy,
-                    staking_contract,
-                    router_contract,
+                    pair: _,
+                    entropy: _,
+                    staking_contract: _
                 } => Ok(Response::new()),
-                ExecuteMsg::AddAMMPairs { amm_pairs } => Ok(Response::new()),
-                ExecuteMsg::RegisterAMMPair { pair, signature } => Ok(Response::new()),
+                ExecuteMsg::AddAMMPairs { amm_pairs: _ } => Ok(Response::new()),
+                ExecuteMsg::RegisterAMMPair { pair: _, signature: _ } => Ok(Response::new()),
             },
             BLOCK_SIZE,
         )

@@ -24,7 +24,7 @@ use shadeswap_shared::core::ContractInstantiationInfo;
 #[cfg(test)]
 pub mod tests {
     use shadeswap_shared::Contract;
-    use shadeswap_shared::core::{TokenPair, TokenPairAmount};
+    
 
     use super::help_test_lib::{make_init_config, mk_amm_settings, mk_token_pair, mk_token_pair_amount, mk_token_pair_custom_addr};
     use super::*;
@@ -181,11 +181,11 @@ pub mod tests {
             config.factory_contract.address.as_str(),
             FACTORY_CONTRACT_ADDRESS.clone()
         );
-        let router_contract = Contract {
+        let _router_contract = Contract {
             address: Addr::unchecked("router".to_string()),
             code_hash: "".to_string(),
         };
-        let signature = to_binary(&"signature".to_string())?;
+        let _signature = to_binary(&"signature".to_string())?;
         let native_swap = swap(
             deps.as_mut(),
             env,
@@ -290,7 +290,7 @@ pub mod tests {
 #[cfg(test)]
 pub mod tests_calculation_price_and_fee {
     use super::*;
-    use super::help_test_lib::{mk_token_pair, mk_token_pair_custom_addr};
+    use super::help_test_lib::{mk_token_pair_custom_addr};
 
     use cosmwasm_std::Decimal;
 
@@ -399,11 +399,11 @@ pub mod tests_calculation_price_and_fee {
 
     #[test]
     fn assert_calculate_swap_result_without_custom_fee() -> StdResult<()>{
-        let custom_fee: Option<CustomFee> = None;
+        let _custom_fee: Option<CustomFee> = None;
         let mut deps = mock_dependencies(&[]);
         let token_pair = mk_native_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;       
-        let address_a = Addr::unchecked("TESTA".to_string());
+        let _address_a = Addr::unchecked("TESTA".to_string());
         let token_amount = mk_custom_token_amount_test_calculation_price_fee(Uint128::from(2000u128), config.pair.clone());   
         let amm_settings = shadeswap_shared::amm_pair::AMMSettings {
             lp_fee: Fee::new(2, 100),
@@ -432,7 +432,7 @@ pub mod tests_calculation_price_and_fee {
         let offer_amount: u128 = 2000;
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
         let expected_amount: u128 = 1624;     
-        let expected_lp_fee: u128 = 40;      
+        let _expected_lp_fee: u128 = 40;      
         let address_a = Addr::unchecked("TESTA".to_string());
         add_whitelist_address(deps.as_mut().storage, address_a.clone())?;    
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(), &env,&amm_settings, &config,
@@ -446,11 +446,11 @@ pub mod tests_calculation_price_and_fee {
     #[test]
     fn assert_slippage_swap_result_with_less_return_amount_throw_exception() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
-        let amm_settings = mk_amm_settings_a();
+        let _amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None,Some(LP_TOKEN.to_string()))?;         
         let offer_amount: u128 = 2000;
-        let expected_amount: u128 = 16666;           
+        let _expected_amount: u128 = 16666;           
         let address_a = Addr::unchecked("TESTA".to_string());
         let token = config.pair.clone();        
         let swap_and_test_slippage = swap(
@@ -474,13 +474,13 @@ pub mod tests_calculation_price_and_fee {
     #[test]
     fn assert_swap_token_wrong_order_throws_exception() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
-        let amm_settings = mk_amm_settings_a();
+        let _amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None,Some(LP_TOKEN.to_string()))?;         
         let offer_amount: u128 = 2000;
-        let expected_amount: u128 = 16666;           
+        let _expected_amount: u128 = 16666;           
         let address_a = Addr::unchecked("TESTA".to_string());
-        let token = config.pair.clone();        
+        let _token = config.pair.clone();        
         let swap_and_test_slippage = swap(
             deps.as_mut(),
             mock_custom_env(FACTORY_CONTRACT_ADDRESS),
@@ -503,17 +503,17 @@ pub mod tests_calculation_price_and_fee {
     #[test]
     fn assert_slippage_swap_result_with_higher_return_amount_success() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
-        let amm_settings = mk_amm_settings_a();
+        let _amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None,Some(LP_TOKEN.to_string()))?;         
         let offer_amount: u128 = 2000;          
         let address_a = "TESTA".to_string();
         let token = config.pair.clone();  
-        let router_contract = Contract{
+        let _router_contract = Contract{
             address: Addr::unchecked("".to_string()),
             code_hash: "".to_string()
         }; 
-        let signature = to_binary(&"signature".to_string())?;
+        let _signature = to_binary(&"signature".to_string())?;
         let swap_and_test_slippage = swap(
             deps.as_mut(),
             mock_custom_env(FACTORY_CONTRACT_ADDRESS),
@@ -533,7 +533,7 @@ pub mod tests_calculation_price_and_fee {
     fn assert_slippage_add_liqudity_with_less_expected_throw_error() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
         let token_pair = mk_token_pair_test_calculation_price_fee();
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;              
+        let _config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;              
         let mock_info = mock_info("Sender", &[]);
         let add_liquidity_with_err = add_liquidity(
             deps.as_mut(),
@@ -560,15 +560,15 @@ pub mod tests_calculation_price_and_fee {
     #[test]
     fn assert_slippage_add_liqudity_with_equal_expected_success() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
-        let amm_settings = mk_amm_settings_a();
+        let _amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let env = mock_env();
         let mock_info = mock_info("Sender", &[]);
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None, Some(LP_TOKEN.to_string()))?;        
-        let offer_amount: u128 = 2000;          
-        let address_a = "TESTA".to_string();
-        let token = config.pair.clone();  
-        let add_liquidity_with_err = add_liquidity(
+        let _offer_amount: u128 = 2000;          
+        let _address_a = "TESTA".to_string();
+        let _token = config.pair.clone();  
+        let _add_liquidity_with_err = add_liquidity(
             deps.as_mut(),
             env.clone(),
             &mock_info,
@@ -586,15 +586,15 @@ pub mod tests_calculation_price_and_fee {
     #[test]
     fn assert_slippage_add_liqudity_with_more_then_expected_test_success() -> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
-        let amm_settings = mk_amm_settings_a();
+        let _amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let env = mock_env();
         let mock_info = mock_info("Sender", &[]);
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None, Some(LP_TOKEN.to_string()))?;        
-        let offer_amount: u128 = 2000;          
-        let address_a = "TESTA".to_string();
-        let token = config.pair.clone();  
-        let add_liquidity_with_err = add_liquidity(
+        let _offer_amount: u128 = 2000;          
+        let _address_a = "TESTA".to_string();
+        let _token = config.pair.clone();  
+        let _add_liquidity_with_err = add_liquidity(
             deps.as_mut(),
             env.clone(),
             &mock_info,
@@ -615,8 +615,8 @@ pub mod tests_calculation_price_and_fee {
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let env = mock_env();
         let mock_info = mock_info("Sender", &[]);
-        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None, Some(LP_TOKEN.to_string()))?;        
-        let add_liquidity_with_success = add_liquidity(
+        let _config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None, Some(LP_TOKEN.to_string()))?;        
+        let _add_liquidity_with_success = add_liquidity(
             deps.as_mut(),
             env.clone(),
             &mock_info,
@@ -936,7 +936,7 @@ pub mod help_test_lib {
                                     }).unwrap();
                                     QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
                                 },
-                                QueryMsg::Balance{address, key} =>{
+                                QueryMsg::Balance{address: _, key: _} =>{
                                     let balance = to_binary(&QueryAnswer::Balance {
                                         amount: Uint128::from(10000u128),
                                     })
@@ -958,7 +958,7 @@ pub mod help_test_lib {
                                     }).unwrap();
                                     QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
                                 },
-                                QueryMsg::Balance{address, key} =>{
+                                QueryMsg::Balance{address: _, key: _} =>{
                                     let balance = to_binary(&QueryAnswer::Balance {
                                         amount: Uint128::from(10000u128),
                                     })

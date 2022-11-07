@@ -21,7 +21,7 @@ pub fn staking_integration_tests_without_proxy() {
     use multi_test::admin::admin_help::init_admin_contract;
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_stake, get_current_block_time, convert_to_contract_link};
     use cosmwasm_std::{Uint128, Coin, StdError};
-    use multi_test::util_addr::util_addr::{OWNER, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
+    use multi_test::util_addr::util_addr::{OWNER, OWNER_PUB_KEY, STAKER_A, PUB_KEY_STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
     use shadeswap_shared::staking::{QueryMsg};
     use shadeswap_shared::utils::testing::TestingExt;
@@ -232,7 +232,7 @@ pub fn staking_integration_tests_with_proxy() {
     use multi_test::admin::admin_help::init_admin_contract;
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_proxy_stake, set_viewing_key, convert_to_contract_link, get_current_block_time};
     use cosmwasm_std::{Uint128, Coin, StdError};
-    use multi_test::util_addr::util_addr::{OWNER, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
+    use multi_test::util_addr::util_addr::{OWNER, OWNER_PUB_KEY, STAKER_A, PUB_KEY_STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
     use shadeswap_shared::staking::{QueryMsg};
     use shadeswap_shared::utils::testing::TestingExt;
@@ -365,7 +365,7 @@ pub fn staking_integration_tests_with_proxy() {
     
     // Assert Unstake amount < total amount 
     roll_blockchain(&mut router, 100).unwrap();
-    let unstake_msg = ExecuteMsg::ProxyUnstake { for_addr: staker_a_addr.to_owned(), amount: Uint128::new(1000u128) };
+    let unstake_msg = ExecuteMsg::ProxyUnstake { for_addr: staker_a_addr.to_string(), amount: Uint128::new(1000u128) };
     let _ = router.execute_contract(owner_addr.to_owned(), &staking_contract, &unstake_msg, &[]).unwrap();
     // ASSERT Claimable reward    
     let permit_query = query_claimable_reward(&router, 

@@ -17,13 +17,13 @@ pub fn contract_counter() -> Box<dyn Contract<Empty>> {
 fn factory_integration_tests() {
     use multi_test::admin::admin_help::init_admin_contract;
     use multi_test::amm_pairs::amm_pairs_lib::amm_pairs_lib::amm_pair_contract_store;
-    use multi_test::help_lib::integration_help_lib::{generate_snip20_contract, snip_20_balance_query, convert_to_contract_link, create_token_pair};
+    use multi_test::help_lib::integration_help_lib::{convert_to_contract_link, create_token_pair};
     use shadeswap_shared::Pagination;
     use shadeswap_shared::amm_pair::AMMPair;
     use shadeswap_shared::factory::ExecuteMsg;
-    use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_stake, snip20_send, increase_allowance, get_current_block_time, send_snip20_to_proxy_stake, set_viewing_key};
-    use cosmwasm_std::{Uint128, Coin, StdError, StdResult, Timestamp, OwnedDeps};
-    use multi_test::util_addr::util_addr::{OWNER, OWNER_SIGNATURE, OWNER_PUB_KEY, STAKER_A, STAKER_B, PUB_KEY_STAKER_A};       
+    use multi_test::help_lib::integration_help_lib::{roll_blockchain};
+    
+    use multi_test::util_addr::util_addr::{OWNER};       
         use shadeswap_shared::utils::testing::TestingExt;    
          
     let owner_addr = Addr::unchecked(OWNER);   
@@ -132,8 +132,7 @@ fn factory_integration_tests() {
             &convert_to_contract_link(&token_1_contract)
         ), 
         entropy: to_binary("seed").unwrap(), 
-        staking_contract: None, 
-        router_contract: None 
+        staking_contract: None
     };
     
     let _ = router.execute_contract(

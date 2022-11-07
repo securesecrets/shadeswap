@@ -10,8 +10,8 @@ pub const SENDER: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 
 #[cfg(test)]
 pub mod tests {
-    use shadeswap_shared::{utils::{asset::Contract, Query}, staking::{QueryMsg, AuthQuery, QueryResponse}};
-    use shadeswap_shared::stake_contract::RewardTokenInfo as ResponseRewardTokenInfo;
+    use shadeswap_shared::{utils::{asset::Contract}, staking::{AuthQuery, QueryResponse}};
+    
     use crate::state::RewardTokenInfo;
     use super::*;
     use crate::{
@@ -28,7 +28,7 @@ pub mod tests {
         test::test_help_lib::{
             make_init_config, make_reward_token_contract, mock_custom_env, mock_dependencies,
             MockQuerier,
-        }, contract::{execute, query, auth_queries},
+        }, contract::{execute, auth_queries},
     };
     use cosmwasm_std::{
         testing::{mock_info, MockApi, MockStorage}, Addr, Decimal, MessageInfo, StdError,

@@ -119,7 +119,7 @@ pub fn register_lp_token(
                         authenticator: factory_config.authenticator,
                         //default to same admin as amm_pair
                         admin_auth: factory_config.admin_auth,
-                        valid_to: c.valid_to
+                        valid_to: c.valid_to,
                     })?,
                     code_hash: c.contract_info.code_hash.clone(),
                     funds: vec![],
@@ -181,7 +181,7 @@ pub fn query_calculate_price(
         &env,
         &amm_settings,
         &config_settings,
-        &offer,        
+        &offer,
         exclude_fee,
     )?;
     Ok(swap_result)
@@ -198,17 +198,11 @@ pub fn swap(
 ) -> StdResult<Response> {
     let swaper_receiver = recipient.unwrap_or(sender);
     let amm_settings = query_factory_config(deps.as_ref(), &config.factory_contract)?.amm_settings;
-    let swap_result = calculate_swap_result(
-        deps.as_ref(),
-        &env,
-        &amm_settings,
-        &config,
-        &offer,
-        None,
-    )?;
+    let swap_result =
+        calculate_swap_result(deps.as_ref(), &env, &amm_settings, &config, &offer, None)?;
 
     // check for the slippage expected value compare to actual value
-    if let Some(expected_return) = expected_return {    
+    if let Some(expected_return) = expected_return {
         if swap_result.result.return_amount.lt(&expected_return) {
             return Err(StdError::generic_err(
                 "Operation fell short of expected_return",
@@ -282,7 +276,7 @@ pub fn swap(
     };
 
     store_trade_history(deps, &trade_history)?;
-    
+
     Ok(Response::new().add_messages(messages))
 }
 
@@ -315,15 +309,8 @@ pub fn get_shade_dao_info(deps: Deps) -> StdResult<Binary> {
 pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Binary> {
     let config_settings = config_r(deps.storage).load()?;
     let amm_settings = query_factory_config(deps, &config_settings.factory_contract)?.amm_settings;
-    println!("testwv");
-    let swap_result = calculate_swap_result(
-        deps,
-        &env,
-        &amm_settings,
-        &config_settings,
-        &offer,
-        None    
-    )?;
+    let swap_result =
+        calculate_swap_result(deps, &env, &amm_settings, &config_settings, &offer, None)?;
     let simulation_result = QueryMsgResponse::SwapSimulation {
         total_fee_amount: swap_result.total_fee_amount,
         lp_fee_amount: swap_result.lp_fee_amount,
@@ -334,11 +321,7 @@ pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Bi
     to_binary(&simulation_result)
 }
 
-pub fn get_estimated_lp_token(
-    deps: Deps,
-    env: Env,
-    deposit: TokenPairAmount
-) -> StdResult<Binary> {
+pub fn get_estimated_lp_token(deps: Deps, env: Env, deposit: TokenPairAmount) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
     let Config {
         pair,
@@ -359,11 +342,7 @@ pub fn get_estimated_lp_token(
             .query_balances(deps, env.contract.address.to_string(), viewing_key.0)?;
 
     let pair_contract_pool_liquidity = query_total_supply(deps, &lp_token)?;
-    let lp_tokens = calculate_lp_tokens(
-        &deposit,
-        pool_balances,
-        pair_contract_pool_liquidity,
-    )?;
+    let lp_tokens = calculate_lp_tokens(&deposit, pool_balances, pair_contract_pool_liquidity)?;
     let response_msg = QueryMsgResponse::EstimatedLiquidity {
         lp_token: lp_tokens,
         total_lp_token: pair_contract_pool_liquidity,
@@ -419,12 +398,12 @@ pub fn calculate_swap_result(
     // conver tand get avialble balance
     let tokens_pool = get_token_pool_balance(deps, env, config, offer)?;
     let token0_pool = tokens_pool[0];
-    let token1_pool = tokens_pool[1];   
+    let token1_pool = tokens_pool[1];
     // calculate fee
     let lp_fee = settings.lp_fee;
     let shade_dao_fee = settings.shade_dao_fee;
-    let lp_fee_amount ;
-    let shade_dao_fee_amount ;
+    let lp_fee_amount;
+    let shade_dao_fee_amount;
     // calculation fee
     match &config.custom_fee {
         Some(f) => {
@@ -490,17 +469,17 @@ fn get_token_pool_balance(
         config.viewing_key.0.clone(),
     )?;
     if let Some(index) = config.pair.get_token_index(&swap_offer.token) {
-    let token0_pool = tokens_balances[index];
-    let token1_pool = tokens_balances[index ^ 1];
+        let token0_pool = tokens_balances[index];
+        let token1_pool = tokens_balances[index ^ 1];
 
-    // conver tand get avialble balance
-    let token0_pool = token0_pool;
-    let token1_pool = token1_pool;
-    Ok([token0_pool, token1_pool])
-    }
-    else
-    {
-        Err(StdError::generic_err("The offered token is not traded on this contract".to_string()))
+        // conver tand get avialble balance
+        let token0_pool = token0_pool;
+        let token1_pool = token1_pool;
+        Ok([token0_pool, token1_pool])
+    } else {
+        Err(StdError::generic_err(
+            "The offered token is not traded on this contract".to_string(),
+        ))
     }
 }
 
@@ -625,20 +604,16 @@ pub fn add_liquidity(
             }
         }
     }
-    
-    let pair_contract_pool_liquidity =
-    query_total_supply(deps.as_ref(), &lp_token)?;
-    let lp_tokens = calculate_lp_tokens(
-        &deposit,
-        pool_balances,
-        pair_contract_pool_liquidity,
-    )?;
 
-  
-    if let Some(e) = expected_return 
-    {
+    let pair_contract_pool_liquidity = query_total_supply(deps.as_ref(), &lp_token)?;
+    let lp_tokens = calculate_lp_tokens(&deposit, pool_balances, pair_contract_pool_liquidity)?;
+
+    if let Some(e) = expected_return {
         if e > lp_tokens {
-            return Err(StdError::generic_err(format!("Operation returns less then expected ({} < {}).", e, lp_tokens)));
+            return Err(StdError::generic_err(format!(
+                "Operation returns less then expected ({} < {}).",
+                e, lp_tokens
+            )));
         }
     }
 
@@ -662,7 +637,7 @@ pub fn add_liquidity(
                             },
                         )?);
                         let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
-                            from: info.sender.clone(),
+                            from: info.sender.to_string(),
                         })?;
                         // SEND LP Token to Staking Contract with Staking Message
                         let msg = to_binary(&SNIP20ExecuteMsg::Send {
@@ -733,8 +708,7 @@ fn calculate_lp_tokens(
     pool_balances: [Uint128; 2],
     pair_contract_pool_liquidity: Uint128,
 ) -> Result<Uint128, StdError> {
-
-    let lp_tokens: Uint128 ;
+    let lp_tokens: Uint128;
     if pair_contract_pool_liquidity.is_zero() {
         // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
         // x and y is amount of token0 and token1 provided
@@ -789,14 +763,20 @@ pub fn query_token_symbol(querier: QuerierWrapper, token: &TokenType) -> StdResu
             )?
             .symbol);
         }
-        TokenType::NativeToken { denom: _ } => Ok("SCRT".to_string()),
+        TokenType::NativeToken { denom: d } => {
+            if d == "uscrt" {
+                Ok("SCRT".to_string())
+            } else {
+                Ok(d.to_string())
+            }
+        }
     }
 }
 
 struct FactoryConfig {
     amm_settings: AMMSettings,
     authenticator: Option<Contract>,
-    admin_auth: Contract
+    admin_auth: Contract,
 }
 
 fn query_factory_config(deps: Deps, factory: &Contract) -> StdResult<FactoryConfig> {
@@ -813,11 +793,11 @@ fn query_factory_config(deps: Deps, factory: &Contract) -> StdResult<FactoryConf
             amm_settings,
             lp_token_contract: _,
             authenticator,
-            admin_auth
+            admin_auth,
         } => Ok(FactoryConfig {
             amm_settings,
             authenticator,
-            admin_auth
+            admin_auth,
         }),
         _ => Err(StdError::generic_err(
             "An error occurred while trying to retrieve factory settings.",
@@ -863,9 +843,7 @@ pub fn query_total_supply(deps: Deps, lp_token_info: &Contract) -> StdResult<Uin
 
     if let Some(ts) = result.total_supply {
         Ok(ts)
-    }
-    else
-    {
+    } else {
         return Err(StdError::generic_err("LP token has no available supply."));
     }
 }

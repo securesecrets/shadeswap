@@ -18,6 +18,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
     use shadeswap_shared::core::{ ContractInstantiationInfo, TokenPairAmount, TokenAmount, CustomFee, Fee};
     use shadeswap_shared::msg::amm_pair::InvokeMsg; 
     use shadeswap_shared::staking::StakingContractInit;   
+    use shadeswap_shared::utils::ExecuteCallback;
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{core::{TokenType}};
     use multi_test::help_lib::integration_help_lib::{generate_snip20_contract};    
@@ -172,7 +173,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         }, 
         expected_return: Some(Uint128::new(1000u128)), 
         staking: Some(true) 
-    };
+    }.to_cosmos_msg(contract, funds);
  
     let _ = router.execute_contract(
         owner_addr.to_owned(),
@@ -262,7 +263,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
             amount: Uint128::new(1000u128),
         }, 
         expected_return: Some(Uint128::new(500u128)), 
-        to: Some(owner_addr.to_owned()),
+        to: Some(owner_addr.to_string()),
     }).unwrap();
 
     let _ = send_snip20_with_msg(
@@ -277,7 +278,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
     // REMOVE LIQUIDITY
     roll_blockchain(&mut router, 1).unwrap();
     let remove_msg = to_binary(&InvokeMsg::RemoveLiquidity { 
-        from: Some(owner_addr.clone())
+        from: Some(owner_addr.to_string())
     }).unwrap();
     
     let config = get_amm_pair_config(&mut router, &amm_pair_contract);
@@ -324,9 +325,9 @@ pub fn amm_pair_integration_tests_with_custom_token() {
 pub fn amm_pair_integration_tests_native_token() {    
     use amm_pair::contract::{instantiate, query, execute};
     use multi_test::admin::admin_help::init_admin_contract;
-    use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, increase_allowance, store_init_factory_contract, create_token_pair, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance, create_token_pair_with_native};
+    use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, increase_allowance, store_init_factory_contract, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance, create_token_pair_with_native};
     use cosmwasm_std::{Uint128, Coin, Timestamp};
-    use multi_test::util_addr::util_addr::{OWNER, STAKER_A, STAKER_B};       
+    use multi_test::util_addr::util_addr::{OWNER};       
     use shadeswap_shared::core::{ContractInstantiationInfo, TokenPairAmount, TokenAmount, CustomFee, Fee};
     use shadeswap_shared::msg::amm_pair::InvokeMsg;
     
@@ -555,7 +556,7 @@ pub fn amm_pair_integration_tests_native_token() {
             amount: Uint128::new(1000u128),
         }, 
         expected_return: Some(Uint128::new(500u128)), 
-        to: Some(owner_addr.to_owned())
+        to: Some(owner_addr.to_string())
     };
 
     let _ = router.execute_contract(
@@ -568,7 +569,7 @@ pub fn amm_pair_integration_tests_native_token() {
     // REMOVE LIQUIDITY
     roll_blockchain(&mut router, 1).unwrap();
     let remove_msg = to_binary(&InvokeMsg::RemoveLiquidity { 
-        from: Some(owner_addr.clone())
+        from: Some(owner_addr.to_string())
     }).unwrap();
     
     let config = get_amm_pair_config(&mut router, &amm_pair_contract);

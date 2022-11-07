@@ -106,8 +106,7 @@ pub fn create_pair(
     info: &MessageInfo,
     pair: TokenPair,
     entropy: Binary,
-    staking_contract: Option<StakingContractInit>,
-    router_contract: Option<Contract>
+    staking_contract: Option<StakingContractInit>
 ) -> StdResult<Response> {
     let config = config_r(deps.storage).load()?;
     let signature = create_signature(&env, info)?;
@@ -151,28 +150,6 @@ pub fn create_pair(
         code_hash: config.pair_contract.code_hash,
         funds: vec![],
     }));
-
-    if let Some(r) = router_contract {
-        for p in pair.into_iter() {
-            match p {
-                shadeswap_shared::core::TokenType::CustomToken {
-                    contract_addr,
-                    token_code_hash,
-                } => {
-                    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                        contract_addr: r.address.to_string(),
-                        code_hash: r.code_hash.to_string(),
-                        msg: to_binary(&RouterExecuteMsg::RegisterSNIP20Token {
-                            token_addr: contract_addr.to_string(),
-                            token_code_hash: token_code_hash.clone(),
-                        })?,
-                        funds: vec![],
-                    }));
-                }
-                _ => (),
-            }
-        }
-    }
 
     Ok(Response::new().add_messages(messages))
 }

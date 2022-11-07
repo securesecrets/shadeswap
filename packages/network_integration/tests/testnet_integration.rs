@@ -430,11 +430,7 @@ fn run_testnet() -> Result<()> {
                         token_code_hash: s_sREWARDSNIP20.code_hash.to_string(),
                     },
                     valid_to: Uint128::new(3747905010000u128),
-                }),
-                router_contract: Some(Contract {
-                    address: Addr::unchecked(router_contract.address.clone()),
-                    code_hash: router_contract.code_hash.clone(),
-                }),
+                })
             },
             &factory_contract,
             ACCOUNT_KEY,
@@ -464,18 +460,7 @@ fn run_testnet() -> Result<()> {
             &FactoryExecuteMsg::CreateAMMPair {
                 pair: test_native_pair.clone(),
                 entropy: to_binary(&"".to_string()).unwrap(),
-                staking_contract: None,
-                router_contract: None, // staking_contract: Some(StakingContractInit {
-                                       //     contract_info: ContractInstantiationInfo{
-                                       //         code_hash: staking_contract.code_hash.to_string(),
-                                       //         id: staking_contract.id.clone().parse::<u64>().unwrap(),
-                                       //     },
-                                       //     amount: Uint128::new(100000u128),
-                                       //     reward_token:  TokenType::CustomToken {
-                                       //         contract_addr: s_sCRT.address.clone().into(),
-                                       //         token_code_hash: s_sCRT.code_hash.to_string(),
-                                       //     },
-                                       // })
+                staking_contract: None
             },
             &factory_contract,
             ACCOUNT_KEY,
@@ -737,7 +722,7 @@ fn run_testnet() -> Result<()> {
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(10)),
                             path: vec![Hop {
-                                addr: ammPair.address.clone(),
+                                addr: ammPair.address.to_string(),
                                 code_hash: s_ammPair.code_hash.clone(),
                             }],
                             recipient: Some(account.to_string()),
@@ -842,7 +827,7 @@ fn run_testnet() -> Result<()> {
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
                             path: vec![Hop {
-                                addr: ammPair.address.clone(),
+                                addr: ammPair.address.to_string(),
                                 code_hash: s_ammPair.code_hash.clone(),
                             }],
                             recipient: Some(account.to_string()),
@@ -900,7 +885,7 @@ fn run_testnet() -> Result<()> {
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
                             path: vec![Hop {
-                                addr: ammPair.address.clone(),
+                                addr: ammPair.address.to_string(),
                                 code_hash: s_ammPair.code_hash.clone(),
                             }],
                             recipient: Some(account.to_string()),
@@ -958,7 +943,7 @@ fn run_testnet() -> Result<()> {
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
                             path: vec![Hop {
-                                addr: ammPair.address.clone(),
+                                addr: ammPair.address.to_string(),
                                 code_hash: s_ammPair.code_hash.clone(),
                             }],
                             recipient: Some(account.to_string()),
@@ -1018,7 +1003,7 @@ fn run_testnet() -> Result<()> {
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(5)),
                             path: vec![Hop {
-                                addr: ammPair.address.clone(),
+                                addr: ammPair.address.to_string(),
                                 code_hash: s_ammPair.code_hash.clone(),
                             }],
                             recipient: Some(account.to_string()),
@@ -1078,7 +1063,7 @@ fn run_testnet() -> Result<()> {
                     },
                     expected_return: None,
                     path: vec![Hop {
-                        addr: amm_pair_2.address.clone(),
+                        addr: amm_pair_2.address.to_string(),
                         code_hash: s_ammPair.code_hash.clone(),
                     }],
                     recipient: None,
@@ -1111,11 +1096,11 @@ fn run_testnet() -> Result<()> {
                     },
                     expected_return: None,
                     path: vec![Hop {
-                        addr: amm_pair_2.address.clone(),
+                        addr: amm_pair_2.address.to_string(),
                         code_hash: s_ammPair.code_hash.clone(),
                     },
                     Hop {
-                        addr: ammPair.address.clone(),
+                        addr: ammPair.address.to_string(),
                         code_hash: s_ammPair.code_hash.clone(),
                     }],
                     recipient: None,
@@ -1151,11 +1136,11 @@ fn run_testnet() -> Result<()> {
                         to_binary(&RouterInvokeMsg::SwapTokensForExact {
                             expected_return: Some(Uint128::new(10)),
                             path: vec![Hop {
-                                addr: ammPair.address.clone(),
+                                addr: ammPair.address.to_string(),
                                 code_hash: s_ammPair.code_hash.clone(),
                             },
                             Hop {
-                                addr: amm_pair_2.address.clone(),
+                                addr: amm_pair_2.address.to_string(),
                                 code_hash: s_ammPair.code_hash.clone(),
                             }],
                             recipient: Some(account.to_string()),
@@ -1511,7 +1496,7 @@ fn run_testnet() -> Result<()> {
                         },
                     },
                     path: vec![Hop {
-                        addr: ammPair.address.clone(),
+                        addr: ammPair.address.to_string(),
                         code_hash: s_ammPair.code_hash.clone(),
                     }],
                 };
@@ -1571,7 +1556,7 @@ fn run_testnet() -> Result<()> {
                         time: get_current_timestamp().unwrap(),
                     },
                 };
-                let claims_reward_response: StakingQueryMsgResponse = query(
+                let _claims_reward_response: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
                         id: "".to_string(),
@@ -1609,7 +1594,7 @@ fn run_testnet() -> Result<()> {
                     reward_token,
                     lp_token: _,
                     daily_reward_amount,
-                    amm_pair,
+                    amm_pair: _,
                     admin_auth: _,
                 } = config_query_response
                 {
@@ -1679,7 +1664,6 @@ fn run_testnet() -> Result<()> {
                 print_header("\n\tGetRewardTokenBalance");
                 let get_balance_reward_token_msg = StakingQueryMsg::WithPermit { permit: newPermit, query: AuthQuery::GetRewardTokenBalance {
                 }};
-
                 let balance_reward_token: StakingQueryMsgResponse = query(
                     &NetContract {
                         label: "".to_string(),
@@ -1746,7 +1730,6 @@ fn run_testnet() -> Result<()> {
                     get_staker_reward_token_balance_msg,
                     None,
                 )?;
-
                 if let StakingQueryMsgResponse::StakerRewardTokenBalance {
                     reward_amount,
                     total_reward_liquidity,

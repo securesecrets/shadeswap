@@ -41,7 +41,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 pair,
                 entropy,
                 staking_contract,
-                router_contract,
             } => {
                 let config = config_r(deps.storage).load()?;
                 validate_admin(
@@ -56,8 +55,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     &info,
                     pair,
                     entropy,
-                    staking_contract,
-                    router_contract,
+                    staking_contract
                 )
             }
             ExecuteMsg::SetConfig {

@@ -173,7 +173,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         }, 
         expected_return: Some(Uint128::new(1000u128)), 
         staking: Some(true) 
-    }.to_cosmos_msg(contract, funds);
+    };
  
     let _ = router.execute_contract(
         owner_addr.to_owned(),

@@ -207,7 +207,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     pad_response_result(match msg.id {
-        SWAP_REPLY_ID => {
+        SWAP_REPLY_ID => {            
             let response = Response::new();
             Ok(next_swap(deps, env, response)?)
         },

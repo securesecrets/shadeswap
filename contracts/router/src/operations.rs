@@ -48,8 +48,7 @@ pub fn refresh_tokens(
 
 pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<Response> {
     let current_trade_info: Option<CurrentSwapInfo> = epheral_storage_r(deps.storage).may_load()?;
-    if let Some(mut info) = current_trade_info {
-
+    if let Some(mut info) = current_trade_info {       
         let token_in: TokenAmount = TokenAmount {
             token: info.next_token_in.clone(),
             amount: info.next_token_in.query_balance(
@@ -58,8 +57,8 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
                 SHADE_ROUTER_KEY.to_owned(),
             )?,
         };
-
-        if info.path.len() > (info.current_index + 1) as usize {
+        println!("FSDFSd");
+        if info.path.len() > (info.current_index + 1) as usize {        
             let next_pair_contract = query_pair_contract_config(
                 &deps.querier,
                 Contract {
@@ -76,6 +75,7 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
                 info.next_token_in = next_pair_contract.pair.0;
             }
             epheral_storage_w(deps.storage).save(&info)?;
+           
             response = get_trade_with_callback(
                 deps,
                 env,
@@ -84,7 +84,7 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
                 response,
             )?;
             Ok(response)
-        } else {
+        } else {             
             if let Some(min_out) = info.amount_out_min {
                 if token_in.amount.lt(&min_out) {
                     return Err(StdError::generic_err(
@@ -155,7 +155,7 @@ pub fn swap_tokens_for_exact_tokens(
         path[0].clone(),
         response,
     )?;
-
+ 
     Ok(response)
 }
 

@@ -247,7 +247,7 @@ pub fn swap(
             }
         }
     }
-
+    
     // Send Token to Buyer or Swapper
     let index = config
         .pair
@@ -280,7 +280,7 @@ pub fn swap(
         total_fee_amount: swap_result.total_fee_amount,
         shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
     };
-
+   
     store_trade_history(deps, &trade_history)?; 
     println!("result {} ", swap_result.result.return_amount);  
     Ok(Response::new().add_messages(messages))

@@ -183,13 +183,13 @@ pub fn balance_query(
     address: Addr,
     key: String,
     contract: &Contract,
-) -> StdResult<Uint128> {
+) -> StdResult<Uint128> {   
     let answer: QueryAnswer = QueryMsg::Balance {
         address: address.to_string(),
         key,
     }
     .query(querier, contract)?;
-
+    println!("SWAP_REPLAY_ID {}", address.to_string());
     match answer {
         QueryAnswer::Balance { amount, .. } => Ok(amount),
         _ => Err(StdError::generic_err("Invalid Balance Response")), //TODO: better error

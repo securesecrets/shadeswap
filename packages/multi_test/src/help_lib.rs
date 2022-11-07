@@ -2,7 +2,7 @@
 
 pub mod integration_help_lib{       
     use std::time::{SystemTime, UNIX_EPOCH};
-    use cosmwasm_std::{StdError};
+    use cosmwasm_std::{StdError, CosmosMsg, BankMsg};
     use cosmwasm_std::Empty;
     use query_authentication::permit::Permit;
     use query_authentication::transaction::PermitSignature;

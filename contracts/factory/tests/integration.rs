@@ -3,7 +3,7 @@ use cosmwasm_std::{
 };
 use factory::contract::{execute, instantiate, query};
 use multi_test::{help_lib::integration_help_lib::{convert_to_contract_link, roll_blockchain, generate_snip20_contract, store_init_auth_contract}, 
-    amm_pairs::amm_pairs_lib::amm_pairs_lib::store_init_amm_pair_contract};
+    amm_pairs::amm_pairs_lib::amm_pairs_lib::{store_init_amm_pair_contract, amm_pair_contract_store}, util_addr::util_addr::OWNER};
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
 use shadeswap_shared::{utils::testing::TestingExt, core::{ContractInstantiationInfo, }, factory::{InitMsg, QueryResponse, QueryMsg}, Contract as SContract};
 
@@ -167,11 +167,16 @@ pub fn setup_create_amm_pairs(router: &mut App, symbol_0: &str, symbol_1: &str, 
     let auth_query_contract = store_init_auth_contract(router)?;
     let mock_amm_pairs = store_init_amm_pair_contract(
         router, 
+        sender,
         &convert_to_contract_link(&token_0_contract), 
         &convert_to_contract_link(&token_1_contract),
         &convert_to_contract_link(factory_contract),
         &convert_to_contract_link(&auth_query_contract),
-        &sender
+        amm_pair_contract_store(),
+        "seed",
+        None,
+        None,
+        None
     ).unwrap();
     let response = (token_0_contract, token_1_contract, mock_amm_pairs);
     Ok(response)

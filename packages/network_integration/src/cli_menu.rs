@@ -262,31 +262,22 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
     }
 
     if args_command == CMDADDAMMPAIRS{
-        if args.len() < 13 {
+        if args.len() < 11 {
             return Err(Error::new(ErrorKind::Other, "Please provide all args"));
         } 
 
         let account_name = args[2].clone();
         let backend = args[3].clone();     
         let factory_addr = args[4].clone();
-        let token_0 = args[5].clone();
-        let token_0_hash = args[6].clone();
-        let token_1 = args[7].clone();
-        let token_1_hash = args[8].clone();
-        let entropy = args[9].clone();
-        let router = args[10].clone();
-        let router_code_hash = args[11].clone();
-        let staking = args[12].clone(); 
+        let factory_code_hash = args[5].clone();
+        let token_0 = args[6].clone();
+        let token_0_hash = args[7].clone();
+        let token_1 = args[8].clone();
+        let token_1_hash = args[9].clone();
+        let entropy = args[10].clone();       
+        let staking = args[11].clone(); 
         let staking_enabled =  staking.parse::<bool>().unwrap();  
-        // CHECK ROUTER
-        let mut router_contract: Option<Contract> = None;        
-        if &router != ""{
-            router_contract= Some(Contract { 
-                address: Addr::unchecked(router.to_string()), 
-                code_hash: router_code_hash.clone()
-            })          
-        }
-
+        // CHECK ROUTER      
         let mut reward_addr:Option<String> = None;
         let mut reward_addr_code_hash:Option<String> = None;
         let mut amount:Option<String> = None;
@@ -294,19 +285,20 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
         let mut valid_to :Option<u128>= None;        
 
         if staking_enabled == true {          
-            if args.len() < 1 {
+            if args.len() < 16 {
                 return Err(Error::new(ErrorKind::Other, "Please provide all args"));
             } 
-            reward_addr = Some(args[13].clone());
-            reward_addr_code_hash = Some(args[14].clone());
-            amount = Some(args[15].clone());
+            reward_addr = Some(args[12].clone());
+            reward_addr_code_hash = Some(args[13].clone());
+            amount = Some(args[14].clone());
             amount_u128 = Some(amount.unwrap_or_default().parse::<u128>().unwrap());
-            valid_to = Some(args[16].clone().parse::<u128>().unwrap());           
+            valid_to = Some(args[15].clone().parse::<u128>().unwrap());           
             println!("STAKING INFO {} - {} - {} - {}", reward_addr.clone().unwrap(), reward_addr_code_hash.clone().unwrap(), amount_u128.unwrap(), valid_to.unwrap());
         }
         
         add_amm_pairs(
             factory_addr.clone(),
+            factory_code_hash,
             &backend, 
             &account_name, 
             token_0.clone(),
@@ -314,7 +306,6 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
             token_1.clone(),
             token_1_hash.clone(),                    
             &entropy,     
-            router_contract,
             reward_addr, 
             reward_addr_code_hash, 
             amount_u128,

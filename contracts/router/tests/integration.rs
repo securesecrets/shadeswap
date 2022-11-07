@@ -188,7 +188,7 @@ pub fn router_integration_tests() {
     };
     let swap_query = QueryMsg::SwapSimulation { 
         offer: offer.to_owned(),
-        path: vec![Hop{addr: amm_pairs[0].address.to_owned(), code_hash: amm_contract_info.code_hash.clone()}] 
+        path: vec![Hop{addr: amm_pairs[0].address.to_string(), code_hash: amm_contract_info.code_hash.clone()}] 
     };
 
     // ASSERT SWAPSIMULATION
@@ -244,7 +244,7 @@ pub fn router_integration_tests() {
     let execute_swap = ExecuteMsg::SwapTokensForExact { 
         offer:offer.to_owned(),
         expected_return: Some(Uint128::new(1000u128)), 
-        path: vec![Hop{addr: amm_pairs[0].address.to_owned(), code_hash: amm_contract_info.code_hash.clone()}],
+        path: vec![Hop{addr: amm_pairs[0].address.to_string(), code_hash: amm_contract_info.code_hash.clone()}],
         recipient: Some(owner_addr.to_string())
     };
 

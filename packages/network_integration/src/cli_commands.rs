@@ -559,7 +559,6 @@ pub mod amm_pair_lib {
         token_1_address: String,
         token_1_code_hash: String,
         entropy: &str,
-        router_contract: Option<Contract>,
         reward_contract_address: Option<String>,
         reward_contract_code_hash: Option<String>,
         reward_amount: Option<u128>,
@@ -623,7 +622,6 @@ pub mod amm_pair_lib {
                 pair: pairs.unwrap().clone(),
                 entropy: to_binary(&entropy).unwrap(),
                 staking_contract: staking_contract_init,
-                router_contract: router_contract,
             },
             &factory_contract,
             account_name,
@@ -638,7 +636,7 @@ pub mod amm_pair_lib {
         Ok(())
     }
 
-    pub fn list_pair_from_factory(factory_addr: String, start: u64, limit: u8) -> io::Result<()> {
+    pub fn list_pair_from_factory(factory_addr: String, start: u64, limit: u8) -> io::Result<Vec<AMMPair>> {
         let factory_contract = NetContract {
             label: "".to_string(),
             id: "".to_string(),
@@ -658,7 +656,7 @@ pub mod amm_pair_lib {
             }
             return Ok(amm_pairs);
         }
-        return Ok(vec![]);
+        return Ok(Vec::new());
     }
 
     pub fn get_token_type(pairs: TokenPair) -> io::Result<(String, String)> {

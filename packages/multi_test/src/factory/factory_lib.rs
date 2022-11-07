@@ -126,8 +126,7 @@ pub mod factory_lib{
             let create_amm_pair_msg = ExecuteMsg::CreateAMMPair { 
                 pair: token_pair.to_owned(), 
                 entropy: to_binary(seed)?, 
-                staking_contract: Some(staking_contract_info.to_owned()), 
-                router_contract: Some(convert_to_contract_link(&router_contract))
+                staking_contract: Some(staking_contract_info.to_owned()),                 
             };
 
             let _  = router.execute_contract(

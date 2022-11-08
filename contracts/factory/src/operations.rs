@@ -116,7 +116,7 @@ pub fn create_pair(
         key: signature.clone(),
     })?;
 
-    let mut messages = vec![];
+    let mut messages: Vec<CosmosMsg> = vec![];
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: config.pair_contract.id,
@@ -131,7 +131,7 @@ pub fn create_pair(
                 code_hash: env.contract.code_hash.clone(),
                 address: env.contract.address.clone(),
             },
-            entropy,
+            entropy: entropy,
             prng_seed: prng_seed_r(deps.storage).load()?,
             admin_auth: config.admin_auth,
             staking_contract: staking_contract,
@@ -150,7 +150,7 @@ pub fn create_pair(
         code_hash: config.pair_contract.code_hash,
         funds: vec![],
     }));
-
+    
     Ok(Response::new().add_messages(messages))
 }
 

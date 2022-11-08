@@ -92,8 +92,7 @@ pub mod factory_mock {
                     entropy: _,
                     staking_contract: _
                 } => Ok(Response::new()),
-                ExecuteMsg::AddAMMPairs { amm_pairs: _ } => Ok(Response::new()),
-                ExecuteMsg::RegisterAMMPair { pair: _, signature: _ } => Ok(Response::new()),
+                ExecuteMsg::AddAMMPairs { amm_pairs: _ } => Ok(Response::new())
             },
             BLOCK_SIZE,
         )

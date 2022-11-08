@@ -1,15 +1,16 @@
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut,
-    Env, MessageInfo, Response, StdError, StdResult, Uint128, Reply,
+    Env, MessageInfo, Reply, Response, StdError, StdResult, Uint128,
 };
-use shadeswap_shared::Contract;
 use shadeswap_shared::admin::helpers::{validate_admin, AdminPermissions};
-use shadeswap_shared::router::{QueryMsgResponse, InitMsg};
+use shadeswap_shared::router::{InitMsg, QueryMsgResponse};
 use shadeswap_shared::snip20::helpers::send_msg;
 use shadeswap_shared::utils::{pad_query_result, pad_response_result};
+use shadeswap_shared::Contract;
 use shadeswap_shared::{
     core::{TokenAmount, TokenType},
     router::{ExecuteMsg, InvokeMsg, QueryMsg},
+    amm_pair::{ QueryMsgResponse as AMMPairQueryReponse}
 };
 
 use crate::{
@@ -76,7 +77,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     &path,
                     sender,
                     checked_address,
-                    response
+                    response,
                 )?)
             }
             ExecuteMsg::RegisterSNIP20Token {
@@ -143,42 +144,56 @@ fn receiver_callback(
                     path,
                     recipient,
                 } => {
-                    let pair_config = query_pair_contract_config(
+                    let pair_contract_config = query_pair_contract_config(
                         &deps.querier,
                         Contract {
                             address: deps.api.addr_validate(&path[0].addr.to_string())?,
                             code_hash: path[0].code_hash.clone(),
                         },
                     )?;
-                    for token in pair_config.pair.into_iter() {
-                        match token {
-                            TokenType::CustomToken { contract_addr, .. } => {
-                                if *contract_addr == info.sender {
-                                    let offer = TokenAmount {
-                                        token: token.clone(),
-                                        amount,
-                                    };
 
-                                    let checked_address = match recipient {
-                                        Some(x) => Some(deps.api.addr_validate(&x)?),
-                                        None => None,
-                                    };
+                    match pair_contract_config {
+                        AMMPairQueryReponse::GetPairInfo {
+                            liquidity_token: _,
+                            factory: _,
+                            pair,
+                            amount_0: _,
+                            amount_1: _,
+                            total_liquidity: _,
+                            contract_version: _,
+                        } => {
+                            for token in pair.into_iter() {
+                                match token {
+                                    TokenType::CustomToken { contract_addr, .. } => {
+                                        if *contract_addr == info.sender {
+                                            let offer = TokenAmount {
+                                                token: token.clone(),
+                                                amount,
+                                            };
 
-                                    let response = Response::new();
-                                    return Ok(swap_tokens_for_exact_tokens(
-                                        deps,
-                                        env,
-                                        offer,
-                                        expected_return,
-                                        &path,
-                                        from,
-                                        checked_address,
-                                        response,
-                                    )?);
+                                            let checked_address = match recipient {
+                                                Some(x) => Some(deps.api.addr_validate(&x)?),
+                                                None => None,
+                                            };
+
+                                            let response = Response::new();
+                                            return Ok(swap_tokens_for_exact_tokens(
+                                                deps,
+                                                env,
+                                                offer,
+                                                expected_return,
+                                                &path,
+                                                from,
+                                                checked_address,
+                                                response,
+                                            )?);
+                                        }
+                                    }
+                                    _ => continue,
                                 }
                             }
-                            _ => continue,
                         }
+                        _ => {}
                     }
                     return Err(StdError::generic_err(
                         "No matching token in pair".to_string(),
@@ -197,8 +212,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     pad_query_result(
         match msg {
             QueryMsg::SwapSimulation { offer, path } => swap_simulation(deps, path, offer),
-            QueryMsg::GetConfig {} => return Ok(to_binary(&QueryMsgResponse::GetConfig{ 
-            })?),
+            QueryMsg::GetConfig {} => return Ok(to_binary(&QueryMsgResponse::GetConfig {})?),
         },
         BLOCK_SIZE,
     )
@@ -206,11 +220,14 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[entry_point]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
-    pad_response_result(match msg.id {
-        SWAP_REPLY_ID => {
-            let response = Response::new();
-            Ok(next_swap(deps, env, response)?)
+    pad_response_result(
+        match msg.id {
+            SWAP_REPLY_ID => {
+                let response = Response::new();
+                Ok(next_swap(deps, env, response)?)
+            }
+            _ => Ok(Response::default()),
         },
-        _ => Ok(Response::default())
-    }, BLOCK_SIZE)
+        BLOCK_SIZE,
+    )
 }

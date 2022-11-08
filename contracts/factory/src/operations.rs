@@ -3,19 +3,18 @@ use crate::{
         amm_pair_keys_r, amm_pair_keys_w, amm_pairs_r, amm_pairs_w, config_r, config_w,
         ephemeral_storage_w, prng_seed_r, total_amm_pairs_r, total_amm_pairs_w, NextPairKey,
         PAGINATION_LIMIT,
-    },
+    }, contract::INSTANTIATE_REPLY_ID,
 };
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Response, StdError, StdResult, Storage, WasmMsg,
+    Response, StdError, StdResult, Storage, WasmMsg, SubMsg,
 };
 use shadeswap_shared::{
     amm_pair::{generate_pair_key, AMMPair, AMMSettings},
-    core::{Callback, ContractInstantiationInfo, TokenPair, ViewingKey},
+    core::{ContractInstantiationInfo, TokenPair, ViewingKey},
     msg::{
         amm_pair::InitMsg as AMMPairInitMsg,
-        factory::{ExecuteMsg, QueryResponse},
-        router::ExecuteMsg as RouterExecuteMsg,
+        factory::{QueryResponse},
     staking::StakingContractInit,
     },
     Pagination, Contract,
@@ -23,7 +22,6 @@ use shadeswap_shared::{
 
 pub fn register_amm_pair(
     storage: &mut dyn Storage,
-    _env: Env,
     pair: AMMPair,
 ) -> StdResult<Response> {
     add_amm_pairs(storage, vec![pair])
@@ -103,22 +101,18 @@ pub fn set_config(
 pub fn create_pair(
     deps: DepsMut,
     env: Env,
-    info: &MessageInfo,
     pair: TokenPair,
     entropy: Binary,
     staking_contract: Option<StakingContractInit>
 ) -> StdResult<Response> {
     let config = config_r(deps.storage).load()?;
-    let signature = create_signature(&env, info)?;
     ephemeral_storage_w(deps.storage).save(&NextPairKey {
-        pair: pair.clone(),
-        is_verified: true,
-        key: signature.clone(),
+        pair: pair.clone()
     })?;
 
     let mut messages = vec![];
 
-    messages.push(CosmosMsg::Wasm(WasmMsg::Instantiate {
+    messages.push(SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: config.pair_contract.id,
         label: format!(
             "{}-{}-pair-{}-{}",
@@ -135,23 +129,13 @@ pub fn create_pair(
             prng_seed: prng_seed_r(deps.storage).load()?,
             admin_auth: config.admin_auth,
             staking_contract: staking_contract,
-            custom_fee: None,
-            callback: Some(Callback {
-                msg: to_binary(&ExecuteMsg::RegisterAMMPair {
-                    pair: pair.clone(),
-                    signature: signature,
-                })?,
-                contract: Contract {
-                    address: env.contract.address,
-                    code_hash: env.contract.code_hash,
-                },
-            }),
+            custom_fee: None
         })?,
         code_hash: config.pair_contract.code_hash,
         funds: vec![],
-    }));
+    }), INSTANTIATE_REPLY_ID));
 
-    Ok(Response::new().add_messages(messages))
+    Ok(Response::new().add_submessages(messages))
 }
 
 pub(crate) fn load_amm_pairs(deps: Deps, pagination: Pagination) -> StdResult<Vec<AMMPair>> {
@@ -178,15 +162,4 @@ pub(crate) fn load_amm_pairs(deps: Deps, pagination: Pagination) -> StdResult<Ve
         }
         None => Ok(vec![]),
     }
-}
-
-pub(crate) fn create_signature(env: &Env, info: &MessageInfo) -> StdResult<Binary> {
-    to_binary(
-        &[
-            info.sender.as_bytes(),
-            &env.block.height.to_be_bytes(),
-            &env.block.time.seconds().to_be_bytes(),
-        ]
-        .concat(),
-    )
 }

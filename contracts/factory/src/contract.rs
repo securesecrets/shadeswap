@@ -7,7 +7,7 @@ use crate::{
 };
 use cosmwasm_std::{
     entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
-    StdResult, SubMsgResult,
+    StdResult, SubMsgResult, Addr,
 };
 use shadeswap_shared::{
     admin::helpers::{validate_admin, AdminPermissions},
@@ -52,7 +52,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 create_pair(
                     deps,
                     env,
-                    &info,
                     pair,
                     entropy,
                     staking_contract
@@ -90,27 +89,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     &config.admin_auth,
                 )?;
                 add_amm_pairs(deps.storage, amm_pairs)
-            },
-            ExecuteMsg::RegisterAMMPair { pair, signature } => {
-                let config = ephemeral_storage_r(deps.storage).load()?;
-                if config.key != signature {
-                    return Err(StdError::generic_err("Invalid signature given".to_string()));
-                }
-                if pair != config.pair {
-                    return Err(StdError::generic_err(
-                        "Provided pair is not equal.".to_string(),
-                    ));
-                }
-                ephemeral_storage_w(deps.storage).remove();
-                register_amm_pair(
-                    deps.storage,
-                    env,
-                    AMMPair {
-                        pair: config.pair,
-                        address: info.sender,
-                        enabled: true,
-                    },
-                )
             }
         },
         BLOCK_SIZE,
@@ -152,7 +130,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[entry_point]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     pad_response_result(
         match (msg.id, msg.result) {
             (INSTANTIATE_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
@@ -161,10 +139,9 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                     let config = ephemeral_storage_r(deps.storage).load()?;
                     register_amm_pair(
                         deps.storage,
-                        _env,
                         AMMPair {
                             pair: config.pair,
-                            address: deps.api.addr_validate(&contract_address)?,
+                            address: deps.api.addr_validate(&contract_address.replace(" ", ""))?,
                             enabled: true,
                         },
                     )?;

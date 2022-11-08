@@ -62,8 +62,7 @@ pub mod tests {
             entropy: entropy.clone(),
             admin_auth: shadeswap_shared::Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
-            custom_fee: None,
-            callback: None,
+            custom_fee: None
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let test_view_key =
@@ -125,8 +124,7 @@ pub mod tests {
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
-            custom_fee: None,
-            callback: None,
+            custom_fee: None
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let address_a = Addr::unchecked("TESTA".to_string());
@@ -672,8 +670,7 @@ pub mod help_test_lib {
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
-            custom_fee: None,
-            callback: None,
+            custom_fee: None
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let config = config_r(&deps.storage).load()?;
@@ -1030,8 +1027,7 @@ pub mod help_test_lib {
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },          
             staking_contract: None,
-            custom_fee: custom_fee,
-            callback: None,
+            custom_fee: custom_fee
         };         
         let temp_deps = deps.branch();
         assert!(instantiate(temp_deps, env.clone(),mock_info, msg).is_ok());

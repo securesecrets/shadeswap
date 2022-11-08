@@ -32,7 +32,7 @@ pub const BLOCK_SIZE: usize = 256;
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InitMsg,
 ) -> StdResult<Response> {
     if msg.pair.0 == msg.pair.1 {
@@ -43,7 +43,7 @@ pub fn instantiate(
 
     let mut response = Response::new();
     let mut messages = vec![];
-    let viewing_key = create_viewing_key(&env, &_info, msg.prng_seed.clone(), msg.entropy.clone());
+    let viewing_key = create_viewing_key(&env, &info, msg.prng_seed.clone(), msg.entropy.clone());
     register_pair_token(&env, &mut messages, &msg.pair.0, &viewing_key)?;
     register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;
     response = response.add_messages(messages);
@@ -85,18 +85,6 @@ pub fn instantiate(
         INSTANTIATE_LP_TOKEN_REPLY_ID,
     ));
 
-    match msg.callback {
-        Some(c) => {
-            response = response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: c.contract.address.to_string(),
-                code_hash: c.contract.code_hash,
-                msg: c.msg,
-                funds: vec![],
-            }))
-        }
-        None => (),
-    }
-
     let config = Config {
         factory_contract: msg.factory_info.clone(),
         lp_token: Contract {
@@ -113,7 +101,8 @@ pub fn instantiate(
     };
 
     config_w(deps.storage).save(&config)?;
-    Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
+    response.data = Some(env.contract.address.as_bytes().into());
+    Ok(response)
 }
 
 #[entry_point]
@@ -165,7 +154,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     &info.sender,
                     &config.admin_auth,
                 )?;
-                remove_addresses_from_whitelist(deps.storage, checked_addresses, env)
+                remove_addresses_from_whitelist(deps.storage, checked_addresses)
             }
             ExecuteMsg::SwapTokens {
                 offer,
@@ -394,7 +383,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[entry_point]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     pad_response_result(
         match (msg.id, msg.result) {
             (INSTANTIATE_LP_TOKEN_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
@@ -402,14 +391,18 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                     let contract_address =
                         deps.api.addr_validate(&String::from_utf8(x.to_vec())?)?;
                     let config = config_r(deps.storage).load()?;
-                    register_lp_token(
+                    let mut response = register_lp_token(
                         deps,
-                        _env,
+                        &env,
                         Contract {
                             address: contract_address,
                             code_hash: config.lp_token.code_hash,
                         },
-                    )
+                    )?;
+                    
+                    response.data = Some(env.contract.address.to_string().as_bytes().into());
+
+                    Ok(response)
                 }
                 None => Err(StdError::generic_err(format!("Unknown reply id"))),
             },
@@ -417,7 +410,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                 Some(x) => {
                     let contract_address = String::from_utf8(x.to_vec())?;
                     let config = config_r(deps.storage).load()?;
-                    set_staking_contract(
+                    let mut response = set_staking_contract(
                         deps.storage,
                         Some(Contract {
                             address: deps.api.addr_validate(&contract_address)?,
@@ -429,7 +422,11 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                                 .contract_info
                                 .code_hash,
                         }),
-                    )
+                    )?;
+                    
+                    response.data = Some(env.contract.address.to_string().as_bytes().into());
+
+                    Ok(response)
                 }
                 None => Err(StdError::generic_err(format!("Unknown reply id"))),
             },

@@ -26,11 +26,11 @@ pub const BLOCK_SIZE: usize = 256;
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InitMsg,
 ) -> StdResult<Response> {
     let config = Config {
-        amm_pair: _info.sender.clone(),
+        amm_pair: info.sender.clone(),
         daily_reward_amount: msg.daily_reward_amount,
         reward_token: msg.reward_token.to_owned(),
         lp_token: msg.lp_token.clone(),
@@ -70,7 +70,6 @@ pub fn instantiate(
         msg.valid_to
     )?;
 
-    println!("test init staking");
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
     Ok(response.add_messages(messages).add_attributes(vec![
@@ -223,7 +222,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     authenticate_permit(deps, permit, &deps.querier, config.authenticator)?;
 
                 if res.revoked {
-                    return Err(StdError::generic_err("".to_string()));
+                    return Err(StdError::generic_err("Permit has been revoked".to_string()));
                 }
 
                 auth_queries(deps, env, query, res.sender)

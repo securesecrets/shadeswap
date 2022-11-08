@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 pub struct CountResponse {
     pub count: i32,
 }
-use crate::{core::{TokenAmount, TokenType}, Contract, utils::ExecuteCallback};
+use crate::{utils::ExecuteCallback};
 
 pub mod router {
-    use cosmwasm_std::Addr;
+    
 
     use super::{amm_pair::SwapResult, *};
     use crate::{core::{TokenAmount, TokenType}, Contract};
@@ -178,8 +178,7 @@ pub mod amm_pair {
         pub entropy: Binary,
         pub admin_auth: Contract,
         pub staking_contract: Option<StakingContractInit>,
-        pub custom_fee: Option<CustomFee>,
-        pub callback: Option<Callback>,
+        pub custom_fee: Option<CustomFee>
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -360,11 +359,7 @@ pub mod factory {
         },
         AddAMMPairs {
             amm_pairs: Vec<AMMPair>,
-        },
-        RegisterAMMPair {
-            pair: TokenPair,
-            signature: Binary,
-        },
+        }
     }
 
     impl ExecuteCallback for ExecuteMsg {
@@ -408,7 +403,7 @@ pub mod staking {
 
     use super::*;
     use cosmwasm_schema::cw_serde;
-    use cosmwasm_std::Addr;
+    
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
@@ -540,7 +535,7 @@ pub mod staking {
 }
 
 pub mod lp_token {
-    use cosmwasm_std::Addr;
+    
 
     use crate::{snip20::InitialBalance};
 

@@ -2,7 +2,7 @@
 // needs to check for the amount
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
 
-use cosmwasm_std::{Binary, DecimalRangeExceeded};
+use cosmwasm_std::{Binary};
 use cosmwasm_std::{
     to_binary, Addr, Attribute, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdError, StdResult, Storage, Uint128, WasmMsg,

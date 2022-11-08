@@ -78,17 +78,6 @@ pub mod amm_pairs_mock {
             admin_auth: msg.admin_auth
         };
         singleton(deps.storage, CONFIG).save(&config)?;
-        match msg.callback {
-            Some(c) => {
-                response = response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: c.contract.address.to_string(),
-                    code_hash: c.contract.code_hash,
-                    msg: c.msg,
-                    funds: vec![],
-                }))
-            }
-            None => (),
-        }
         Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
     }
 

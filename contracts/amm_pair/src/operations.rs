@@ -78,7 +78,7 @@ fn store_trade_history(deps: DepsMut, trade_history: &TradeHistory) -> StdResult
 
 pub fn register_lp_token(
     deps: DepsMut,
-    env: Env,
+    env: &Env,
     lp_token_address: Contract,
 ) -> StdResult<Response> {
     let mut config = config_r(deps.storage).load()?;
@@ -291,7 +291,7 @@ pub fn set_staking_contract(
     config_w(storage).save(&config)?;
 
     // send lp contractLink to staking contract
-    Ok(Response::new().add_attribute("action", "set_staking_contract"))
+    Ok(Response::new())
 }
 
 pub fn get_shade_dao_info(deps: Deps) -> StdResult<Binary> {
@@ -446,8 +446,7 @@ pub fn add_address_to_whitelist(storage: &mut dyn Storage, address: Addr) -> Std
 
 pub fn remove_addresses_from_whitelist(
     storage: &mut dyn Storage,
-    addresses_to_remove: Vec<Addr>,
-    _env: Env,
+    addresses_to_remove: Vec<Addr>
 ) -> StdResult<Response> {
     let mut addresses = whitelist_r(storage).load()?;
     for address in addresses_to_remove {

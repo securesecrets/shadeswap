@@ -18,7 +18,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
     use shadeswap_shared::core::{ ContractInstantiationInfo, TokenPairAmount, TokenAmount, CustomFee, Fee};
     use shadeswap_shared::msg::amm_pair::InvokeMsg; 
     use shadeswap_shared::staking::StakingContractInit;   
-    use shadeswap_shared::utils::ExecuteCallback;
+    
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{core::{TokenType}};
     use multi_test::help_lib::integration_help_lib::{generate_snip20_contract};    
@@ -109,8 +109,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
             },
             valid_to: Uint128::new(3747905010000u128) 
         }), 
-        custom_fee: None, 
-        callback: None 
+        custom_fee: None
     };       
     
     roll_blockchain(&mut router, 1).unwrap();
@@ -204,8 +203,8 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         }, 
         expected_return: Some(Uint128::new(1000u128)), 
         staking: Some(true) 
-    };
-    
+    };    
+ 
     let _ = router.execute_contract(
         owner_addr.to_owned(),
         &amm_pair_contract,
@@ -442,8 +441,7 @@ pub fn amm_pair_integration_tests_native_token() {
             },
             valid_to: Uint128::new(3747905010000u128) 
         }), 
-        custom_fee: None, 
-        callback: None 
+        custom_fee: None
     };       
     
     roll_blockchain(&mut router, 1).unwrap();

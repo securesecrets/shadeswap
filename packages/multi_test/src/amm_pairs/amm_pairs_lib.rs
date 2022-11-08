@@ -40,9 +40,8 @@ pub mod amm_pairs_lib{
                 prng_seed: to_binary(seed)?,
                 entropy: to_binary(seed)?,
                 admin_auth: admin_auth.clone() ,
-                staking_contract: staking_contract,
-                custom_fee: custom_fee,
-                callback: router_callback,
+                staking_contract: None,
+                custom_fee: None
             }, 
             &[], 
             "amm_pairs", 

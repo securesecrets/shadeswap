@@ -9,7 +9,6 @@ members = [
     "contracts/staking",
     "packages/network_integration",
     "packages/multi_test"
-    # "packages/cosmwasm_math_compat",
 ]
 
 [profile.release]

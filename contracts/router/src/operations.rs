@@ -1,13 +1,11 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, QuerierWrapper,
-    QueryRequest, Response, StdError, StdResult, Storage, SubMsg, Uint128, Uint256, WasmMsg,
-    WasmQuery,
+    to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, QuerierWrapper, QueryRequest,
+    Response, StdError, StdResult, Storage, SubMsg, Uint128, Uint256, WasmMsg, WasmQuery,
 };
 use shadeswap_shared::{
-    amm_pair::AMMSettings,
-    core::{ContractInstantiationInfo, TokenAmount, TokenPair, TokenType},
+    core::{TokenAmount, TokenType},
     msg::amm_pair::{
         ExecuteMsg as AMMPairExecuteMsg, InvokeMsg as AMMPairInvokeMsg,
         QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryReponse, SwapResult,
@@ -17,7 +15,7 @@ use shadeswap_shared::{
         self,
         helpers::{register_receive, set_viewing_key_msg},
     },
-    Contract, BLOCK_SIZE,
+    Contract,
 };
 
 use crate::{
@@ -33,7 +31,14 @@ pub fn refresh_tokens(
 ) -> StdResult<Response> {
     let mut msg = vec![];
     let config = config_r(deps.storage).load()?;
-    set_viewing_key_msg(SHADE_ROUTER_KEY.to_string(), None, &Contract{ address: token_address.clone(), code_hash: token_code_hash.clone() })?;
+    set_viewing_key_msg(
+        SHADE_ROUTER_KEY.to_string(),
+        None,
+        &Contract {
+            address: token_address.clone(),
+            code_hash: token_code_hash.clone(),
+        },
+    )?;
     register_pair_token(
         &env,
         &mut msg,
@@ -50,7 +55,6 @@ pub fn refresh_tokens(
 pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<Response> {
     let current_trade_info: Option<CurrentSwapInfo> = epheral_storage_r(deps.storage).may_load()?;
     if let Some(mut info) = current_trade_info {
-
         let token_in: TokenAmount = TokenAmount {
             token: info.next_token_in.clone(),
             amount: info.next_token_in.query_balance(
@@ -64,27 +68,41 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
             let next_pair_contract = query_pair_contract_config(
                 &deps.querier,
                 Contract {
-                    address: deps.api.addr_validate(&info.path[info.current_index as usize + 1].addr.clone())?,
+                    address: deps
+                        .api
+                        .addr_validate(&info.path[info.current_index as usize + 1].addr.clone())?,
                     code_hash: info.path[info.current_index as usize + 1].code_hash.clone(),
                 },
             )?;
 
-            info.current_index = info.current_index + 1;
+            match next_pair_contract {
+                AMMPairQueryReponse::GetPairInfo {
+                    liquidity_token,
+                    factory,
+                    pair,
+                    amount_0,
+                    amount_1,
+                    total_liquidity,
+                    contract_version,
+                } => {
+                    info.current_index = info.current_index + 1;
 
-            if next_pair_contract.pair.0 == info.next_token_in {
-                info.next_token_in = next_pair_contract.pair.1;
-            } else {
-                info.next_token_in = next_pair_contract.pair.0;
+                    if pair.0 == info.next_token_in {
+                        info.next_token_in = pair.1;
+                    } else {
+                        info.next_token_in = pair.0;
+                    }
+                    epheral_storage_w(deps.storage).save(&info)?;
+                    response = get_trade_with_callback(
+                        env,
+                        token_in,
+                        info.path[(info.current_index) as usize].clone(),
+                        response,
+                    )?;
+                    Ok(response)
+                }
+                _ => Err(StdError::generic_err("Contract not found.")),
             }
-            epheral_storage_w(deps.storage).save(&info)?;
-            response = get_trade_with_callback(
-                deps,
-                env,
-                token_in,
-                info.path[(info.current_index) as usize].clone(),
-                response,
-            )?;
-            Ok(response)
         } else {
             if let Some(min_out) = info.amount_out_min {
                 if token_in.amount.lt(&min_out) {
@@ -133,47 +151,52 @@ pub fn swap_tokens_for_exact_tokens(
         },
     )?;
 
-    let next_token_in;
-    if next_pair_contract.pair.0 == amount_in.token {
-        next_token_in = next_pair_contract.pair.1;
-    } else {
-        next_token_in = next_pair_contract.pair.0;
+    match next_pair_contract {
+        AMMPairQueryReponse::GetPairInfo {
+            liquidity_token,
+            factory,
+            pair,
+            amount_0,
+            amount_1,
+            total_liquidity,
+            contract_version,
+        } => {
+            let next_token_in;
+            if pair.0 == amount_in.token {
+                next_token_in = pair.1;
+            } else {
+                next_token_in = pair.0;
+            }
+
+            epheral_storage_w(deps.storage).save(&CurrentSwapInfo {
+                amount: amount_in.clone(),
+                amount_out_min: amount_out_min,
+                path: path.clone(),
+                recipient: recipient.unwrap_or(sender),
+                current_index: 0,
+                next_token_in: next_token_in,
+            })?;
+
+            response = get_trade_with_callback(env, amount_in, path[0].clone(), response)?;
+
+            Ok(response)
+        }
+        _ => Err(StdError::generic_err("Pair Contract not found."))
     }
-
-    epheral_storage_w(deps.storage).save(&CurrentSwapInfo {
-        amount: amount_in.clone(),
-        amount_out_min: amount_out_min,
-        path: path.clone(),
-        recipient: recipient.unwrap_or(sender),
-        current_index: 0,
-        next_token_in: next_token_in,
-    })?;
-
-    response = get_trade_with_callback(
-        deps,
-        env,
-        amount_in,
-        path[0].clone(),
-        response,
-    )?;
-
-    Ok(response)
 }
 
 fn get_trade_with_callback(
-    _deps: DepsMut,
     env: Env,
     token_in: TokenAmount,
     hop: Hop,
     mut response: Response,
 ) -> StdResult<Response> {
-
     match &token_in.token {
         TokenType::NativeToken { denom } => {
             let msg = to_binary(&AMMPairExecuteMsg::SwapTokens {
                 expected_return: None,
                 to: None,
-                offer: token_in.clone()
+                offer: token_in.clone(),
             })?;
 
             response = response.add_submessage(SubMsg::reply_always(
@@ -229,35 +252,14 @@ pub fn update_viewing_key(storage: &mut dyn Storage, viewing_key: String) -> Std
 pub fn query_pair_contract_config(
     querier: &QuerierWrapper,
     pair_contract_address: Contract,
-) -> StdResult<PairConfig> {
+) -> StdResult<AMMPairQueryReponse> {
     let result: AMMPairQueryReponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: pair_contract_address.address.to_string(),
         code_hash: pair_contract_address.code_hash.clone(),
         msg: to_binary(&AMMPairQueryMsg::GetPairInfo {})?,
     }))?;
 
-    match result {
-        AMMPairQueryReponse::GetPairInfo {
-            liquidity_token,
-            factory,
-            pair,
-            amount_0,
-            amount_1,
-            total_liquidity,
-            contract_version,
-        } => Ok(PairConfig {
-            liquidity_token: liquidity_token,
-            factory: factory,
-            pair: pair,
-            amount_0: amount_0,
-            amount_1: amount_1,
-            total_liquidity: total_liquidity,
-            contract_version: contract_version,
-        }),
-        _ => Err(StdError::generic_err(
-            "An error occurred while trying to retrieve pair contract settings.",
-        )),
-    }
+    return Ok(result);
 }
 
 pub fn swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount) -> StdResult<Binary> {
@@ -322,10 +324,10 @@ pub fn swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount) -> StdRes
                         sum_shade_dao_fee_amount =
                             shade_dao_fee_amount.checked_add(sum_shade_dao_fee_amount)?;
                     }
-                    _ => panic!("Failed to complete hop."),
+                    _ => return Err(StdError::generic_err("Failed to complete hop.")),
                 };
             }
-            _ => panic!("Failed to complete hop."),
+            _ => return Err(StdError::generic_err("Failed to complete hop.")),
         }
     }
 
@@ -340,22 +342,6 @@ pub fn swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount) -> StdRes
             / Uint256::from_str(&offer.amount.to_string())?)
         .to_string(),
     })
-}
-
-pub struct FactoryConfig {
-    pub pair_contract: ContractInstantiationInfo,
-    pub amm_settings: AMMSettings,
-    pub admin_auth: Contract,
-}
-
-pub struct PairConfig {
-    pub liquidity_token: Contract,
-    pub factory: Contract,
-    pub pair: TokenPair,
-    pub amount_0: Uint128,
-    pub amount_1: Uint128,
-    pub total_liquidity: Uint128,
-    pub contract_version: u32,
 }
 
 fn register_pair_token(

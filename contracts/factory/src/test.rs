@@ -30,14 +30,9 @@ pub mod test_contract {
     use crate::contract::execute;
     use crate::contract::instantiate;
     use crate::contract::query;
-    use crate::operations::create_pair;
-    use crate::operations::create_signature;    
-    use crate::state::NextPairKey;
+    use crate::operations::create_pair; 
     use crate::state::config_r;
     use crate::state::PAGINATION_LIMIT;
-    use crate::state::config_w;
-    use crate::state::ephemeral_storage_r;
-    use crate::state::ephemeral_storage_w;
     use cosmwasm_std::from_binary;
     use cosmwasm_std::Addr;
     use cosmwasm_std::MessageInfo;
@@ -107,50 +102,6 @@ pub mod test_contract {
     }
 
     #[test]
-    fn register_amm_pair_ok() -> StdResult<()> {
-        let mut deps = mock_dependencies(&[]);
-        let env = mock_env();
-        let config = mkconfig(0);
-
-        config_w(deps.as_mut().storage).save(&config)?;
-        let pair = TokenPair(
-            TokenType::CustomToken {
-                contract_addr: Addr::unchecked("token_addr".to_string()),
-                token_code_hash: "13123adasd".to_string(),
-            },
-            TokenType::NativeToken {
-                denom: "test1".to_string(),
-            },
-        );
-
-        let signature = create_signature(&env, &mock_info("admin", &[]))?;
-        ephemeral_storage_w(&mut deps.storage).save(&NextPairKey {
-            pair: pair.clone(),
-            is_verified: true,
-            key: signature.clone(),
-        })?;
-
-        execute(
-            deps.as_mut(),
-            env,
-          mock_info("admin", &[]),
-            ExecuteMsg::RegisterAMMPair {
-                pair: pair.clone(),
-                signature,
-            },
-        )?;
-
-        let result = ephemeral_storage_r(&deps.storage).load();
-        match result {
-            Ok(_) => todo!(),
-            Err(err) => {
-                assert_eq!("factory::state::NextPairKey not found", &err.to_string())
-            },
-        }       
-        Ok(())
-    }
-
-    #[test]
     fn create_pair_ok() -> StdResult<()> {
         let ref mut deps = mock_dependencies(&[]);
         let env = mock_env();
@@ -180,7 +131,6 @@ pub mod test_contract {
         let result = create_pair(
             deps.as_mut(),
              mock_env(), 
-             &mock_info("admin", &[]),
              pair,
              to_binary(&"entropy").unwrap(), 
              None,);

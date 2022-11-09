@@ -110,8 +110,7 @@ pub fn create_pair(
         pair: pair.clone()
     })?;
 
-    let mut messages: Vec<CosmosMsg> = vec![];
-
+    let mut messages = vec![];
     messages.push(SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: config.pair_contract.id,
         label: format!(

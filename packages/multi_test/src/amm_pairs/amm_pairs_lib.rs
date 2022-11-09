@@ -4,7 +4,7 @@ pub mod amm_pairs_lib{
     use shadeswap_shared::amm_pair::{AMMSettings, AMMPair};
     use shadeswap_shared::core::{ContractInstantiationInfo, CustomFee, Callback, Fee, TokenPair, TokenType, TokenPairAmount};
     use shadeswap_shared::msg::amm_pair::{InitMsg, ExecuteMsg, QueryMsg, QueryMsgResponse};
-    use crate::amm_pairs::amm_pairs_mock::amm_pairs_mock::{execute, instantiate, query};
+    use crate::amm_pairs::amm_pairs_mock::amm_pairs_mock::{execute, instantiate, query, reply as amm_reply};
     use crate::help_lib::integration_help_lib::{snip20_lp_token_contract_store, create_token_pair};
     use shadeswap_shared::utils::asset::Contract as SContract;
     use crate::amm_pairs::amm_pairs_mock::amm_pairs_mock::reply;
@@ -21,8 +21,7 @@ pub mod amm_pairs_lib{
         store_code: Box<dyn Contract<Empty>>,
         seed: &str,
         staking_contract: Option<StakingContractInit>,
-        custom_fee: Option<CustomFee> ,
-        router_callback:  Option<Callback>     
+        custom_fee: Option<CustomFee>,      
     ) -> StdResult<ContractInfo>
     {             
         let contract_info = router.store_code(store_code);
@@ -40,8 +39,8 @@ pub mod amm_pairs_lib{
                 prng_seed: to_binary(seed)?,
                 entropy: to_binary(seed)?,
                 admin_auth: admin_auth.clone() ,
-                staking_contract: None,
-                custom_fee: None
+                staking_contract: staking_contract,
+                custom_fee: custom_fee
             }, 
             &[], 
             "amm_pairs", 
@@ -137,8 +136,7 @@ pub mod amm_pairs_lib{
         mock: bool,
         seed: &str,
         staking_contract: Option<StakingContractInit>,
-        custom_fee: Option<CustomFee>,
-        router_callback:  Option<Callback>   
+        custom_fee: Option<CustomFee> 
     ) -> StdResult<ContractInfo> {
         // Create AMM_Pair or Mock
         if mock {
@@ -152,8 +150,8 @@ pub mod amm_pairs_lib{
                 amm_pair_contract_store(), 
                 seed,
                 staking_contract,
-                custom_fee,
-                router_callback) 
+                custom_fee
+            ) 
         }
      
         return  store_init_amm_pair_contract(
@@ -166,8 +164,7 @@ pub mod amm_pairs_lib{
             amm_pair_contract_store_in(), 
             seed,
             staking_contract,
-            custom_fee,
-            router_callback
+            custom_fee
         ) 
     }
 

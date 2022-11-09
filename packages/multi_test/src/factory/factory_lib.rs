@@ -9,9 +9,9 @@ pub mod factory_lib{
     use shadeswap_shared::{amm_pair::AMMPair, factory::InitMsg};
     use shadeswap_shared::utils::asset::Contract as SContract;
     use crate::auth;
-    use crate::factory::factory_mock::factory_mock::{execute, instantiate, query};
+    use crate::factory::factory_mock::factory_mock::{execute, instantiate, query, reply};
     use crate::help_lib::integration_help_lib::convert_to_contract_link;
-    use factory::contract::{execute as factory_execute, instantiate as factory_instantiate, query as factory_query, reply};
+    use factory::contract::{execute as factory_execute, instantiate as factory_instantiate, query as factory_query};
     use shadeswap_shared::msg::factory::{ExecuteMsg, QueryMsg, QueryResponse}; 
    
     pub fn init_factory(

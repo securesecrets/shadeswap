@@ -2,7 +2,7 @@
 
 pub mod integration_help_lib{       
     use std::time::{SystemTime, UNIX_EPOCH};
-    use cosmwasm_std::{StdError};
+    use cosmwasm_std::{StdError, BlockInfo, Timestamp};
     use cosmwasm_std::Empty;
     use query_authentication::permit::Permit;
     use query_authentication::transaction::PermitSignature;
@@ -149,6 +149,23 @@ pub mod integration_help_lib{
             .expect("Time went backwards");
         Ok(Uint128::from(since_the_epoch.as_millis()))
     }
+
+    
+pub fn configure_block_send_init_funds(router: &mut App, owner_addr: &Addr, amount: Uint128) -> StdResult<()> {
+    router.set_block(BlockInfo {
+        height: 1,
+        time: Timestamp::from_seconds(1 as u64),
+        chain_id: "chain_id".to_string(),
+    });
+    router.init_modules(|router, _, storage| {
+        router
+            .bank
+            .init_balance(storage, &owner_addr.clone(), vec![Coin{denom: "uscrt".into(), amount: Uint128::new(100000000000000u128)}])
+            .unwrap();
+    });
+    Ok(())
+}
+
 
     pub fn get_snip20_balance(
         router: &mut App, 

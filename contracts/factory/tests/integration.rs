@@ -3,33 +3,48 @@ use cosmwasm_std::{
 };
 use factory::contract::{execute, instantiate, query};
 use multi_test::{help_lib::integration_help_lib::{convert_to_contract_link, roll_blockchain, generate_snip20_contract, store_init_auth_contract}, 
-    amm_pairs::amm_pairs_lib::amm_pairs_lib::{store_init_amm_pair_contract, amm_pair_contract_store}, util_addr::util_addr::OWNER};
+    amm_pairs::amm_pairs_lib::amm_pairs_lib::{store_init_amm_pair_contract, amm_pair_contract_store_in}, util_addr::util_addr::OWNER};
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
-use shadeswap_shared::{utils::testing::TestingExt, core::{ContractInstantiationInfo, }, factory::{InitMsg, QueryResponse, QueryMsg}, Contract as SContract};
+use multi_test::factory::factory_mock::factory_mock::reply;
+use shadeswap_shared::{utils::testing::TestingExt, core::{ContractInstantiationInfo, CustomFee, }, factory::{InitMsg, QueryResponse, QueryMsg}, Contract as SContract, staking::StakingContractInit};
 
 pub fn contract_counter() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new_with_empty(execute, instantiate, query);
+    let contract = ContractWrapper::new_with_empty(execute, instantiate, query).with_reply(reply);
     Box::new(contract)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn factory_integration_tests() {
+    use cosmwasm_std::Uint128;
     use multi_test::admin::admin_help::init_admin_contract;
-    use multi_test::amm_pairs::amm_pairs_lib::amm_pairs_lib::amm_pair_contract_store;
-    use multi_test::help_lib::integration_help_lib::{convert_to_contract_link, create_token_pair};
+    use multi_test::amm_pairs::amm_pairs_lib::amm_pairs_lib::{amm_pair_contract_store_in};
+    use multi_test::help_lib::integration_help_lib::{convert_to_contract_link, create_token_pair, mint_deposit_snip20, configure_block_send_init_funds, snip20_lp_token_contract_store};
+    use multi_test::staking::staking_lib::staking_lib::staking_contract_store_in;
     use shadeswap_shared::Pagination;
     use shadeswap_shared::amm_pair::AMMPair;
+    use shadeswap_shared::core::TokenType;
     use shadeswap_shared::factory::ExecuteMsg;
     use multi_test::help_lib::integration_help_lib::{roll_blockchain};
     
     use multi_test::util_addr::util_addr::{OWNER};       
+        use shadeswap_shared::staking::StakingContractInit;
         use shadeswap_shared::utils::testing::TestingExt;    
          
     let owner_addr = Addr::unchecked(OWNER);   
-    let mut router = App::default();     
+    let mut router = App::default();   
+    
+    configure_block_send_init_funds(&mut router, &owner_addr, Uint128::new(100000000000000u128));  
+    
+    let lp_token_contract_info = router.store_code(snip20_lp_token_contract_store());
     let auth_contract = init_admin_contract(&mut router, &owner_addr).unwrap();
-    let amm_pair_contract_id = router.store_code(amm_pair_contract_store());
+    let amm_pair_contract_id = router.store_code(amm_pair_contract_store_in());
+    let staking_contract_info = router.store_code(staking_contract_store_in());
+    // GENERATE TOKEN PAIRS & REWARD TOKEN  
+    let reward_contract = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18).unwrap();
+    // MINT AND DEPOSIT FOR LIQUIDITY 
+    mint_deposit_snip20(&mut router,&reward_contract,&owner_addr,Uint128::new(10000000000u128), &owner_addr);       
+
     let init_msg = InitMsg {
         pair_contract: ContractInstantiationInfo {
             code_hash: amm_pair_contract_id.code_hash,
@@ -44,12 +59,12 @@ fn factory_integration_tests() {
             },
         },
         lp_token_contract: ContractInstantiationInfo {
-            code_hash: "".to_string(),
-            id: 0u64,
+            code_hash: lp_token_contract_info.code_hash.clone(),
+            id: lp_token_contract_info.code_id,
         },
         prng_seed: to_binary(&"".to_string()).unwrap(),
         api_key: "api_key".to_string(),
-        authenticator: None,
+        authenticator: Some(convert_to_contract_link(&auth_contract)),
         admin_auth: convert_to_contract_link(&auth_contract)
     };
     let factory_contract_id = router.store_code(contract_counter());
@@ -81,6 +96,20 @@ fn factory_integration_tests() {
         "ETH", 
         "USDT",
         &factory_contract,
+        Some(StakingContractInit{
+            contract_info: ContractInstantiationInfo { 
+                code_hash: staking_contract_info.code_hash.clone(), 
+                id: staking_contract_info.code_id
+            },
+            daily_reward_amount: Uint128::new(30000u128),
+            reward_token: TokenType::CustomToken { 
+                contract_addr: reward_contract.address.clone(), 
+                token_code_hash: reward_contract.code_hash.clone() 
+            },
+            valid_to: Uint128::new(30000000u128)
+        }),
+        None,
+        "seed",
     &owner_addr).unwrap();
 
     roll_blockchain(&mut router, 1).unwrap();
@@ -110,6 +139,7 @@ fn factory_integration_tests() {
         }
     }).unwrap();
 
+    // ASSERT AMM PAIRS == 1
     let query_response: QueryResponse = router.query_test(factory_contract.clone(), list_amm_pairs.clone()).unwrap();
     match query_response{       
         QueryResponse::ListAMMPairs { amm_pairs } => {
@@ -120,19 +150,28 @@ fn factory_integration_tests() {
         QueryResponse::AuthorizeApiKey { authorized: _ } => todo!(),        
     };
     roll_blockchain(&mut router, 1).unwrap();
-    let (token_0_contract, token_1_contract, _mock_amm_pair) = setup_create_amm_pairs(
-        &mut router,  
-        "BTC", 
-        "ETH",
-        &factory_contract,
-    &owner_addr).unwrap();
+
+    let token_2_contract = generate_snip20_contract(&mut router, "BTC".to_string(), "BTC".to_string(), 18).unwrap();
+    roll_blockchain(&mut router, 1).unwrap();
+
     let create_msg = ExecuteMsg::CreateAMMPair { 
         pair: create_token_pair(
-            &convert_to_contract_link(&token_0_contract), 
-            &convert_to_contract_link(&token_1_contract)
+            &convert_to_contract_link(&token_1_contract), 
+            &convert_to_contract_link(&token_2_contract)
         ), 
         entropy: to_binary("seed").unwrap(), 
-        staking_contract: None
+        staking_contract: Some(StakingContractInit{
+            contract_info: ContractInstantiationInfo { 
+                code_hash: staking_contract_info.code_hash.clone(), 
+                id: staking_contract_info.code_id
+            },
+            daily_reward_amount: Uint128::new(30000u128),
+            reward_token: TokenType::CustomToken { 
+                contract_addr: reward_contract.address.clone(), 
+                token_code_hash: reward_contract.code_hash.clone() 
+            },
+            valid_to: Uint128::new(30000000u128)
+        }),
     };
     
     let _ = router.execute_contract(
@@ -157,7 +196,15 @@ fn factory_integration_tests() {
 }
 
 
-pub fn setup_create_amm_pairs(router: &mut App, symbol_0: &str, symbol_1: &str, factory_contract: &ContractInfo, sender: &Addr) 
+pub fn setup_create_amm_pairs(
+    router: &mut App, 
+    symbol_0: &str, 
+    symbol_1: &str, 
+    factory_contract: &ContractInfo, 
+    staking_contract_info: Option<StakingContractInit>,
+    custom_fee: Option<CustomFee>,
+    seed: &str,
+    sender: &Addr) 
     -> StdResult<(cosmwasm_std::ContractInfo, cosmwasm_std::ContractInfo, cosmwasm_std::ContractInfo)> {
     let token_0_contract = generate_snip20_contract(router, symbol_0.to_string(), symbol_0.to_string(), 18).unwrap();
     roll_blockchain(router, 1).unwrap();
@@ -172,11 +219,10 @@ pub fn setup_create_amm_pairs(router: &mut App, symbol_0: &str, symbol_1: &str, 
         &convert_to_contract_link(&token_1_contract),
         &convert_to_contract_link(factory_contract),
         &convert_to_contract_link(&auth_query_contract),
-        amm_pair_contract_store(),
-        "seed",
-        None,
-        None,
-        None
+        amm_pair_contract_store_in(),
+        seed,
+        staking_contract_info,
+        custom_fee,
     ).unwrap();
     let response = (token_0_contract, token_1_contract, mock_amm_pairs);
     Ok(response)

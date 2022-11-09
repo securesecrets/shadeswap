@@ -545,7 +545,7 @@ pub mod amm_pair_lib {
     pub fn store_staking_contract(account_name: &str, backend: &str) -> io::Result<StoredContract> {
         println!("Storing Staking Contract");
         let stored_amm_pairs =
-            store_and_return_contract(AMM_PAIR_FILE, account_name, Some(STORE_GAS), Some(backend))?;
+            store_and_return_contract(STAKING_FILE, account_name, Some(STORE_GAS), Some(backend))?;
         Ok(stored_amm_pairs)
     }
 

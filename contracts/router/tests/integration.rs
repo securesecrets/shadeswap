@@ -1,7 +1,7 @@
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
 use shadeswap_shared::msg::router::{InitMsg, ExecuteMsg, QueryMsg};
 use cosmwasm_std::{
-    to_binary, Addr, Empty,
+    to_binary, Addr, Empty, Uint128,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -12,7 +12,7 @@ pub fn router_integration_tests() {
     use multi_test::staking::staking_lib::staking_lib::{staking_contract_store_in, create_staking_info_contract};
     use router::contract::{instantiate, query, execute, reply};
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, store_init_factory_contract, 
-        convert_to_contract_link, snip20_lp_token_contract_store, create_token_pair, increase_allowance, snip_20_balance_query};
+        convert_to_contract_link, snip20_lp_token_contract_store, create_token_pair, increase_allowance, snip_20_balance_query, configure_block_send_init_funds};
     use cosmwasm_std::{Uint128, Coin, ContractInfo, BlockInfo};
     use multi_test::util_addr::util_addr::{OWNER, STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
@@ -37,19 +37,7 @@ pub fn router_integration_tests() {
     let owner_addr = Addr::unchecked(OWNER);   
     let mut router = App::default();
 
-    router.set_block(BlockInfo {
-        height: 1,
-        time: Timestamp::from_seconds(1 as u64),
-        chain_id: "chain_id".to_string(),
-    }); 
-
-    router.init_modules(|router, _, storage| {
-        router
-            .bank
-            .init_balance(storage, &owner_addr.clone(), vec![Coin{denom: "uscrt".into(), amount: Uint128::new(100000000000000u128)}])
-            .unwrap();
-    });
-
+    configure_block_send_init_funds(&mut router, &owner_addr, Uint128::new(100000000000000u128));
     // GENERATE TOKEN PAIRS & REWARD TOKEN
     let token_0_contract = generate_snip20_contract(&mut router, "ETH".to_string(),"ETH".to_string(),18).unwrap();    
     let token_1_contract = generate_snip20_contract(&mut router, "USDT".to_string(),"USDT".to_string(),18).unwrap();    

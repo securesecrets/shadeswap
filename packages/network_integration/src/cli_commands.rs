@@ -432,20 +432,16 @@ pub mod router_lib {
     pub const ROUTER_FILE: &str = "../../compiled/router.wasm.gz";
 
     pub fn create_router_contract(
-        code_hash: String,
+        admin_code_hash: String,
         account_name: &str,
         backend: &str,
         reports: &mut Vec<Report>,
         admin: &str
     ) -> io::Result<NetContract> {
-        println!(
-            "Creating New Router Contract with Pair Code Hash {}",
-            code_hash.clone()
-        );
         let router_msg = RouterInitMsg {
             prng_seed: to_binary(&"".to_string()).unwrap(),
             entropy: to_binary(&"".to_string()).unwrap(),
-            admin_auth: Contract { address: Addr::unchecked(admin.to_string()), code_hash: "".to_string()},
+            admin_auth: Contract { address: Addr::unchecked(admin.to_string()), code_hash: admin_code_hash.to_string()},
         };
 
         let router_contract = init(
@@ -764,7 +760,9 @@ pub mod amm_pair_lib {
 
         let mut pair: Option<TokenPair> = None;
         let mut native_amount: Option<String> = None;       
-        if token_0_addr == ""{
+        if token_0_addr == "" || token_1_addr == "" {
+
+            if token_0_addr == "" {
             let mut amo = amount_0.to_owned().to_string();
             let denom = "uscrt".to_string();   
             amo.push_str(&denom)        ;
@@ -780,6 +778,27 @@ pub mod amm_pair_lib {
 
             // increase allowance
             increase_allowance(pair_addr.to_owned(), amount_1, token_1_addr, account_name, backend, reports).unwrap();
+            }
+            else
+            {
+
+                let mut amo = amount_1.to_owned().to_string();
+                let denom = "uscrt".to_string();   
+                amo.push_str(&denom)        ;
+                native_amount = Some(amo.to_string());
+                pair = Some(TokenPair(
+                    TokenType::CustomToken {
+                        contract_addr: Addr::unchecked(token_0_addr.clone()),
+                        token_code_hash: token_0_code_hash.clone(),
+                    },
+                    TokenType::NativeToken { 
+                        denom: "uscrt".to_string()
+                    }));
+    
+                // increase allowance
+                increase_allowance(pair_addr.to_owned(), amount_0, token_0_addr, account_name, backend, reports).unwrap();
+                
+            }
         }
         else{
             // increase allowance

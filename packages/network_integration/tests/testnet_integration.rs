@@ -9,9 +9,8 @@ use network_integration::cli_commands::amm_pair_lib::list_pair_from_factory;
 use network_integration::cli_commands::factory_lib::create_factory_contract;
 use network_integration::cli_commands::factory_lib::deposit_snip20;
 use network_integration::cli_commands::factory_lib::increase_allowance;
+use network_integration::cli_commands::router_lib::create_router_contract;
 use network_integration::cli_commands::snip20_lib::set_viewing_key;
-use network_integration::trade_lib::trade_lib::create_router_contract;
-use network_integration::trade_lib::trade_lib::create_token_pair;
 use network_integration::utils::InitConfig;
 use network_integration::utils::ADMIN_FILE;
 use network_integration::utils::API_KEY;
@@ -297,7 +296,8 @@ fn run_testnet() -> Result<()> {
 
     print_header("\n\tInitializing Router");
 
-    let router_contract = create_router_contract();
+    let router_contract = create_router_contract(admin_contract.code_hash.to_string(),
+ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
 
     print_header("\n\tInitializing New Pair Contract (SNIP20/SNIP20) via Factory");
 
@@ -338,13 +338,13 @@ fn run_testnet() -> Result<()> {
         ACCOUNT_KEY,
         "".to_string(),
         "".to_string(),
-        s_sSHD.address.clone(),
+        s_sCRT.address.clone(),
         snip_20_code_hash.clone(),
         "seed",
-        Some(s_sREWARDSNIP20.address.to_string()),
-        Some(s_sREWARDSNIP20.code_hash.to_string()),
-        Some(30000u128),
-        Some(3450000000000u128),
+        None,
+        None,
+        None,
+        None,
         &mut reports,
     )
     .unwrap();
@@ -422,7 +422,7 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-        Uint128::new(1000000000000 - 10000000000)
+        Uint128::new(1000000000000 - 20000000000)
     );
     assert_eq!(
         get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
@@ -459,6 +459,9 @@ fn run_testnet() -> Result<()> {
         None,
     )
     .unwrap();
+
+
+    print_header("Get Trade Count");
 
     {
         let trade_count_info_msg = AMMPairQueryMsg::GetTradeCount {};

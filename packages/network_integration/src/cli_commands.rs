@@ -178,7 +178,10 @@ pub mod factory_lib {
         account_name: &str,
         backend: &str,
         reports: &mut Vec<Report>,
-        admin_contract: &str
+        shade_dao_address: &str,
+        shade_dao_code_hash: &str,
+        admin_contract: &str,
+        admin_contract_code_hash: &str
     ) -> io::Result<NetContract> {
         println!("Creating New Factory");
         let lp_token = store_and_return_contract(
@@ -204,8 +207,8 @@ pub mod factory_lib {
                 shade_dao_fee: Fee::new(8, 100),
                 lp_fee: Fee::new(2, 8),
                 shade_dao_address: Contract {
-                    address: Addr::unchecked("".to_string()),
-                    code_hash: "".to_string(),
+                    address: Addr::unchecked(shade_dao_address.to_string()),
+                    code_hash: shade_dao_code_hash.to_string()
                 },
             },
             lp_token_contract: ContractInstantiationInfo {
@@ -215,7 +218,7 @@ pub mod factory_lib {
             prng_seed: to_binary(&"".to_string()).unwrap(),
             api_key: API_KEY.to_string(),
             authenticator: None,
-            admin_auth: Contract{address: Addr::unchecked(admin_contract.to_string()), code_hash: "".to_string()},
+            admin_auth: Contract{address: Addr::unchecked(admin_contract.to_string()), code_hash: admin_contract_code_hash.to_string()},
         };
 
         let factory_contract =
@@ -473,7 +476,7 @@ pub mod amm_pair_lib {
     pub fn store_staking_contract(account_name: &str, backend: &str) -> io::Result<StoredContract> {
         println!("Storing Staking Contract");
         let stored_amm_pairs =
-            store_and_return_contract(AMM_PAIR_FILE, account_name, Some(STORE_GAS), Some(backend))?;
+            store_and_return_contract(STAKING_FILE, account_name, Some(STORE_GAS), Some(backend))?;
         Ok(stored_amm_pairs)
     }
 

@@ -718,7 +718,7 @@ pub fn unstake(
                 amount: amount,
                 memo: None,
                 padding: None,
-            }.to_cosmos_msg(&config.lp_token, vec![])?;;
+            }.to_cosmos_msg(&config.lp_token, vec![])?;
 
             messages.push(cosmos_msg);
         }

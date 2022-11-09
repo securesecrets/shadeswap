@@ -386,7 +386,7 @@ fn run_testnet() -> Result<()> {
 
     let staking_contract = get_staking_contract(&amm_pair_1.address.to_string()).unwrap();
 
-    assert_eq!(staking_contract, None);
+    assert_ne!(staking_contract, None);
 
     print_header("\n\tAdding Liquidity to SNIP20/20 staking contract");
 
@@ -422,7 +422,7 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-        Uint128::new(1000000000000 - 20000000000)
+        Uint128::new(1000000000000 - 10000000000)
     );
     assert_eq!(
         get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),

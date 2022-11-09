@@ -606,6 +606,7 @@ dependencies = [
 name = "multi_test"
 version = "0.1.0"
 dependencies = [
+ "amm_pair",
  "chrono",
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -622,6 +623,7 @@ dependencies = [
  "shadeswap-shared",
  "snafu 0.7.1",
  "snip20-reference-impl",
+ "staking",
  "subtle",
 ]
 

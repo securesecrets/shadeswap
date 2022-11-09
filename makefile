@@ -64,7 +64,7 @@ format:
 
 # Downloads the docker server
 server-download:
-	docker pull securesecrets/sn-testnet:v0.2
+	docker pull cryptobrokersglobal/localsecret:beta-nested-attributes
 
 # Starts the docker server / private testnet
 server-start:

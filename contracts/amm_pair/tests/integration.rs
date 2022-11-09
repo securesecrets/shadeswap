@@ -58,10 +58,13 @@ pub fn amm_pair_integration_tests_with_custom_token() {
     let reward_contract = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18).unwrap();    
     let token_0_contract = generate_snip20_contract(&mut router, "ETH".to_string(),"ETH".to_string(),18).unwrap();    
     let token_1_contract = generate_snip20_contract(&mut router, "USDT".to_string(),"USDT".to_string(),18).unwrap();    
-
+    let token_2_contract = generate_snip20_contract(&mut router, "USDT".to_string(),"USDT".to_string(),18).unwrap(); 
+    
     // MINT AND DEPOSIT FOR LIQUIDITY
     mint_deposit_snip20(&mut router,&token_0_contract,&owner_addr,Uint128::new(10000000000u128), &owner_addr);
     mint_deposit_snip20(&mut router,&token_1_contract,&owner_addr,Uint128::new(10000000000u128), &owner_addr);
+    mint_deposit_snip20(&mut router,&token_2_contract,&owner_addr,Uint128::new(10000000000u128), &owner_addr);
+    
     let admin_contract = init_admin_contract(&mut router, &owner_addr).unwrap();
     let lp_contract_info = router.store_code(snip20_lp_token_contract_store());
     let staking_contract_info = router.store_code(staking_contract_store());
@@ -72,6 +75,11 @@ pub fn amm_pair_integration_tests_with_custom_token() {
     let pair = create_token_pair(
         &convert_to_contract_link(&token_0_contract), 
         &convert_to_contract_link(&token_1_contract)
+    );
+
+    let invalid_pair = create_token_pair(
+        &convert_to_contract_link(&token_1_contract), 
+        &convert_to_contract_link(&token_2_contract)
     );
 
     let factory_link = SContract { 
@@ -163,6 +171,29 @@ pub fn amm_pair_integration_tests_with_custom_token() {
     increase_allowance(&mut router, &token_1_contract, Uint128::new(10000000000000u128), &amm_pair_contract.address, &owner_addr).unwrap();
     roll_blockchain(&mut router, 1).unwrap();
     
+   // ADD LIQIDITY WITH STAKING WITH INVALID TOKEN - REJECTED
+   let add_liqudity_msg = ExecuteMsg::AddLiquidityToAMMContract { 
+        deposit: TokenPairAmount{
+            pair: invalid_pair.clone(),
+            amount_0: Uint128::new(100000000u128),
+            amount_1: Uint128::new(100000000u128),
+        }, 
+        expected_return: Some(Uint128::new(1000u128)), 
+        staking: Some(true) 
+        };
+
+    let err_msg = router.execute_contract(
+        owner_addr.to_owned(),
+        &amm_pair_contract,
+        &add_liqudity_msg,
+        &[]
+    );
+
+    match err_msg{
+        Ok(msg) => todo!(),
+        Err(err) => assert_ne!(err.to_string(), "".to_string()),
+    }  
+
     // ADD LIQIDITY WITH STAKING
     let add_liqudity_msg = ExecuteMsg::AddLiquidityToAMMContract { 
         deposit: TokenPairAmount{
@@ -172,13 +203,13 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         }, 
         expected_return: Some(Uint128::new(1000u128)), 
         staking: Some(true) 
-    };
+    };    
  
     let _ = router.execute_contract(
         owner_addr.to_owned(),
         &amm_pair_contract,
         &add_liqudity_msg,
-        &[]
+        &vec![Coin{denom: "uscrt".to_string(), amount: Uint128::new(100000000u128)}]
     ).unwrap();
    
     let query: QueryMsgResponse = router.query_test(amm_pair_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
@@ -369,7 +400,7 @@ pub fn amm_pair_integration_tests_native_token() {
     // GENERATE TOKEN PAIRS + FACTORY + STAKING 
     let reward_contract = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18).unwrap();    
     let token_0_contract = generate_snip20_contract(&mut router, "ETH".to_string(),"ETH".to_string(),18).unwrap();    
- 
+  
     // MINT AND DEPOSIT FOR LIQUIDITY
     mint_deposit_snip20(&mut router,&token_0_contract,&owner_addr,Uint128::new(10000000000u128), &owner_addr);
     let admin_contract = init_admin_contract(&mut router, &owner_addr).unwrap();

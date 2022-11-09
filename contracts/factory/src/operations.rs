@@ -111,7 +111,6 @@ pub fn create_pair(
     })?;
 
     let mut messages = vec![];
-
     messages.push(SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Instantiate {
         code_id: config.pair_contract.id,
         label: format!(
@@ -125,7 +124,7 @@ pub fn create_pair(
                 code_hash: env.contract.code_hash.clone(),
                 address: env.contract.address.clone(),
             },
-            entropy,
+            entropy: entropy,
             prng_seed: prng_seed_r(deps.storage).load()?,
             admin_auth: config.admin_auth,
             staking_contract: staking_contract,

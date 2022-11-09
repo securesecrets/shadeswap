@@ -18,6 +18,8 @@ pub mod amm_pairs_mock {
         staking::StakingContractInit,
         utils::{pad_query_result, pad_response_result}, amm_pair::AMMSettings,
     };
+    use amm_pair::operations::register_lp_token;
+    use amm_pair::state::config_r;
     use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse, QueryMsg as FactoryQueryMsg};
     pub const BLOCK_SIZE: usize = 256;
     //use crate::staking::staking_mock::staking_mock::InitMsg as StakingInitMsg;
@@ -30,7 +32,8 @@ pub mod amm_pairs_mock {
     pub static TOKEN_0: &[u8] = b"token_0";
     pub static TOKEN_1: &[u8] = b"token_1";
     pub static FACTORY: &[u8] = b"factory";
-
+    use amm_pair::operations::set_staking_contract;
+    
     struct FactoryConfig {
         amm_settings: AMMSettings,
         authenticator: Option<Contract>,
@@ -178,7 +181,7 @@ pub mod amm_pairs_mock {
     }
 
     #[entry_point]
-    pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
+    pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
         pad_response_result(
             match (msg.id, msg.result) {
                 (INSTANTIATE_LP_TOKEN_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
@@ -188,15 +191,18 @@ pub mod amm_pairs_mock {
                         temp = temp.replace("\n", "");
                         let address = &temp[..40];
                         let contract_address = Addr::unchecked(address);
+                        println!("LP ADDRESS {}", address.to_string());
                         let config = config_r(deps.storage).load()?;
-                        register_lp_token(
+                        let mut response = register_lp_token(
                             deps,
-                            _env,
+                            &env,
                             Contract {
                                 address: contract_address,
                                 code_hash: config.lp_token.code_hash,
                             },
-                        )
+                        )?;                        
+                        response.data = Some(env.contract.address.to_string().as_bytes().into());    
+                        Ok(response)
                     }
                     None => Err(StdError::generic_err(format!("Unknown reply id"))),
                 },
@@ -207,11 +213,12 @@ pub mod amm_pairs_mock {
                         temp = temp.replace("\n", "");
                         let address = &temp[..40];
                         let contract_address = Addr::unchecked(address);
+                        println!("STAKING ADDRESS {}", address.to_string());
                         let config = config_r(deps.storage).load()?;
-                        set_staking_contract(
+                        let mut response = set_staking_contract(
                             deps.storage,
                             Some(Contract {
-                                address: Addr::unchecked(contract_address),
+                                address: contract_address,
                                 code_hash: config
                                     .staking_contract_init
                                     .ok_or(StdError::generic_err(
@@ -220,7 +227,9 @@ pub mod amm_pairs_mock {
                                     .contract_info
                                     .code_hash,
                             }),
-                        )
+                        )?;                        
+                        response.data = Some(env.contract.address.to_string().as_bytes().into());    
+                        Ok(response)
                     }
                     None => Err(StdError::generic_err(format!("Unknown reply id"))),
                 },
@@ -230,114 +239,5 @@ pub mod amm_pairs_mock {
         )
     }
 
-    pub fn set_staking_contract(
-        storage: &mut dyn Storage,
-        staking_contract: Option<Contract>,
-    ) -> StdResult<Response> {
-        let mut config = config_w(storage).load()?;
-
-        config.staking_contract = staking_contract;
-
-        config_w(storage).save(&config)?;
-
-        // send lp Contract to staking contract
-        Ok(Response::new().add_attribute("action", "set_staking_contract"))
-    }
-
-    pub fn register_lp_token(
-        deps: DepsMut,
-        env: Env,
-        lp_token_address: Contract,
-    ) -> StdResult<Response> {
-        let mut config = config_r(deps.storage).load()?;
-
-        config.lp_token = Contract {
-            address: lp_token_address.address.clone(),
-            code_hash: lp_token_address.code_hash.clone(),
-        };
-        // store config against Smart contract address
-        config_w(deps.storage).save(&config)?;
-
-        let mut response = Response::new().add_message(register_receive(
-            env.contract.code_hash.clone(),
-            None,
-            &lp_token_address.clone(),
-        )?);
-
-        let factory_config = query_factory_config(deps.as_ref(), &config.factory_contract).unwrap();
-        match config.staking_contract_init {
-            Some(c) => {
-                println!(
-                    "ShadeSwap-Pair-Staking-Contract-{}",
-                    &env.contract.address.to_string()
-                );
-                response = response.add_submessage(SubMsg::reply_on_success(
-                    CosmosMsg::Wasm(WasmMsg::Instantiate {
-                        code_id: c.contract_info.id,
-                        label: format!("ShadeSwap-Pair-Staking-Contract-{}", &env.contract.address),
-                        msg: to_binary(&StakingInitMsg {
-                            daily_reward_amount: c.daily_reward_amount,
-                            reward_token: c.reward_token.clone(),
-                            pair_contract: Contract {
-                                address: env.contract.address.clone(),
-                                code_hash: env.contract.code_hash.clone(),
-                            },
-                            prng_seed: config.prng_seed.clone(),
-                            lp_token: Contract {
-                                address: lp_token_address.address.clone(),
-                                code_hash: lp_token_address.code_hash.clone(),
-                            },
-                            authenticator: None,
-                            //default to same admin as amm_pair
-                            admin_auth: factory_config.admin_auth,
-                            valid_to: Uint128::new(3747905010000u128),
-                        })?,
-                        code_hash: c.contract_info.code_hash.clone(),
-                        funds: vec![],
-                    }),
-                    INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
-                ));
-            }
-            _ => {
-                ();
-            }
-        }
-
-        Ok(response)
-    }
-
-    pub fn config_w(storage: &mut dyn Storage) -> Singleton<Config> {
-        singleton(storage, CONFIG)
-    }
-
-    pub fn config_r(storage: &dyn Storage) -> ReadonlySingleton<Config> {
-        singleton_read(storage, CONFIG)
-    }
-
-    fn query_factory_config(deps: Deps, factory: &Contract) -> StdResult<FactoryConfig> {
-        let result: FactoryQueryResponse =
-            deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-                contract_addr: factory.address.to_string(),
-                msg: to_binary(&FactoryQueryMsg::GetConfig {})?,
-                code_hash: factory.code_hash.to_string(),
-            }))?;
-    
-        match result {
-            FactoryQueryResponse::GetConfig {
-                pair_contract: _,
-                amm_settings,
-                lp_token_contract: _,
-                authenticator,
-                admin_auth
-            } => Ok(FactoryConfig {
-                amm_settings,
-                authenticator,
-                admin_auth
-            }),
-            _ => Err(StdError::generic_err(
-                "An error occurred while trying to retrieve factory settings.",
-            )),
-        }
-   }
    
 }

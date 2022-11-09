@@ -91,41 +91,41 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()>
     }
 
     if args_command == CMDCREATEFACTORY {
-        if args.len() < 12 {
+        if args.len() < 16 {
             return Err(Error::new(ErrorKind::Other, "Please provide all args"));
         } 
 
         let account_name = args[2].clone();
-        let backend = args[3].clone();      
-        let admin = args[4].clone();
-        let api_key = args[5].clone();
-        let seed = args[6].clone();
-        let shade_dao_address = args[7].clone();
-        let lp_fee_nom = args[8].clone().parse::<u8>().unwrap();
-        let lp_fee_denom = args[9].clone().parse::<u16>().unwrap();
-        let shade_dao_fee_nom = args[10].clone().parse::<u8>().unwrap();
-        let shade_dao_fee_denom = args[11].clone().parse::<u16>().unwrap();
+        let backend = args[3].clone();   
+        let api_key = args[4].clone();
+        let seed = args[5].clone();
+        let lp_fee_nom = args[6].clone().parse::<u8>().unwrap();
+        let lp_fee_denom = args[7].clone().parse::<u16>().unwrap();
+        let shade_dao_fee_nom = args[8].clone().parse::<u8>().unwrap();
+        let shade_dao_fee_denom = args[9].clone().parse::<u16>().unwrap();
+        let shade_dao_address = args[10].clone();
+        let shade_dao_code_hash = args[11].clone();
+        let admin_contract = args[12].clone();
+        let admin_contract_code_hash = args[13].clone();
+        let auth_contract = args[14].clone();
+        let auth_contract_code_hash = args[15].clone();      
         
-        let mut auth_addr: Option<String> = None;
-        if args.len() == 13 {
-            auth_addr = Some(args[12].clone());
-        }
-        let auth_address = args[12].clone();
-        
-
         let factory: NetContract = create_factory_contract(&
             account_name, 
             &backend, 
-            reports,
-            &admin,
+            reports,      
             &api_key,
-            &seed,
-            &shade_dao_address,
+            &seed,          
             lp_fee_nom,
             lp_fee_denom,
             shade_dao_fee_nom,
             shade_dao_fee_denom,
-            auth_addr
+            &shade_dao_address,
+            &shade_dao_code_hash,
+            &admin_contract,
+            &admin_contract_code_hash,
+            &auth_contract,
+            &auth_contract_code_hash
         )?;
         print_contract_details_cli(factory, "Factory".to_string());
     }
@@ -394,7 +394,10 @@ pub fn print_help() -> io::Result<()>
     let mut handle = stdout.lock();
     handle.write_all(b"Welcome to the Shadeswap CLI.")?;
     handle.write_all(b"\n\t1. Command:: snip20 <account_name> <keyring_backend> <name> <symbol> <decimal> <viewing_key> <enable_redeem> <enable_deposit> <enable_burn> <enable_mint> <total_supply> -- Create new Snip20 Contract")?;
-    handle.write_all(b"\n\t2. Command:: factory <account_name> <keyring_backend> <admin_addr> <api_key> <seed> <shade_dao_address> <lp_nom> <lp_denom> <shade_nom> <shade_denom> Option<auth_addr> -- Create new Factory Contract")?;
+    handle.write_all(b"\n\t2. Command:: factory <account_name> <keyring_backend> <api_key> <seed> 
+                                                <lp_nom> <lp_denom> <shade_dao_nom> <shade_dao_denom>
+                                                <shade_dao_address> <shade_dao_code_hash> <admin_addr> <admin_code_hash>
+                                                <auth_addr> <auth_code_hash>  -- Create new Factory Contract")?;
     handle.write_all(b"\n\t3. Command:: router <account_name> <keyring_backend>  <viewing_key> <pair_contract_code_hash> <admin_addr> -- Create new Router Contract")?;
     handle.write_all(b"\n\t4. Command:: store_amm_pair <account_name> <keyring_backend> -- Store AMM Pair Contract")?;
     handle.write_all(b"\n\t5. Command:: reg_snip20 <account_name> <keyring_backend> <snip20_address> <snip20_code_hash> <router_address> -- Register Snip20 to Router")?;

@@ -183,12 +183,13 @@ pub mod factory_lib {
         lp_fee_nom: u8,
         lp_fee_denom: u16,
         shade_dao_fee_nom: u8,
-        shade_dao_fee_denom: u16,  
-        auth_addr: Option<String>,       
+        shade_dao_fee_denom: u16,                
         shade_dao_address: &str,
         shade_dao_code_hash: &str,
         admin_contract: &str,
-        admin_contract_code_hash: &str
+        admin_contract_code_hash: &str,
+        auth_addr: &str,
+        auth_code_hash: &str
     ) -> io::Result<NetContract> {
         println!("Creating New Factory");
         let lp_token = store_and_return_contract(
@@ -198,10 +199,10 @@ pub mod factory_lib {
             Some(backend),
         )?;
 
-        let authenticator = match auth_addr {
-            Some(addr) => Some(Contract{address: Addr::unchecked(addr), code_hash: "".to_string()}),
-            None => None,
-        };
+        let mut auth_contract: Option<Contract> = None;
+        if auth_addr != ""{
+            auth_contract = Some(Contract{address: Addr::unchecked(auth_addr), code_hash: auth_code_hash.to_string()})
+        }
 
         let pair_contract = store_and_return_contract(
             &AMM_PAIR_FILE,
@@ -229,7 +230,7 @@ pub mod factory_lib {
             },
             prng_seed: to_binary(seed).unwrap(),
             api_key: API_KEY.to_string(),
-            authenticator: None,
+            authenticator: auth_contract,
             admin_auth: Contract{address: Addr::unchecked(admin_contract.to_string()), code_hash: admin_contract_code_hash.to_string()},
         };
 

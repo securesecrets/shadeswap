@@ -278,16 +278,19 @@ fn run_testnet() -> Result<()> {
         create_factory_contract(
             ACCOUNT_KEY, 
             "test", 
-            &mut reports, 
-            &admin_contract.address,
+            &mut reports,             
             API_KEY, 
             "password",
-            &_shade_dao, 
             3, 
             100, 
             8, 
             100, 
-            None)
+            &_shade_dao,
+            "",
+        &admin_contract.address.to_string(),
+            &admin_contract.code_hash,
+        "",
+    "")
             .unwrap();
 
     print_contract(&factory_contract);

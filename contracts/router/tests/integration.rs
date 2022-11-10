@@ -12,7 +12,7 @@ pub fn router_integration_tests() {
     use multi_test::staking::staking_lib::staking_lib::{staking_contract_store_in, create_staking_info_contract};
     use router::contract::{instantiate, query, execute, reply};
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, store_init_factory_contract, 
-        convert_to_contract_link, snip20_lp_token_contract_store, create_token_pair, increase_allowance, snip_20_balance_query, configure_block_send_init_funds};
+        convert_to_contract_link, snip20_lp_token_contract_store, create_token_pair, increase_allowance, snip_20_balance_query, configure_block_send_init_funds, create_token_pair_with_native, set_viewing_key};
     use cosmwasm_std::{Uint128, Coin, ContractInfo, BlockInfo};
     use multi_test::util_addr::util_addr::{OWNER, STAKER_A};       
     use multi_test::util_addr::util_blockchain::CHAIN_ID;
@@ -146,10 +146,9 @@ pub fn router_integration_tests() {
         Uint128::new(1000000000u128),
         Some(Uint128::new(1000000000u128)),
         Some(true),
-        &owner_addr
+        &owner_addr,
+        &[]
     ).unwrap();
-
-    // ASSERT LIQUIDITY BALANCE
     
     // REGISTER SNIP 20 ROUTER
     roll_blockchain(&mut router, 1).unwrap(); 
@@ -164,9 +163,20 @@ pub fn router_integration_tests() {
         &msg, 
         &[]).unwrap();
 
-    roll_blockchain(&mut router, 1).unwrap();      
-    // SWAPSIMULATION - QUERY
+    roll_blockchain(&mut router, 1).unwrap();    
+    let msg = ExecuteMsg::RegisterSNIP20Token { 
+        token_addr: token_1_contract.address.to_string() , 
+        token_code_hash: token_1_contract.code_hash.to_owned() 
+    };
+    roll_blockchain(&mut router, 1).unwrap();
+    let _ = router.execute_contract(
+        owner_addr.to_owned(), 
+        &router_contract, 
+        &msg, 
+        &[]).unwrap();
 
+    roll_blockchain(&mut router, 1).unwrap();  
+    // SWAPSIMULATION - QUERY
     let offer = TokenAmount{
         token: TokenType::CustomToken { 
             contract_addr: token_0_contract.address.to_owned(), 
@@ -206,7 +216,7 @@ pub fn router_integration_tests() {
     // ASSERT SWAPTOKENS 
     roll_blockchain(&mut router, 1).unwrap(); 
     let invoke_msg = to_binary(&InvokeMsg::SwapTokens { 
-        expected_return: Some(Uint128::new(1000u128)), 
+        expected_return: Some(Uint128::new(100u128)), 
         to: Some(staker_a_addr.to_string()), 
     }).unwrap();
    
@@ -249,16 +259,14 @@ pub fn router_integration_tests() {
         "seed",
         &token_1_contract
     ).unwrap();
-
-    assert_eq!(balance, Uint128::zero());
+    assert_eq!(balance, Uint128::new(1000019000000000u128));
 
     // CREATE AMM_PAIR NATIVE - SNIP20
     create_amm_pairs_to_factory(
         &mut router,
         &factory_contract,
-        &create_token_pair(
-            &convert_to_contract_link(&token_0_contract), 
-            &convert_to_contract_link(&token_1_contract)
+        &create_token_pair_with_native(
+            &convert_to_contract_link(&token_1_contract), 
         ),
         "seed",
         &create_staking_info_contract(
@@ -282,7 +290,54 @@ pub fn router_integration_tests() {
     
     // ASSERT AMM PAIRS == 2
     assert_eq!(amm_pairs.len(), 2);
+    increase_allowance(&mut router, &token_1_contract, Uint128::new(10000000000000000u128),&amm_pairs[1].address , &owner_addr).unwrap();
+    // ADD LIQUIDITY TO AMM_PAIR NATIVE vs SNIP20    
+    add_liquidity_to_amm_pairs(
+        &mut router,
+        &ContractInfo{
+            address: amm_pairs[1].address.clone(),
+            code_hash: "".to_string(),
+        },
+        &amm_pairs[1].pair,
+        Uint128::new(1000000000u128),
+        Uint128::new(1000000000u128),
+        Some(Uint128::new(1000000000u128)),
+        Some(true),
+        &owner_addr,
+        &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(1000000000u128)}]
+    ).unwrap();
+    roll_blockchain(&mut router, 1).unwrap();  
 
+    // SWAP NATIVE TOKEN -> SNIP20
+    let native_offer = TokenAmount{
+        token: TokenType::NativeToken { 
+            denom:"uscrt".to_string() 
+        },
+        amount: Uint128::new(1000u128)
+    };
+    let _ = router.send_tokens(owner_addr.clone(), staker_a_addr.clone(), &[Coin{denom: "uscrt".to_string(), amount: Uint128::new(1000)}]).unwrap();    
+    let execute_swap = ExecuteMsg::SwapTokensForExact { 
+        offer:native_offer.to_owned(),
+        expected_return: Some(Uint128::new(100u128)), 
+        path: vec![Hop{addr: amm_pairs[1].address.to_string(), code_hash: amm_contract_info.code_hash.clone()}],
+        recipient:None
+    };
+    
+    let _response = router.execute_contract(
+        staker_a_addr.to_owned(), 
+        &router_contract, 
+        &execute_swap,  
+        &[Coin{denom: "uscrt".to_string(), amount: Uint128::new(1000u128)}]);   
+
+    // ASSERT BALANCE TOKEN_1 889
+    let _ = set_viewing_key(&mut router, &token_1_contract, "password", &staker_a_addr).unwrap();
+    let balance = snip_20_balance_query(
+        &mut router,
+        &staker_a_addr,
+        "password",
+        &token_1_contract
+    ).unwrap();
+    assert_eq!(balance, Uint128::new(889u128));
  
 }
 

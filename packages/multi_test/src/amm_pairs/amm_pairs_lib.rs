@@ -1,5 +1,5 @@
 pub mod amm_pairs_lib{
-    use cosmwasm_std::{ContractInfo, StdResult, Addr, to_binary, Empty, Uint128};
+    use cosmwasm_std::{ContractInfo, StdResult, Addr, to_binary, Empty, Uint128, Coin};
     use secret_multi_test::{App, ContractWrapper, Executor, Contract};
     use shadeswap_shared::amm_pair::{AMMSettings, AMMPair};
     use shadeswap_shared::core::{ContractInstantiationInfo, CustomFee, Callback, Fee, TokenPair, TokenType, TokenPairAmount};
@@ -104,7 +104,8 @@ pub mod amm_pairs_lib{
         amount_1: Uint128,
         expected_return: Option<Uint128>,
         staking: Option<bool>,
-        sender: &Addr
+        sender: &Addr,
+        funds: &[Coin]
     ) -> StdResult<()>{
         let add_liq_msg = ExecuteMsg::AddLiquidityToAMMContract { 
             deposit: create_token_pair_amount(
@@ -120,7 +121,7 @@ pub mod amm_pairs_lib{
             sender.to_owned(),                
             contract, 
             &add_liq_msg,
-            &[]
+            funds
         ).unwrap();
 
         Ok(())

@@ -109,15 +109,14 @@ pub mod factory_mock {
         pad_response_result(
             match (msg.id, msg.result) {
                 (INSTANTIATE_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
-                    Some(x) => {                     
-                        println!("FACTORY TEST {}", env.contract.address);
+                    Some(x) => {                                             
                         let tempsss: Vec<u8> = x.to_vec().to_owned();                        
-                        let mut temp = String::from_utf8_lossy(&tempsss);      
-                        println!("{}", temp.clone());
-                        // temp = temp.replace("(", "");
-                        // temp = temp.replace("\n", "");
-                        // let address = &temp[..40];
-                        let contract_address = Addr::unchecked(temp.clone());
+                        let mut temp = String::from_utf8_lossy(&tempsss);     
+                        let mut temp: String = temp.to_string();
+                        temp = temp.replace("(", "");
+                        temp = temp.replace("\n", "");
+                        let address = &temp[..40];
+                        let contract_address = Addr::unchecked(address.clone());
                         let config = ephemeral_storage_r(deps.storage).load()?;
                         register_amm_pair(
                             deps.storage,

@@ -536,7 +536,7 @@ pub fn configure_block_send_init_funds(router: &mut App, owner_addr: &Addr, amou
             config: Some(InitConfig {
                 public_total_supply: Some(true),
                 enable_deposit: Some(true),
-                enable_redeem: Some(false),
+                enable_redeem: Some(true),
                 enable_mint: Some(true),
                 enable_burn: Some(false),
                 enable_transfer: Some(true),

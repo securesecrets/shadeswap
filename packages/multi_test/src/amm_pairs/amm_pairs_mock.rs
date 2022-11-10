@@ -191,7 +191,6 @@ pub mod amm_pairs_mock {
                         temp = temp.replace("\n", "");
                         let address = &temp[..40];
                         let contract_address = Addr::unchecked(address);
-                        println!("LP ADDRESS {}", address.to_string());
                         let config = config_r(deps.storage).load()?;
                         let mut response = register_lp_token(
                             deps,
@@ -213,7 +212,6 @@ pub mod amm_pairs_mock {
                         temp = temp.replace("\n", "");
                         let address = &temp[..40];
                         let contract_address = Addr::unchecked(address);
-                        println!("STAKING ADDRESS {}", address.to_string());
                         let config = config_r(deps.storage).load()?;
                         let mut response = set_staking_contract(
                             deps.storage,

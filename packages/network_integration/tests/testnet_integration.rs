@@ -564,7 +564,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     );
     assert_eq!(
         get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-        (old_shd_balance + Uint128::new(89))
+        (old_shd_balance + Uint128::new(88))
     );
 
     {
@@ -727,7 +727,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     );
     assert_eq!(
         get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-        old_scrt_balance + Uint128::new(2249)
+        old_scrt_balance + Uint128::new(2224)
     );
 
     print_header("\n\t 4 - SELL 36500 sSHD Initiating sSHD to sSCRT Swap ");
@@ -785,7 +785,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     );
     assert_eq!(
         get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
-        old_scrt_balance + Uint128::new(32849)
+        old_scrt_balance + Uint128::new(32484)
     );
 
     print_header("\n\t 5 - BUY 25000 sSHD Initiating sSCRT to sSHD Swap ");

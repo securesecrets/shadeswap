@@ -10,9 +10,8 @@ pub const SENDER: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 
 #[cfg(test)]
 pub mod tests {
-    use shadeswap_shared::{utils::{asset::Contract}, staking::{AuthQuery, QueryResponse}};
+    use shadeswap_shared::{utils::{asset::Contract}, staking::{AuthQuery, QueryResponse, RewardTokenInfo}};
     
-    use crate::state::RewardTokenInfo;
     use super::*;
     use crate::{
         operations::{

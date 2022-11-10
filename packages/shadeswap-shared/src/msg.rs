@@ -9,13 +9,15 @@ use serde::{Deserialize, Serialize};
 pub struct CountResponse {
     pub count: i32,
 }
-use crate::{utils::ExecuteCallback};
+use crate::utils::ExecuteCallback;
 
 pub mod router {
-    
 
     use super::{amm_pair::SwapResult, *};
-    use crate::{core::{TokenAmount, TokenType}, Contract};
+    use crate::{
+        core::{TokenAmount, TokenType},
+        Contract,
+    };
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub enum InvokeMsg {
@@ -30,14 +32,13 @@ pub mod router {
     pub struct InitMsg {
         pub prng_seed: Binary,
         pub entropy: Binary,
-        pub admin_auth: Contract
+        pub admin_auth: Contract,
     }
-
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct Hop {
         pub addr: String,
-        pub code_hash: String
+        pub code_hash: String,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -89,8 +90,7 @@ pub mod router {
             result: SwapResult,
             price: String,
         },
-        GetConfig {
-        }
+        GetConfig {},
     }
 }
 
@@ -98,15 +98,16 @@ pub mod amm_pair {
     use super::*;
     use crate::{
         core::{
-            Callback, ContractInstantiationInfo, CustomFee, Fee, TokenAmount,
-            TokenPair, TokenPairAmount, TokenType,
+            Callback, ContractInstantiationInfo, CustomFee, Fee, TokenAmount, TokenPair,
+            TokenPairAmount, TokenType,
         },
-        Pagination, staking::StakingContractInit, Contract,
+        staking::StakingContractInit,
+        Contract, Pagination,
     };
-    use cosmwasm_std::{Addr};
+    use cosmwasm_std::Addr;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
-    
+
     /// Represents the address of an exchange and the pair that it manages
     #[derive(Serialize, Deserialize, JsonSchema, Clone, PartialEq, Debug)]
     pub struct AMMPair {
@@ -115,32 +116,31 @@ pub mod amm_pair {
         /// Address of the contract that manages the exchange.
         pub address: Addr,
         /// Used to enable or disable the AMMPair
-        pub enabled: bool
+        pub enabled: bool,
     }
-    
-    
-    #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug,Clone)]
+
+    #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Debug, Clone)]
     pub struct AMMSettings {
         pub lp_fee: Fee,
         pub shade_dao_fee: Fee,
-        pub shade_dao_address: Contract
+        pub shade_dao_address: Contract,
     }
-    
+
     pub fn generate_pair_key(pair: &TokenPair) -> Vec<u8> {
         let mut bytes: Vec<&[u8]> = Vec::new();
-    
+
         match &pair.0 {
             TokenType::NativeToken { denom } => bytes.push(denom.as_bytes()),
-            TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_bytes())
+            TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_bytes()),
         }
-    
+
         match &pair.1 {
             TokenType::NativeToken { denom } => bytes.push(denom.as_bytes()),
-            TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_bytes())
+            TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_bytes()),
         }
-    
+
         bytes.sort();
-    
+
         bytes.concat()
     }
 
@@ -178,7 +178,7 @@ pub mod amm_pair {
         pub entropy: Binary,
         pub admin_auth: Contract,
         pub staking_contract: Option<StakingContractInit>,
-        pub custom_fee: Option<CustomFee>
+        pub custom_fee: Option<CustomFee>,
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -192,7 +192,7 @@ pub mod amm_pair {
             /// The token type to swap from.
             offer: TokenAmount,
             expected_return: Option<Uint128>,
-            to: Option<String>
+            to: Option<String>,
         },
         // SNIP20 receiver interface
         Receive {
@@ -207,7 +207,7 @@ pub mod amm_pair {
             addresses: Vec<String>,
         },
         SetConfig {
-            admin_auth: Option<Contract>
+            admin_auth: Option<Contract>,
         },
         SetCustomPairFee {
             custom_fee: Option<CustomFee>,
@@ -238,7 +238,7 @@ pub mod amm_pair {
             from: Option<String>,
         },
     }
-    #[derive(Serialize, Deserialize, JsonSchema,  Clone, Debug)]
+    #[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         GetConfig {},
@@ -259,7 +259,7 @@ pub mod amm_pair {
         },
         GetShadeDaoInfo {},
         GetEstimatedLiquidity {
-            deposit: TokenPairAmount
+            deposit: TokenPairAmount,
         },
     }
 
@@ -324,8 +324,8 @@ pub mod factory {
     use super::*;
     use crate::amm_pair::AMMPair;
     use crate::core::TokenPair;
-    use crate::Contract;
     use crate::staking::StakingContractInit;
+    use crate::Contract;
     use crate::{amm_pair::AMMSettings, Pagination};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
@@ -339,7 +339,7 @@ pub mod factory {
         pub api_key: String,
         //Set the default authenticator for all permits on the contracts
         pub authenticator: Option<Contract>,
-        pub admin_auth: Contract
+        pub admin_auth: Contract,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -359,7 +359,7 @@ pub mod factory {
         },
         AddAMMPairs {
             amm_pairs: Vec<AMMPair>,
-        }
+        },
     }
 
     impl ExecuteCallback for ExecuteMsg {
@@ -399,11 +399,12 @@ pub mod factory {
 }
 
 pub mod staking {
-    use crate::{core::TokenType, query_auth::QueryPermit,Contract, stake_contract::{ClaimableInfo, RewardTokenInfo}};
+    use crate::{core::TokenType, query_auth::QueryPermit, Contract};
 
     use super::*;
     use cosmwasm_schema::cw_serde;
-    
+
+    use cosmwasm_std::Addr;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 
@@ -412,7 +413,20 @@ pub mod staking {
         pub contract_info: ContractInstantiationInfo,
         pub daily_reward_amount: Uint128,
         pub reward_token: TokenType,
-        pub valid_to: Uint128
+        pub valid_to: Uint128,
+    }
+
+    #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
+    pub struct ClaimableInfo {
+        pub token_address: Addr,
+        pub amount: Uint128,
+    }
+
+    #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+    pub struct RewardTokenInfo {
+        pub reward_token: Contract,
+        pub daily_reward_amount: Uint128,
+        pub valid_to: Uint128,
     }
 
     #[cw_serde]
@@ -451,7 +465,7 @@ pub mod staking {
         SetRewardToken {
             reward_token: Contract,
             daily_reward_amount: Uint128,
-            valid_to: Uint128
+            valid_to: Uint128,
         },
         SetAuthenticator {
             authenticator: Option<Contract>,
@@ -464,7 +478,7 @@ pub mod staking {
             amount: Uint128,
             to: String,
             msg: Option<Binary>,
-        },        
+        },
     }
 
     impl ExecuteCallback for ExecuteMsg {
@@ -475,12 +489,10 @@ pub mod staking {
     #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
         Stake { from: String },
-        ProxyStake {
-            for_addr: String
-        }
+        ProxyStake { for_addr: String },
     }
 
-    #[derive(Serialize, Deserialize, Debug, Clone,JsonSchema, PartialEq)]
+    #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         GetContractOwner {},
@@ -496,14 +508,14 @@ pub mod staking {
     pub enum AuthQuery {
         GetStakerLpTokenInfo {},
         GetClaimReward { time: Uint128 },
-        GetRewardTokens {}
+        GetRewardTokens {},
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryResponse {
         ClaimRewards {
-            claimable_rewards: Vec<ClaimableInfo>
+            claimable_rewards: Vec<ClaimableInfo>,
         },
         ContractOwner {
             address: String,
@@ -526,18 +538,17 @@ pub mod staking {
             lp_token: Contract,
             daily_reward_amount: Uint128,
             amm_pair: String,
-            admin_auth: Contract
+            admin_auth: Contract,
         },
-        RewardTokens{
-            tokens: Vec<RewardTokenInfo>
-        }
+        RewardTokens {
+            tokens: Vec<RewardTokenInfo>,
+        },
     }
 }
 
 pub mod lp_token {
-    
 
-    use crate::{snip20::InitialBalance};
+    use crate::snip20::InitialBalance;
 
     use super::*;
 

@@ -9,15 +9,11 @@ use cosmwasm_std::{
 };
 use shadeswap_shared::core::TokenType;
 use shadeswap_shared::snip20;
-use shadeswap_shared::stake_contract::{ClaimableInfo};
-use shadeswap_shared::staking::QueryResponse;
+use shadeswap_shared::staking::{QueryResponse, ClaimableInfo, RewardTokenInfo};
 use shadeswap_shared::utils::ExecuteCallback;
 use shadeswap_shared::{
     msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, Contract,
 };
-use crate::state::{RewardTokenInfo};
-use shadeswap_shared::stake_contract::RewardTokenInfo as ResponseRewardTokenInfo;
-
 const SECONDS_IN_DAY:Uint128 = Uint128::new(24u128 * 60u128 * 60u128);
 
 use crate::state::{
@@ -253,9 +249,9 @@ pub fn get_total_stakers_count(storage: &dyn Storage) -> StdResult<Uint128> {
 pub fn get_reward_token_to_list(storage:& dyn Storage) 
     -> StdResult<Binary> {
         let list: Vec<RewardTokenInfo> = get_reward_tokens_info(storage)?;
-        let mut response: Vec<ResponseRewardTokenInfo> = vec![];
+        let mut response: Vec<RewardTokenInfo> = vec![];
         for i in list.iter(){
-            response.push(i.to_owned().to_reward_token_response())
+            response.push(i.to_owned())
         }
         to_binary(&QueryResponse::RewardTokens{
             tokens: response

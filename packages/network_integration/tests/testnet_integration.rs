@@ -2,12 +2,9 @@ use colored::Colorize;
 use cosmwasm_std::Addr;
 use cosmwasm_std::StdResult;
 use cosmwasm_std::Uint128;
-use network_integration::cli_commands::amm_pair_lib::add_amm_pairs;
-use network_integration::cli_commands::amm_pair_lib::add_liquidity;
-use network_integration::cli_commands::amm_pair_lib::get_staking_contract;
-use network_integration::cli_commands::amm_pair_lib::list_pair_from_factory;
-use network_integration::cli_commands::factory_lib::create_factory_contract;
-use network_integration::cli_commands::factory_lib::deposit_snip20;
+use network_integration::cli_commands::amm_pair_lib::{add_amm_pairs, add_liquidity};
+use network_integration::cli_commands::amm_pair_lib::{get_staking_contract, list_pair_from_factory};
+use network_integration::cli_commands::factory_lib::{create_factory_contract, deposit_snip20};
 use network_integration::cli_commands::factory_lib::increase_allowance;
 use network_integration::cli_commands::router_lib::create_router_contract;
 use network_integration::cli_commands::snip20_lib::set_viewing_key;
@@ -17,11 +14,9 @@ use network_integration::utils::API_KEY;
 use query_authentication::permit::Permit;
 use query_authentication::transaction::PermitSignature;
 use query_authentication::transaction::PubKey;
-use std::{thread, time};
 
 use shadeswap_shared::admin::RegistryAction;
 use shadeswap_shared::c_std::Binary;
-use shadeswap_shared::core::Fee;
 use shadeswap_shared::core::TokenAmount;
 use shadeswap_shared::core::TokenPair;
 use shadeswap_shared::core::TokenPairAmount;
@@ -30,7 +25,6 @@ use shadeswap_shared::query_auth::PermitData;
 use shadeswap_shared::router::Hop;
 use shadeswap_shared::snip20;
 use shadeswap_shared::staking::AuthQuery;
-use shadeswap_shared::Contract;
 
 use cosmwasm_std::to_binary;
 use network_integration::utils::{
@@ -86,8 +80,6 @@ fn run_testnet() -> Result<()> {
     let _shade_dao = account_address(SHADE_DAO_KEY)?;
     let _staker_account = account_address(STAKER_KEY)?;
     println!("Using Account: {}", account.blue());
-    let entropy = to_binary(&"ENTROPY".to_string()).unwrap();
-
     let mut reports = vec![];
 
     // set viewing key for staker
@@ -99,7 +91,7 @@ fn run_testnet() -> Result<()> {
 
     type TestPermit = Permit<PermitData>;
     //secretd tx sign-doc file --from a
-    let newPermit = TestPermit{
+    let new_permit = TestPermit{
         params: PermitData { data: to_binary(&QueryData {}).unwrap(), key: "0".to_string()},
         chain_id: Some("secretdev-1".to_string()),
         sequence: Some(Uint128::zero()),
@@ -145,9 +137,9 @@ fn run_testnet() -> Result<()> {
 
     print_contract(&admin_contract);
     print_header("Initializing sSCRT");
-    let (_s_sSINIT, s_sCRT) = init_snip20(
-        "SSCRT".to_string(),
-        "SSCRT".to_string(),
+    let (_, scrt_token) = init_snip20(
+        "SCRT".to_string(),
+        "SCRT".to_string(),
         6,
         Some(InitConfig {
             public_total_supply: Some(true),
@@ -161,14 +153,14 @@ fn run_testnet() -> Result<()> {
         None,
     )?;
 
-    let snip_20_code_hash = s_sCRT.code_hash.clone();
+    let snip_20_code_hash = scrt_token.code_hash.clone();
 
-    set_viewing_key(VIEW_KEY, &s_sCRT, &mut reports, ACCOUNT_KEY, "test");
+    set_viewing_key(VIEW_KEY, &scrt_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
 
-    print_contract(&s_sCRT);
-    print_header("Initializing s_sREWARDSNIP20");
+    print_contract(&scrt_token);
+    print_header("Initializing reward_token");
 
-    let (_s_sREWARDSNIP20INIT, s_sREWARDSNIP20) = init_snip20(
+    let (_, reward_token) = init_snip20(
         "RWSN".to_string(),
         "RWSN".to_string(),
         6,
@@ -184,19 +176,19 @@ fn run_testnet() -> Result<()> {
         None,
     )?;
 
-    print_contract(&s_sREWARDSNIP20);
+    print_contract(&reward_token);
 
     set_viewing_key(
         VIEW_KEY,
-        &s_sREWARDSNIP20,
+        &reward_token,
         &mut reports,
         ACCOUNT_KEY,
         "test",
-    );
+    ).unwrap();
 
     print_header("Initializing sSHD");
 
-    let (_s_sSHDINIT, s_sSHD) = init_snip20(
+    let (_, shd_token) = init_snip20(
         "SSHD".to_string(),
         "SSHD".to_string(),
         6,
@@ -212,21 +204,22 @@ fn run_testnet() -> Result<()> {
         None,
     )?;
 
-    print_contract(&s_sSHD);
+    print_contract(&shd_token);
 
-    set_viewing_key(VIEW_KEY, &s_sSHD, &mut reports, ACCOUNT_KEY, "test");
+    set_viewing_key(VIEW_KEY, &shd_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
 
-    println!("\n\tDepositing 1000000000000uscrt s_sREWARDSNIP20");
+    println!("\n\tDepositing 1000000000000uscrt reward_token");
 
     deposit_snip20(
         ACCOUNT_KEY,
         "test",
-        &s_sREWARDSNIP20.address,
+        &reward_token.address,
         "1000000000000uscrt",
         &mut reports,
-    );
+    ).unwrap();
+
     assert_eq!(
-        get_balance(&s_sREWARDSNIP20, account.to_string(), VIEW_KEY.to_string()),
+        get_balance(&reward_token, account.to_string(), VIEW_KEY.to_string()),
         Uint128::new(1000000000000)
     );
 
@@ -235,13 +228,13 @@ fn run_testnet() -> Result<()> {
     deposit_snip20(
         ACCOUNT_KEY,
         "test",
-        &s_sCRT.address,
+        &scrt_token.address,
         "1000000000000uscrt",
         &mut reports,
-    );
+    ).unwrap();
 
     assert_eq!(
-        get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+        get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
         Uint128::new(1000000000000)
     );
 
@@ -250,21 +243,21 @@ fn run_testnet() -> Result<()> {
     deposit_snip20(
         ACCOUNT_KEY,
         "test",
-        &s_sSHD.address,
+        &shd_token.address,
         "1000000000000uscrt",
         &mut reports,
-    );
+    ).unwrap();;
 
 
 
     let token_1 = TokenType::CustomToken {
-        contract_addr: Addr::unchecked(s_sCRT.address.clone()),
+        contract_addr: Addr::unchecked(scrt_token.address.clone()),
         token_code_hash: snip_20_code_hash.clone(),
     };
 
     let token_2 = TokenType::CustomToken {
-        contract_addr: Addr::unchecked(s_sSHD.address.clone()),
-        token_code_hash: s_sSHD.code_hash.to_string(),
+        contract_addr: Addr::unchecked(shd_token.address.clone()),
+        token_code_hash: shd_token.code_hash.to_string(),
     };
 
     let token_native = TokenType::NativeToken {
@@ -316,14 +309,14 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         factory_contract.code_hash.clone(),
         "test",
         ACCOUNT_KEY,
-        s_sCRT.address.clone(),
+        scrt_token.address.clone(),
         snip_20_code_hash.clone(),
-        s_sSHD.address.clone(),
+        shd_token.address.clone(),
         snip_20_code_hash.clone(),        
         "seed",
-        Some(s_sREWARDSNIP20.address.to_string()),
-        Some(s_sREWARDSNIP20.code_hash.to_string()),
-        Some(30000u128),
+        Some(reward_token.address.to_string()),
+        Some(reward_token.code_hash.to_string()),
+        Some(3450000000000u128),
         Some(3450000000000u128),
         &mut reports,
     )
@@ -338,7 +331,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         ACCOUNT_KEY,
         "".to_string(),
         "".to_string(),
-        s_sCRT.address.clone(),
+        scrt_token.address.clone(),
         snip_20_code_hash.clone(),
         "seed",
         None,
@@ -360,27 +353,27 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     increase_allowance(
         amm_pair_1.address.to_string(),
         Uint128::new(100000000000),
-        s_sSHD.address.clone(),
+        shd_token.address.clone(),
         ACCOUNT_KEY,
         "test",
         &mut reports,
-    );
+    ).unwrap();
     increase_allowance(
         amm_pair_1.address.to_string(),
         Uint128::new(100000000000),
-        s_sCRT.address.clone(),
+        scrt_token.address.clone(),
         ACCOUNT_KEY,
         "test",
         &mut reports,
-    );
+    ).unwrap();
     increase_allowance(
         amm_pair_2.address.to_string(),
         Uint128::new(100000000000),
-        s_sCRT.address.clone(),
+        scrt_token.address.clone(),
         ACCOUNT_KEY,
         "test",
         &mut reports,
-    );
+    ).unwrap();
 
     print_header("\n\tGet Staking Contract");
 
@@ -391,8 +384,8 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     print_header("\n\tAdding Liquidity to SNIP20/20 staking contract");
 
     add_liquidity(ACCOUNT_KEY, "test", amm_pair_1.address.to_string(),
-    s_sCRT.address.clone(), snip_20_code_hash.clone(), s_sSHD.address.clone(), snip_20_code_hash.clone(),
-    Uint128::new(10000000000), Uint128::new(10000000000), true, "", &mut reports);
+    scrt_token.address.clone(), snip_20_code_hash.clone(), shd_token.address.clone(), snip_20_code_hash.clone(),
+    Uint128::new(10000000000), Uint128::new(10000000000), true, "", &mut reports).unwrap();
 
     print_header("\n\tAdding Liquidity to NATIVE/SNIP20 staking contract");
     handle(
@@ -421,18 +414,18 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     .unwrap();
 
     assert_eq!(
-        get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+        get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
         Uint128::new(1000000000000 - 20000000000)
     );
     assert_eq!(
-        get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
+        get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
         Uint128::new(1000000000000 - 10000000000)
     );
     print_header("\n\tRegistering Tokens");
 
     handle(
         &RouterExecuteMsg::RegisterSNIP20Token {
-            token_addr: s_sCRT.address.clone(),
+            token_addr: scrt_token.address.clone(),
             token_code_hash: snip_20_code_hash.clone(),
         },
         &router_contract,
@@ -447,8 +440,8 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
 
     handle(
         &RouterExecuteMsg::RegisterSNIP20Token {
-            token_addr: s_sSHD.address.clone(),
-            token_code_hash: s_sSHD.code_hash.to_string(),
+            token_addr: shd_token.address.clone(),
+            token_code_hash: shd_token.code_hash.to_string(),
         },
         &router_contract,
         ACCOUNT_KEY,
@@ -510,8 +503,8 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     }
 
     print_header("\n\t 1. - BUY 100 sSHD Initiating sSCRT to sSHD Swap ");
-    let old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
-    let old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+    let old_scrt_balance = get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string());
+    let old_shd_token_balance = get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string());
     handle(
         &snip20::ExecuteMsg::Send {
             recipient: router_contract.address.to_string(),
@@ -531,7 +524,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
             recipient_code_hash: None,
             memo: None,
         },
-        &s_sCRT,
+        &scrt_token,
         ACCOUNT_KEY,
         Some(GAS),
         Some("test"),
@@ -542,13 +535,13 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     .unwrap();
 
     assert_eq!(
-        get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+        get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
         (old_scrt_balance - Uint128::new(100))
     );
 
     assert_eq!(
         get_balance(
-            &s_sCRT,
+            &scrt_token,
             router_contract.address.to_string(),
             VIEW_KEY.to_string()
         ),
@@ -556,15 +549,15 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     );
     assert_eq!(
         get_balance(
-            &s_sCRT,
+            &scrt_token,
             router_contract.address.to_string(),
             VIEW_KEY.to_string()
         ),
         Uint128::new(0)
     );
     assert_eq!(
-        get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-        (old_shd_balance + Uint128::new(88))
+        get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
+        (old_shd_token_balance + Uint128::new(88))
     );
 
     {
@@ -613,8 +606,8 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         }
     }
 
-    let old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
-    let old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+    let old_shd_token_balance = get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string());
+    let old_scrt_balance = get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string());
     print_header("\n\t 2 - BUY 50 sSHD Initiating sSCRT to sSHD Swap ");
 
     handle(
@@ -636,7 +629,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
             recipient_code_hash: None,
             memo: None,
         },
-        &s_sCRT,
+        &scrt_token,
         ACCOUNT_KEY,
         Some(GAS),
         Some("test"),
@@ -647,13 +640,13 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     .unwrap();
 
     assert_eq!(
-        get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-        old_shd_balance + Uint128::new(44)
+        get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
+        old_shd_token_balance + Uint128::new(44)
     );
 
     assert_eq!(
         get_balance(
-            &s_sCRT,
+            &scrt_token,
             router_contract.address.to_string(),
             VIEW_KEY.to_string()
         ),
@@ -661,20 +654,20 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     );
     assert_eq!(
         get_balance(
-            &s_sCRT,
+            &scrt_token,
             router_contract.address.to_string(),
             VIEW_KEY.to_string()
         ),
         Uint128::new(0)
     );
     assert_eq!(
-        get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+        get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
         (old_scrt_balance - Uint128::new(50))
     );
 
     print_header("\n\t 3 - SELL 2500 sSHD Initiating sSHD to sSCRT Swap ");
-    let old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
-    let old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+    let old_shd_token_balance = get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string());
+    let old_scrt_balance = get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string());
     handle(
         &snip20::ExecuteMsg::Send {
             recipient: router_contract.address.to_string(),
@@ -694,7 +687,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
             recipient_code_hash: None,
             memo: None,
         },
-        &s_sSHD,
+        &shd_token,
         ACCOUNT_KEY,
         Some(GAS),
         Some("test"),
@@ -705,13 +698,13 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     .unwrap();
 
     assert_eq!(
-        get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-        (old_shd_balance - Uint128::new(2500))
+        get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
+        (old_shd_token_balance - Uint128::new(2500))
     );
 
     assert_eq!(
         get_balance(
-            &s_sCRT,
+            &scrt_token,
             router_contract.address.to_string(),
             VIEW_KEY.to_string()
         ),
@@ -719,20 +712,20 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     );
     assert_eq!(
         get_balance(
-            &s_sCRT,
+            &scrt_token,
             router_contract.address.to_string(),
             VIEW_KEY.to_string()
         ),
         Uint128::new(0)
     );
     assert_eq!(
-        get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+        get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
         old_scrt_balance + Uint128::new(2224)
     );
 
     print_header("\n\t 4 - SELL 36500 sSHD Initiating sSHD to sSCRT Swap ");
-    let old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
-    let old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+    let old_shd_token_balance = get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string());
+    let old_scrt_balance = get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string());
     handle(
         &snip20::ExecuteMsg::Send {
             recipient: router_contract.address.to_string(),
@@ -752,7 +745,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
             recipient_code_hash: None,
             memo: None,
         },
-        &s_sSHD,
+        &shd_token,
         ACCOUNT_KEY,
         Some(GAS),
         Some("test"),
@@ -763,13 +756,13 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     .unwrap();
 
     assert_eq!(
-        get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-        (old_shd_balance - Uint128::new(36500))
+        get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
+        (old_shd_token_balance - Uint128::new(36500))
     );
 
     assert_eq!(
         get_balance(
-            &s_sCRT,
+            &scrt_token,
             router_contract.address.to_string(),
             VIEW_KEY.to_string()
         ),
@@ -777,20 +770,20 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     );
     assert_eq!(
         get_balance(
-            &s_sCRT,
+            &scrt_token,
             router_contract.address.to_string(),
             VIEW_KEY.to_string()
         ),
         Uint128::new(0)
     );
     assert_eq!(
-        get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+        get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
         old_scrt_balance + Uint128::new(32484)
     );
 
     print_header("\n\t 5 - BUY 25000 sSHD Initiating sSCRT to sSHD Swap ");
-    let mut old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
-    let mut old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+    let mut old_shd_token_balance = get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string());
+    let mut old_scrt_balance = get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string());
     handle(
         &snip20::ExecuteMsg::Send {
             recipient: router_contract.address.to_string(),
@@ -810,7 +803,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
             recipient_code_hash: None,
             memo: None,
         },
-        &s_sCRT,
+        &scrt_token,
         ACCOUNT_KEY,
         Some(GAS),
         Some("test"),
@@ -821,13 +814,13 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     .unwrap();
 
     assert_eq!(
-        get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()),
-        old_shd_balance + Uint128::new(22500)
+        get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
+        old_shd_token_balance + Uint128::new(22250)
     );
 
     assert_eq!(
         get_balance(
-            &s_sCRT,
+            &scrt_token,
             router_contract.address.to_string(),
             VIEW_KEY.to_string()
         ),
@@ -835,19 +828,19 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     );
     assert_eq!(
         get_balance(
-            &s_sCRT,
+            &scrt_token,
             router_contract.address.to_string(),
             VIEW_KEY.to_string()
         ),
         Uint128::new(0)
     );
     assert_eq!(
-        get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+        get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
         (old_scrt_balance - Uint128::new(25000))
     );
 
     print_header("\n\tInitiating SCRT to sSCRT Swap");
-    old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
+    old_scrt_balance = get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string());
 
     handle(
         &RouterExecuteMsg::SwapTokensForExact {
@@ -874,11 +867,11 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     )
     .unwrap();
 
-    assert!(get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()) > old_scrt_balance);
+    assert!(get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()) > old_scrt_balance);
 
     print_header("\n\tInitiating Multi Leg Swap SCRT > sSHD");
-    old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
-    old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+    old_scrt_balance = get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string());
+    old_shd_token_balance = get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string());
 
     handle(
         &RouterExecuteMsg::SwapTokensForExact {
@@ -911,16 +904,16 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     )
     .unwrap();
 
-    assert!(get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()) > old_shd_balance);
+    assert!(get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()) > old_shd_token_balance);
 
     assert_eq!(
-        get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+        get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
         old_scrt_balance
     );
 
     print_header("\n\tInitiating Multi Leg Swap sSHD > SCRT");
-    old_scrt_balance = get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string());
-    old_shd_balance = get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string());
+    old_scrt_balance = get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string());
+    old_shd_token_balance = get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string());
 
     handle(
         &snip20::ExecuteMsg::Send {
@@ -947,7 +940,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
             recipient_code_hash: None,
             memo: None,
         },
-        &s_sSHD,
+        &shd_token,
         ACCOUNT_KEY,
         Some(GAS),
         Some("test"),
@@ -957,10 +950,10 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     )
     .unwrap();
 
-    assert!(get_balance(&s_sSHD, account.to_string(), VIEW_KEY.to_string()) < old_shd_balance);
+    assert!(get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()) < old_shd_token_balance);
 
     assert_eq!(
-        get_balance(&s_sCRT, account.to_string(), VIEW_KEY.to_string()),
+        get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
         old_scrt_balance
     );
 
@@ -968,7 +961,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     let estimated_price_query_msg = AMMPairQueryMsg::GetEstimatedPrice {
         offer: TokenAmount {
             token: TokenType::CustomToken {
-                contract_addr: Addr::unchecked(s_sCRT.address.clone()),
+                contract_addr: Addr::unchecked(scrt_token.address.clone()),
                 token_code_hash: snip_20_code_hash.clone(),
             },
             amount: Uint128::new(100),
@@ -986,7 +979,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         None,
     )?;
     if let AMMPairQueryMsgResponse::EstimatedPrice { estimated_price } = estimated_price_query {
-        assert_eq!(estimated_price, "0.9".to_string());
+        assert_eq!(estimated_price, "0.89".to_string());
     }
 
     print_header("\n\tGet LP Token for AMM Pair");
@@ -1047,8 +1040,8 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
             &NetContract {
                 label: "".to_string(),
                 id: "".to_string(),
-                address: s_sREWARDSNIP20.address.to_string(),
-                code_hash: s_sREWARDSNIP20.code_hash.to_string(),
+                address: reward_token.address.to_string(),
+                code_hash: reward_token.code_hash.to_string(),
             },
             ACCOUNT_KEY,
             Some(GAS),
@@ -1069,7 +1062,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
                 recipient_code_hash: None,
                 memo: None,
             },
-            &s_sREWARDSNIP20,
+            &reward_token,
             ACCOUNT_KEY,
             Some(GAS),
             Some("test"),
@@ -1189,8 +1182,8 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
             },
             &NetContract {
                 label: "".to_string(),
-                id: s_sCRT.id.clone(),
-                address: s_sCRT.address.clone(),
+                id: scrt_token.id.clone(),
+                address: scrt_token.address.clone(),
                 code_hash: snip_20_code_hash.clone(),
             },
             ACCOUNT_KEY,
@@ -1210,9 +1203,9 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
             },
             &NetContract {
                 label: "".to_string(),
-                id: s_sSHD.id.clone(),
-                address: s_sSHD.address.clone(),
-                code_hash: s_sSHD.code_hash.to_string(),
+                id: shd_token.id.clone(),
+                address: shd_token.address.clone(),
+                code_hash: shd_token.code_hash.to_string(),
             },
             ACCOUNT_KEY,
             Some(GAS),
@@ -1274,11 +1267,11 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
                 "\n\tLP Token Address {}",
                 liquidity_token.address.to_string()
             );
-            print_header("\n\tLP Token Liquidity - 5449999219");
-            assert_eq!(total_liquidity, Uint128::new(5449999219));
+            print_header("\n\tLP Token Liquidity - 5449999324");
+            assert_eq!(total_liquidity, Uint128::new(5449999324));
 
             let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
-                permit: newPermit.clone(),
+                permit: new_permit.clone(),
                 query: AuthQuery::GetStakerLpTokenInfo {},
             };
 
@@ -1359,7 +1352,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
             .unwrap();
 
             let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
-                permit: newPermit.clone(),
+                permit: new_permit.clone(),
                 query: AuthQuery::GetStakerLpTokenInfo {},
             };
 
@@ -1391,7 +1384,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
                 amount: Uint128::new(540000),
                 token: TokenType::CustomToken {
                     token_code_hash: snip_20_code_hash.clone(),
-                    contract_addr: Addr::unchecked(s_sCRT.address.clone()),
+                    contract_addr: Addr::unchecked(scrt_token.address.clone()),
                 },
             },
             path: vec![Hop {
@@ -1450,7 +1443,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
 
         print_header("\n\tGet Claimamble Rewards ");
         let get_claims_reward_msg = StakingQueryMsg::WithPermit {
-            permit: newPermit.clone(),
+            permit: new_permit.clone(),
             query: AuthQuery::GetClaimReward {
                 time: get_current_timestamp().unwrap(),
             },
@@ -1472,7 +1465,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         //     assert_ne!(amount, Uint128::new(0));
         //     assert_eq!(
         //         reward_token.address.to_string(),
-        //         s_sREWARDSNIP20.address.clone().to_string()
+        //         reward_token.address.clone().to_string()
         //     )
         // }
 
@@ -1499,11 +1492,11 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         {
             assert_eq!(
                 reward_token.address.to_string(),
-                s_sREWARDSNIP20.address.clone().to_string()
+                reward_token.address.clone().to_string()
             );
             assert_eq!(
                 reward_token.code_hash.to_string(),
-                s_sREWARDSNIP20.code_hash.clone()
+                reward_token.code_hash.clone()
             );
             assert_eq!(daily_reward_amount, Uint128::new(3450000000000));
         }
@@ -1536,7 +1529,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         }
         print_header("\n\tGetStakeLpTokenInfo For Staker");
         let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
-            permit: newPermit.clone(),
+            permit: new_permit.clone(),
             query: AuthQuery::GetStakerLpTokenInfo {},
         };
 
@@ -1559,96 +1552,6 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
             assert_ne!(staked_lp_token, Uint128::new(0));
             assert_ne!(total_staked_lp_token, Uint128::new(0))
         }
-
-        /* TO DO FIX
-        print_header("\n\tGetRewardTokenBalance");
-        let get_balance_reward_token_msg = StakingQueryMsg::WithPermit { permit: newPermit, query: AuthQuery::GetRewardTokenBalance {
-        }};
-
-        let balance_reward_token: StakingQueryMsgResponse = query(
-            &NetContract {
-                label: "".to_string(),
-                id: "".to_string(),
-                address: staking_contract.clone().unwrap().address.to_string(),
-                code_hash: staking_contract.clone().unwrap().code_hash.to_string(),
-            },
-            get_balance_reward_token_msg,
-            None,
-        )?;*/
-
-        /*if let StakingQueryMsgResponse::RewardTokenBalance {
-            amount,
-            reward_token,
-        } = balance_reward_token
-        {
-            assert_eq!(
-                reward_token.address.to_string().clone(),
-                s_sREWARDSNIP20.address.clone()
-            );
-            assert_eq!(
-                reward_token.code_hash.clone(),
-                s_sREWARDSNIP20.code_hash.to_string()
-            );
-            assert_ne!(amount, Uint128::new(0));
-        }*/
-        print_header("\n\t GetStakerRewardTokenBalance for Non Staker");
-        // let get_staker_reward_token_balance_msg =
-        //     StakingQueryMsg::GetStakerRewardTokenBalance {
-        //         key: String::from(VIEW_KEY),
-        //         staker: Addr::unchecked(staker_account.to_string()),
-        //     };
-        // let staker_reward_token_balance: StakingQueryMsgResponse = query(
-        //     &NetContract {
-        //         label: "".to_string(),
-        //         id: "".to_string(),
-        //         address: staking_contract.address.to_string(),
-        //         code_hash: staking_contract.code_hash.to_string(),
-        //     },
-        //     get_staker_reward_token_balance_msg,
-        //     None,
-        // )?;
-
-        // if let StakingQueryMsgResponse::StakerRewardTokenBalance {
-        //     reward_amount,
-        //     total_reward_liquidity,
-        // } = staker_reward_token_balance
-        // {
-        //     assert_ne!(reward_amount, Uint128::new(0));
-        //     assert_ne!(total_reward_liquidity, Uint128::new(0));
-        // }
-
-        /*print_header("\n\t GetStakerRewardTokenBalance for Staker");
-        let get_staker_reward_token_balance_msg =
-        StakingQueryMsg::WithPermit { permit: newPermit.clone(), query: AuthQuery::GetStakerRewardTokenBalance {
-            }};
-        let staker_reward_token_balance: StakingQueryMsgResponse = query(
-            &NetContract {
-                label: "".to_string(),
-                id: "".to_string(),
-                address: staking_contract.clone().unwrap().address.to_string(),
-                code_hash: staking_contract.clone().unwrap().code_hash.to_string(),
-            },
-            get_staker_reward_token_balance_msg,
-            None,
-        )?;
-
-        if let StakingQueryMsgResponse::StakerRewardTokenBalance {
-            reward_amount,
-            total_reward_liquidity,
-            reward_token,
-        } = staker_reward_token_balance
-        {
-            assert_ne!(reward_amount, Uint128::new(0));
-            assert_ne!(total_reward_liquidity, Uint128::new(0));
-            assert_eq!(
-                reward_token.address.to_string(),
-                s_sREWARDSNIP20.address.clone()
-            );
-            assert_eq!(
-                reward_token.code_hash.clone(),
-                s_sREWARDSNIP20.code_hash.to_string()
-            );
-        }*/
     }
 
     return Ok(());

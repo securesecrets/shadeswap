@@ -303,7 +303,7 @@ pub mod tests_calculation_price_and_fee {
     use shadeswap_shared::msg::amm_pair::QueryMsgResponse;
 
     use crate::operations::{
-        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity, get_estimated_lp_token,
+        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity, get_estimated_lp_token, query_total_supply,
     };
 
     use crate::test::help_test_lib::{
@@ -599,33 +599,47 @@ pub mod tests_calculation_price_and_fee {
         let mut deps = mock_dependencies(&[]);
         let token_pair = mk_token_pair_test_calculation_price_fee();
         make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string())).unwrap();              
+        
+        
+        println!("{}", query_total_supply(deps.as_ref(), &Contract{ address: Addr::unchecked(LP_TOKEN.to_string()), code_hash: "".to_string() }).unwrap());
         let mock_info = mock_info("Sender", &[]);
 
         let deposit = TokenPairAmount{
                 pair: token_pair.clone(),
-                amount_0: Uint128::from(200u128),
+                amount_0: Uint128::from(100u128),
                 amount_1: Uint128::from(100u128)
             };
 
-        let estimated_lp_bin = get_estimated_lp_token(deps.as_ref(), mock_env(), &deposit).unwrap();
+        let estimated_lp_bin = get_estimated_lp_token(deps.as_ref(), mock_env(), &TokenPairAmount{
+            pair: token_pair.clone(),
+            amount_0: Uint128::from(100u128),
+            amount_1: Uint128::from(125u128)
+        }).unwrap();
+
         let msg = from_binary::<QueryMsgResponse>(&estimated_lp_bin).unwrap();
-        let estimated_lp = match msg {
-            QueryMsgResponse::EstimatedLiquidity { lp_token, total_lp_token: _ } => lp_token,
+        match msg {
+            QueryMsgResponse::EstimatedLiquidity { lp_token, total_lp_token: _, excess_token_0, excess_token_1 } => 
+            {
+            
+                let add_result= add_liquidity(
+                    deps.as_mut(),
+                    mock_env(),
+                    &mock_info,
+                    deposit,
+                    None,
+                    None
+                );
+                let response = add_result.unwrap();
+                let lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+                assert_eq!(lp_tokens_received, Uint128::from(100000u128));
+                assert_eq!(lp_tokens_received, lp_token);
+                assert_eq!(excess_token_0, Uint128::from(0u128));
+                assert_eq!(excess_token_1, Uint128::from(25u128));
+            },
             _ => { panic!("Unexpected msg type from estimated lp") },
         };
 
-        let add_result= add_liquidity(
-            deps.as_mut(),
-            mock_env(),
-            &mock_info,
-            deposit,
-            None,
-            None
-        );
-        let response = add_result.expect("Unwrap of add liquidity response failed");
-        let lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
-
-        assert_eq!(lp_tokens_received, estimated_lp);
     }
 
     #[test]

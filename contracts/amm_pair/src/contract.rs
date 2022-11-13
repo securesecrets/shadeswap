@@ -102,6 +102,7 @@ pub fn instantiate(
 
     config_w(deps.storage).save(&config)?;
     response.data = Some(env.contract.address.as_bytes().into());
+
     Ok(response)
 }
 

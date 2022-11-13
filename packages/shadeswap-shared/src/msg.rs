@@ -311,6 +311,8 @@ pub mod amm_pair {
         EstimatedLiquidity {
             lp_token: Uint128,
             total_lp_token: Uint128,
+            excess_token_0: Uint128,
+            excess_token_1: Uint128,
         },
         GetConfig {
             factory_contract: Contract,

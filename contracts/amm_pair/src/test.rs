@@ -31,7 +31,7 @@ pub mod tests {
     use crate::contract::instantiate;
     use crate::operations::{
         add_address_to_whitelist, add_whitelist_address, calculate_hash, is_address_in_whitelist,
-        swap, get_estimated_lp_token, calculate_swap_result,
+        swap, get_estimated_lp_token, calculate_swap_result, remove_addresses_from_whitelist,
     };
     use crate::state::{trade_count_r, config_w};
     use crate::test::help_test_lib::{
@@ -138,7 +138,7 @@ pub mod tests {
         Ok(())
     }
 
-    //#[test]
+    #[test]
     fn assert_remove_address_from_whitelist_success() -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
         let address_a = Addr::unchecked("TESTA".to_string());
@@ -146,6 +146,10 @@ pub mod tests {
         let _address_c = Addr::unchecked("TESTC".to_string());
         add_whitelist_address(deps.as_mut().storage, address_a.clone())?;
         add_whitelist_address(deps.as_mut().storage, address_b.clone())?;
+
+        remove_addresses_from_whitelist(deps.as_mut().storage, vec![address_a.clone(), address_b.clone()])?;
+        assert_eq!(false, is_address_in_whitelist(deps.as_mut().storage, &address_b)?);
+        assert_eq!(false, is_address_in_whitelist(deps.as_mut().storage, &address_a)?);
         Ok(())
     }
 
@@ -230,7 +234,7 @@ pub mod tests {
         config_w(deps.as_mut().storage).save(&_config)?;
         let amount = Uint128::new(1000u128);
         let result = get_estimated_lp_token(deps.as_ref(), env, 
-            mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount));
+            &mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount));
         match result.unwrap_err() {
             e =>  assert_eq!(e, StdError::generic_err(
                 "The provided tokens dont match those managed by the contract.",
@@ -559,7 +563,6 @@ pub mod tests_calculation_price_and_fee {
         let mut deps = mock_dependencies(&[]);
         let token_pair = mk_token_pair_test_calculation_price_fee();
         make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string())).unwrap();              
-        let mock_info = mock_info("Sender", &[]);
 
         let withdraw_result = remove_liquidity(
             deps.as_mut(),
@@ -1087,6 +1090,7 @@ pub mod help_test_lib {
     pub struct MockQuerier {
         portion: u128,
     }
+
     impl Querier for MockQuerier {
         fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
             let request: QueryRequest<Empty> = from_slice(bin_request).unwrap();

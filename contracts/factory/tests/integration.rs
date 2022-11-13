@@ -6,7 +6,7 @@ use multi_test::{help_lib::integration_help_lib::{convert_to_contract_link, roll
     amm_pairs::amm_pairs_lib::amm_pairs_lib::{store_init_amm_pair_contract, amm_pair_contract_store_in}};
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
 use multi_test::factory::factory_mock::factory_mock::reply;
-use shadeswap_shared::{utils::testing::TestingExt, core::{ContractInstantiationInfo, CustomFee, }, factory::{InitMsg, QueryResponse, QueryMsg}, Contract as SContract, staking::StakingContractInit};
+use shadeswap_shared::{core::{ContractInstantiationInfo, CustomFee, }, factory::{InitMsg, QueryResponse, QueryMsg}, Contract as SContract, staking::StakingContractInit};
 
 pub fn contract_counter() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new_with_empty(execute, instantiate, query).with_reply(reply);

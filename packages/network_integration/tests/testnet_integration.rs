@@ -1,5 +1,5 @@
 use colored::Colorize;
-use cosmwasm_std::{Addr, StdResult, Uint128, to_binary};
+use cosmwasm_std::{Addr, Uint128, to_binary};
 
 use network_integration::{cli_commands::{
     amm_pair_lib::{add_amm_pairs, add_liquidity, get_staking_contract, list_pair_from_factory},
@@ -1251,8 +1251,8 @@ fn run_testnet() -> Result<()> {
                 "\n\tLP Token Address {}",
                 liquidity_token.address.to_string()
             );
-            print_header("\n\tLP Token Liquidity - 5449999324");
-            assert_eq!(total_liquidity, Uint128::new(5449999324));
+            print_header("\n\tLP Token Liquidity - 5449999883");
+            assert_eq!(total_liquidity, Uint128::new(5449999883));
 
             let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
                 permit: new_permit.clone(),

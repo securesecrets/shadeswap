@@ -299,7 +299,7 @@ fn receiver_callback(
                 match from {
                     Some(address) => {
                         let checked_address = deps.api.addr_validate(&address)?;
-                        remove_liquidity(deps, env, amount, address, single_sided_withdraw_type, single_sided_expected_return)
+                        remove_liquidity(deps, env, amount, checked_address, single_sided_withdraw_type, single_sided_expected_return)
                     }
                     None => remove_liquidity(deps, env, amount, from_caller,  single_sided_withdraw_type, single_sided_expected_return),
                 }

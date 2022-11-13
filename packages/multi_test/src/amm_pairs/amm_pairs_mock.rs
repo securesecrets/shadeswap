@@ -32,12 +32,6 @@ pub mod amm_pairs_mock {
     pub static TOKEN_1: &[u8] = b"token_1";
     pub static FACTORY: &[u8] = b"factory";
     use amm_pair::operations::set_staking_contract;
-    
-    struct FactoryConfig {
-        amm_settings: AMMSettings,
-        authenticator: Option<Contract>,
-        admin_auth: Contract
-    }
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
     pub struct Config {

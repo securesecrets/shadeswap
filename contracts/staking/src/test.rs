@@ -988,15 +988,7 @@ pub mod test_help_lib {
         contract::instantiate,
         state::{config_r, config_w, Config},
     };
-
-    pub fn make_reward_token_type(address: &str, code_hash: &str) -> StdResult<TokenType> {
-        let mut deps: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
-        return Ok(TokenType::CustomToken {
-            contract_addr: deps.as_mut().api.addr_validate(address)?,
-            token_code_hash: code_hash.to_string(),
-        });
-    }
-
+    
     pub fn make_reward_token_contract(address: &str, code_hash: &str) -> StdResult<Contract> {
         let mut deps = mock_dependencies(&[]);
         return Ok(Contract {

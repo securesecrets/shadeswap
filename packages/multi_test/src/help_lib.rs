@@ -151,7 +151,7 @@ pub mod integration_help_lib{
     }
 
     
-pub fn configure_block_send_init_funds(router: &mut App, owner_addr: &Addr, amount: Uint128) -> StdResult<()> {
+pub fn configure_block_send_init_funds(router: &mut App, owner_addr: &Addr, _amount: Uint128) -> StdResult<()> {
     router.set_block(BlockInfo {
         height: 1,
         time: Timestamp::from_seconds(1 as u64),

@@ -1,32 +1,32 @@
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
 use shadeswap_shared::msg::router::{InitMsg, ExecuteMsg, QueryMsg};
 use cosmwasm_std::{
-    to_binary, Addr, Empty, Uint128,
+    to_binary, Addr, Empty,
 };
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 pub fn router_integration_tests() {    
     use multi_test::admin::admin_help::init_admin_contract;
-    use multi_test::amm_pairs::amm_pairs_lib::amm_pairs_lib::{init_amm_pair, create_amm_settings, create_amm_pairs, create_custom_token, amm_pair_contract_store_in, add_liquidity_to_amm_pairs};
+    use multi_test::amm_pairs::amm_pairs_lib::amm_pairs_lib::{create_amm_settings, amm_pair_contract_store_in, add_liquidity_to_amm_pairs};
     use multi_test::staking::staking_lib::staking_lib::{staking_contract_store_in, create_staking_info_contract};
     use router::contract::{instantiate, query, execute, reply};
-    use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, store_init_factory_contract, 
+    use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, 
         convert_to_contract_link, snip20_lp_token_contract_store, create_token_pair, increase_allowance, snip_20_balance_query, configure_block_send_init_funds, create_token_pair_with_native, set_viewing_key};
-    use cosmwasm_std::{Uint128, Coin, ContractInfo, BlockInfo};
+    use cosmwasm_std::{Uint128, Coin, ContractInfo};
     use multi_test::util_addr::util_addr::{OWNER, STAKER_A};       
-    use multi_test::util_addr::util_blockchain::CHAIN_ID;
-    use shadeswap_shared::core::{TokenAmount, Callback, ContractInstantiationInfo};
-    use shadeswap_shared::msg::amm_pair::{InvokeMsg, ExecuteMsg as AMMPairExecuteMsg};
+    
+    use shadeswap_shared::core::{TokenAmount, ContractInstantiationInfo};
+    use shadeswap_shared::msg::amm_pair::{InvokeMsg};
     use shadeswap_shared::msg::router::QueryMsgResponse;
     use shadeswap_shared::router::Hop;
     use shadeswap_shared::utils::testing::TestingExt;
-    use shadeswap_shared::utils::asset::Contract as SContract;
+    
     use shadeswap_shared::{core::{TokenType}};
     use multi_test::help_lib::integration_help_lib::{generate_snip20_contract};
-    use multi_test::help_lib::integration_help_lib::print_events;
+    
     use multi_test::factory::factory_lib::factory_lib::{init_factory, create_amm_pairs_to_factory, list_amm_pairs_from_factory};
-    use cosmwasm_std::Timestamp;
+    
     
     pub fn router_contract_store() -> Box<dyn Contract<Empty>> {
         let contract = ContractWrapper::new_with_empty(execute, instantiate, query).with_reply(reply);
@@ -229,7 +229,7 @@ pub fn router_integration_tests() {
         padding: None,
     };
 
-    let response = router.execute_contract(
+    let _response = router.execute_contract(
         owner_addr.to_owned(),
         &token_0_contract,
         &msg,

@@ -7,7 +7,7 @@ use crate::{
 };
 use cosmwasm_std::{
     entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
-    StdResult, SubMsgResult, Addr,
+    StdResult, SubMsgResult,
 };
 use shadeswap_shared::{
     admin::helpers::{validate_admin, AdminPermissions},
@@ -130,7 +130,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[entry_point]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
+pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
     pad_response_result(
         match (msg.id, msg.result) {
             (INSTANTIATE_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {

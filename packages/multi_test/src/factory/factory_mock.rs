@@ -1,5 +1,5 @@
 pub mod factory_mock {
-    use std::io::Read;
+    
 
     use crate::util_addr::util_addr::OWNER;
     use cosmwasm_std::{
@@ -9,7 +9,7 @@ pub mod factory_mock {
     use factory::state::ephemeral_storage_r;
     use factory::operations::register_amm_pair;
     use cosmwasm_storage::{singleton, singleton_read};
-    use schemars::{JsonSchema, _private::NoSerialize};
+    use schemars::{JsonSchema};
     use shadeswap_shared::{utils::asset::Contract, amm_pair::AMMPair};
     use serde::{Deserialize, Serialize};
     use shadeswap_shared::{
@@ -105,13 +105,13 @@ pub mod factory_mock {
     }
 
     #[entry_point]
-    pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
+    pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
         pad_response_result(
             match (msg.id, msg.result) {
                 (INSTANTIATE_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
                     Some(x) => {                                             
                         let tempsss: Vec<u8> = x.to_vec().to_owned();                        
-                        let mut temp = String::from_utf8_lossy(&tempsss);     
+                        let temp = String::from_utf8_lossy(&tempsss);     
                         let mut temp: String = temp.to_string();
                         temp = temp.replace("(", "");
                         temp = temp.replace("\n", "");

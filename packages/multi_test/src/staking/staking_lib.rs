@@ -1,7 +1,7 @@
 pub mod staking_lib{
 
-    use cosmwasm_std::{Uint128, Addr, Empty};
-    use secret_multi_test::{App, Contract, ContractWrapper};
+    use cosmwasm_std::{Uint128, Empty};
+    use secret_multi_test::{Contract, ContractWrapper};
     use staking::contract::{execute as staking_execute, instantiate as staking_instantiate, query as staking_query};
     use shadeswap_shared::{staking::StakingContractInit, core::{TokenType, ContractInstantiationInfo}};
     

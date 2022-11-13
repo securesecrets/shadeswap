@@ -36,7 +36,7 @@ pub mod test_contract {
     use cosmwasm_std::from_binary;
     use cosmwasm_std::Addr;
     use cosmwasm_std::MessageInfo;
-    use cosmwasm_std::testing::mock_info;
+    
     use shadeswap_shared::amm_pair::AMMPair;
     use shadeswap_shared::core::TokenPair;
     use shadeswap_shared::core::TokenType;

@@ -1,6 +1,6 @@
 pub mod factory_lib{
     use cosmwasm_std::{StdResult, ContractInfo, Addr, Empty, to_binary};
-    use secret_multi_test::{App, Executor, Contract, ContractWrapper, AppResponse};
+    use secret_multi_test::{App, Executor, Contract, ContractWrapper};
     use shadeswap_shared::Pagination;
     use shadeswap_shared::amm_pair::AMMSettings;
     use shadeswap_shared::core::{ContractInstantiationInfo, TokenPair};
@@ -8,9 +8,9 @@ pub mod factory_lib{
     use shadeswap_shared::utils::testing::TestingExt;
     use shadeswap_shared::{amm_pair::AMMPair, factory::InitMsg};
     use shadeswap_shared::utils::asset::Contract as SContract;
-    use crate::auth;
+    
     use crate::factory::factory_mock::factory_mock::{execute, instantiate, query, reply};
-    use crate::help_lib::integration_help_lib::convert_to_contract_link;
+    
     use factory::contract::{execute as factory_execute, instantiate as factory_instantiate, query as factory_query};
     use shadeswap_shared::msg::factory::{ExecuteMsg, QueryMsg, QueryResponse}; 
    
@@ -120,7 +120,7 @@ pub mod factory_lib{
         token_pair: &TokenPair,
         seed: &str,
         staking_contract_info: &StakingContractInit,
-        router_contract: &ContractInfo,
+        _router_contract: &ContractInfo,
         sender: &Addr,
          ) -> StdResult<()>{
             let create_amm_pair_msg = ExecuteMsg::CreateAMMPair { 

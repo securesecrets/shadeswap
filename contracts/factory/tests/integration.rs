@@ -3,7 +3,7 @@ use cosmwasm_std::{
 };
 use factory::contract::{execute, instantiate, query};
 use multi_test::{help_lib::integration_help_lib::{convert_to_contract_link, roll_blockchain, generate_snip20_contract, store_init_auth_contract}, 
-    amm_pairs::amm_pairs_lib::amm_pairs_lib::{store_init_amm_pair_contract, amm_pair_contract_store_in}, util_addr::util_addr::OWNER};
+    amm_pairs::amm_pairs_lib::amm_pairs_lib::{store_init_amm_pair_contract, amm_pair_contract_store_in}};
 use secret_multi_test::{App, Contract, ContractWrapper, Executor};
 use multi_test::factory::factory_mock::factory_mock::reply;
 use shadeswap_shared::{utils::testing::TestingExt, core::{ContractInstantiationInfo, CustomFee, }, factory::{InitMsg, QueryResponse, QueryMsg}, Contract as SContract, staking::StakingContractInit};

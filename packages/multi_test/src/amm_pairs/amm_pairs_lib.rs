@@ -2,13 +2,13 @@ pub mod amm_pairs_lib{
     use cosmwasm_std::{ContractInfo, StdResult, Addr, to_binary, Empty, Uint128, Coin};
     use secret_multi_test::{App, ContractWrapper, Executor, Contract};
     use shadeswap_shared::amm_pair::{AMMSettings, AMMPair};
-    use shadeswap_shared::core::{ContractInstantiationInfo, CustomFee, Callback, Fee, TokenPair, TokenType, TokenPairAmount};
-    use shadeswap_shared::msg::amm_pair::{InitMsg, ExecuteMsg, QueryMsg, QueryMsgResponse};
-    use crate::amm_pairs::amm_pairs_mock::amm_pairs_mock::{execute, instantiate, query, reply as amm_reply};
+    use shadeswap_shared::core::{ContractInstantiationInfo, CustomFee, Fee, TokenPair, TokenType, TokenPairAmount};
+    use shadeswap_shared::msg::amm_pair::{InitMsg, ExecuteMsg};
+    use crate::amm_pairs::amm_pairs_mock::amm_pairs_mock::{execute, instantiate, query};
     use crate::help_lib::integration_help_lib::{snip20_lp_token_contract_store, create_token_pair};
     use shadeswap_shared::utils::asset::Contract as SContract;
     use crate::amm_pairs::amm_pairs_mock::amm_pairs_mock::reply;
-    use amm_pair::contract::{execute as amm_pair_execute, instantiate as amm_pair_instantiate, query as amm_pair_query };
+    use amm_pair::contract::{execute as amm_pair_execute, instantiate as amm_pair_instantiate };
     use shadeswap_shared::staking::StakingContractInit;
     
     pub fn store_init_amm_pair_contract(       

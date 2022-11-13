@@ -3,27 +3,26 @@ pub mod amm_pairs_mock {
         help_lib::integration_help_lib::get_contract_link_from_token_type        
     };
     use cosmwasm_std::{
-        entry_point, to_binary, Addr, Binary, CosmosMsg,
-        Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
-        SubMsgResult, Uint128, WasmMsg, QueryRequest, WasmQuery,
+        entry_point, to_binary, Addr, Binary,
+        Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult,
+        SubMsgResult, Uint128,
     };
-    use cosmwasm_storage::{singleton, singleton_read, ReadonlySingleton, Singleton};
+    use cosmwasm_storage::{singleton, singleton_read};
     use serde::{Deserialize, Serialize};
     use shadeswap_shared::{
         core::{
             create_viewing_key, CustomFee, TokenPair, TokenType, ViewingKey,
         },
         msg::amm_pair::{ExecuteMsg, InitMsg, QueryMsg, QueryMsgResponse, SwapResult},
-        snip20::helpers::register_receive,
         staking::StakingContractInit,
         utils::{pad_query_result, pad_response_result}, amm_pair::AMMSettings,
     };
     use amm_pair::operations::register_lp_token;
     use amm_pair::state::config_r;
-    use shadeswap_shared::msg::factory::{QueryResponse as FactoryQueryResponse, QueryMsg as FactoryQueryMsg};
+    
     pub const BLOCK_SIZE: usize = 256;
     //use crate::staking::staking_mock::staking_mock::InitMsg as StakingInitMsg;
-    use shadeswap_shared::msg::staking::InitMsg as StakingInitMsg;
+    
     use shadeswap_shared::Contract;
     pub const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1u64;
     pub const INSTANTIATE_STAKING_CONTRACT_REPLY_ID: u64 = 2u64;
@@ -60,7 +59,7 @@ pub mod amm_pairs_mock {
         info: MessageInfo,
         msg: InitMsg,
     ) -> StdResult<Response> {
-        let mut response = Response::new();
+        let response = Response::new();
         let config = Config {
             factory_contract: msg.factory_info.clone(),
             lp_token: Contract {

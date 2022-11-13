@@ -77,13 +77,13 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
 
             match next_pair_contract {
                 AMMPairQueryReponse::GetPairInfo {
-                    liquidity_token,
-                    factory,
+                    liquidity_token: _,
+                    factory: _,
                     pair,
-                    amount_0,
-                    amount_1,
-                    total_liquidity,
-                    contract_version,
+                    amount_0: _,
+                    amount_1: _,
+                    total_liquidity: _,
+                    contract_version: _,
                 } => {
                     info.current_index = info.current_index + 1;
 
@@ -153,13 +153,13 @@ pub fn swap_tokens_for_exact_tokens(
 
     match next_pair_contract {
         AMMPairQueryReponse::GetPairInfo {
-            liquidity_token,
-            factory,
+            liquidity_token: _,
+            factory: _,
             pair,
-            amount_0,
-            amount_1,
-            total_liquidity,
-            contract_version,
+            amount_0: _,
+            amount_1: _,
+            total_liquidity: _,
+            contract_version: _,
         } => {
             let next_token_in;
             if pair.0 == amount_in.token {

@@ -168,7 +168,7 @@ pub mod factory_lib {
         Contract,
     };
 
-    use crate::utils::{init_contract_factory, API_KEY, GAS, STORE_GAS};
+    use crate::utils::{init_contract_factory, GAS, STORE_GAS};
 
     pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
     pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
@@ -229,7 +229,7 @@ pub mod factory_lib {
                 id: lp_token.id.clone().parse::<u64>().unwrap(),
             },
             prng_seed: to_binary(seed).unwrap(),
-            api_key: API_KEY.to_string(),
+            api_key: api_key.to_string(),
             authenticator: auth_contract,
             admin_auth: Contract{address: Addr::unchecked(admin_contract.to_string()), code_hash: admin_contract_code_hash.to_string()},
         };

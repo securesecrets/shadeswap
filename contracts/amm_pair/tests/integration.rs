@@ -190,7 +190,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
     );
 
     match err_msg{
-        Ok(msg) => todo!(),
+        Ok(_msg) => todo!(),
         Err(err) => assert_ne!(err.to_string(), "".to_string()),
     }  
 

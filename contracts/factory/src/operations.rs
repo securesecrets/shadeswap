@@ -6,7 +6,7 @@ use crate::{
     }, contract::INSTANTIATE_REPLY_ID,
 };
 use cosmwasm_std::{
-    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env,
     Response, StdError, StdResult, Storage, WasmMsg, SubMsg,
 };
 use shadeswap_shared::{

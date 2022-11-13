@@ -1,78 +1,47 @@
 use colored::Colorize;
-use cosmwasm_std::Addr;
-use cosmwasm_std::StdResult;
-use cosmwasm_std::Uint128;
-use network_integration::cli_commands::amm_pair_lib::{add_amm_pairs, add_liquidity};
-use network_integration::cli_commands::amm_pair_lib::{get_staking_contract, list_pair_from_factory};
-use network_integration::cli_commands::factory_lib::{create_factory_contract, deposit_snip20};
-use network_integration::cli_commands::factory_lib::increase_allowance;
-use network_integration::cli_commands::router_lib::create_router_contract;
-use network_integration::cli_commands::snip20_lib::set_viewing_key;
-use network_integration::utils::InitConfig;
-use network_integration::utils::ADMIN_FILE;
-use network_integration::utils::API_KEY;
-use query_authentication::permit::Permit;
-use query_authentication::transaction::PermitSignature;
-use query_authentication::transaction::PubKey;
+use cosmwasm_std::{Addr, StdResult, Uint128, to_binary};
 
-use shadeswap_shared::admin::RegistryAction;
-use shadeswap_shared::c_std::Binary;
-use shadeswap_shared::core::TokenAmount;
-use shadeswap_shared::core::TokenPair;
-use shadeswap_shared::core::TokenPairAmount;
-use shadeswap_shared::core::TokenType;
-use shadeswap_shared::query_auth::PermitData;
-use shadeswap_shared::router::Hop;
-use shadeswap_shared::snip20;
-use shadeswap_shared::staking::AuthQuery;
+use network_integration::{cli_commands::{
+    amm_pair_lib::{add_amm_pairs, add_liquidity, get_staking_contract, list_pair_from_factory},
+    factory_lib::{create_factory_contract, deposit_snip20, increase_allowance},
+    router_lib::create_router_contract,
+    snip20_lib::set_viewing_key,
+}, utils::{InitConfig, ADMIN_FILE, API_KEY, generate_label, init_snip20, print_contract, print_header, ACCOUNT_KEY, AMM_PAIR_FILE, GAS, SHADE_DAO_KEY, STAKER_KEY, STORE_GAS, VIEW_KEY, get_current_timestamp, get_balance}};
 
-use cosmwasm_std::to_binary;
-use network_integration::utils::{
-    generate_label, init_snip20, print_contract, print_header, print_warning, ACCOUNT_KEY,
-    AMM_PAIR_FILE, FACTORY_FILE, GAS, LPTOKEN20_FILE, ROUTER_FILE, SHADE_DAO_KEY, STAKER_KEY,
-    STAKING_FILE, STORE_GAS, VIEW_KEY,
+use query_authentication::{
+    permit::Permit,
+    transaction::{PermitSignature, PubKey},
 };
+
+use shadeswap_shared::{
+    admin::RegistryAction,
+    c_std::Binary,
+    core::{TokenAmount, TokenPair, TokenPairAmount, TokenType},
+    query_auth::PermitData,
+    router::Hop,
+    snip20,
+    staking::{AuthQuery, QueryData}, contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg, msg::{
+    amm_pair::{
+        ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
+        QueryMsgResponse as AMMPairQueryMsgResponse,
+    },
+    router::{
+        ExecuteMsg as RouterExecuteMsg, InvokeMsg as RouterInvokeMsg,
+        QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
+    },
+    staking::{
+        ExecuteMsg as StakingMsgHandle, InvokeMsg as StakingInvokeMsg,
+        QueryMsg as StakingQueryMsg, QueryResponse as StakingQueryMsgResponse,
+    },
+}, Pagination,
+};
+
 use secretcli::{
     cli_types::NetContract,
     secretcli::{account_address, handle, init, query, store_and_return_contract},
 };
 use serde_json::Result;
-use shadeswap_shared::staking::QueryData;
-use shadeswap_shared::{
-    amm_pair::AMMSettings,
-    contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
-    core::ContractInstantiationInfo,
-    msg::{
-        amm_pair::{
-            ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
-            QueryMsgResponse as AMMPairQueryMsgResponse,
-        },
-        factory::{
-            ExecuteMsg as FactoryExecuteMsg, InitMsg as FactoryInitMsg,
-            QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse,
-        },
-        router::{
-            ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg, InvokeMsg as RouterInvokeMsg,
-            QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
-        },
-        staking::{
-            ExecuteMsg as StakingMsgHandle, InvokeMsg as StakingInvokeMsg,
-            QueryMsg as StakingQueryMsg, QueryResponse as StakingQueryMsgResponse,
-            StakingContractInit,
-        },
-    },
-    Pagination,
-};
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
-pub fn get_current_timestamp() -> StdResult<Uint128> {
-    let start = SystemTime::now();
-    let since_the_epoch = start
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
-    Ok(Uint128::from(since_the_epoch.as_millis()))
-}
 
 #[test]
 fn run_testnet() -> Result<()> {
@@ -86,8 +55,9 @@ fn run_testnet() -> Result<()> {
     print_header("\n\t Set Viewing Key for Staker - Staking Contract password");
     print_header(&to_binary(&QueryData {}).unwrap().to_base64());
 
-    let pair_contract_code_hash = store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?.code_hash;
-    
+    let pair_contract_code_hash =
+        store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?
+            .code_hash;
 
     type TestPermit = Permit<PermitData>;
     //secretd tx sign-doc file --from a
@@ -178,13 +148,7 @@ fn run_testnet() -> Result<()> {
 
     print_contract(&reward_token);
 
-    set_viewing_key(
-        VIEW_KEY,
-        &reward_token,
-        &mut reports,
-        ACCOUNT_KEY,
-        "test",
-    ).unwrap();
+    set_viewing_key(VIEW_KEY, &reward_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
 
     print_header("Initializing sSHD");
 
@@ -216,7 +180,8 @@ fn run_testnet() -> Result<()> {
         &reward_token.address,
         "1000000000000uscrt",
         &mut reports,
-    ).unwrap();
+    )
+    .unwrap();
 
     assert_eq!(
         get_balance(&reward_token, account.to_string(), VIEW_KEY.to_string()),
@@ -231,7 +196,8 @@ fn run_testnet() -> Result<()> {
         &scrt_token.address,
         "1000000000000uscrt",
         &mut reports,
-    ).unwrap();
+    )
+    .unwrap();
 
     assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
@@ -246,9 +212,8 @@ fn run_testnet() -> Result<()> {
         &shd_token.address,
         "1000000000000uscrt",
         &mut reports,
-    ).unwrap();;
-
-
+    )
+    .unwrap();
 
     let token_1 = TokenType::CustomToken {
         contract_addr: Addr::unchecked(scrt_token.address.clone()),
@@ -266,43 +231,43 @@ fn run_testnet() -> Result<()> {
 
     print_header("\n\tInitializing Factory Contract");
 
-    let factory_contract =
-        create_factory_contract(
-            ACCOUNT_KEY, 
-            "test", 
-            &mut reports,             
-            API_KEY, 
-            "password",
-            3, 
-            100, 
-            8, 
-            100, 
-            &_shade_dao,
-            "",
-        &admin_contract.address.to_string(),
-            &admin_contract.code_hash,
+    let factory_contract = create_factory_contract(
+        ACCOUNT_KEY,
+        "test",
+        &mut reports,
+        API_KEY,
+        "password",
+        3,
+        100,
+        8,
+        100,
+        &_shade_dao,
         "",
-    "")
-            .unwrap();
+        &admin_contract.address.to_string(),
+        &admin_contract.code_hash,
+        "",
+        "",
+    )
+    .unwrap();
 
     print_contract(&factory_contract);
 
     print_header("\n\tInitializing Router");
 
-    let router_contract = create_router_contract(admin_contract.code_hash.to_string(),
-ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
+    let router_contract = create_router_contract(
+        admin_contract.code_hash.to_string(),
+        ACCOUNT_KEY,
+        "test",
+        &mut reports,
+        &admin_contract.address,
+    )
+    .unwrap();
 
     print_header("\n\tInitializing New Pair Contract (SNIP20/SNIP20) via Factory");
 
-    let token_pair_1 = TokenPair(
-        token_1.clone(),
-        token_2.clone(),
-    );
+    let token_pair_1 = TokenPair(token_1.clone(), token_2.clone());
 
-    let token_pair_2 = TokenPair(
-        token_native.clone(),
-        token_1.clone(),
-    );
+    let token_pair_2 = TokenPair(token_native.clone(), token_1.clone());
 
     add_amm_pairs(
         factory_contract.address.clone(),
@@ -312,7 +277,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         scrt_token.address.clone(),
         snip_20_code_hash.clone(),
         shd_token.address.clone(),
-        snip_20_code_hash.clone(),        
+        snip_20_code_hash.clone(),
         "seed",
         Some(reward_token.address.to_string()),
         Some(reward_token.code_hash.to_string()),
@@ -357,7 +322,8 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         ACCOUNT_KEY,
         "test",
         &mut reports,
-    ).unwrap();
+    )
+    .unwrap();
     increase_allowance(
         amm_pair_1.address.to_string(),
         Uint128::new(100000000000),
@@ -365,7 +331,8 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         ACCOUNT_KEY,
         "test",
         &mut reports,
-    ).unwrap();
+    )
+    .unwrap();
     increase_allowance(
         amm_pair_2.address.to_string(),
         Uint128::new(100000000000),
@@ -373,7 +340,8 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         ACCOUNT_KEY,
         "test",
         &mut reports,
-    ).unwrap();
+    )
+    .unwrap();
 
     print_header("\n\tGet Staking Contract");
 
@@ -383,9 +351,21 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
 
     print_header("\n\tAdding Liquidity to SNIP20/20 staking contract");
 
-    add_liquidity(ACCOUNT_KEY, "test", amm_pair_1.address.to_string(),
-    scrt_token.address.clone(), snip_20_code_hash.clone(), shd_token.address.clone(), snip_20_code_hash.clone(),
-    Uint128::new(10000000000), Uint128::new(10000000000), true, "", &mut reports).unwrap();
+    add_liquidity(
+        ACCOUNT_KEY,
+        "test",
+        amm_pair_1.address.to_string(),
+        scrt_token.address.clone(),
+        snip_20_code_hash.clone(),
+        shd_token.address.clone(),
+        snip_20_code_hash.clone(),
+        Uint128::new(10000000000),
+        Uint128::new(10000000000),
+        true,
+        "",
+        &mut reports,
+    )
+    .unwrap();
 
     print_header("\n\tAdding Liquidity to NATIVE/SNIP20 staking contract");
     handle(
@@ -452,7 +432,6 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
         None,
     )
     .unwrap();
-
 
     print_header("Get Trade Count");
 
@@ -782,7 +761,8 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     );
 
     print_header("\n\t 5 - BUY 25000 sSHD Initiating sSCRT to sSHD Swap ");
-    let mut old_shd_token_balance = get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string());
+    let mut old_shd_token_balance =
+        get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string());
     let mut old_scrt_balance = get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string());
     handle(
         &snip20::ExecuteMsg::Send {
@@ -904,7 +884,9 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     )
     .unwrap();
 
-    assert!(get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()) > old_shd_token_balance);
+    assert!(
+        get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()) > old_shd_token_balance
+    );
 
     assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
@@ -950,7 +932,9 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     )
     .unwrap();
 
-    assert!(get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()) < old_shd_token_balance);
+    assert!(
+        get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()) < old_shd_token_balance
+    );
 
     assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
@@ -1290,7 +1274,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
 
             if let StakingQueryMsgResponse::StakerLpTokenInfo {
                 staked_lp_token,
-                total_staked_lp_token,
+                total_staked_lp_token: _,
             } = stake_lp_token_info
             {
                 old_staked_lp_token = staked_lp_token;
@@ -1326,12 +1310,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
                 &snip20::ExecuteMsg::Send {
                     recipient: staking_contract.clone().unwrap().address.to_string(),
                     amount: Uint128::new(1000),
-                    msg: Some(
-                        to_binary(&StakingInvokeMsg::Stake {
-                            from:account,
-                        })
-                        .unwrap(),
-                    ),
+                    msg: Some(to_binary(&StakingInvokeMsg::Stake { from: account }).unwrap()),
                     padding: None,
                     recipient_code_hash: None,
                     memo: None,
@@ -1369,7 +1348,7 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
 
             if let StakingQueryMsgResponse::StakerLpTokenInfo {
                 staked_lp_token,
-                total_staked_lp_token,
+                total_staked_lp_token: _,
             } = stake_lp_token_info
             {
                 assert!(old_staked_lp_token < staked_lp_token)
@@ -1555,18 +1534,4 @@ ACCOUNT_KEY, "test", &mut reports, &admin_contract.address).unwrap();
     }
 
     return Ok(());
-}
-
-pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Uint128 {
-    let msg = snip20::QueryMsg::Balance {
-        address: from,
-        key: view_key,
-    };
-
-    let balance: snip20::QueryAnswer = query(contract, &msg, None).unwrap();
-
-    if let snip20::QueryAnswer::Balance { amount } = balance {
-        return amount;
-    }
-    Uint128::zero()
 }

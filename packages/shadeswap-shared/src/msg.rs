@@ -98,7 +98,7 @@ pub mod amm_pair {
     use super::*;
     use crate::{
         core::{
-            Callback, ContractInstantiationInfo, CustomFee, Fee, TokenAmount, TokenPair,
+            ContractInstantiationInfo, CustomFee, Fee, TokenAmount, TokenPair,
             TokenPairAmount, TokenType,
         },
         staking::StakingContractInit,

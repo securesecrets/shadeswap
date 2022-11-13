@@ -187,6 +187,39 @@ pub fn query_calculate_price(
     Ok(swap_result)
 }
 
+fn add_send_token_to_address_msg(messages: &mut Vec<CosmosMsg>, address: Addr, token: &TokenType, amount: Uint128) -> StdResult<()> {
+    if amount > Uint128::zero() {
+        match &token {
+            TokenType::CustomToken {
+                contract_addr,
+                token_code_hash,
+            } => {
+                messages.push(send_msg(
+                    address,
+                    amount,
+                    None,
+                    None,
+                    None,
+                    &Contract {
+                        address: contract_addr.clone(),
+                        code_hash: token_code_hash.to_string(),
+                    },
+                )?);
+            }
+            TokenType::NativeToken { denom } => {
+                messages.push(CosmosMsg::Bank(BankMsg::Send {
+                    to_address: address.to_string(),
+                    amount: vec![Coin {
+                        denom: denom.clone(),
+                        amount,
+                    }],
+                }));
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn swap(
     deps: DepsMut,
     env: Env,
@@ -212,35 +245,7 @@ pub fn swap(
 
     // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
     let mut messages = Vec::with_capacity(2);
-    if swap_result.shade_dao_fee_amount > Uint128::zero() {
-        match &offer.token {
-            TokenType::CustomToken {
-                contract_addr,
-                token_code_hash,
-            } => {
-                messages.push(send_msg(
-                    amm_settings.shade_dao_address.address,
-                    swap_result.shade_dao_fee_amount,
-                    None,
-                    None,
-                    None,
-                    &Contract {
-                        address: contract_addr.clone(),
-                        code_hash: token_code_hash.to_string(),
-                    },
-                )?);
-            }
-            TokenType::NativeToken { denom } => {
-                messages.push(CosmosMsg::Bank(BankMsg::Send {
-                    to_address: amm_settings.shade_dao_address.address.to_string(),
-                    amount: vec![Coin {
-                        denom: denom.clone(),
-                        amount: swap_result.shade_dao_fee_amount,
-                    }],
-                }));
-            }
-        }
-    }
+    add_send_token_to_address_msg(&mut messages, amm_settings.shade_dao_address.address, &offer.token, swap_result.shade_dao_fee_amount)?;
 
     // Send Token to Buyer or Swapper
     let index = config
@@ -321,16 +326,54 @@ pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Bi
     to_binary(&simulation_result)
 }
 
-pub fn get_estimated_lp_token(deps: Deps, env: Env, deposit: TokenPairAmount) -> StdResult<Binary> {
-    let config = config_r(deps.storage).load()?;
-    let Config {
-        pair,
-        viewing_key,
-        lp_token,
-        ..
-    } = config;
+//executes a virtual swap of the excess provided token for the other, balancing the lp provided
+//if the messages param is provided, a message is added which sends the shade dao fee to the dao
+fn lp_virtual_swap(deps: Deps, env: &Env, amm_settings: &AMMSettings, config: &Config, deposit: &TokenPairAmount, total_lp_token_supply: Uint128, pool_balances: [Uint128; 2], messages: Option<&mut Vec<CosmosMsg>>) -> StdResult<TokenPairAmount> {
+    let mut new_deposit = deposit.clone();
 
-    if pair != deposit.pair {
+    if !total_lp_token_supply.is_zero() {
+        //determine which token should be swapped for other
+        let ten_to_18th = Uint128::from(1_000_000_000_000_000_000u128);
+        let token0_ratio = (deposit.amount_0 * ten_to_18th) / pool_balances[0]; //actual decimal doesn't matter here since these values are only compared to each other, never used in math
+        let token1_ratio = (deposit.amount_1 * ten_to_18th) / pool_balances[1];
+        if token0_ratio > token1_ratio {
+            let extra_token0_amount = deposit.amount_0 - pool_balances[0].multiply_ratio(deposit.amount_1, pool_balances[1]);
+            let half_of_extra = extra_token0_amount / Uint128::from(2u32);
+            let offer = TokenAmount { token: new_deposit.pair.0.clone(), amount: half_of_extra };
+            
+            let swap = calculate_swap_result(deps, env, &amm_settings, &config, &offer, Some(false))?;
+            if let Some(msgs) = messages {
+                add_send_token_to_address_msg(msgs, amm_settings.shade_dao_address.address.clone(), &offer.token, swap.shade_dao_fee_amount)?;
+            }
+
+            new_deposit.amount_0 = deposit.amount_0 - half_of_extra;
+            new_deposit.amount_1 = deposit.amount_1 + swap.result.return_amount;
+        } else if token1_ratio > token0_ratio {
+            let extra_token1_amount = deposit.amount_1 - pool_balances[1].multiply_ratio(deposit.amount_0, pool_balances[0]);
+            let half_of_extra = extra_token1_amount / Uint128::from(2u32);
+            let offer = TokenAmount { token: new_deposit.pair.1.clone(), amount: half_of_extra };
+
+            let swap = calculate_swap_result(deps, env, &amm_settings, &config, &offer, Some(false))?;
+            if let Some(msgs) = messages {
+                add_send_token_to_address_msg(msgs, amm_settings.shade_dao_address.address.clone(), &offer.token, swap.shade_dao_fee_amount)?;
+            }
+
+            new_deposit.amount_0 = deposit.amount_0 + swap.result.return_amount;
+            new_deposit.amount_1 = deposit.amount_1 - half_of_extra;
+        }
+    }
+    Ok(new_deposit)
+}
+
+pub fn get_estimated_lp_token(
+    deps: Deps,
+    env: Env,
+    deposit: &TokenPairAmount
+) -> StdResult<Binary> {
+    let config = config_r(deps.storage).load()?;
+    let amm_settings = query_factory_config(deps, &config.factory_contract)?.amm_settings;
+
+    if config.pair != deposit.pair {
         return Err(StdError::generic_err(
             "The provided tokens dont match those managed by the contract.",
         ));
@@ -339,10 +382,17 @@ pub fn get_estimated_lp_token(deps: Deps, env: Env, deposit: TokenPairAmount) ->
     let pool_balances =
         deposit
             .pair
-            .query_balances(deps, env.contract.address.to_string(), viewing_key.0)?;
+            .query_balances(deps, env.contract.address.to_string(), config.viewing_key.0.clone())?;
 
-    let pair_contract_pool_liquidity = query_total_supply(deps, &lp_token)?;
-    let lp_tokens = calculate_lp_tokens(&deposit, pool_balances, pair_contract_pool_liquidity)?;
+    let pair_contract_pool_liquidity = query_total_supply(deps, &config.lp_token)?;
+
+    let new_deposit = lp_virtual_swap(deps, &env, &amm_settings, &config, &deposit, pair_contract_pool_liquidity, pool_balances, None)?;
+
+    let lp_tokens = calculate_lp_tokens(
+        &new_deposit,
+        pool_balances,
+        pair_contract_pool_liquidity,
+    )?;
     let response_msg = QueryMsgResponse::EstimatedLiquidity {
         lp_token: lp_tokens,
         total_lp_token: pair_contract_pool_liquidity,
@@ -487,20 +537,17 @@ pub fn remove_liquidity(
     env: Env,
     amount: Uint128,
     from: Addr,
+    single_sided_withdraw_type: Option<TokenType>,
+    single_sided_expected_return: Option<Uint128>,
 ) -> StdResult<Response> {
     let config = config_r(deps.storage).load()?;
-    let Config {
-        pair,
-        viewing_key,
-        lp_token,
-        ..
-    } = config;
+    let amm_settings = query_factory_config(deps.as_ref(), &config.factory_contract)?.amm_settings;
 
-    let liquidity_pair_contract = query_total_supply(deps.as_ref(), &lp_token)?;
-    let pool_balances = pair.query_balances(
+    let liquidity_pair_contract = query_total_supply(deps.as_ref(), &config.lp_token)?;
+    let pool_balances = config.pair.query_balances(
         deps.as_ref(),
         env.contract.address.to_string(),
-        viewing_key.0,
+        config.viewing_key.0.clone(),
     )?;
     let withdraw_amount = amount;
     let total_liquidity = liquidity_pair_contract;
@@ -512,14 +559,52 @@ pub fn remove_liquidity(
         pool_withdrawn[i] = pool_amount.multiply_ratio(withdraw_amount, total_liquidity)
     }
 
+    //if user wants purely one token, virtually swap entire withdraw into that token
+    if let Some(withdraw_type) = single_sided_withdraw_type {
+        let withdraw_in_token0: bool = if config.pair.contains(&withdraw_type) {
+            Ok(config.pair.0 == withdraw_type)
+        } else {
+            Err(StdError::generic_err("Single sided withdraw token type was set, but token is not included in this pair"))
+        }?;
+
+        if withdraw_in_token0 {
+            let offer = TokenAmount { token: config.pair.1.clone(), amount: pool_withdrawn[1] };
+            let swap = calculate_swap_result(deps.as_ref(), &env, &amm_settings, &config, &offer, Some(false))?;
+
+            pool_withdrawn[0] += swap.result.return_amount;
+            pool_withdrawn[1] = Uint128::zero();
+
+            if let Some(min_return) = single_sided_expected_return {
+                if pool_withdrawn[0] < min_return {
+                    return Err(StdError::generic_err("Single sided withdraw returned less than the expected amount"));
+                }
+            }
+
+        } else { //withdraw in token 1
+            let offer = TokenAmount { token: config.pair.0.clone(), amount: pool_withdrawn[0] };
+            let swap = calculate_swap_result(deps.as_ref(), &env, &amm_settings, &config, &offer, Some(false))?;
+
+            pool_withdrawn[0] = Uint128::zero();
+            pool_withdrawn[1] += swap.result.return_amount;
+
+            if let Some(min_return) = single_sided_expected_return {
+                if pool_withdrawn[1] < min_return {
+                    return Err(StdError::generic_err("Single sided withdraw returned less than the expected amount"));
+                }
+            }
+        }
+    }
+
     let mut pair_messages: Vec<CosmosMsg> = Vec::with_capacity(4);
 
-    for (i, token) in pair.into_iter().enumerate() {
-        pair_messages.push(token.create_send_msg(
-            env.contract.address.to_string(),
-            from.to_string(),
-            pool_withdrawn[i],
-        )?);
+    for (i, token) in config.pair.into_iter().enumerate() {
+        if !pool_withdrawn[i].is_zero() {
+            pair_messages.push(token.create_send_msg(
+                env.contract.address.to_string(),
+                from.to_string(),
+                pool_withdrawn[i],
+            )?);
+        }
     }
 
     pair_messages.push(burn_msg(
@@ -527,8 +612,8 @@ pub fn remove_liquidity(
         None,
         None,
         &Contract {
-            address: lp_token.address,
-            code_hash: lp_token.code_hash,
+            address: config.lp_token.address,
+            code_hash: config.lp_token.code_hash,
         },
     )?);
     Ok(Response::new()
@@ -536,7 +621,9 @@ pub fn remove_liquidity(
         .add_attributes(vec![
             Attribute::new("action", "remove_liquidity"),
             Attribute::new("withdrawn_share", amount),
-            Attribute::new("refund_assets", format!("{}, {}", &pair.0, &pair.1)),
+            Attribute::new("refund_assets", format!("{}, {}", &config.pair.0, &config.pair.1)),
+            Attribute::new("refund_amount0", pool_withdrawn[0]),
+            Attribute::new("refund_amount1", pool_withdrawn[1]),
         ]))
 }
 
@@ -557,15 +644,9 @@ pub fn add_liquidity(
     staking: Option<bool>,
 ) -> StdResult<Response> {
     let config = config_r(deps.storage).load()?;
-    let Config {
-        pair,
-        viewing_key,
-        lp_token,
-        staking_contract,
-        ..
-    } = config;
+    let amm_settings = query_factory_config(deps.as_ref(), &config.factory_contract)?.amm_settings;
 
-    if pair != deposit.pair {
+    if config.pair != deposit.pair {
         return Err(StdError::generic_err(
             "The provided tokens dont match those managed by the contract.",
         ));
@@ -575,7 +656,7 @@ pub fn add_liquidity(
     let mut pool_balances = deposit.pair.query_balances(
         deps.as_ref(),
         env.contract.address.to_string(),
-        viewing_key.0,
+        config.viewing_key.0.clone(),
     )?;
     for (i, (amount, token)) in deposit.into_iter().enumerate() {
         match &token {
@@ -604,8 +685,16 @@ pub fn add_liquidity(
         }
     }
 
-    let pair_contract_pool_liquidity = query_total_supply(deps.as_ref(), &lp_token)?;
-    let lp_tokens = calculate_lp_tokens(&deposit, pool_balances, pair_contract_pool_liquidity)?;
+    let pair_contract_pool_liquidity =
+    query_total_supply(deps.as_ref(), &config.lp_token)?;
+
+    let new_deposit = lp_virtual_swap(deps.as_ref(), &env, &amm_settings, &config, &deposit, pair_contract_pool_liquidity, pool_balances, Some(&mut pair_messages))?;
+
+    let lp_tokens = calculate_lp_tokens(
+        &new_deposit,
+        pool_balances,
+        pair_contract_pool_liquidity,
+    )?;
 
     if let Some(e) = expected_return {
         if e > lp_tokens {
@@ -622,7 +711,7 @@ pub fn add_liquidity(
         Some(s) => {
             if s {
                 // check if the Staking Contract has been set for AMM Pairs
-                match staking_contract {
+                match config.staking_contract {
                     Some(stake) => {
                         add_to_staking = true;
                         pair_messages.push(mint_msg(
@@ -631,8 +720,8 @@ pub fn add_liquidity(
                             None,
                             None,
                             &Contract {
-                                address: lp_token.address.clone(),
-                                code_hash: lp_token.code_hash.clone(),
+                                address: config.lp_token.address.clone(),
+                                code_hash: config.lp_token.code_hash.clone(),
                             },
                         )?);
                         let invoke_msg = to_binary(&StakingInvokeMsg::Stake {
@@ -649,8 +738,8 @@ pub fn add_liquidity(
                         })?;
                         pair_messages.push(
                             WasmMsg::Execute {
-                                contract_addr: lp_token.address.to_string(),
-                                code_hash: lp_token.code_hash.clone(),
+                                contract_addr: config.lp_token.address.to_string(),
+                                code_hash: config.lp_token.code_hash.clone(),
                                 msg,
                                 funds: vec![],
                             }
@@ -671,8 +760,8 @@ pub fn add_liquidity(
                     None,
                     None,
                     &Contract {
-                        address: lp_token.address.clone(),
-                        code_hash: lp_token.code_hash.clone(),
+                        address: config.lp_token.address.clone(),
+                        code_hash: config.lp_token.code_hash.clone(),
                     },
                 )?);
             }
@@ -685,8 +774,8 @@ pub fn add_liquidity(
                 None,
                 None,
                 &Contract {
-                    address: lp_token.address.clone(),
-                    code_hash: lp_token.code_hash.clone(),
+                    address: config.lp_token.address.clone(),
+                    code_hash: config.lp_token.code_hash.clone(),
                 },
             )?);
         }
@@ -697,7 +786,7 @@ pub fn add_liquidity(
         .add_attributes(vec![
             Attribute::new("staking", format!("{}", add_to_staking)),
             Attribute::new("action", "add_liquidity_to_pair_contract"),
-            Attribute::new("assets", format!("{}, {}", deposit.pair.0, deposit.pair.1)),
+            Attribute::new("assets", format!("{}, {}", new_deposit.pair.0, new_deposit.pair.1)),
             Attribute::new("share_pool", lp_tokens),
         ]))
 }

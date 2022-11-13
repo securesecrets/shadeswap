@@ -287,23 +287,26 @@ pub mod tests {
 
 #[cfg(test)]
 pub mod tests_calculation_price_and_fee {
+    use std::str::FromStr;
+
     use super::*;
     use super::help_test_lib::{mk_token_pair_custom_addr};
 
-    use cosmwasm_std::Decimal;
+    use cosmwasm_std::{Decimal, from_binary};
 
     use shadeswap_shared::Contract;
     use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount};
+    use shadeswap_shared::msg::amm_pair::QueryMsgResponse;
 
     use crate::operations::{
-        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap,
+        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity, get_estimated_lp_token,
     };
 
     use crate::test::help_test_lib::{
         make_init_config_test_calculate_price_fee, mk_amm_settings_a,
         mk_custom_token_amount_test_calculation_price_fee,
         mk_native_token_pair_test_calculation_price_fee, mk_token_pair_test_calculation_price_fee,
-        mock_custom_env, mock_dependencies,
+        mock_custom_env, mock_dependencies, testing_str_to_token_type,
     };
 
     #[test]
@@ -539,19 +542,255 @@ pub mod tests_calculation_price_and_fee {
             &mock_info,
             TokenPairAmount{
                 pair: token_pair.clone(),
-                amount_0: Uint128::from(1000000u128),
+                amount_0: Uint128::from(10000u128),
                 amount_1: Uint128::from(10000u128)
             },
             Some(Uint128::from(10000001u128)),
             None
-        );       
+        );
 
-        match add_liquidity_with_err {  
-            Ok(_) => todo!(),
-            Err(e) => assert_eq!(e, StdError::generic_err(
-                "Operation returns less then expected (10000001 < 10000000).",
-            )),
-        }       
+        assert!(add_liquidity_with_err.is_err());
+        assert_eq!(add_liquidity_with_err.err().unwrap(), StdError::generic_err("Operation returns less then expected (10000001 < 10000000)."));
+        Ok(())
+    }
+
+    #[test]
+    fn assert_withdraw_imbalanced() {
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string())).unwrap();              
+        let mock_info = mock_info("Sender", &[]);
+
+        let withdraw_result = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            Uint128::from(100000u32),
+            Addr::unchecked("Sender"),
+            Some(testing_str_to_token_type(CUSTOM_TOKEN_1)),
+            None,
+        ).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+        
+        assert!(withdraw0 > Uint128::from(100u32));
+        assert_eq!(withdraw1, Uint128::zero());
+
+        let withdraw_result = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            Uint128::from(100000u32),
+            Addr::unchecked("Sender"),
+            Some(testing_str_to_token_type(CUSTOM_TOKEN_2)),
+            None,
+        ).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+        
+        assert_eq!(withdraw0, Uint128::zero());
+        assert!(withdraw1 > Uint128::from(100u32));
+
+    }
+
+    #[test]
+    fn assert_estimation_works_for_imbalanced_liquidity() {
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string())).unwrap();              
+        let mock_info = mock_info("Sender", &[]);
+
+        let deposit = TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(200u128),
+                amount_1: Uint128::from(100u128)
+            };
+
+        let estimated_lp_bin = get_estimated_lp_token(deps.as_ref(), mock_env(), &deposit).unwrap();
+        let msg = from_binary::<QueryMsgResponse>(&estimated_lp_bin).unwrap();
+        let estimated_lp = match msg {
+            QueryMsgResponse::EstimatedLiquidity { lp_token, total_lp_token: _ } => lp_token,
+            _ => { panic!("Unexpected msg type from estimated lp") },
+        };
+
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            deposit,
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        assert_eq!(lp_tokens_received, estimated_lp);
+    }
+
+    #[test]
+    fn assert_add_and_withdraw_imbalanced_liqudity() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;              
+        let mock_info = mock_info("Sender", &[]);
+
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(100u128),
+                amount_1: Uint128::from(100u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        let withdraw_result = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            balanced_lp_tokens_received,
+            Addr::unchecked("Sender"),
+            None,
+            None,
+        ).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+
+        assert_eq!(withdraw0, Uint128::from(100u32));
+        assert_eq!(withdraw1, Uint128::from(100u32));
+
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(200u128),
+                amount_1: Uint128::from(0u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let sslp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        let withdraw_result = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            sslp_tokens_received,
+            Addr::unchecked("Sender"),
+            None,
+            None,
+        ).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+
+        assert!(withdraw0 < Uint128::from(100u32));
+        assert!(withdraw1 < Uint128::from(100u32));
+        assert!(sslp_tokens_received < balanced_lp_tokens_received);
+        
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(150u128),
+                amount_1: Uint128::from(50u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let imbalanced_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        //test sslp withdraw slippage limit works
+        let withdraw_expect_err = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            imbalanced_tokens_received,
+            Addr::unchecked("Sender"),
+            Some(testing_str_to_token_type(CUSTOM_TOKEN_1)),
+            Some(Uint128::new(1000000000000000u128)),
+        );
+        assert!(withdraw_expect_err.is_err());
+        assert_eq!(withdraw_expect_err.err().unwrap(), StdError::generic_err("Single sided withdraw returned less than the expected amount"));
+
+        let withdraw_result = remove_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            imbalanced_tokens_received,
+            Addr::unchecked("Sender"),
+            None,
+            None,
+        ).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+
+        assert!(withdraw0 < Uint128::from(100u32));
+        assert!(withdraw1 < Uint128::from(100u32));
+        assert!(sslp_tokens_received < imbalanced_tokens_received);
+        assert!(imbalanced_tokens_received < balanced_lp_tokens_received);
+
+        Ok(())
+    }
+
+    #[test]
+    fn assert_slippage_add_imbalanced_liqudity_return_less_than_balanced() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;              
+        let mock_info = mock_info("Sender", &[]);
+
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(100u128),
+                amount_1: Uint128::from(10u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let imbalanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        let add_result = add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(110u128),
+                amount_1: Uint128::from(0u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let sslp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            TokenPairAmount{
+                pair: token_pair.clone(),
+                amount_0: Uint128::from(55u128),
+                amount_1: Uint128::from(55u128)
+            },
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+        
+        assert!(balanced_lp_tokens_received > imbalanced_lp_tokens_received);
+        assert!(imbalanced_lp_tokens_received > sslp_tokens_received);
         Ok(())
     }
 
@@ -1042,16 +1281,17 @@ pub mod help_test_lib {
 
     pub fn mk_token_pair_test_calculation_price_fee() -> TokenPair {
         let pair = TokenPair(
-            TokenType::CustomToken {
-                contract_addr: Addr::unchecked(CUSTOM_TOKEN_1.to_string().clone()),
-                token_code_hash: CUSTOM_TOKEN_1.to_string(),
-            },
-            TokenType::CustomToken {
-                contract_addr: Addr::unchecked(CUSTOM_TOKEN_2.to_string().clone()),
-                token_code_hash: CUSTOM_TOKEN_2.to_string(),
-            },
+            testing_str_to_token_type(CUSTOM_TOKEN_1),
+            testing_str_to_token_type(CUSTOM_TOKEN_2),
         );
         pair
+    }
+
+    pub fn testing_str_to_token_type(address: &str) -> TokenType {
+            TokenType::CustomToken {
+                contract_addr: Addr::unchecked(address.to_string().clone()),
+                token_code_hash: address.to_string(),
+            }
     }
 
     pub fn mk_custom_token_amount_test_calculation_price_fee(

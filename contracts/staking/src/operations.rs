@@ -696,6 +696,8 @@ pub fn unstake(
             // SEND LP Token back to Pair Contract With Remove Liquidity
             let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity {
                 from: Some(caller.to_string()),
+                single_sided_expected_return: None,
+                single_sided_withdraw_type: None,
             })?;
             let cosmos_msg = snip20::ExecuteMsg::Send {
                 recipient: config.amm_pair.to_string(),

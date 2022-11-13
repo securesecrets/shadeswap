@@ -289,7 +289,7 @@ fn receiver_callback(
                     "No matching token in pair".to_string(),
                 ))
             }
-            InvokeMsg::RemoveLiquidity { from } => {
+            InvokeMsg::RemoveLiquidity { from, single_sided_withdraw_type, single_sided_expected_return } => {
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err(
                         "LP Token was not sent to remove liquidity.".to_string(),
@@ -299,9 +299,9 @@ fn receiver_callback(
                 match from {
                     Some(address) => {
                         let checked_address = deps.api.addr_validate(&address)?;
-                        remove_liquidity(deps, env, amount, checked_address)
+                        remove_liquidity(deps, env, amount, address, single_sided_withdraw_type, single_sided_expected_return)
                     }
-                    None => remove_liquidity(deps, env, amount, from_caller),
+                    None => remove_liquidity(deps, env, amount, from_caller,  single_sided_withdraw_type, single_sided_expected_return),
                 }
             }
         },
@@ -365,7 +365,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             QueryMsg::SwapSimulation { offer } => swap_simulation(deps, env, offer),
             QueryMsg::GetShadeDaoInfo {} => get_shade_dao_info(deps),
             QueryMsg::GetEstimatedLiquidity { deposit } => {
-                get_estimated_lp_token(deps, env, deposit)
+                get_estimated_lp_token(deps, env, &deposit)
             }
             QueryMsg::GetConfig {} => {
                 let config = config_r(deps.storage).load()?;

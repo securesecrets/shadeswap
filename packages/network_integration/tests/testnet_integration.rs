@@ -283,6 +283,7 @@ fn run_testnet() -> Result<()> {
         Some(reward_token.code_hash.to_string()),
         Some(3450000000000u128),
         Some(3450000000000u128),
+        18u8,
         &mut reports,
     )
     .unwrap();
@@ -303,6 +304,7 @@ fn run_testnet() -> Result<()> {
         None,
         None,
         None,
+        18u8,
         &mut reports,
     )
     .unwrap();

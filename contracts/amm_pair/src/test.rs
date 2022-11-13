@@ -600,8 +600,6 @@ pub mod tests_calculation_price_and_fee {
         let token_pair = mk_token_pair_test_calculation_price_fee();
         make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string())).unwrap();              
         
-        
-        println!("{}", query_total_supply(deps.as_ref(), &Contract{ address: Addr::unchecked(LP_TOKEN.to_string()), code_hash: "".to_string() }).unwrap());
         let mock_info = mock_info("Sender", &[]);
 
         let deposit = TokenPairAmount{
@@ -1048,7 +1046,8 @@ pub mod help_test_lib {
                     contract_addr: Addr::unchecked("".to_string()),
                     token_code_hash: "".to_string(),
                 }, 
-                valid_to: Uint128::new(3747905010000u128) 
+                valid_to: Uint128::new(3747905010000u128),
+                decimals: 18u8
             }),
             prng_seed: to_binary(&"to_string".to_string())?,
             admin_auth: Contract { address: Addr::unchecked(MOCK_CONTRACT_ADDR), code_hash: "".to_string() }

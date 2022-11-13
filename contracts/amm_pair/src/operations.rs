@@ -668,8 +668,6 @@ pub fn add_liquidity(
 
     let pair_contract_pool_liquidity = query_total_supply(deps.as_ref(), &config.lp_token)?;
 
-    println!("{}", query_total_supply(deps.as_ref(), &config.lp_token)?);
-
     let lp_deposit_info =
         calculate_lp_tokens(&deposit, pool_balances, pair_contract_pool_liquidity)?;
 

@@ -312,7 +312,8 @@ fn redeploy_infra() -> serde_json::Result<()> {
                                 contract_addr: Addr::unchecked(usdt_contract.address.clone()),
                                 token_code_hash: usdt_contract.code_hash.to_string(),
                             },
-                            valid_to: Uint128::new(3747905010000u128)
+                            valid_to: Uint128::new(3747905010000u128) ,
+                            decimals: 18u8,
                         })
                     },
                     &factory_contract,
@@ -848,7 +849,8 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 contract_addr: Addr::unchecked(usdt_contract.address.clone()),
                                 token_code_hash: usdt_contract.code_hash.to_string(),
                             },
-                            valid_to: Uint128::new(3747905010000u128) 
+                            valid_to: Uint128::new(3747905010000u128) ,
+                            decimals: 18u8,
                         }),
                     },
                     &factory_contract,
@@ -877,7 +879,8 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 contract_addr: Addr::unchecked(usdt_contract.address.clone()),
                                 token_code_hash: usdt_contract.code_hash.to_string(),
                             },
-                            valid_to: Uint128::new(3747905010000u128)
+                            valid_to: Uint128::new(3747905010000u128) ,
+                            decimals: 18u8,
                         })
                     },
                     &factory_contract,

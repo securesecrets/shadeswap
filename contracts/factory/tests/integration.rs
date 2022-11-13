@@ -107,7 +107,8 @@ fn factory_integration_tests() {
                 contract_addr: reward_contract.address.clone(), 
                 token_code_hash: reward_contract.code_hash.clone() 
             },
-            valid_to: Uint128::new(30000000u128)
+            valid_to: Uint128::new(30000000u128),
+            decimals: 18u8
         }),
         None,
         "seed",
@@ -173,7 +174,8 @@ fn factory_integration_tests() {
                 contract_addr: reward_contract.address.clone(), 
                 token_code_hash: reward_contract.code_hash.clone() 
             },
-            valid_to: Uint128::new(30000000u128)
+            valid_to: Uint128::new(30000000u128),
+            decimals: 18u8
         }),
     };
     
@@ -210,7 +212,8 @@ fn factory_integration_tests() {
                 contract_addr: reward_contract.address.clone(), 
                 token_code_hash: reward_contract.code_hash.clone() 
             },
-            valid_to: Uint128::new(30000000u128)
+            valid_to: Uint128::new(30000000u128),
+            decimals: 18u8
         }),
     };
     

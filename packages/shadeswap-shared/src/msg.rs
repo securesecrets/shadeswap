@@ -418,6 +418,7 @@ pub mod staking {
         pub daily_reward_amount: Uint128,
         pub reward_token: TokenType,
         pub valid_to: Uint128,
+        pub decimals: u8,
     }
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]

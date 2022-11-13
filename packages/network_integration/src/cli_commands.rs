@@ -561,7 +561,8 @@ pub mod amm_pair_lib {
         reward_contract_address: Option<String>,
         reward_contract_code_hash: Option<String>,
         reward_amount: Option<u128>,
-        valid_to: Option<u128>,     
+        valid_to: Option<u128>,   
+        staking_contract_decimals: u8,  
         reports: &mut Vec<Report>,
     ) -> io::Result<()> {
     
@@ -611,6 +612,7 @@ pub mod amm_pair_lib {
                         token_code_hash: reward_contract_code_hash.unwrap().to_string(),
                     },
                     valid_to: Uint128::new(valid_to.unwrap()),
+                    decimals: 18u8
                 })      
             }     
             None => None

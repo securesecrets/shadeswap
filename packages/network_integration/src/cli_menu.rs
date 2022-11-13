@@ -331,6 +331,7 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> 
         let token_1_hash = args[9].clone();
         let entropy = args[10].clone();
         let staking = args[11].clone();
+        let decimals = args[12].clone();
         let staking_enabled = staking.parse::<bool>().unwrap();
         // CHECK ROUTER
         let mut reward_addr: Option<String> = None;
@@ -371,6 +372,7 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> 
             reward_addr_code_hash,
             amount_u128,
             valid_to,
+            decimals.parse::<u8>().unwrap(),
             reports,
         )?;
 

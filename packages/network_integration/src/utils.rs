@@ -1,15 +1,17 @@
 use colored::*;
+use cosmwasm_std::StdResult;
 use cosmwasm_std::{to_binary, Addr, Binary, Env, MessageInfo, Uint128};
 use rand::{distributions::Alphanumeric, Rng};
 use schemars::JsonSchema;
 use secretcli::cli_types::NetContract;
 use secretcli::cli_types::StoredContract;
-use secretcli::secretcli::{init, Report};
+use secretcli::secretcli::{init, Report, query};
 use serde::{Deserialize, Serialize};
 use shadeswap_shared::core::{Callback, ViewingKey};
-use shadeswap_shared::snip20::InitialBalance;
+use shadeswap_shared::snip20::{InitialBalance, self};
 use std::fmt::Display;
 use std::fs;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::Result;
 use shadeswap_shared::{
@@ -22,6 +24,7 @@ pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
 pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
 pub const ROUTER_FILE: &str = "../../compiled/router.wasm.gz";
 pub const STAKING_FILE: &str = "../../compiled/staking.wasm.gz";
+pub const ADMIN_FILE: &str = "../../misc/admin.wasm.gz";
 
 pub const STORE_GAS: &str = "100000000";
 pub const GAS: &str = "8000000";
@@ -246,4 +249,27 @@ pub fn init_contract_factory(
         reports,
     )?;
     Ok(contract)
+}
+
+
+pub fn get_current_timestamp() -> StdResult<Uint128> {
+    let start = SystemTime::now();
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+    Ok(Uint128::from(since_the_epoch.as_millis()))
+}
+
+pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Uint128 {
+    let msg = snip20::QueryMsg::Balance {
+        address: from,
+        key: view_key,
+    };
+
+    let balance: snip20::QueryAnswer = query(contract, &msg, None).unwrap();
+
+    if let snip20::QueryAnswer::Balance { amount } = balance {
+        return amount;
+    }
+    Uint128::zero()
 }

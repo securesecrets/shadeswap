@@ -1,8 +1,7 @@
 use cosmwasm_std::{Addr, Uint128, Storage};
 use cosmwasm_storage::{singleton, Singleton, ReadonlySingleton, singleton_read, bucket_read, bucket, ReadonlyBucket, Bucket};
 use serde::{Serialize, Deserialize};
-use shadeswap_shared::{core::{TokenType, ContractLink, ViewingKey}, Contract};
-
+use shadeswap_shared::{core::{TokenType, ViewingKey}, Contract, staking::RewardTokenInfo};
 
 pub static CONFIG: &[u8] = b"CONFIG";
 pub static STAKERS: &[u8] = b"LIST_STAKERS";
@@ -23,8 +22,9 @@ pub struct Config {
     pub amm_pair: Addr,
     pub daily_reward_amount: Uint128,
     pub reward_token: TokenType,
-    pub lp_token: ContractLink,
-    pub authenticator: Option<Contract>
+    pub lp_token: Contract,
+    pub authenticator: Option<Contract>,
+    pub admin_auth: Contract
 }
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
@@ -39,12 +39,6 @@ pub struct ProxyStakingInfo{
     pub amount: Uint128
 }
 
-#[derive(Serialize, Deserialize, Clone,  PartialEq, Debug)]
-pub struct RewardTokenInfo{
-    pub reward_token: ContractLink,
-    pub daily_reward_amount: Uint128,
-    pub valid_to: Uint128,
-}
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct RewardTokenInfoList{

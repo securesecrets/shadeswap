@@ -1,5 +1,4 @@
 use cosmwasm_std::Addr;
-use cosmwasm_std::Binary;
 use cosmwasm_std::Storage;
 use cosmwasm_std::Uint128;
 use cosmwasm_storage::ReadonlySingleton;
@@ -9,7 +8,10 @@ use cosmwasm_storage::singleton_read;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use shadeswap_shared::Contract;
 use shadeswap_shared::core::TokenAmount;
+use shadeswap_shared::core::TokenType;
+use shadeswap_shared::router::Hop;
 
 pub static CONFIG: &[u8] = b"config";
 pub static ADDED_TOKEN_LIST: &[u8] = b"added_token_list";
@@ -18,7 +20,7 @@ pub const EPHEMERAL_STORAGE_KEY: &[u8] = b"ephemeral_storage";
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
     pub viewing_key: String,
-    pub pair_contract_code_hash: String,
+    pub admin_auth: Contract
 }
 
 pub fn config_w(storage: &mut dyn Storage) -> Singleton<Config> {
@@ -50,8 +52,9 @@ pub fn epheral_storage_r(storage: &dyn Storage) -> ReadonlySingleton<CurrentSwap
 pub struct CurrentSwapInfo {
     pub(crate) amount: TokenAmount,
     pub amount_out_min: Option<Uint128>,
-    pub paths: Vec<Addr>,
-    pub signature: Binary,
+    pub path: Vec<Hop>,
     pub recipient: Addr,
     pub current_index: u32,
+    //The next token that will be in the hop
+    pub next_token_in: TokenType,
 }

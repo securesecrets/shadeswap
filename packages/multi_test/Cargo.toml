@@ -1,0 +1,41 @@
+[package]
+name = "multi_test"
+version = "0.1.0"
+authors = ["Tony <plutonyium@gmail.com>"]
+edition = "2018"
+
+exclude = [
+  # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
+  "contract.wasm",
+  "hash.txt",
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+utils = []
+
+[dependencies]
+snafu = { version = "0.7.1" }
+serde = { version = "1.0.103", default-features = false, features = ["derive", "alloc"] }
+schemars = "0.8.9"
+cosmwasm-std = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
+cosmwasm-storage = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
+cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm"}
+snip20-reference-impl = { path = "../../contracts/snip20"}
+lp-token = { path = "../../contracts/lp_token"}
+sha2 = { version = "0.9.1", default-features = false }
+subtle = { version = "2.2.3", default-features = false }
+rand_chacha = { version = "0.2.2", default-features = false }
+rand_core = { version = "0.5.1", default-features = false }
+chrono = { version = "=0.4.19" }
+secret-multi-test = { git = "https://github.com/securesecrets/secret-plus-utils", version = "0.13.4" }
+shadeswap-shared = {path = "../../packages/shadeswap-shared"}
+query-authentication = { git = "https://github.com/securesecrets/query-authentication", branch = "cosmwasm_v1_upgrade" }
+factory = {path = "../../contracts/factory"}
+staking = {path = "../../contracts/staking"}
+amm_pair = {path = "../../contracts/amm_pair"}

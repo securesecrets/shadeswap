@@ -5,37 +5,30 @@
     * [Admin](#Admin)
         * Messages
             * [AddWhiteListAddress](#AddWhiteListAddress)
-            * [RemoveWhitelistAddresses](#RemoveWhitelistAddresses)   
-            * [SetAdmin](#SetAdmin)     
-            * [SetCustomPairFee](#SetCustomPairFee)                
+            * [RemoveWhitelistAddresses](#RemoveWhitelistAddresses)     
+            * [SetCustomPairFee](#SetCustomPairFee) 
+            * [SetConfig](#SetConfig)        
+            * [RecoverFunds](#RecoverFunds)                
     * [User](#User)
-        * Messages       
-            * [SwapTokens](#SwapTokens)
+        * Messages
+            * [Receive](#Receive)  
             * [AddLiquidityToAMMContract](#AddLiquidityToAMMContract)
+            * [SwapTokens](#SwapTokens)
+            * [SetViewingKey](#SetViewingKey)
         * Queries
             * [GetPairInfo](#GetPairInfo)
-            * [GetTradeHistory](#GetTradeHistory)   
-            * [GetAdmin](#GetAdmin)  
+            * [GetTradeHistory](#GetTradeHistory)  
+            * [GetConfig](#GetConfig)  
             * [GetWhiteListAddress](#GetWhiteListAddress)  
             * [GetTradeCount](#GetTradeCount)             
             * [GetStakingContract](#GetStakingContract)  
             * [GetEstimatedPrice](#GetEstimatedPrice)
-            * [SwapSimulation](#SwapSimulation)
-            * [GetShadeDaoInfo] (#GetShadeDaoInfo)
             * [GetEstimatedLiquidity](#GetEstimatedLiquidity)
-    * [Hooks]
-        * Messages
-            * [Receive](#Receive)
-            * [OnLpTokenInitAddr](#OnLpTokenInitAddr)
-            * [SetStakingContract](#SetStakingContract)
     * [Invoke]
         * Messages
-            * [SwapTokens](#SwapTokens)
+            * [SwapTokens](#SwapTokens(Callback))
             * [RemoveLiquidity](#RemoveLiquidity)
-    * [Callback]
-        * Messages
-            * [Callback](#Callback)
-            
+
 
 # Introduction
 The Contract to hold Pair Between Swap Tokens.
@@ -48,13 +41,13 @@ The Contract to hold Pair Between Swap Tokens.
 |-------------------|----------------------------------|----------------------------------------------------------------------------|----------|
 | pair              | TokenPair                        | Token Pair to hold two token                                               | no       |
 | lp_token_contract | ContractInstantiationInfo        | ContractInstantiationInfo                                                  | no       |
-| factory_info      | ContractLink                     | The token that will be airdropped                                          | no       |
+| factory_info      | Contract                     | The token that will be airdropped                                          | no       |
 | prng_seed         | Binary                           | seed to use for viewing key                                                | no       |
-| callback          | Callback                         | Callback to AmmPair Contract to register LP Token                          | yes      |
 | entropy           | Binary                           | Use to calculate viewing key                                               | no       |
-| admin             | HumanAddr                        | Set the admin of AMMPair Contract                                          | yes      |
+| admin_auth             | Contract                        | Set the admin of AMMPair Contract                                          | no      |
+| custom_fee             | CustomFee                        | The fee for the AMMPair                                          | no      |
 | staking_contract  | StakingContractInit              | Staking Contract Init Config                                               | yes      |
-
+| callback          | Callback                         | Callback to AmmPair Contract to register LP Token                          | yes      |
 
 ## Admin
 
@@ -84,7 +77,7 @@ Address to remove from whitelist.
 ##### Request
 | Name    | Type      | Description                                   | optional |
 |---------|-----------|-----------------------------------------------|----------|
-| address | HumanAddr | The address to remove from whitelist          | no       |
+| addresses | Vec<HumanAddr> | The addresses to remove from whitelist          | no       |
 
 ##### Response
 ```json
@@ -101,9 +94,43 @@ Set Custom Pair Fee to be used in SwapTokens.
 ##### Request
 | Name    | Type      | Description                                   | optional |
 |---------|-----------|-----------------------------------------------|----------|
-| shade_dao_fee | Fee | Shade Dao Fee          | no       |
-| lp_fee | Fee | LP Fee | no |
+| custom_fee | CustomFee | Shade Dao and LP Fees          | yes       |
 
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+
+#### SetConfig
+Set the Admin contract.
+
+##### Request
+| Name    | Type      | Description                                   | optional |
+|---------|-----------|-----------------------------------------------|----------|
+| admin_auth | Contract | The admin authentication contract          | no       |
+
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+#### RecoverFunds
+Recover Funds for Address.
+
+##### Request
+| Name    | Type      | Description                                   | optional |
+|---------|-----------|-----------------------------------------------|----------|
+| token | TokenType | Token type information         | no       |
+| amount | Unit128 | The amount         | no       |
+| to | HumanAddr | The address to send the amount to         | no       |
+| msg | Binary | Message to pass in the send         | yes       |
 ##### Response
 ```json
 {
@@ -129,8 +156,8 @@ Get information about the token pair.
 ##### Response
 ```json
 {
-  "liquidity_token": "LP Token ContractLink",
-  "factory": "Factory ContractLink",
+  "liquidity_token": "LP Token Contract",
+  "factory": "Factory Contract",
   "pair": "Token Pair with two Token Type",
   "amount_0": "Balance of Token 0",
   "amount_1": "Balance of Token 1",
@@ -146,18 +173,13 @@ Get Estimated Price for amount.
 ##### Request
 | Name    | Type   | Description                                   | optional |
 |---------|--------|-----------------------------------------------|----------|
-|  offer  | TokenAmount   | amount as buying quantity, token as price    |  no  |
+|  offer  | TokenAmount   | amount for price estimation    |  no  |
+|  exclude_fee  | bool   | exclude fee in price estimation    |  yes  |
 
 ##### Response
 ```json
 {
-  "liquidity_token": "LP Token ContractLink",
-  "factory": "Factory ContractLink",
-  "pair": "Token Pair with two Token Type",
-  "amount_0": "Balance of Token 0",
-  "amount_1": "Balance of Token 1",
-  "total_liquidity": "Total liquidity of pool",
-  "contract_version": "Contract Version of the Smart Contract"
+  "estimated_price": "String",
 }
 ```
 
@@ -173,7 +195,7 @@ Get Staking Contract Link if SC exists.
 ##### Response
 ```json
 {
-  "staking_contract": "Staking Contract Link",
+  "staking_contract": "Option<Contract>",
 }
 ```
 
@@ -184,12 +206,27 @@ Get Information about trade history.
 ##### Request
 | Name       | Type        | Description                              | optional |
 |------------|-------------|------------------------------------------|----------|
-| pagination | Pagination  |                                          |    no    |
+| api_key | String  |     The API key to authenticate   |    no    |
+| pagination | Pagination  | The start and limit   |    no    |
 
 ##### Response
 ```json
 {
   "data": "[array of trade history]",
+}
+```
+###### Where TradeHistory
+```json
+{
+  "pair": "TokenPair",
+  "lp_token_contract": "ContractInstantiationInfo",
+  "factory_info": "Contract",
+  "prng_seed": "Binary",
+  "entropy": "Binary",
+  "admin_auth": "Contract",
+  "staking_contract": " Option<StakingContractInit>",
+  "custom_fee": "Option<CustomFee>",
+  "callback": "Option<Callback>",
 }
 ```
 
@@ -208,8 +245,8 @@ Get Count of trade for pair contract.
 }
 ```
 
-#### GetAdmin
-Get Admin Address of AMMPair Contract.
+#### GetConfig
+Get Configuration of AMMPair Contract.
 
 ##### Request
 | Name       | Type        | Description                              | optional |
@@ -219,7 +256,11 @@ Get Admin Address of AMMPair Contract.
 ##### Response
 ```json
 {
-  "address": "Admin Address",
+  "factory_contract": "Contract",
+  "lp_token": "Contract",
+  "staking_contract": "Option<Contract>",
+  "pair": "TokenPair",
+  "custom_fee": "Option<CustomFee>",
 }
 ```
 
@@ -241,43 +282,6 @@ Get Claimable Reward Amount for staking.
 }
 ```
 
-#### SwapSimulation
-Swap simulation of token.
-
-##### Request
-| Name       | Type        | Description                              | optional |
-|------------|-------------|------------------------------------------|----------|
-|  offer    | TokenAmount   | Token Amount                     |    no    |
-
-##### Response
-```json
-{
-  "total_fee_amount": "Uint128",
-  "lp_fee_amount": "Uint128",
-  "shade_dao_fee_amount": "Uint128",
-  "result": "SwapResult",
-  "price": "String"
-}
-```
-
-#### GetShadeDaoInfo
-Get Shade Dao Information.
-
-##### Request
-| Name       | Type        | Description                              | optional |
-|------------|-------------|------------------------------------------|----------|
-|      |    |                       |        |
-
-##### Response
-```json
-{
-  "total_fee_amshade_dao_addressount": "HumanAddr",
-  "shade_dao_fee": "Fee",
-  "lp_fee": "Fee",
-  "lp_fee": "SwapResult",
-  "admin_address": "HumanAddr"
-}
-```
 
 #### GetEstimatedLiquidity
 Get Estimated Liquidity.
@@ -286,7 +290,7 @@ Get Estimated Liquidity.
 | Name       | Type        | Description                              | optional |
 |------------|-------------|------------------------------------------|----------|
 |  deposit    |  TokenPairAmount    |     Token Pair to deposit                  |     no   |
-|  slippage    |  Decimal    |     Slippage %                   |     yes   |
+
 
 ##### Response
 ```json
@@ -303,7 +307,7 @@ Get All addresses from whitelist.
 ##### Request
 | Name       | Type        | Description                              | optional |
 |------------|-------------|------------------------------------------|----------|
-|  staker    | HumanAddr   | staker's address                         |    no    |
+|      |    |                          |        |
 
 ##### Response
 ```json
@@ -315,17 +319,34 @@ Get All addresses from whitelist.
 ### Messages
 
 #### SwapTokens
-Swap Native Token.
+Swap Native Tokens.
 
 ##### Request
 
 | Name      | Type        | Description                             | optional |
 |-----------|----------------|--------------------------------------|----------|
 | offer     | TokenAmount | Amount and Token Type                   | no       |
-| expected_return | Uint128 | slippage, amount willing to accept    | yes      |
+| expected_return | Uint128 | Slippage, amount willing to accept    | yes      |
 | to | HumanAddr | The address to remove from LP                  | yes       |
-| router_link | ContractLink | Router Contract Info               | yes       |
-| callback_signature | Binary | signature to verify snip20        | yes       |
+
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
+#### SetViewingKey
+Update the viewing Key for a Pair.
+
+##### Request
+
+| Name      | Type        | Description                             | optional |
+|-----------|----------------|--------------------------------------|----------|
+| viewing_key     | String | The viewing key                   | no       |
+
+
 ##### Response
 ```json
 {
@@ -335,6 +356,27 @@ Swap Native Token.
 }
 ```
 
+#### Receive
+Extension of the SNIP20 receive callback used when receiving SNIP20 tokens used for trades.
+
+
+##### Request
+
+|Name|Type|Description|Optional|
+|-|-|-|-|
+| from | HumanAddr | who invokes the callback                  | no      |
+| amount | Uint128 | amount sent               | no       |
+| msg | Binary | Message to Invoke in Pair Contract                  | yes       |
+
+
+##### Response
+```json
+{
+  "complete_task": {
+    "status": "success"
+  }
+}
+```
 
 #### AddLiquidityToAMMContract
 Add Liquidity to the Pool and Staking Contract if configured.
@@ -344,7 +386,8 @@ Add Liquidity to the Pool and Staking Contract if configured.
 | Name      | Type        | Description                             | optional |
 |-----------|----------------|--------------------------------------|----------|
 | deposit     | TokenPairAmount | Amount and Token Type             | no       |
-| slippage | Uint128 | slippage, amount willing to accept         | yes      |
+| expected_return | Uint128 | slippage, amount willing to accept       | yes      |
+| staking | bool | Add his LP token to Staking if it is allowed        | yes      |
 
 ##### Response
 ```json
@@ -359,17 +402,18 @@ Add Liquidity to the Pool and Staking Contract if configured.
 ## Invoke
 ### Messages
 
-#### SwapTokens
-Swap Native Token.
+#### SwapTokens(Callback)
+Swap tokens.
 
 ##### Request
 
 | Name      | Type        | Description                             | optional |
 |-----------|----------------|--------------------------------------|----------|
-| expected_return | Uint128 | slippage, amount willing to accept    | yes      |
-| to | HumanAddr | The address to remove from LP                  | yes       |
-| router_link | ContractLink | Router Contract Info               | yes       |
-| callback_signature | Binary | signature to verify snip20        | yes       |
+| to | HumanAddr | who invokes the callback                  | yes      |
+| expected_return | Uint128 | Slippage, amount willing to accept                | yes       |
+
+
+
 ##### Response
 ```json
 {
@@ -396,28 +440,3 @@ Remove liquidity for address and remove from staking if applicable.
   }
 }
 ```
-
-
-## Callback
-### Messages
-
-#### Receive
-Receive Callback.
-
-##### Request
-
-| Name      | Type        | Description                             | optional |
-|-----------|----------------|--------------------------------------|----------|
-| from | HumanAddr | who invokes the callback                  | no      |
-| msg |  | Message to Invoke in Pair Contract                  | yes       |
-| amount | Uint128 | amount sent               | no       |
-
-##### Response
-```json
-{
-  "complete_task": {
-    "status": "success"
-  }
-}
-```
-

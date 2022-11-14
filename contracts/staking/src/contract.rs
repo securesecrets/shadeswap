@@ -1,20 +1,21 @@
 use cosmwasm_std::{
-    entry_point, Addr, Attribute, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, Uint128, to_binary, Binary, StdError, from_binary, CosmosMsg, BankMsg, Coin};
-use shadeswap_shared::{
-    core::{admin_r, admin_w, apply_admin_guard, ContractLink, TokenType},
-    query_auth::helpers::{authenticate_permit, PermitAuthentication},
-    staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
-    utils::{pad_query_result, pad_response_result}, snip20::helpers::send_msg, Contract,
+    entry_point, from_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Deps,
+    DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128,
 };
-
-use shadeswap_shared::staking::QueryResponse;
+use shadeswap_shared::{
+    core::{TokenType},
+    query_auth::helpers::{authenticate_permit, PermitAuthentication},
+    snip20::helpers::{send_msg, register_receive},
+    staking::{AuthQuery, ExecuteMsg, InitMsg, InvokeMsg, QueryData, QueryMsg},
+    utils::{pad_query_result, pad_response_result},
+    Contract, admin::helpers::{validate_admin, AdminPermissions},
+};
 
 use crate::{
     operations::{
         claim_rewards, get_claim_reward_for_user, get_config, get_staking_stake_lp_token_info,
-        set_reward_token, stake, store_init_reward_token_and_timestamp, unstake,
-        update_authenticator, proxy_stake, proxy_unstake,
+        proxy_stake, proxy_unstake, set_reward_token, stake, store_init_reward_token_and_timestamp,
+        unstake, update_authenticator, get_reward_token_to_list,
     },
     state::{config_r, config_w, prng_seed_w, Config},
 };
@@ -25,26 +26,34 @@ pub const BLOCK_SIZE: usize = 256;
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InitMsg,
 ) -> StdResult<Response> {
     let config = Config {
-        amm_pair: _info.sender.clone(),
+        amm_pair: info.sender.clone(),
         daily_reward_amount: msg.daily_reward_amount,
         reward_token: msg.reward_token.to_owned(),
-        lp_token: msg.lp_token,
+        lp_token: msg.lp_token.clone(),
         authenticator: msg.authenticator,
+        admin_auth: msg.admin_auth,
     };
     config_w(deps.storage).save(&config)?;
-    admin_w(deps.storage).save(&_info.sender)?;
     prng_seed_w(deps.storage).save(&msg.prng_seed.as_slice().to_vec())?;
 
+    let mut messages: Vec<CosmosMsg> = vec![];
+
+    messages.push(register_receive(
+        env.contract.code_hash.clone(),
+        None,
+        &msg.lp_token
+    )?);
+
     // store reward token to the list
-    let reward_token_address: ContractLink = match msg.reward_token {
+    let reward_token_address: Contract = match msg.reward_token {
         TokenType::CustomToken {
             contract_addr,
             token_code_hash,
-        } => ContractLink {
+        } => Contract {
             address: contract_addr.to_owned(),
             code_hash: token_code_hash.to_owned(),
         },
@@ -53,18 +62,17 @@ pub fn instantiate(
                 "Invalid Token Type for Reward Token".to_string(),
             ))
         }
-    };
-    let current_timestamp = Uint128::new((env.block.time.seconds() * 1000) as u128);
+    };    
     store_init_reward_token_and_timestamp(
         deps.storage,
         reward_token_address.to_owned(),
-        msg.daily_reward_amount,
-        current_timestamp,
+        msg.daily_reward_amount,        
+        msg.valid_to
     )?;
 
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
-    Ok(response.add_attributes(vec![
+    Ok(response.add_messages(messages).add_attributes(vec![
         Attribute::new("staking_contract_addr", env.contract.address),
         Attribute::new("reward_token", reward_token_address.address.to_string()),
         Attribute::new("daily_reward_amount", msg.daily_reward_amount),
@@ -76,23 +84,41 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     pad_response_result(
         match msg {
             ExecuteMsg::ProxyUnstake { for_addr, amount } => {
-                proxy_unstake(deps, env, info, for_addr, amount)
-            },
+                let checked_for_addr = deps.api.addr_validate(&for_addr)?;
+                proxy_unstake(deps, env, info, checked_for_addr, amount)
+            }
             ExecuteMsg::Receive {
                 from, amount, msg, ..
-            } => receiver_callback(deps, env, info, from, amount, msg),
+            } => {
+                let checked_from = deps.api.addr_validate(&from)?;
+                receiver_callback(deps, env, info, checked_from, amount, msg)
+            },
             ExecuteMsg::ClaimRewards {} => claim_rewards(deps, info, env),
             ExecuteMsg::Unstake {
                 amount,
                 remove_liqudity,
             } => unstake(deps, env, info, amount, remove_liqudity),
             ExecuteMsg::SetAuthenticator { authenticator } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 update_authenticator(deps.storage, authenticator)
             }
-            ExecuteMsg::SetAdmin { admin } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
-                admin_w(deps.storage).save(&admin)?;
+            ExecuteMsg::SetConfig { admin_auth } => {
+                let mut config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
+                if let Some(admin_auth) = admin_auth {
+                    config.admin_auth = admin_auth;
+                }
                 Ok(Response::default())
             }
             ExecuteMsg::SetRewardToken {
@@ -100,27 +126,42 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 daily_reward_amount,
                 valid_to,
             } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 set_reward_token(deps, env, info, reward_token, daily_reward_amount, valid_to)
-            },
+            }
             ExecuteMsg::RecoverFunds {
                 token,
                 amount,
                 to,
                 msg,
             } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 let send_msg = match token {
-                    TokenType::CustomToken { contract_addr, token_code_hash } => vec![send_msg(
-                        to,
+                    TokenType::CustomToken {
+                        contract_addr,
+                        token_code_hash,
+                    } => vec![send_msg(
+                        deps.api.addr_validate(&to)?,
                         amount,
                         msg,
                         None,
                         None,
-                        &Contract{
+                        &Contract {
                             address: contract_addr,
-                            code_hash: token_code_hash
-                        }
+                            code_hash: token_code_hash,
+                        },
                     )?],
                     TokenType::NativeToken { denom } => vec![CosmosMsg::Bank(BankMsg::Send {
                         to_address: to.to_string(),
@@ -154,13 +195,15 @@ fn receiver_callback(
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err("Sender was not LP Token".to_string()));
                 }
-                stake(deps, env, info, amount, from)
+                let checked_from = deps.api.addr_validate(&from)?;
+                stake(deps, env, info, amount, checked_from)
             }
             InvokeMsg::ProxyStake { for_addr } => {
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err("Sender was not LP Token".to_string()));
                 }
-                proxy_stake(deps, env, info, amount, from, for_addr)
+                let checked_for_addr = deps.api.addr_validate(&for_addr)?;
+                proxy_stake(deps, env, info, amount, from, checked_for_addr)
             }
         },
         BLOCK_SIZE,
@@ -179,14 +222,11 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     authenticate_permit(deps, permit, &deps.querier, config.authenticator)?;
 
                 if res.revoked {
-                    return Err(StdError::generic_err("".to_string()));
+                    return Err(StdError::generic_err("Permit has been revoked".to_string()));
                 }
 
                 auth_queries(deps, env, query, res.sender)
             }
-            QueryMsg::GetAdmin {} => to_binary(&QueryResponse::GetAdmin {
-                admin: admin_r(deps.storage).load()?,
-            }),
         },
         BLOCK_SIZE,
     )
@@ -196,5 +236,6 @@ pub fn auth_queries(deps: Deps, _env: Env, msg: AuthQuery, user: Addr) -> StdRes
     match msg {
         AuthQuery::GetClaimReward { time } => get_claim_reward_for_user(deps, user, time),
         AuthQuery::GetStakerLpTokenInfo {} => get_staking_stake_lp_token_info(deps, user),
+        AuthQuery::GetRewardTokens {  } => get_reward_token_to_list(deps.storage),
     }
 }

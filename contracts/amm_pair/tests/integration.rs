@@ -1148,8 +1148,10 @@ pub fn test_sslp_with_two_virtual_providers() {
     let total_liquidity: (Uint128, Uint128, Uint128) =
         get_pair_liquidity_pool_balance(&mut router, &amm_pair_contract);
     assert_eq!(total_liquidity.0, Uint128::new(100000000u128));
-    assert!(total_liquidity.1 > Uint128::new(100000000u128));
-    assert_eq!(total_liquidity.2, Uint128::new(100000000u128));
+
+    println!("{}", total_liquidity.1);
+    assert!(total_liquidity.1 < Uint128::new(100000000u128));
+    assert_eq!(total_liquidity.2, Uint128::new(100000100u128));
 
     // *** test expected return on withdraw
     roll_blockchain(&mut router, 1).unwrap();

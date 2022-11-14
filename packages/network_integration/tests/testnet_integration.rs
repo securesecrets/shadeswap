@@ -53,7 +53,6 @@ fn run_testnet() -> Result<()> {
 
     // set viewing key for staker
     print_header("\n\t Set Viewing Key for Staker - Staking Contract password");
-    print_header(&to_binary(&QueryData {}).unwrap().to_base64());
 
     let pair_contract_code_hash =
         store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?

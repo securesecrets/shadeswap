@@ -638,6 +638,21 @@ pub mod tests_calculation_price_and_fee {
             _ => { panic!("Unexpected msg type from estimated lp") },
         };
 
+        let msg = from_binary::<QueryMsgResponse>(&get_estimated_lp_token(deps.as_ref(), mock_env(), &TokenPairAmount{
+            pair: token_pair.clone(),
+            amount_0: Uint128::from(125u128),
+            amount_1: Uint128::from(100u128)
+        }).unwrap()
+        ).unwrap();
+        match msg {
+            QueryMsgResponse::EstimatedLiquidity { lp_token, total_lp_token: _, excess_token_0, excess_token_1 } => 
+            {
+                assert_eq!(excess_token_0, Uint128::from(25u128));
+                assert_eq!(excess_token_1, Uint128::from(0u128));
+            },
+            _ => { panic!("Unexpected msg type from estimated lp") },
+        };
+
     }
 
     #[test]

@@ -14,6 +14,8 @@ pub mod cycle;
 pub mod wrap;
 pub mod price;
 pub mod calc;
+pub mod addr;
+pub use addr::*;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod testing;

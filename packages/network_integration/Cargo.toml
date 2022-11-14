@@ -14,9 +14,9 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = []
 
-#[[bin]]
-#name="scrtcli"
-#path="src/launch/scrtcli.rs"
+[[bin]]
+name="cli_run"
+path="src/launch/cli_run.rs"
 
 [dependencies]
 colored = "2.0.0"

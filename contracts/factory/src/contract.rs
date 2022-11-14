@@ -41,7 +41,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 pair,
                 entropy,
                 staking_contract,
-                router_contract,
             } => {
                 let config = config_r(deps.storage).load()?;
                 validate_admin(
@@ -53,11 +52,9 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 create_pair(
                     deps,
                     env,
-                    &info,
                     pair,
                     entropy,
-                    staking_contract,
-                    router_contract,
+                    staking_contract
                 )
             }
             ExecuteMsg::SetConfig {
@@ -92,27 +89,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     &config.admin_auth,
                 )?;
                 add_amm_pairs(deps.storage, amm_pairs)
-            },
-            ExecuteMsg::RegisterAMMPair { pair, signature } => {
-                let config = ephemeral_storage_r(deps.storage).load()?;
-                if config.key != signature {
-                    return Err(StdError::generic_err("Invalid signature given".to_string()));
-                }
-                if pair != config.pair {
-                    return Err(StdError::generic_err(
-                        "Provided pair is not equal.".to_string(),
-                    ));
-                }
-                ephemeral_storage_w(deps.storage).remove();
-                register_amm_pair(
-                    deps.storage,
-                    env,
-                    AMMPair {
-                        pair: config.pair,
-                        address: info.sender,
-                        enabled: true,
-                    },
-                )
             }
         },
         BLOCK_SIZE,
@@ -163,10 +139,9 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                     let config = ephemeral_storage_r(deps.storage).load()?;
                     register_amm_pair(
                         deps.storage,
-                        _env,
                         AMMPair {
                             pair: config.pair,
-                            address: deps.api.addr_validate(&contract_address)?,
+                            address: deps.api.addr_validate(&contract_address.replace(" ", ""))?,
                             enabled: true,
                         },
                     )?;

@@ -15,11 +15,11 @@ use cosmwasm_std::{
 };
 use shadeswap_shared::{
     admin::helpers::{validate_admin, AdminPermissions},
-    core::{create_viewing_key, ContractLink, TokenAmount, TokenType},
+    core::{create_viewing_key, TokenAmount, TokenType},
     lp_token::{InitConfig, InstantiateMsg},
     msg::amm_pair::{ExecuteMsg, InitMsg, InvokeMsg, QueryMsg, QueryMsgResponse},
     snip20::helpers::send_msg,
-    utils::{pad_query_result, pad_response_result},
+    utils::{pad_query_result, pad_response_result, try_addr_validate_option},
     Contract,
 };
 
@@ -32,7 +32,7 @@ pub const BLOCK_SIZE: usize = 256;
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InitMsg,
 ) -> StdResult<Response> {
     if msg.pair.0 == msg.pair.1 {
@@ -43,7 +43,7 @@ pub fn instantiate(
 
     let mut response = Response::new();
     let mut messages = vec![];
-    let viewing_key = create_viewing_key(&env, &_info, msg.prng_seed.clone(), msg.entropy.clone());
+    let viewing_key = create_viewing_key(&env, &info, msg.prng_seed.clone(), msg.entropy.clone());
     register_pair_token(&env, &mut messages, &msg.pair.0, &viewing_key)?;
     register_pair_token(&env, &mut messages, &msg.pair.1, &viewing_key)?;
     response = response.add_messages(messages);
@@ -53,7 +53,7 @@ pub fn instantiate(
             "SHADESWAP Liquidity Provider (LP) token for {}-{}",
             &msg.pair.0, &msg.pair.1
         ),
-        admin: Some(env.contract.address.clone()),
+        admin: Some(env.contract.address.to_string()),
         symbol: format!(
             "{}/{} LP",
             query_token_symbol(deps.querier, &msg.pair.0)?,
@@ -85,21 +85,9 @@ pub fn instantiate(
         INSTANTIATE_LP_TOKEN_REPLY_ID,
     ));
 
-    match msg.callback {
-        Some(c) => {
-            response = response.add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: c.contract.address.to_string(),
-                code_hash: c.contract.code_hash,
-                msg: c.msg,
-                funds: vec![],
-            }))
-        }
-        None => (),
-    }
-
     let config = Config {
         factory_contract: msg.factory_info.clone(),
-        lp_token: ContractLink {
+        lp_token: Contract {
             code_hash: msg.lp_token_contract.code_hash,
             address: Addr::unchecked(""),
         },
@@ -113,7 +101,9 @@ pub fn instantiate(
     };
 
     config_w(deps.storage).save(&config)?;
-    Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
+    response.data = Some(env.contract.address.as_bytes().into());
+
+    Ok(response)
 }
 
 #[entry_point]
@@ -122,7 +112,10 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         match msg {
             ExecuteMsg::Receive {
                 from, amount, msg, ..
-            } => receiver_callback(deps, env, info, from, amount, msg),
+            } => {
+                let checked_addr = deps.api.addr_validate(&from)?;
+                receiver_callback(deps, env, info, checked_addr, amount, msg)
+            }
             ExecuteMsg::AddLiquidityToAMMContract {
                 deposit,
                 expected_return,
@@ -148,24 +141,26 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     &info.sender,
                     &config.admin_auth,
                 )?;
-                add_address_to_whitelist(deps.storage, address)
+                add_address_to_whitelist(deps.storage, deps.api.addr_validate(&address)?)
             }
             ExecuteMsg::RemoveWhitelistAddresses { addresses } => {
                 let config = config_r(deps.storage).load()?;
+                let checked_addresses = addresses
+                    .iter()
+                    .flat_map(|v| deps.api.addr_validate(&v))
+                    .collect();
                 validate_admin(
                     &deps.querier,
                     AdminPermissions::ShadeSwapAdmin,
                     &info.sender,
                     &config.admin_auth,
                 )?;
-                remove_addresses_from_whitelist(deps.storage, addresses, env)
+                remove_addresses_from_whitelist(deps.storage, checked_addresses)
             }
             ExecuteMsg::SwapTokens {
                 offer,
                 expected_return,
                 to,
-                router_link,
-                callback_signature,
             } => {
                 if !offer.token.is_native_token() {
                     return Err(StdError::generic_err("Use the receive interface"));
@@ -173,16 +168,15 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 offer.assert_sent_native_token_balance(&info)?;
                 let config_settings = config_r(deps.storage).load()?;
                 let sender = info.sender.clone();
+                let checked_to = try_addr_validate_option(deps.api, to)?;
                 swap(
                     deps,
                     env,
                     config_settings,
                     sender,
-                    to,
+                    checked_to,
                     offer,
                     expected_return,
-                    router_link,
-                    callback_signature,
                 )
             }
             ExecuteMsg::SetViewingKey { viewing_key } => update_viewing_key(env, deps, viewing_key),
@@ -217,7 +211,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                         contract_addr,
                         token_code_hash,
                     } => vec![send_msg(
-                        to,
+                        deps.api.addr_validate(&to)?,
                         amount,
                         msg,
                         None,
@@ -260,8 +254,6 @@ fn receiver_callback(
             InvokeMsg::SwapTokens {
                 to,
                 expected_return,
-                router_link,
-                callback_signature,
             } => {
                 for token in config.pair.into_iter() {
                     match token {
@@ -272,20 +264,21 @@ fn receiver_callback(
                                     amount,
                                 };
 
+                                let checked_to =
+                                    Some(deps.api.addr_validate(&to.ok_or_else(|| {
+                                        StdError::generic_err(
+                                            "No recipient sent with invoke.".to_string(),
+                                        )
+                                    })?)?);
+
                                 return swap(
                                     deps,
                                     env,
                                     config,
                                     from,
-                                    Some(to.ok_or_else(|| {
-                                        StdError::generic_err(
-                                            "No recipient sent with invoke.".to_string(),
-                                        )
-                                    })?),
+                                    checked_to,
                                     offer,
                                     expected_return,
-                                    router_link,
-                                    callback_signature,
                                 );
                             }
                         }
@@ -297,15 +290,19 @@ fn receiver_callback(
                     "No matching token in pair".to_string(),
                 ))
             }
-            InvokeMsg::RemoveLiquidity { from } => {
+            InvokeMsg::RemoveLiquidity { from, single_sided_withdraw_type, single_sided_expected_return } => {
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err(
                         "LP Token was not sent to remove liquidity.".to_string(),
                     ));
                 }
+
                 match from {
-                    Some(address) => remove_liquidity(deps, env, amount, address),
-                    None => remove_liquidity(deps, env, amount, from_caller),
+                    Some(address) => {
+                        let checked_address = deps.api.addr_validate(&address)?;
+                        remove_liquidity(deps, env, amount, checked_address, single_sided_withdraw_type, single_sided_expected_return)
+                    }
+                    None => remove_liquidity(deps, env, amount, from_caller,  single_sided_withdraw_type, single_sided_expected_return),
                 }
             }
         },
@@ -343,7 +340,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 query_factory_authorize_api_key(deps, &config.factory_contract, api_key)?;
                 let data = load_trade_history_query(deps, pagination)?;
                 to_binary(&QueryMsgResponse::GetTradeHistory { data })
-            },
+            }
             QueryMsg::GetWhiteListAddress {} => {
                 let stored_addr = whitelist_r(deps.storage).load()?;
                 to_binary(&QueryMsgResponse::GetWhiteListAddress {
@@ -369,7 +366,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             QueryMsg::SwapSimulation { offer } => swap_simulation(deps, env, offer),
             QueryMsg::GetShadeDaoInfo {} => get_shade_dao_info(deps),
             QueryMsg::GetEstimatedLiquidity { deposit } => {
-                get_estimated_lp_token(deps, env, deposit)
+                get_estimated_lp_token(deps, env, &deposit)
             }
             QueryMsg::GetConfig {} => {
                 let config = config_r(deps.storage).load()?;
@@ -387,7 +384,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[entry_point]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     pad_response_result(
         match (msg.id, msg.result) {
             (INSTANTIATE_LP_TOKEN_REPLY_ID, SubMsgResult::Ok(s)) => match s.data {
@@ -395,14 +392,18 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                     let contract_address =
                         deps.api.addr_validate(&String::from_utf8(x.to_vec())?)?;
                     let config = config_r(deps.storage).load()?;
-                    register_lp_token(
+                    let mut response = register_lp_token(
                         deps,
-                        _env,
+                        &env,
                         Contract {
                             address: contract_address,
                             code_hash: config.lp_token.code_hash,
                         },
-                    )
+                    )?;
+                    
+                    response.data = Some(env.contract.address.to_string().as_bytes().into());
+
+                    Ok(response)
                 }
                 None => Err(StdError::generic_err(format!("Unknown reply id"))),
             },
@@ -410,9 +411,9 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                 Some(x) => {
                     let contract_address = String::from_utf8(x.to_vec())?;
                     let config = config_r(deps.storage).load()?;
-                    set_staking_contract(
+                    let mut response = set_staking_contract(
                         deps.storage,
-                        Some(ContractLink {
+                        Some(Contract {
                             address: deps.api.addr_validate(&contract_address)?,
                             code_hash: config
                                 .staking_contract_init
@@ -422,7 +423,11 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                                 .contract_info
                                 .code_hash,
                         }),
-                    )
+                    )?;
+                    
+                    response.data = Some(env.contract.address.to_string().as_bytes().into());
+
+                    Ok(response)
                 }
                 None => Err(StdError::generic_err(format!("Unknown reply id"))),
             },

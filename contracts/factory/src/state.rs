@@ -43,9 +43,7 @@ impl Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct NextPairKey {
-    pub pair: TokenPair,
-    pub key: Binary,
-    pub is_verified: bool
+    pub pair: TokenPair
 }
 
 pub fn config_w(storage: &mut dyn Storage) -> Singleton<Config> {

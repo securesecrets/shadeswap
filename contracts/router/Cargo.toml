@@ -32,3 +32,9 @@ schemars = "0.8.1"
 cosmwasm-std = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
 cosmwasm-storage = { git = "https://github.com/scrtlabs/cosmwasm", branch = "secret" }
 shadeswap-shared = {path = "../../packages/shadeswap-shared"}
+
+[dev-dependencies]
+cosmwasm-schema = { git = "https://github.com/CosmWasm/cosmwasm"}
+snip20-reference-impl = {path ="../../contracts/snip20"}
+secret-multi-test = { git = "https://github.com/securesecrets/secret-plus-utils", version = "0.13.4" }
+multi_test = {path = "../../packages/multi_test"}

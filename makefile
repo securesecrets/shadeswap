@@ -64,12 +64,14 @@ format:
 
 # Downloads the docker server
 server-download:
-	docker pull securesecrets/sn-testnet:v0.2
+	docker pull cryptobrokersglobal/localsecret:beta-nested-attributes
 
 # Starts the docker server / private testnet
 server-start:
-	docker run -it --rm -p 9091:9091 -p 26657:26657 -p 1317:1317 -p 5000:5000 -v $$(pwd):/root/code --name shade-testnet cryptobrokersglobal/localsecret:v1.4.0-beta.14
+	docker run -it --rm -p 9091:9091 -p 26657:26657 -p 1317:1317 -p 5000:5000 -v $$(pwd):/root/code --name shade-testnet cryptobrokersglobal/localsecret:beta-nested-attributes
 
+server-start-background:
+	docker run  -p 9091:9091 -p 26657:26657 -d -p 1317:1317 -p 5000:5000 -v $$(pwd):/root/code --name shade-testnet cryptobrokersglobal/localsecret:beta-nested-attributes
 # Connects to the docker server
 server-connect:
 	docker exec -it shade-testnet /bin/bash

@@ -72,7 +72,7 @@ impl TokenType {
             TokenType::CustomToken {
                 contract_addr,
                 token_code_hash,
-            } => {
+            } => {                            
                 balance_query(&deps.querier,  deps.api.addr_validate(&exchange_addr)?, viewing_key,  &Contract {
                     address: contract_addr.clone(),
                     code_hash: token_code_hash.clone(),

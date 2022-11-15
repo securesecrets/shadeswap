@@ -15,9 +15,10 @@ use shadeswap_shared::{
 
 use crate::{
     operations::{
-        next_swap, query_pair_contract_config, refresh_tokens, swap_simulation,
+        next_swap, refresh_tokens,
         swap_tokens_for_exact_tokens,
     },
+    query::{query_swap_simulation, query_pair_contract_config},
     state::{config_r, config_w, Config},
 };
 
@@ -211,7 +212,7 @@ fn receiver_callback(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     pad_query_result(
         match msg {
-            QueryMsg::SwapSimulation { offer, path } => swap_simulation(deps, path, offer),
+            QueryMsg::SwapSimulation { offer, path } => query_swap_simulation(deps, path, offer),
             QueryMsg::GetConfig {} => return Ok(to_binary(&QueryMsgResponse::GetConfig {})?),
         },
         BLOCK_SIZE,

@@ -303,7 +303,7 @@ pub mod tests_calculation_price_and_fee {
     use shadeswap_shared::msg::amm_pair::QueryMsgResponse;
 
     use crate::operations::{
-        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity   };
+        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity, is_address_in_whitelist   };
 
     use crate::query::{self, estimated_liquidity};
     use crate::test::help_test_lib::{
@@ -433,9 +433,10 @@ pub mod tests_calculation_price_and_fee {
         let address_a = Addr::unchecked("TESTA".to_string());
         add_whitelist_address(deps.as_mut().storage, address_a.clone())?;    
         let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let is_user_whitelist = is_address_in_whitelist(deps.as_mut().as_ref().storage, &address_a)?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-            Some(true))?;
+            Some(is_user_whitelist))?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
         assert_eq!(Uint128::new(560u128), swap_result.lp_fee_amount);
         Ok(())

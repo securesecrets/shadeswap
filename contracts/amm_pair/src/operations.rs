@@ -164,10 +164,11 @@ pub fn swap(
     offer: TokenAmount,
     expected_return: Option<Uint128>,
 ) -> StdResult<Response> {
-    let swaper_receiver = recipient.unwrap_or(sender);
+    let swaper_receiver = recipient.unwrap_or(sender.clone());
 
     let fee_info = query::fee_info(deps.as_ref(), &env)?;
-
+    // check if user whitelist
+    let is_user_whitelist = is_address_in_whitelist(deps.storage,&sender)?;
     let swap_result = calculate_swap_result(
         deps.as_ref(),
         &env,
@@ -175,7 +176,7 @@ pub fn swap(
         fee_info.shade_dao_fee,
         &config,
         &offer,
-        None,
+        Some(is_user_whitelist),
     )?;
 
     // check for the slippage expected value compare to actual value
@@ -308,7 +309,7 @@ pub fn calculate_swap_result(
     }
     // total fee
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
-
+   
     // sub fee from offer amount
     let mut deducted_offer_amount = offer.amount - total_fee_amount;
     if let Some(true) = exclude_fee {
@@ -376,7 +377,7 @@ pub fn lp_virtual_swap(
                 token: new_deposit.pair.0.clone(),
                 amount: half_of_extra,
             };
-
+            
             let swap = calculate_swap_result(
                 deps,
                 env,

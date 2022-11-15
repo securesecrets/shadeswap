@@ -24,6 +24,7 @@ use crate::{
     state::{config_r, config_w, epheral_storage_r, epheral_storage_w, CurrentSwapInfo}, 
 };
 
+/// Set Viewing Key for Router & register pair token.
 pub fn refresh_tokens(
     deps: DepsMut,
     env: Env,
@@ -53,6 +54,7 @@ pub fn refresh_tokens(
     Ok(Response::new().add_messages(msg))
 }
 
+/// Execute Next Swap
 pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<Response> {
     let current_trade_info: Option<CurrentSwapInfo> = epheral_storage_r(deps.storage).may_load()?;
     if let Some(mut info) = current_trade_info {
@@ -132,6 +134,7 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
     }
 }
 
+/// Execute Swap for Exact Token 
 pub fn swap_tokens_for_exact_tokens(
     deps: DepsMut,
     env: Env,
@@ -186,6 +189,7 @@ pub fn swap_tokens_for_exact_tokens(
     }
 }
 
+/// Update Viewing Key 
 pub fn update_viewing_key(storage: &mut dyn Storage, viewing_key: String) -> StdResult<Response> {
     let mut config = config_w(storage).load()?;
     config.viewing_key = viewing_key;
@@ -193,6 +197,7 @@ pub fn update_viewing_key(storage: &mut dyn Storage, viewing_key: String) -> Std
     Ok(Response::default())
 }
 
+/// Get Trade from AMMPairs
 fn get_trade_with_callback(
     env: Env,
     token_in: TokenAmount,
@@ -250,6 +255,7 @@ fn get_trade_with_callback(
     return Ok(response);
 }
 
+/// Register Pair Token in Router
 fn register_pair_token(
     env: &Env,
     messages: &mut Vec<CosmosMsg>,

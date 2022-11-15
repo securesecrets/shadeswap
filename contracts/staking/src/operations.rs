@@ -24,6 +24,7 @@ use crate::state::{
     StakingInfo,
 };
 
+/// Calculate Staker % of Total Staking Amount
 pub fn calculate_staker_shares(storage: &dyn Storage, amount: Uint128) -> StdResult<Decimal> {
     let total_staking_amount: Uint128 = match total_staked_r(storage).may_load()? {
         Some(staking_amount) => staking_amount,
@@ -37,6 +38,7 @@ pub fn calculate_staker_shares(storage: &dyn Storage, amount: Uint128) -> StdRes
     Ok(user_share)
 }
 
+/// Store init reward token with timestamp 
 pub fn store_init_reward_token_and_timestamp(
     storage: &mut dyn Storage,
     reward_token: Contract,
@@ -58,6 +60,7 @@ pub fn store_init_reward_token_and_timestamp(
     Ok(())
 }
 
+/// Set New or Update Existing Reward Token
 pub fn set_reward_token(
     deps: DepsMut,
     env: Env,
@@ -90,6 +93,7 @@ pub fn set_reward_token(
     ]))
 }
 
+/// Stake 
 pub fn stake(
     deps: DepsMut,
     env: Env,
@@ -151,10 +155,12 @@ pub fn stake(
     ]))
 }
 
+/// Generate proxy Staking Key for Proxy Staker
 pub fn generate_proxy_staking_key(from: &Addr, for_addr: &Addr) -> Vec<u8> {
     [from.as_bytes(), for_addr.as_bytes()].concat()
 }
 
+/// Execute Proxy Stake
 pub fn proxy_stake(
     deps: DepsMut,
     env: Env,
@@ -239,6 +245,7 @@ pub fn proxy_stake(
     ]))
 }
 
+/// Return Total Stakers Count
 pub fn get_total_stakers_count(storage: &dyn Storage) -> StdResult<Uint128> {
     return match total_stakers_r(storage).may_load()? {
         Some(count) => Ok(count),
@@ -246,6 +253,7 @@ pub fn get_total_stakers_count(storage: &dyn Storage) -> StdResult<Uint128> {
     };
 }
 
+/// Execute Claim Rewards for Staker
 pub fn claim_rewards(deps: DepsMut, info: MessageInfo, env: Env) -> StdResult<Response> {
     let receiver = info.sender.clone();
     let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
@@ -361,6 +369,7 @@ pub fn claim_rewards_for_all_stakers(
     Ok(())
 }
 
+/// Return List of Reward Tokens
 pub fn get_reward_tokens_info(storage: &dyn Storage) -> StdResult<Vec<RewardTokenInfo>> {
     let mut list_token: Vec<RewardTokenInfo> = Vec::new();
     let reward_list = reward_token_list_r(storage).load()?;
@@ -372,6 +381,7 @@ pub fn get_reward_tokens_info(storage: &dyn Storage) -> StdResult<Vec<RewardToke
     Ok(list_token)
 }
 
+/// Return All Claimable Rewards for Staker
 pub fn get_all_claimable_reward_for_staker(
     storage: &dyn Storage,
     staker_address: &Addr,
@@ -383,6 +393,7 @@ pub fn get_all_claimable_reward_for_staker(
     Ok(claim_info)
 }
 
+/// Find All Claiamable Reward by Reward Token
 pub fn find_claimable_reward_for_staker_by_reward_token(
     storage: &dyn Storage,
     staker_address: &Addr,
@@ -403,6 +414,7 @@ pub fn find_claimable_reward_for_staker_by_reward_token(
     Ok(result)
 }
 
+/// Find All Claimable Reward by Staker
 pub fn find_claimable_reward_index_for_staker(
     storage: &dyn Storage,
     staker_address: &Addr,
@@ -414,6 +426,7 @@ pub fn find_claimable_reward_index_for_staker(
         .position(|x| x.reward_token_addr == reward_token.address));
 }
 
+/// Save Claimable Info for Staker
 pub fn save_claimable_amount_staker_by_reward_token(
     storage: &mut dyn Storage,
     amount: Uint128,
@@ -529,6 +542,7 @@ pub fn proxy_unstake(
     }
 }
 
+/// Unstake Amount
 pub fn unstake(
     deps: DepsMut,
     env: Env,
@@ -620,6 +634,7 @@ pub fn create_send_msg(
     Ok(msg)
 }
 
+/// Check if Address is already stored as Staker
 pub fn is_address_already_staker(deps: Deps, address: Addr) -> StdResult<bool> {
     let addrs = stakers_r(deps.storage).may_load(address.as_bytes())?;
     match addrs {
@@ -628,6 +643,7 @@ pub fn is_address_already_staker(deps: Deps, address: Addr) -> StdResult<bool> {
     }
 }
 
+/// Iterate through all claimable Rewards and send it to Staker
 fn process_all_claimable_rewards(
     storage: &mut dyn Storage,
     receiver: String,

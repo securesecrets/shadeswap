@@ -1,6 +1,6 @@
 use crate::{
     operations::{
-        add_address_to_whitelist, add_liquidity, load_trade_history_query, register_lp_token,
+        add_address_to_whitelist, add_liquidity, register_lp_token,
         register_pair_token, remove_addresses_from_whitelist, remove_liquidity,
         set_staking_contract, swap, update_viewing_key,
     },
@@ -358,7 +358,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 match config.factory_contract {
                     Some(factory_contract) => {
                         query::factory_authorize_api_key(deps, &factory_contract, api_key)?;
-                        let data = load_trade_history_query(deps, pagination)?;
+                        let data = query::trade_history_page(deps, pagination)?;
                         to_binary(&QueryMsgResponse::GetTradeHistory { data })
                     }
                     None => Err(StdError::generic_err(

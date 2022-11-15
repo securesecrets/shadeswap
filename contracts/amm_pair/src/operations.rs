@@ -155,6 +155,7 @@ pub fn register_pair_token(
     Ok(())
 }
 
+// Initiate a swap
 pub fn swap(
     deps: DepsMut,
     env: Env,
@@ -235,6 +236,7 @@ pub fn swap(
     Ok(Response::new().add_messages(messages))
 }
 
+// Set staking contract within the config
 pub fn set_staking_contract(
     storage: &mut dyn Storage,
     staking_contract: Option<Contract>,
@@ -249,30 +251,7 @@ pub fn set_staking_contract(
     Ok(Response::new())
 }
 
-pub fn load_trade_history_query(
-    deps: Deps,
-    pagination: Pagination,
-) -> StdResult<Vec<TradeHistory>> {
-    let count = trade_count_r(deps.storage).may_load()?.unwrap_or(0u64);
-
-    if pagination.start >= count {
-        return Ok(vec![]);
-    }
-
-    let limit = pagination.limit.min(PAGINATION_LIMIT);
-    let end = (pagination.start + limit as u64).min(count);
-
-    let mut result = Vec::with_capacity((end - pagination.start) as usize);
-
-    for i in pagination.start..end {
-        let temp_index = i + 1;
-        let trade_history: TradeHistory = query::trade_history(deps, temp_index)?;
-        result.push(trade_history);
-    }
-
-    Ok(result)
-}
-
+// Calculate the outcome given an offer
 pub fn calculate_swap_result(
     deps: Deps,
     env: &Env,
@@ -348,7 +327,7 @@ pub fn remove_addresses_from_whitelist(
     Ok(Response::default().add_attribute("action", "remove_address_from_whitelist"))
 }
 
-//executes a virtual swap of the excess provided token for the other, balancing the lp provided
+// Executes a virtual swap of the excess provided token for the other, balancing the lp provided
 //if the messages param is provided, a message is added which sends the shade dao fee to the dao
 pub fn lp_virtual_swap(
     deps: Deps,
@@ -432,6 +411,7 @@ pub fn lp_virtual_swap(
     Ok(new_deposit)
 }
 
+// Remove liquidity from the LP Pool
 pub fn remove_liquidity(
     deps: DepsMut,
     env: Env,
@@ -559,6 +539,7 @@ pub fn remove_liquidity(
         ]))
 }
 
+// Calculate the price given LP information
 pub fn calculate_price(
     amount: Uint128,
     token0_pool_balance: Uint128,
@@ -567,6 +548,7 @@ pub fn calculate_price(
     Ok(token1_pool_balance.multiply_ratio(amount, token0_pool_balance + amount))
 }
 
+// Add liquidity to pool
 pub fn add_liquidity(
     deps: DepsMut,
     env: Env,

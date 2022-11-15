@@ -53,19 +53,6 @@ pub fn add_amm_pairs(storage: &mut dyn Storage, amm_pairs: Vec<AMMPair>) -> StdR
     Ok(Response::new().add_attribute("action", "register_amm_pairs"))
 }
 
-pub fn list_pairs(deps: Deps, pagination: Pagination) -> StdResult<Binary> {
-    let amm_pairs = load_amm_pairs(deps, pagination)?;
-
-    to_binary(&QueryResponse::ListAMMPairs { amm_pairs })
-}
-
-pub fn query_amm_pair_address(deps: &Deps, pair: TokenPair) -> StdResult<Binary> {
-    let address = amm_pair_keys_r(deps.storage).load(&generate_pair_key(&pair))?;
-    to_binary(&QueryResponse::GetAMMPairAddress {
-        address: address.to_string(),
-    })
-}
-
 pub fn set_config(
     pair_contract: Option<ContractInstantiationInfo>,
     lp_token_contract: Option<ContractInstantiationInfo>,
@@ -137,28 +124,3 @@ pub fn create_pair(
     Ok(Response::new().add_submessages(messages))
 }
 
-pub(crate) fn load_amm_pairs(deps: Deps, pagination: Pagination) -> StdResult<Vec<AMMPair>> {
-    let count = total_amm_pairs_r(deps.storage).may_load()?;
-
-    match count {
-        Some(c) => {
-            if pagination.start >= c {
-                return Ok(vec![]);
-            }
-
-            let limit = pagination.limit.min(PAGINATION_LIMIT);
-            let end = (pagination.start + limit as u64).min(c);
-
-            let mut result = Vec::with_capacity((end - pagination.start) as usize);
-
-            for i in pagination.start..end {
-                let exchange: AMMPair = amm_pairs_r(deps.storage).load(i.to_string().as_bytes())?;
-
-                result.push(exchange);
-            }
-
-            Ok(result)
-        }
-        None => Ok(vec![]),
-    }
-}

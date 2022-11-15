@@ -1,5 +1,3 @@
-// This should be callback from Snip20 Receiver
-// needs to check for the amount
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
 
 use cosmwasm_std::{Binary};
@@ -451,9 +449,7 @@ pub fn save_claimable_amount_staker_by_reward_token(
     Ok(())
 }
 
-/**
- *
- */
+// Calculate any incremental reward from what is stored in storage to now
 pub fn calculate_incremental_staking_reward(
     percentage: Decimal,
     last_timestamp: Uint128,
@@ -471,6 +467,7 @@ pub fn calculate_incremental_staking_reward(
     }
 }
 
+// Update authenticator used to authenticate permits
 pub fn update_authenticator(
     storage: &mut dyn Storage,
     authenticator: Option<Contract>,
@@ -481,6 +478,7 @@ pub fn update_authenticator(
     Ok(Response::default())
 }
 
+// Unstake and proxy staked funds
 pub fn proxy_unstake(
     deps: DepsMut,
     env: Env,

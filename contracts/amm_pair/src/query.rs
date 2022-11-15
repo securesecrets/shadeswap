@@ -7,13 +7,13 @@ use shadeswap_shared::{
     core::{Fee, TokenAmount, TokenPairAmount, TokenType},
     factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
     snip20::helpers::token_info,
-    Contract,
+    Contract, Pagination,
 };
 
 use crate::{
     contract::query,
     operations::{calculate_lp_tokens, calculate_swap_result, lp_virtual_swap},
-    state::{config_r, trade_history_r},
+    state::{config_r, trade_history_r, trade_count_r, PAGINATION_LIMIT},
 };
 
 pub struct FactoryConfig {
@@ -260,4 +260,29 @@ pub fn trade_history(deps: Deps, count: u64) -> StdResult<TradeHistory> {
     let trade_history: TradeHistory =
         trade_history_r(deps.storage).load(count.to_string().as_bytes())?;
     Ok(trade_history)
+}
+
+
+pub fn trade_history_page(
+    deps: Deps,
+    pagination: Pagination,
+) -> StdResult<Vec<TradeHistory>> {
+    let count = trade_count_r(deps.storage).may_load()?.unwrap_or(0u64);
+
+    if pagination.start >= count {
+        return Ok(vec![]);
+    }
+
+    let limit = pagination.limit.min(PAGINATION_LIMIT);
+    let end = (pagination.start + limit as u64).min(count);
+
+    let mut result = Vec::with_capacity((end - pagination.start) as usize);
+
+    for i in pagination.start..end {
+        let temp_index = i + 1;
+        let trade_history: TradeHistory = trade_history(deps, temp_index)?;
+        result.push(trade_history);
+    }
+
+    Ok(result)
 }

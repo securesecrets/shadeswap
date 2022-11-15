@@ -31,7 +31,6 @@ pub mod staking_mock {
     pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         pad_query_result(
             match msg {
-                QueryMsg::GetContractOwner {} => to_binary(""),
                 QueryMsg::GetConfig {} => to_binary(""),
                 QueryMsg::WithPermit {
                     permit: _,

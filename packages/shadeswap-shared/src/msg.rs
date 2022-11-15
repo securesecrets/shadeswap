@@ -499,7 +499,6 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        GetContractOwner {},
         GetConfig {},
         GetRewardTokens { },
         WithPermit {

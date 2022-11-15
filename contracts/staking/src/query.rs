@@ -5,7 +5,7 @@ use shadeswap_shared::utils::asset::Contract;
 use crate::operations::{find_claimable_reward_for_staker_by_reward_token, calculate_incremental_staking_reward, get_reward_tokens_info, calculate_staker_shares};
 use crate::state::{stakers_r, total_staked_r, config_r};
 
-pub fn get_config(deps: Deps) -> StdResult<Binary> {
+pub fn config(deps: Deps) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
     if let TokenType::CustomToken {
         contract_addr,
@@ -29,7 +29,7 @@ pub fn get_config(deps: Deps) -> StdResult<Binary> {
     }
 }
 
-pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResult<Binary> {
+pub fn claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResult<Binary> {
     // load stakers   
     let mut result_list: Vec<ClaimableInfo> = Vec::new();
     let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;
@@ -90,7 +90,7 @@ pub fn get_claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> Std
     })
 }
 
-pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Binary> {
+pub fn staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Binary> {
     let staker_amount = stakers_r(deps.storage).may_load(&staker.as_bytes())?.map_or_else(|| Uint128::zero(), |v| v.amount);
 
     let response_msg = QueryResponse::StakerLpTokenInfo {
@@ -100,7 +100,7 @@ pub fn get_staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Bi
     to_binary(&response_msg)
 }
 
-pub fn get_reward_token_to_list(storage:& dyn Storage) 
+pub fn reward_token_list(storage:& dyn Storage) 
     -> StdResult<Binary> {
         let list: Vec<RewardTokenInfo> = get_reward_tokens_info(storage)?;
         let mut response: Vec<RewardTokenInfo> = vec![];

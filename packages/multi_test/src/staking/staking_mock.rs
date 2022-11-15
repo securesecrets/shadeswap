@@ -1,7 +1,6 @@
 pub mod staking_mock {
     use cosmwasm_std::{
-        entry_point, to_binary, Binary, Deps, DepsMut,
-        Env, MessageInfo, Response, StdResult,
+        entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
     };
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
@@ -38,6 +37,7 @@ pub mod staking_mock {
                     permit: _,
                     query: _,
                 } => to_binary(""),
+                QueryMsg::GetRewardTokens {} => to_binary("")
             },
             BLOCK_SIZE,
         )
@@ -53,12 +53,19 @@ pub mod staking_mock {
         pad_response_result(
             match msg {
                 ExecuteMsg::ClaimRewards {} => Ok(Response::new()),
-                ExecuteMsg::ProxyUnstake { for_addr: _, amount: _ } => Ok(Response::new()),
+                ExecuteMsg::ProxyUnstake {
+                    for_addr: _,
+                    amount: _,
+                } => Ok(Response::new()),
                 ExecuteMsg::Unstake {
                     amount: _,
                     remove_liqudity: _,
                 } => Ok(Response::new()),
-                ExecuteMsg::Receive { from: _, msg: _, amount: _ } => Ok(Response::new()),
+                ExecuteMsg::Receive {
+                    from: _,
+                    msg: _,
+                    amount: _,
+                } => Ok(Response::new()),
                 ExecuteMsg::SetRewardToken {
                     reward_token: _,
                     daily_reward_amount: _,

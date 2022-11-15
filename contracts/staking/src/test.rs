@@ -30,7 +30,7 @@ pub mod tests {
         test::test_help_lib::{
             make_init_config, make_reward_token_contract, mock_custom_env, mock_dependencies,
             MockQuerier,
-        }, contract::{execute, auth_queries},
+        }, contract::{execute, auth_queries, query},
     };
     use cosmwasm_std::{
         testing::{mock_info, MockApi, MockStorage}, Addr, Decimal, MessageInfo, StdError,
@@ -111,8 +111,8 @@ pub mod tests {
             valid_to: Uint128::new(30000000000000u128) 
         };
         let _ = execute(deps.as_mut(), env.clone(), mock_info(CONTRACT_ADDRESS, &[]), msg);
-        let auth_query = AuthQuery::GetRewardTokens {  };
-        let raw_response = auth_queries(deps.as_ref(),env, auth_query,Addr::unchecked("sender"))?;
+        let auth_query = shadeswap_shared::staking::QueryMsg::GetRewardTokens {  };
+        let raw_response = query(deps.as_ref(),env, auth_query)?;
         let query_response: QueryResponse = from_binary(&raw_response)?;
         match query_response{            
             // QueryResponse::ClaimRewards { claimable_rewards: _ } => todo!(),

@@ -4,12 +4,17 @@ use cosmwasm_std::{
 };
 use shadeswap_shared::{
     amm_pair::{AMMSettings, QueryMsgResponse, SwapInfo, TradeHistory},
-    core::{Fee, TokenAmount, TokenType, TokenPairAmount},
+    core::{Fee, TokenAmount, TokenPairAmount, TokenType},
     factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
-    Contract, snip20::helpers::token_info,
+    snip20::helpers::token_info,
+    Contract,
 };
 
-use crate::{operations::{calculate_swap_result, calculate_lp_tokens}, state::{config_r, trade_history_r}};
+use crate::{
+    contract::query,
+    operations::{calculate_lp_tokens, calculate_swap_result, lp_virtual_swap},
+    state::{config_r, trade_history_r},
+};
 
 pub struct FactoryConfig {
     pub amm_settings: AMMSettings,
@@ -160,12 +165,25 @@ pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount) -> S
 
     let pair_contract_pool_liquidity = total_supply(deps, &config.lp_token)?;
 
-    let lp_tokens = calculate_lp_tokens(&deposit, pool_balances, pair_contract_pool_liquidity)?;
+    let fee_info = fee_info(deps, &env)?;
+
+    let new_deposit = lp_virtual_swap(
+        deps,
+        &env,
+        fee_info.lp_fee,
+        fee_info.shade_dao_fee,
+        fee_info.shade_dao_address,
+        &config,
+        &deposit,
+        pair_contract_pool_liquidity,
+        pool_balances,
+        None,
+    )?;
+
+    let lp_tokens = calculate_lp_tokens(&new_deposit, pool_balances, pair_contract_pool_liquidity)?;
     let response_msg = QueryMsgResponse::EstimatedLiquidity {
-        lp_token: lp_tokens.min_lp_token,
+        lp_token: lp_tokens,
         total_lp_token: pair_contract_pool_liquidity,
-        excess_token_0: lp_tokens.excess_token_0,
-        excess_token_1: lp_tokens.excess_token_1,
     };
     to_binary(&response_msg)
 }

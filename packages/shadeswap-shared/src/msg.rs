@@ -126,12 +126,6 @@ pub mod amm_pair {
         pub shade_dao_address: Contract,
     }
 
-    pub struct LPAddInfo {
-        pub min_lp_token: Uint128,
-        pub excess_token_0: Uint128,
-        pub excess_token_1: Uint128,
-    }
-
     pub fn generate_pair_key(pair: &TokenPair) -> Vec<u8> {
         let mut bytes: Vec<&[u8]> = Vec::new();
 
@@ -317,9 +311,7 @@ pub mod amm_pair {
         },
         EstimatedLiquidity {
             lp_token: Uint128,
-            total_lp_token: Uint128,
-            excess_token_0: Uint128,
-            excess_token_1: Uint128,
+            total_lp_token: Uint128
         },
         GetConfig {
             factory_contract: Option<Contract>,
@@ -509,6 +501,7 @@ pub mod staking {
     pub enum QueryMsg {
         GetContractOwner {},
         GetConfig {},
+        GetRewardTokens { },
         WithPermit {
             permit: QueryPermit,
             query: AuthQuery,
@@ -519,8 +512,7 @@ pub mod staking {
     #[serde(rename_all = "snake_case")]
     pub enum AuthQuery {
         GetStakerLpTokenInfo {},
-        GetClaimReward { time: Uint128 },
-        GetRewardTokens {},
+        GetClaimReward { time: Uint128 }
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
@@ -554,7 +546,7 @@ pub mod staking {
         },
         RewardTokens {
             tokens: Vec<RewardTokenInfo>,
-        },
+        }
     }
 }
 

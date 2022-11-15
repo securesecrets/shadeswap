@@ -1502,8 +1502,6 @@ fn run_testnet() -> Result<()> {
         if let AMMPairQueryMsgResponse::EstimatedLiquidity {
             lp_token,
             total_lp_token,
-            excess_token_0: _,
-            excess_token_1: _
         } = estimated_lp_token
         {
             assert_ne!(lp_token, Uint128::new(0));

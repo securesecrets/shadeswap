@@ -226,7 +226,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 }
 
                 auth_queries(deps, env, query, res.sender)
-            }
+            },
+            QueryMsg::GetRewardTokens {  } => get_reward_token_to_list(deps.storage),
         },
         BLOCK_SIZE,
     )
@@ -235,7 +236,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn auth_queries(deps: Deps, _env: Env, msg: AuthQuery, user: Addr) -> StdResult<Binary> {
     match msg {
         AuthQuery::GetClaimReward { time } => get_claim_reward_for_user(deps, user, time),
-        AuthQuery::GetStakerLpTokenInfo {} => get_staking_stake_lp_token_info(deps, user),
-        AuthQuery::GetRewardTokens {  } => get_reward_token_to_list(deps.storage),
+        AuthQuery::GetStakerLpTokenInfo {} => get_staking_stake_lp_token_info(deps, user)
     }
 }

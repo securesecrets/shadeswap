@@ -509,6 +509,7 @@ pub mod staking {
     pub enum QueryMsg {
         GetContractOwner {},
         GetConfig {},
+        GetRewardTokens { },
         WithPermit {
             permit: QueryPermit,
             query: AuthQuery,
@@ -519,8 +520,7 @@ pub mod staking {
     #[serde(rename_all = "snake_case")]
     pub enum AuthQuery {
         GetStakerLpTokenInfo {},
-        GetClaimReward { time: Uint128 },
-        GetRewardTokens {},
+        GetClaimReward { time: Uint128 }
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
@@ -554,7 +554,7 @@ pub mod staking {
         },
         RewardTokens {
             tokens: Vec<RewardTokenInfo>,
-        },
+        }
     }
 }
 

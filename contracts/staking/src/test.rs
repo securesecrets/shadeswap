@@ -17,12 +17,15 @@ pub mod tests {
         operations::{
             calculate_incremental_staking_reward, calculate_staker_shares, claim_rewards,
             claim_rewards_for_all_stakers, generate_proxy_staking_key, get_total_stakers_count,
-            proxy_stake, proxy_unstake, set_reward_token, stake, unstake, get_config,
+            proxy_stake, proxy_unstake, set_reward_token, stake, unstake, 
         },
         state::{
             claim_reward_info_r, proxy_staker_info_r, reward_token_list_r, reward_token_r,
             staker_index_r, stakers_r, total_staked_r,
             ClaimRewardsInfo, Config, config_w, total_staked_w,
+        },
+        query::{
+            get_config
         },
         test::test_help_lib::{
             make_init_config, make_reward_token_contract, mock_custom_env, mock_dependencies,

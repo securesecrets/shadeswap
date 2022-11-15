@@ -126,12 +126,6 @@ pub mod amm_pair {
         pub shade_dao_address: Contract,
     }
 
-    pub struct LPAddInfo {
-        pub min_lp_token: Uint128,
-        pub excess_token_0: Uint128,
-        pub excess_token_1: Uint128,
-    }
-
     pub fn generate_pair_key(pair: &TokenPair) -> Vec<u8> {
         let mut bytes: Vec<&[u8]> = Vec::new();
 
@@ -317,9 +311,7 @@ pub mod amm_pair {
         },
         EstimatedLiquidity {
             lp_token: Uint128,
-            total_lp_token: Uint128,
-            excess_token_0: Uint128,
-            excess_token_1: Uint128,
+            total_lp_token: Uint128
         },
         GetConfig {
             factory_contract: Option<Contract>,

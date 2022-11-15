@@ -10,7 +10,7 @@ pub const SENDER: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 #[cfg(test)]
 pub mod tests {
     use shadeswap_shared::{
-        staking::{AuthQuery, QueryResponse, RewardTokenInfo},
+        staking::{QueryResponse, RewardTokenInfo},
         utils::asset::Contract,
     };
 

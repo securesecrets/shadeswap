@@ -234,9 +234,9 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             amount,
             memo,
             ..
-        } => try_burn_from(deps, &env, &info, &owner, amount, memo),
+        } => Err(StdError::generic_err("This method has been disabled.")),
         ExecuteMsg::BatchBurnFrom { actions, .. } => {
-            try_batch_burn_from(deps, &env, &info, actions)
+            Err(StdError::generic_err("This method has been disabled."))
         }
 
         // Mint

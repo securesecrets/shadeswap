@@ -13,10 +13,10 @@ use shadeswap_shared::{
 
 use crate::{
     operations::{
-        claim_rewards, get_claim_reward_for_user, get_config, get_staking_stake_lp_token_info,
-        proxy_stake, proxy_unstake, set_reward_token, stake, store_init_reward_token_and_timestamp,
-        unstake, update_authenticator, get_reward_token_to_list,
+        claim_rewards, proxy_stake, proxy_unstake, set_reward_token, stake, store_init_reward_token_and_timestamp,
+        unstake, update_authenticator, 
     },
+    query,
     state::{config_r, config_w, prng_seed_w, Config},
 };
 
@@ -214,8 +214,7 @@ fn receiver_callback(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     pad_query_result(
         match msg {
-            QueryMsg::GetConfig {} => get_config(deps),
-            QueryMsg::GetContractOwner {} => todo!(),
+            QueryMsg::GetConfig {} => query::config(deps),
             QueryMsg::WithPermit { permit, query } => {
                 let config = config_r(deps.storage).load()?;
                 let res: PermitAuthentication<QueryData> =
@@ -226,7 +225,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 }
 
                 auth_queries(deps, env, query, res.sender)
-            }
+            },
+            QueryMsg::GetRewardTokens {  } => query::reward_token_list(deps.storage),
         },
         BLOCK_SIZE,
     )
@@ -234,8 +234,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 pub fn auth_queries(deps: Deps, _env: Env, msg: AuthQuery, user: Addr) -> StdResult<Binary> {
     match msg {
-        AuthQuery::GetClaimReward { time } => get_claim_reward_for_user(deps, user, time),
-        AuthQuery::GetStakerLpTokenInfo {} => get_staking_stake_lp_token_info(deps, user),
-        AuthQuery::GetRewardTokens {  } => get_reward_token_to_list(deps.storage),
+        AuthQuery::GetClaimReward { time } => query::claim_reward_for_user(deps, user, time),
+        AuthQuery::GetStakerLpTokenInfo {} => query::staking_stake_lp_token_info(deps, user),       
     }
 }

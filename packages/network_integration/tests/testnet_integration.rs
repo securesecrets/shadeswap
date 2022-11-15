@@ -1252,8 +1252,8 @@ fn run_testnet() -> Result<()> {
                 "\n\tLP Token Address {}",
                 liquidity_token.address.to_string()
             );
-            print_header("\n\tLP Token Liquidity - 5449999324");
-            assert_eq!(total_liquidity, Uint128::new(5449999324));
+            print_header("\n\tLP Token Liquidity - 5449999883");
+            assert_eq!(total_liquidity, Uint128::new(5449999883));
 
             let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
                 permit: new_permit.clone(),
@@ -1502,8 +1502,6 @@ fn run_testnet() -> Result<()> {
         if let AMMPairQueryMsgResponse::EstimatedLiquidity {
             lp_token,
             total_lp_token,
-            excess_token_0: _,
-            excess_token_1: _
         } = estimated_lp_token
         {
             assert_ne!(lp_token, Uint128::new(0));

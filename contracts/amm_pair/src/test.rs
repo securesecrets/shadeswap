@@ -23,19 +23,20 @@ use shadeswap_shared::core::ContractInstantiationInfo;
 
 #[cfg(test)]
 pub mod tests {
-    use shadeswap_shared::Contract;
     
+    use shadeswap_shared::Contract;
 
     use super::help_test_lib::{make_init_config, mk_amm_settings, mk_token_pair, mk_token_pair_amount, mk_token_pair_custom_addr};
     use super::*;
     use crate::contract::instantiate;
     use crate::operations::{
-        add_address_to_whitelist, add_whitelist_address, calculate_hash, is_address_in_whitelist,
-        swap, get_estimated_lp_token, calculate_swap_result, remove_addresses_from_whitelist,
+        add_address_to_whitelist, add_whitelist_address, calculate_hash,
+        swap, calculate_swap_result, remove_addresses_from_whitelist, is_address_in_whitelist,
     };
+    use crate::query::{self, estimated_liquidity};
     use crate::state::{trade_count_r, config_w};
     use crate::test::help_test_lib::{
-        mk_custom_token_amount, mk_native_token_pair, mock_custom_env, mock_dependencies,
+        mk_custom_token_amount, mk_native_token_pair, mock_custom_env, mock_dependencies
     };
 
     #[test]
@@ -54,10 +55,10 @@ pub mod tests {
                 code_hash: "CODE_HASH".to_string(),
                 id: 0,
             },
-            factory_info: Contract {
+            factory_info: Some(Contract {
                 address: Addr::unchecked("FACTORYADDR"),
                 code_hash: "FACTORYADDR_HASH".to_string(),
-            },
+            }),
             prng_seed: seed.clone(),
             entropy: entropy.clone(),
             admin_auth: shadeswap_shared::Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
@@ -116,10 +117,10 @@ pub mod tests {
                 code_hash: "CODE_HASH".to_string(),
                 id: 0,
             },
-            factory_info: Contract {
+            factory_info: Some(Contract {
                 address: Addr::unchecked("FACTORYADDR"),
                 code_hash: "FACTORYADDR_HASH".to_string(),
-            },
+            }),
             prng_seed: seed.clone(),
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
@@ -177,10 +178,10 @@ pub mod tests {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
         let token_pair = mk_native_token_pair();
-        let config = make_init_config(mk_native_token_pair().clone())?;
+        let config = make_init_config(mk_native_token_pair().clone(), &mut deps)?;
         let address_a = Addr::unchecked("TESTA".to_string());
         assert_eq!(
-            config.factory_contract.address.as_str(),
+            config.factory_contract.clone().unwrap().address.as_str(),
             FACTORY_CONTRACT_ADDRESS.clone()
         );
         let _router_contract = Contract {
@@ -206,16 +207,16 @@ pub mod tests {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
         let token_pair = mk_native_token_pair();
-        let config = make_init_config(mk_native_token_pair().clone())?;
+        let config = make_init_config(mk_native_token_pair().clone(), &mut deps)?;
         let address_a = Addr::unchecked("TESTA".to_string());
         assert_eq!(
-            config.factory_contract.address.as_str(),
+            config.factory_contract.clone().unwrap().address.as_str(),
             FACTORY_CONTRACT_ADDRESS.clone()
         );
         let native_swap = swap(
             deps.as_mut(),
             env,
-            config,
+            config.clone(),
             address_a.clone(),
             None,
             mk_custom_token_amount(Uint128::from(1000u128), &token_pair),
@@ -226,14 +227,14 @@ pub mod tests {
     }
 
     #[test]
-    fn assert_get_estimated_lp_token_with_wrong_token_pair_throws_err() -> StdResult<()> {
+    fn assert_get_estimated_lp_token_with_assert_calculate_swap_with_wrong_token_pair_throws_errwrong_token_pair_throws_err() -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
         let env = mock_env();       
         let token_pair = mk_native_token_pair();
-        let _config = make_init_config(token_pair)?;
+        let _config = make_init_config(token_pair, &mut deps)?;
         config_w(deps.as_mut().storage).save(&_config)?;
         let amount = Uint128::new(1000u128);
-        let result = get_estimated_lp_token(deps.as_ref(), env, 
+        let result = estimated_liquidity(deps.as_ref(), env, 
             &mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount));
         match result.unwrap_err() {
             e =>  assert_eq!(e, StdError::generic_err(
@@ -245,21 +246,20 @@ pub mod tests {
 
     #[test]
     fn assert_calculate_swap_with_wrong_token_pair_throws_err() -> StdResult<()> {
-        let deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies(&[]);
         let env = mock_env();
         let _amm_settings = mk_amm_settings();
         let token_pair = mk_token_pair();
-        let _config = make_init_config(token_pair.clone())?;
+        let config = make_init_config(token_pair.clone(),&mut deps)?;
         let amount = Uint128::new(1000u128);
         let wrong_pair = mk_token_pair_custom_addr("WRONG_TOKEN_A", "WRONG_TOKEN_B");
-        let result = calculate_swap_result(deps.as_ref(), 
-            &env,            
-            &_amm_settings, 
-            &_config,
+        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let swap_result = calculate_swap_result(deps.as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee,
+            &config,
             &mk_custom_token_amount(amount, &wrong_pair), 
             None);
             
-        match result.unwrap_err() {
+        match swap_result.unwrap_err() {
             e =>  assert_eq!(e, StdError::generic_err(
                 "The required token WRONG_TOKEN_A, is not presented in this contract.",
             )),
@@ -269,11 +269,11 @@ pub mod tests {
 
     #[test]
     fn assert_query_get_amm_pairs_success() -> StdResult<()> {
-        let _deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies(&[]);
         let _env = mock_env();
         let _amm_settings = mk_amm_settings();
         let token_pair = mk_token_pair();
-        let _config = make_init_config(token_pair)?;
+        let _config = make_init_config(token_pair, &mut deps)?;
         let _offer_amount: u128 = 34028236692093846346337460;
         let _expected_amount: u128 = 34028236692093846346337460;
         let _address_a = "TESTA".to_string();
@@ -298,14 +298,14 @@ pub mod tests_calculation_price_and_fee {
 
     use cosmwasm_std::{Decimal, from_binary};
 
-    use shadeswap_shared::Contract;
+    
     use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount};
     use shadeswap_shared::msg::amm_pair::QueryMsgResponse;
 
     use crate::operations::{
-        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity, get_estimated_lp_token, query_total_supply,
-    };
+        add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity, is_address_in_whitelist   };
 
+    use crate::query::{self, estimated_liquidity};
     use crate::test::help_test_lib::{
         make_init_config_test_calculate_price_fee, mk_amm_settings_a,
         mk_custom_token_amount_test_calculation_price_fee,
@@ -351,13 +351,13 @@ pub mod tests_calculation_price_and_fee {
     {     
         let custom_fee: Option<CustomFee> = None;
         let mut deps = mock_dependencies(&[]);
-        let amm_settings = mk_amm_settings_a();
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
         let expected_amount: u128 = 1666;
-        let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, &amm_settings, &config,
+        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
              Some(true));
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
@@ -369,13 +369,13 @@ pub mod tests_calculation_price_and_fee {
     {     
         let custom_fee: Option<CustomFee> = None;
         let mut deps = mock_dependencies(&[]);
-        let amm_settings = mk_amm_settings_a();
         let env = mock_env();
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
-        let expected_amount: u128 = 1624;
-        let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, &amm_settings, &config,
+        let expected_amount: u128 = 1228;
+        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
              None);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
@@ -389,13 +389,13 @@ pub mod tests_calculation_price_and_fee {
             lp_fee: Fee { nom: 1, denom: 100},
         });
         let mut deps = mock_dependencies(&[]);
-        let amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
         let env = mock_env();
         let expected_amount: u128 = 1539;
-        let swap_result = calculate_swap_result(deps.as_mut().as_ref(), &env, &amm_settings, &config, 
+        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, 
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
          None);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
@@ -410,41 +410,35 @@ pub mod tests_calculation_price_and_fee {
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;       
         let _address_a = Addr::unchecked("TESTA".to_string());
         let token_amount = mk_custom_token_amount_test_calculation_price_fee(Uint128::from(2000u128), config.pair.clone());   
-        let amm_settings = shadeswap_shared::amm_pair::AMMSettings {
-            lp_fee: Fee::new(2, 100),
-            shade_dao_fee: Fee::new(3, 100),
-            shade_dao_address: Contract {
-                address: Addr::unchecked("DAO"),
-                code_hash: "".to_string(),
-            }
-        };
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
-        assert_eq!(config.factory_contract.address.as_str(), FACTORY_CONTRACT_ADDRESS.clone());
-        let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, &amm_settings, &config, &token_amount,
+        assert_eq!(config.factory_contract.clone().unwrap().address.as_str(), FACTORY_CONTRACT_ADDRESS.clone());
+        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, &token_amount,
          None)?;
-        assert_eq!(swap_result.result.return_amount, Uint128::from(159663u128));
-        assert_eq!(swap_result.lp_fee_amount, Uint128::from(40u128));
-        assert_eq!(swap_result.shade_dao_fee_amount, Uint128::from(60u128));
-        assert_eq!(swap_result.price, "79.8315".to_string());
+        assert_eq!(swap_result.result.return_amount, Uint128::from(122807u128));
+        assert_eq!(swap_result.lp_fee_amount, Uint128::from(560u128));
+        assert_eq!(swap_result.shade_dao_fee_amount, Uint128::from(40u128));
+        assert_eq!(swap_result.price, "61.4035".to_string());
         Ok(())
     }
     #[test]
     fn assert_initial_swap_with_zero_fee_for_whitelist_address()-> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
-        let amm_settings = mk_amm_settings_a();
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None,Some(LP_TOKEN.to_string()))?;         
         let offer_amount: u128 = 2000;
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
-        let expected_amount: u128 = 1624;     
+        let expected_amount: u128 = 1666;     
         let _expected_lp_fee: u128 = 40;      
         let address_a = Addr::unchecked("TESTA".to_string());
         add_whitelist_address(deps.as_mut().storage, address_a.clone())?;    
-        let swap_result = calculate_swap_result(deps.as_mut().as_ref(), &env,&amm_settings, &config,
+        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let is_user_whitelist = is_address_in_whitelist(deps.as_mut().as_ref().storage, &address_a)?;
+        let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-            None)?;
+            Some(is_user_whitelist))?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
-        assert_eq!(Uint128::new(40u128), swap_result.lp_fee_amount);
+        assert_eq!(Uint128::new(560u128), swap_result.lp_fee_amount);
         Ok(())
     }
 
@@ -513,11 +507,7 @@ pub mod tests_calculation_price_and_fee {
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None,Some(LP_TOKEN.to_string()))?;         
         let offer_amount: u128 = 2000;          
         let address_a = "TESTA".to_string();
-        let token = config.pair.clone();  
-        let _router_contract = Contract{
-            address: Addr::unchecked("".to_string()),
-            code_hash: "".to_string()
-        }; 
+        let token = config.pair.clone();
         let _signature = to_binary(&"signature".to_string())?;
         let swap_and_test_slippage = swap(
             deps.as_mut(),
@@ -603,56 +593,31 @@ pub mod tests_calculation_price_and_fee {
         let mock_info = mock_info("Sender", &[]);
 
         let deposit = TokenPairAmount{
-                pair: token_pair.clone(),
-                amount_0: Uint128::from(100u128),
-                amount_1: Uint128::from(100u128)
-            };
-
-        let estimated_lp_bin = get_estimated_lp_token(deps.as_ref(), mock_env(), &TokenPairAmount{
             pair: token_pair.clone(),
             amount_0: Uint128::from(100u128),
-            amount_1: Uint128::from(125u128)
-        }).unwrap();
+            amount_1: Uint128::from(0u128)
+        };
 
+        let estimated_lp_bin = estimated_liquidity(deps.as_ref(), mock_env(), &deposit).unwrap();
         let msg = from_binary::<QueryMsgResponse>(&estimated_lp_bin).unwrap();
-        match msg {
-            QueryMsgResponse::EstimatedLiquidity { lp_token, total_lp_token: _, excess_token_0, excess_token_1 } => 
-            {
-            
-                let add_result= add_liquidity(
-                    deps.as_mut(),
-                    mock_env(),
-                    &mock_info,
-                    deposit,
-                    None,
-                    None
-                );
-                let response = add_result.unwrap();
-                let lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
-
-                assert_eq!(lp_tokens_received, Uint128::from(100000u128));
-                assert_eq!(lp_tokens_received, lp_token);
-                assert_eq!(excess_token_0, Uint128::from(0u128));
-                assert_eq!(excess_token_1, Uint128::from(25u128));
-            },
+        let estimated_lp = match msg {
+            QueryMsgResponse::EstimatedLiquidity { lp_token, total_lp_token: _ } => lp_token,
             _ => { panic!("Unexpected msg type from estimated lp") },
         };
 
-        let msg = from_binary::<QueryMsgResponse>(&get_estimated_lp_token(deps.as_ref(), mock_env(), &TokenPairAmount{
-            pair: token_pair.clone(),
-            amount_0: Uint128::from(125u128),
-            amount_1: Uint128::from(100u128)
-        }).unwrap()
-        ).unwrap();
-        match msg {
-            QueryMsgResponse::EstimatedLiquidity { lp_token, total_lp_token: _, excess_token_0, excess_token_1 } => 
-            {
-                assert_eq!(excess_token_0, Uint128::from(25u128));
-                assert_eq!(excess_token_1, Uint128::from(0u128));
-            },
-            _ => { panic!("Unexpected msg type from estimated lp") },
-        };
+        let add_result= add_liquidity(
+            deps.as_mut(),
+            mock_env(),
+            &mock_info,
+            deposit,
+            None,
+            None
+        );
+        let response = add_result.expect("Unwrap of add liquidity response failed");
+        let lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
 
+        assert_eq!(lp_tokens_received, estimated_lp);
+        assert!(lp_tokens_received > Uint128::zero());
     }
 
     #[test]
@@ -905,7 +870,7 @@ pub mod help_test_lib {
     use cosmwasm_std::testing::{MockApi, MockStorage};
     use cosmwasm_std::{
         from_slice, BalanceResponse, BlockInfo, Coin, ContractInfo, Empty, OwnedDeps, Timestamp,
-        TransactionInfo,
+        TransactionInfo, MemoryStorage,
     };
     use shadeswap_shared::Contract;
 
@@ -917,10 +882,9 @@ pub mod help_test_lib {
     use shadeswap_shared::snip20::QueryMsg;
     use shadeswap_shared::msg::staking::StakingContractInit;
     use cosmwasm_std::from_binary;
-    use crate::state::config_w;
+    use crate::state::{config_w};
 
-    pub fn make_init_config(token_pair: TokenPair) -> StdResult<Config> {
-        let mut deps = mock_dependencies(&[]);
+    pub fn make_init_config(token_pair: TokenPair, deps: &mut OwnedDeps<MemoryStorage, MockApi, MockQuerier>) -> StdResult<Config> {        
         let seed = to_binary(&"SEED".to_string())?;
         let entropy = to_binary(&"ENTROPY".to_string())?;
         let env = mock_env();
@@ -931,10 +895,10 @@ pub mod help_test_lib {
                 code_hash: "CODE_HASH".to_string(),
                 id: 0,
             },
-            factory_info: Contract {
+            factory_info: Some(Contract {
                 address: Addr::unchecked(FACTORY_CONTRACT_ADDRESS),
                 code_hash: "".to_string(),
-            },
+            }),
             prng_seed: seed.clone(),
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
@@ -1045,7 +1009,7 @@ pub mod help_test_lib {
         let mk_info = mock_info("sender", &[]);
 
         Ok(Config {
-            factory_contract: mock_contract_link(FACTORY_CONTRACT_ADDRESS.to_string()),
+            factory_contract: Some(mock_contract_link(FACTORY_CONTRACT_ADDRESS.to_string())),
             lp_token: mock_contract_link("LPTOKEN".to_string()),
             staking_contract: Some(mock_contract_link(MOCK_CONTRACT_ADDR.to_string())),
             pair: mk_token_pair(),
@@ -1271,7 +1235,6 @@ pub mod help_test_lib {
         }
     }
 
-
     pub fn make_init_config_test_calculate_price_fee(
         mut deps: DepsMut, 
         token_pair: TokenPair,
@@ -1290,10 +1253,10 @@ pub mod help_test_lib {
                   code_hash: "CODE_HASH".to_string(),
                   id :0
             },
-            factory_info: Contract {
+            factory_info: Some(Contract {
                 address: Addr::unchecked(FACTORY_CONTRACT_ADDRESS),
                 code_hash: "TEST".to_string()
-            },
+            }),
             prng_seed: seed.clone(),
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },          

@@ -1,29 +1,22 @@
 use crate::{
+    contract::INSTANTIATE_REPLY_ID,
     state::{
-        amm_pair_keys_r, amm_pair_keys_w, amm_pairs_r, amm_pairs_w, config_r, config_w,
-        ephemeral_storage_w, prng_seed_r, total_amm_pairs_r, total_amm_pairs_w, NextPairKey,
-        PAGINATION_LIMIT,
-    }, contract::INSTANTIATE_REPLY_ID,
+        amm_pair_keys_r, amm_pair_keys_w, amm_pairs_w, config_r, config_w, ephemeral_storage_w,
+        prng_seed_r, total_amm_pairs_r, total_amm_pairs_w, NextPairKey,
+    },
 };
 use cosmwasm_std::{
-    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env,
-    Response, StdError, StdResult, Storage, WasmMsg, SubMsg,
+    to_binary, Binary, CosmosMsg, DepsMut, Env, Response, StdError, StdResult, Storage, SubMsg,
+    WasmMsg,
 };
 use shadeswap_shared::{
     amm_pair::{generate_pair_key, AMMPair, AMMSettings},
     core::{ContractInstantiationInfo, TokenPair, ViewingKey},
-    msg::{
-        amm_pair::InitMsg as AMMPairInitMsg,
-        factory::{QueryResponse},
-    staking::StakingContractInit,
-    },
-    Pagination, Contract,
+    msg::{amm_pair::InitMsg as AMMPairInitMsg, staking::StakingContractInit},
+    Contract,
 };
 
-pub fn register_amm_pair(
-    storage: &mut dyn Storage,
-    pair: AMMPair,
-) -> StdResult<Response> {
+pub fn register_amm_pair(storage: &mut dyn Storage, pair: AMMPair) -> StdResult<Response> {
     add_amm_pairs(storage, vec![pair])
 }
 
@@ -51,19 +44,6 @@ pub fn add_amm_pairs(storage: &mut dyn Storage, amm_pairs: Vec<AMMPair>) -> StdR
     }
 
     Ok(Response::new().add_attribute("action", "register_amm_pairs"))
-}
-
-pub fn list_pairs(deps: Deps, pagination: Pagination) -> StdResult<Binary> {
-    let amm_pairs = load_amm_pairs(deps, pagination)?;
-
-    to_binary(&QueryResponse::ListAMMPairs { amm_pairs })
-}
-
-pub fn query_amm_pair_address(deps: &Deps, pair: TokenPair) -> StdResult<Binary> {
-    let address = amm_pair_keys_r(deps.storage).load(&generate_pair_key(&pair))?;
-    to_binary(&QueryResponse::GetAMMPairAddress {
-        address: address.to_string(),
-    })
 }
 
 pub fn set_config(
@@ -103,62 +83,37 @@ pub fn create_pair(
     env: Env,
     pair: TokenPair,
     entropy: Binary,
-    staking_contract: Option<StakingContractInit>
+    staking_contract: Option<StakingContractInit>,
 ) -> StdResult<Response> {
     let config = config_r(deps.storage).load()?;
-    ephemeral_storage_w(deps.storage).save(&NextPairKey {
-        pair: pair.clone()
-    })?;
+    ephemeral_storage_w(deps.storage).save(&NextPairKey { pair: pair.clone() })?;
 
     let mut messages = vec![];
-    messages.push(SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Instantiate {
-        code_id: config.pair_contract.id,
-        label: format!(
-            "{}-{}-pair-{}-{}",
-            pair.0, pair.1, env.contract.address, config.pair_contract.id
-        ),
-        msg: to_binary(&AMMPairInitMsg {
-            pair: pair.clone(),
-            lp_token_contract: config.lp_token_contract.clone(),
-            factory_info: Contract {
-                code_hash: env.contract.code_hash.clone(),
-                address: env.contract.address.clone(),
-            },
-            entropy: entropy,
-            prng_seed: prng_seed_r(deps.storage).load()?,
-            admin_auth: config.admin_auth,
-            staking_contract: staking_contract,
-            custom_fee: None
-        })?,
-        code_hash: config.pair_contract.code_hash,
-        funds: vec![],
-    }), INSTANTIATE_REPLY_ID));
+    messages.push(SubMsg::reply_on_success(
+        CosmosMsg::Wasm(WasmMsg::Instantiate {
+            code_id: config.pair_contract.id,
+            label: format!(
+                "{}-{}-pair-{}-{}",
+                pair.0, pair.1, env.contract.address, config.pair_contract.id
+            ),
+            msg: to_binary(&AMMPairInitMsg {
+                pair: pair.clone(),
+                lp_token_contract: config.lp_token_contract.clone(),
+                factory_info: Some(Contract {
+                    code_hash: env.contract.code_hash.clone(),
+                    address: env.contract.address.clone(),
+                }),
+                entropy: entropy,
+                prng_seed: prng_seed_r(deps.storage).load()?,
+                admin_auth: config.admin_auth,
+                staking_contract: staking_contract,
+                custom_fee: None,
+            })?,
+            code_hash: config.pair_contract.code_hash,
+            funds: vec![],
+        }),
+        INSTANTIATE_REPLY_ID,
+    ));
 
     Ok(Response::new().add_submessages(messages))
-}
-
-pub(crate) fn load_amm_pairs(deps: Deps, pagination: Pagination) -> StdResult<Vec<AMMPair>> {
-    let count = total_amm_pairs_r(deps.storage).may_load()?;
-
-    match count {
-        Some(c) => {
-            if pagination.start >= c {
-                return Ok(vec![]);
-            }
-
-            let limit = pagination.limit.min(PAGINATION_LIMIT);
-            let end = (pagination.start + limit as u64).min(c);
-
-            let mut result = Vec::with_capacity((end - pagination.start) as usize);
-
-            for i in pagination.start..end {
-                let exchange: AMMPair = amm_pairs_r(deps.storage).load(i.to_string().as_bytes())?;
-
-                result.push(exchange);
-            }
-
-            Ok(result)
-        }
-        None => Ok(vec![]),
-    }
 }

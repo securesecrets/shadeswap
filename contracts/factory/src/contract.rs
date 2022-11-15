@@ -1,9 +1,6 @@
 use crate::{
-    operations::{
-        add_amm_pairs, create_pair, list_pairs, query_amm_pair_address, register_amm_pair,
-        set_config,
-    },
-    state::{config_r, config_w, ephemeral_storage_r, ephemeral_storage_w, prng_seed_w, Config},
+    operations::{add_amm_pairs, create_pair, register_amm_pair, set_config},
+    state::{config_r, config_w, ephemeral_storage_r, ephemeral_storage_w, prng_seed_w, Config}, query,
 };
 use cosmwasm_std::{
     entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
@@ -49,13 +46,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     &info.sender,
                     &config.admin_auth,
                 )?;
-                create_pair(
-                    deps,
-                    env,
-                    pair,
-                    entropy,
-                    staking_contract
-                )
+                create_pair(deps, env, pair, entropy, staking_contract)
             }
             ExecuteMsg::SetConfig {
                 pair_contract,
@@ -77,7 +68,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     amm_settings,
                     deps.storage,
                     api_key,
-                    admin_auth
+                    admin_auth,
                 )
             }
             ExecuteMsg::AddAMMPairs { amm_pairs } => {
@@ -106,18 +97,18 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     lp_token_contract,
                     api_key: _,
                     authenticator,
-                    admin_auth
+                    admin_auth,
                 } = config_r(deps.storage).load()?;
                 to_binary(&QueryResponse::GetConfig {
                     pair_contract,
                     amm_settings,
                     lp_token_contract,
                     authenticator,
-                    admin_auth
+                    admin_auth,
                 })
             }
-            QueryMsg::ListAMMPairs { pagination } => list_pairs(deps, pagination),
-            QueryMsg::GetAMMPairAddress { pair } => query_amm_pair_address(&deps, pair),
+            QueryMsg::ListAMMPairs { pagination } => query::pairs_page(deps, pagination),
+            QueryMsg::GetAMMPairAddress { pair } => query::amm_pair_address(&deps, pair),
             QueryMsg::AuthorizeApiKey { api_key } => {
                 let config = config_r(deps.storage).load()?;
                 to_binary(&QueryResponse::AuthorizeApiKey {

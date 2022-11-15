@@ -12,7 +12,7 @@ pub const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct Config {
-    pub factory_contract: Contract,
+    pub factory_contract: Option<Contract>,
     pub lp_token: Contract,
     pub staking_contract: Option<Contract>,
     pub pair: TokenPair,

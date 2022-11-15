@@ -1,11 +1,10 @@
 use crate::{
     operations::{
-        add_address_to_whitelist, add_liquidity, get_estimated_lp_token, get_shade_dao_info,
-        load_trade_history_query, query_calculate_price, query_factory_authorize_api_key,
-        query_token_symbol, query_total_supply, register_lp_token, register_pair_token,
-        remove_addresses_from_whitelist, remove_liquidity, set_staking_contract, swap,
-        swap_simulation, update_viewing_key,
+        add_address_to_whitelist, add_liquidity, register_lp_token,
+        register_pair_token, remove_addresses_from_whitelist, remove_liquidity,
+        set_staking_contract, swap, update_viewing_key,
     },
+    query::{self, swap_estimate},
     state::{config_r, config_w, trade_count_r, whitelist_r, Config},
 };
 
@@ -56,8 +55,8 @@ pub fn instantiate(
         admin: Some(env.contract.address.to_string()),
         symbol: format!(
             "{}/{} LP",
-            query_token_symbol(deps.querier, &msg.pair.0)?,
-            query_token_symbol(deps.querier, &msg.pair.1)?
+            query::token_symbol(deps.querier, &msg.pair.0)?,
+            query::token_symbol(deps.querier, &msg.pair.1)?
         ),
         decimals: 18,
         initial_balances: None,
@@ -290,7 +289,11 @@ fn receiver_callback(
                     "No matching token in pair".to_string(),
                 ))
             }
-            InvokeMsg::RemoveLiquidity { from, single_sided_withdraw_type, single_sided_expected_return } => {
+            InvokeMsg::RemoveLiquidity {
+                from,
+                single_sided_withdraw_type,
+                single_sided_expected_return,
+            } => {
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err(
                         "LP Token was not sent to remove liquidity.".to_string(),
@@ -300,9 +303,23 @@ fn receiver_callback(
                 match from {
                     Some(address) => {
                         let checked_address = deps.api.addr_validate(&address)?;
-                        remove_liquidity(deps, env, amount, checked_address, single_sided_withdraw_type, single_sided_expected_return)
+                        remove_liquidity(
+                            deps,
+                            env,
+                            amount,
+                            checked_address,
+                            single_sided_withdraw_type,
+                            single_sided_expected_return,
+                        )
                     }
-                    None => remove_liquidity(deps, env, amount, from_caller,  single_sided_withdraw_type, single_sided_expected_return),
+                    None => remove_liquidity(
+                        deps,
+                        env,
+                        amount,
+                        from_caller,
+                        single_sided_withdraw_type,
+                        single_sided_expected_return,
+                    ),
                 }
             }
         },
@@ -321,7 +338,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     env.contract.address.to_string(),
                     config.viewing_key.0,
                 )?;
-                let total_liquidity = query_total_supply(deps, &config.lp_token)?;
+                let total_liquidity = query::total_supply(deps, &config.lp_token)?;
                 to_binary(&QueryMsgResponse::GetPairInfo {
                     liquidity_token: config.lp_token,
                     factory: config.factory_contract,
@@ -337,9 +354,17 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 pagination,
             } => {
                 let config = config_r(deps.storage).load()?;
-                query_factory_authorize_api_key(deps, &config.factory_contract, api_key)?;
-                let data = load_trade_history_query(deps, pagination)?;
-                to_binary(&QueryMsgResponse::GetTradeHistory { data })
+
+                match config.factory_contract {
+                    Some(factory_contract) => {
+                        query::factory_authorize_api_key(deps, &factory_contract, api_key)?;
+                        let data = query::trade_history_page(deps, pagination)?;
+                        to_binary(&QueryMsgResponse::GetTradeHistory { data })
+                    }
+                    None => Err(StdError::generic_err(
+                        "Cannot get trade history if no factory contract is set.",
+                    )),
+                }
             }
             QueryMsg::GetWhiteListAddress {} => {
                 let stored_addr = whitelist_r(deps.storage).load()?;
@@ -358,15 +383,15 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 })
             }
             QueryMsg::GetEstimatedPrice { offer, exclude_fee } => {
-                let swap_result = query_calculate_price(deps, env, offer, exclude_fee)?;
+                let swap_result = swap_estimate(deps, env, offer, exclude_fee)?;
                 to_binary(&QueryMsgResponse::EstimatedPrice {
                     estimated_price: swap_result.price,
                 })
             }
-            QueryMsg::SwapSimulation { offer } => swap_simulation(deps, env, offer),
-            QueryMsg::GetShadeDaoInfo {} => get_shade_dao_info(deps),
+            QueryMsg::SwapSimulation { offer } => query::swap_simulation(deps, env, offer),
+            QueryMsg::GetShadeDaoInfo {} => query::shade_dao_info(deps, &env),
             QueryMsg::GetEstimatedLiquidity { deposit } => {
-                get_estimated_lp_token(deps, env, &deposit)
+                query::estimated_liquidity(deps, env, &deposit)
             }
             QueryMsg::GetConfig {} => {
                 let config = config_r(deps.storage).load()?;
@@ -400,7 +425,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                             code_hash: config.lp_token.code_hash,
                         },
                     )?;
-                    
+
                     response.data = Some(env.contract.address.to_string().as_bytes().into());
 
                     Ok(response)
@@ -424,7 +449,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                                 .code_hash,
                         }),
                     )?;
-                    
+
                     response.data = Some(env.contract.address.to_string().as_bytes().into());
 
                     Ok(response)

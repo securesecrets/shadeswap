@@ -173,7 +173,8 @@ pub mod amm_pair {
     pub struct InitMsg {
         pub pair: TokenPair,
         pub lp_token_contract: ContractInstantiationInfo,
-        pub factory_info: Contract,
+        // Leave none if initializing without factory
+        pub factory_info: Option<Contract>,
         pub prng_seed: Binary,
         pub entropy: Binary,
         pub admin_auth: Contract,
@@ -270,7 +271,7 @@ pub mod amm_pair {
     pub enum QueryMsgResponse {
         GetPairInfo {
             liquidity_token: Contract,
-            factory: Contract,
+            factory: Option<Contract>,
             pair: TokenPair,
             amount_0: Uint128,
             amount_1: Uint128,
@@ -310,12 +311,10 @@ pub mod amm_pair {
         },
         EstimatedLiquidity {
             lp_token: Uint128,
-            total_lp_token: Uint128,
-            excess_token_0: Uint128,
-            excess_token_1: Uint128,
+            total_lp_token: Uint128
         },
         GetConfig {
-            factory_contract: Contract,
+            factory_contract: Option<Contract>,
             lp_token: Contract,
             staking_contract: Option<Contract>,
             pair: TokenPair,
@@ -500,8 +499,8 @@ pub mod staking {
     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        GetContractOwner {},
         GetConfig {},
+        GetRewardTokens { },
         WithPermit {
             permit: QueryPermit,
             query: AuthQuery,
@@ -512,8 +511,7 @@ pub mod staking {
     #[serde(rename_all = "snake_case")]
     pub enum AuthQuery {
         GetStakerLpTokenInfo {},
-        GetClaimReward { time: Uint128 },
-        GetRewardTokens {},
+        GetClaimReward { time: Uint128 }
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
@@ -547,7 +545,7 @@ pub mod staking {
         },
         RewardTokens {
             tokens: Vec<RewardTokenInfo>,
-        },
+        }
     }
 }
 

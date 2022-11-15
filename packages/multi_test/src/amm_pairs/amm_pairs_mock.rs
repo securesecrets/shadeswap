@@ -1,28 +1,23 @@
 pub mod amm_pairs_mock {
-    use crate::{
-        help_lib::integration_help_lib::get_contract_link_from_token_type        
-    };
+    use crate::help_lib::integration_help_lib::get_contract_link_from_token_type;
+    use amm_pair::operations::register_lp_token;
+    use amm_pair::state::config_r;
     use cosmwasm_std::{
-        entry_point, to_binary, Addr, Binary,
-        Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult,
-        SubMsgResult, Uint128,
+        entry_point, to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+        StdError, StdResult, SubMsgResult, Uint128,
     };
     use cosmwasm_storage::{singleton, singleton_read};
     use serde::{Deserialize, Serialize};
     use shadeswap_shared::{
-        core::{
-            create_viewing_key, CustomFee, TokenPair, TokenType, ViewingKey,
-        },
+        core::{create_viewing_key, CustomFee, TokenPair, TokenType, ViewingKey},
         msg::amm_pair::{ExecuteMsg, InitMsg, QueryMsg, QueryMsgResponse, SwapResult},
         staking::StakingContractInit,
-        utils::{pad_query_result, pad_response_result}, amm_pair::AMMSettings,
+        utils::{pad_query_result, pad_response_result},
     };
-    use amm_pair::operations::register_lp_token;
-    use amm_pair::state::config_r;
-    
+
     pub const BLOCK_SIZE: usize = 256;
     //use crate::staking::staking_mock::staking_mock::InitMsg as StakingInitMsg;
-    
+
     use shadeswap_shared::Contract;
     pub const INSTANTIATE_LP_TOKEN_REPLY_ID: u64 = 1u64;
     pub const INSTANTIATE_STAKING_CONTRACT_REPLY_ID: u64 = 2u64;
@@ -43,7 +38,7 @@ pub mod amm_pairs_mock {
         pub custom_fee: Option<CustomFee>,
         pub staking_contract_init: Option<StakingContractInit>,
         pub prng_seed: Binary,
-        pub admin_auth: Contract
+        pub admin_auth: Contract,
     }
 
     #[entry_point]
@@ -71,7 +66,7 @@ pub mod amm_pairs_mock {
             staking_contract: None,
             staking_contract_init: msg.staking_contract,
             prng_seed: msg.prng_seed,
-            admin_auth: msg.admin_auth
+            admin_auth: msg.admin_auth,
         };
         singleton(deps.storage, CONFIG).save(&config)?;
         Ok(response.add_attribute("created_exchange_address", env.contract.address.to_string()))
@@ -113,7 +108,10 @@ pub mod amm_pairs_mock {
                 QueryMsg::GetWhiteListAddress {} => to_binary(""),
                 QueryMsg::GetTradeCount {} => to_binary(""),
                 QueryMsg::GetStakingContract {} => to_binary(""),
-                QueryMsg::GetEstimatedPrice { offer: _, exclude_fee: _ } => to_binary(""),
+                QueryMsg::GetEstimatedPrice {
+                    offer: _,
+                    exclude_fee: _,
+                } => to_binary(""),
                 QueryMsg::SwapSimulation { offer } => {
                     let response = QueryMsgResponse::SwapSimulation {
                         total_fee_amount: Uint128::new(150u128),
@@ -192,8 +190,8 @@ pub mod amm_pairs_mock {
                                 address: contract_address,
                                 code_hash: config.lp_token.code_hash,
                             },
-                        )?;                        
-                        response.data = Some(env.contract.address.to_string().as_bytes().into());    
+                        )?;
+                        response.data = Some(env.contract.address.to_string().as_bytes().into());
                         Ok(response)
                     }
                     None => Err(StdError::generic_err(format!("Unknown reply id"))),
@@ -218,8 +216,8 @@ pub mod amm_pairs_mock {
                                     .contract_info
                                     .code_hash,
                             }),
-                        )?;                        
-                        response.data = Some(env.contract.address.to_string().as_bytes().into());    
+                        )?;
+                        response.data = Some(env.contract.address.to_string().as_bytes().into());
                         Ok(response)
                     }
                     None => Err(StdError::generic_err(format!("Unknown reply id"))),
@@ -229,6 +227,4 @@ pub mod amm_pairs_mock {
             BLOCK_SIZE,
         )
     }
-
-   
 }

@@ -336,7 +336,7 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> 
         // CHECK ROUTER
         let mut reward_addr: Option<String> = None;
         let mut reward_addr_code_hash: Option<String> = None;
-        let mut amount: Option<String> = None;
+        let amount: Option<String>;
         let mut amount_u128: Option<u128> = None;
         let mut valid_to: Option<u128> = None;
 

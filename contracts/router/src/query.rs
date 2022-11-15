@@ -1,17 +1,15 @@
-
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, QuerierWrapper, QueryRequest,
-    Response, StdError, StdResult, Storage, SubMsg, Uint128, Uint256, WasmMsg, WasmQuery,
+    to_binary, Binary, Deps, QuerierWrapper, QueryRequest, StdError, StdResult, Uint128, Uint256,
+    WasmQuery,
 };
 use shadeswap_shared::{
-    core::{TokenAmount, TokenType},
+    core::TokenAmount,
     msg::amm_pair::{
-        ExecuteMsg as AMMPairExecuteMsg, InvokeMsg as AMMPairInvokeMsg,
         QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryReponse, SwapResult,
     },
-    router::{Hop, QueryMsgResponse},   
+    router::{Hop, QueryMsgResponse},
     Contract,
 };
 

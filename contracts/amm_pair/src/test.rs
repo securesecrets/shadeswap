@@ -23,10 +23,10 @@ use shadeswap_shared::core::ContractInstantiationInfo;
 
 #[cfg(test)]
 pub mod tests {
-    use cosmwasm_std::testing::{MockApi, MockStorage};
+    
     use shadeswap_shared::Contract;
 
-    use super::help_test_lib::{make_init_config, mk_amm_settings, mk_token_pair, mk_token_pair_amount, mk_token_pair_custom_addr, MockQuerier};
+    use super::help_test_lib::{make_init_config, mk_amm_settings, mk_token_pair, mk_token_pair_amount, mk_token_pair_custom_addr};
     use super::*;
     use crate::contract::instantiate;
     use crate::operations::{
@@ -298,7 +298,7 @@ pub mod tests_calculation_price_and_fee {
 
     use cosmwasm_std::{Decimal, from_binary};
 
-    use shadeswap_shared::Contract;
+    
     use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount};
     use shadeswap_shared::msg::amm_pair::QueryMsgResponse;
 
@@ -870,7 +870,7 @@ pub mod help_test_lib {
     use cosmwasm_std::testing::{MockApi, MockStorage};
     use cosmwasm_std::{
         from_slice, BalanceResponse, BlockInfo, Coin, ContractInfo, Empty, OwnedDeps, Timestamp,
-        TransactionInfo, Storage, MemoryStorage,
+        TransactionInfo, MemoryStorage,
     };
     use shadeswap_shared::Contract;
 
@@ -882,7 +882,7 @@ pub mod help_test_lib {
     use shadeswap_shared::snip20::QueryMsg;
     use shadeswap_shared::msg::staking::StakingContractInit;
     use cosmwasm_std::from_binary;
-    use crate::state::{config_w, whitelist_r};
+    use crate::state::{config_w};
 
     pub fn make_init_config(token_pair: TokenPair, deps: &mut OwnedDeps<MemoryStorage, MockApi, MockQuerier>) -> StdResult<Config> {        
         let seed = to_binary(&"SEED".to_string())?;

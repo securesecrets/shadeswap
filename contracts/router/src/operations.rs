@@ -1,16 +1,14 @@
-use std::str::FromStr;
-
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, QuerierWrapper, QueryRequest,
-    Response, StdError, StdResult, Storage, SubMsg, Uint128, Uint256, WasmMsg, WasmQuery,
+    to_binary, Addr, Coin, CosmosMsg, DepsMut, Env, Response, StdError, StdResult, Storage, SubMsg,
+    Uint128, WasmMsg,
 };
 use shadeswap_shared::{
     core::{TokenAmount, TokenType},
     msg::amm_pair::{
         ExecuteMsg as AMMPairExecuteMsg, InvokeMsg as AMMPairInvokeMsg,
-        QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryReponse, SwapResult,
+        QueryMsgResponse as AMMPairQueryReponse,
     },
-    router::{Hop, QueryMsgResponse},
+    router::Hop,
     snip20::{
         self,
         helpers::{register_receive, set_viewing_key_msg},
@@ -21,7 +19,7 @@ use shadeswap_shared::{
 use crate::{
     contract::{SHADE_ROUTER_KEY, SWAP_REPLY_ID},
     query,
-    state::{config_r, config_w, epheral_storage_r, epheral_storage_w, CurrentSwapInfo}, 
+    state::{config_r, config_w, epheral_storage_r, epheral_storage_w, CurrentSwapInfo},
 };
 
 /// Set Viewing Key for Router & register pair token.
@@ -134,7 +132,7 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
     }
 }
 
-/// Execute Swap for Exact Token 
+/// Execute Swap for Exact Token
 pub fn swap_tokens_for_exact_tokens(
     deps: DepsMut,
     env: Env,
@@ -185,11 +183,11 @@ pub fn swap_tokens_for_exact_tokens(
 
             Ok(response)
         }
-        _ => Err(StdError::generic_err("Pair Contract not found."))
+        _ => Err(StdError::generic_err("Pair Contract not found.")),
     }
 }
 
-/// Update Viewing Key 
+/// Update Viewing Key
 pub fn update_viewing_key(storage: &mut dyn Storage, viewing_key: String) -> StdResult<Response> {
     let mut config = config_w(storage).load()?;
     config.viewing_key = viewing_key;

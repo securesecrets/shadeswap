@@ -5,35 +5,31 @@ use std::{
 };
 
 use cosmwasm_std::{
-    to_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, QuerierWrapper, QueryRequest, Response, StdError, StdResult, Storage, SubMsg,
-    Uint128, Uint256, WasmMsg, WasmQuery,
+    to_binary, Addr, Attribute, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    Response, StdError, StdResult, Storage, SubMsg, Uint128, Uint256, WasmMsg,
 };
 use shadeswap_shared::{
-    amm_pair::{AMMSettings},
     core::{Fee, TokenAmount, TokenPairAmount, TokenType, ViewingKey},
     msg::{
-        amm_pair::{QueryMsgResponse, SwapInfo, SwapResult, TradeHistory},
-        factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
+        amm_pair::{SwapInfo, SwapResult, TradeHistory},
         staking::{InitMsg as StakingInitMsg, InvokeMsg as StakingInvokeMsg},
     },
     snip20::{
         helpers::{
-            burn_msg, mint_msg, register_receive, send_msg, set_viewing_key_msg, token_info,
-            transfer_from_msg,
+            burn_msg, mint_msg, register_receive, send_msg, set_viewing_key_msg, transfer_from_msg,
         },
         ExecuteMsg as SNIP20ExecuteMsg,
     },
     utils::calc::sqrt,
-    Contract, Pagination,
+    Contract,
 };
 
 use crate::{
     contract::INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
     query::{self, factory_config},
     state::{
-        config_r, config_w, trade_count_r, trade_count_w, trade_history_r, trade_history_w,
-        whitelist_r, whitelist_w, Config, PAGINATION_LIMIT,
+        config_r, config_w, trade_count_r, trade_count_w, trade_history_w, whitelist_r,
+        whitelist_w, Config,
     },
 };
 
@@ -169,7 +165,7 @@ pub fn swap(
 
     let fee_info = query::fee_info(deps.as_ref(), &env)?;
     // check if user whitelist
-    let is_user_whitelist = is_address_in_whitelist(deps.storage,&sender)?;
+    let is_user_whitelist = is_address_in_whitelist(deps.storage, &sender)?;
     let swap_result = calculate_swap_result(
         deps.as_ref(),
         &env,
@@ -288,7 +284,7 @@ pub fn calculate_swap_result(
     }
     // total fee
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
-   
+
     // sub fee from offer amount
     let mut deducted_offer_amount = offer.amount - total_fee_amount;
     if let Some(true) = exclude_fee {
@@ -356,7 +352,7 @@ pub fn lp_virtual_swap(
                 token: new_deposit.pair.0.clone(),
                 amount: half_of_extra,
             };
-            
+
             let swap = calculate_swap_result(
                 deps,
                 env,
@@ -600,21 +596,29 @@ pub fn add_liquidity(
 
     let fee_info = query::fee_info(deps.as_ref(), &env)?;
 
-    let pair_contract_pool_liquidity =
-    query::total_supply(deps.as_ref(), &config.lp_token)?;
+    let pair_contract_pool_liquidity = query::total_supply(deps.as_ref(), &config.lp_token)?;
 
-    let new_deposit = lp_virtual_swap(deps.as_ref(), &env, fee_info.lp_fee, fee_info.shade_dao_fee, fee_info.shade_dao_address, &config, &deposit, pair_contract_pool_liquidity, pool_balances, Some(&mut pair_messages))?;
-
-    let lp_tokens = calculate_lp_tokens(
-        &new_deposit,
-        pool_balances,
+    let new_deposit = lp_virtual_swap(
+        deps.as_ref(),
+        &env,
+        fee_info.lp_fee,
+        fee_info.shade_dao_fee,
+        fee_info.shade_dao_address,
+        &config,
+        &deposit,
         pair_contract_pool_liquidity,
+        pool_balances,
+        Some(&mut pair_messages),
     )?;
 
-    if let Some(e) = expected_return 
-    {
+    let lp_tokens = calculate_lp_tokens(&new_deposit, pool_balances, pair_contract_pool_liquidity)?;
+
+    if let Some(e) = expected_return {
         if e > lp_tokens {
-            return Err(StdError::generic_err(format!("Operation returns less then expected ({} < {}).", e, lp_tokens)));
+            return Err(StdError::generic_err(format!(
+                "Operation returns less then expected ({} < {}).",
+                e, lp_tokens
+            )));
         }
     }
 
@@ -824,8 +828,7 @@ pub fn calculate_lp_tokens(
     pool_balances: [Uint128; 2],
     pair_contract_pool_liquidity: Uint128,
 ) -> Result<Uint128, StdError> {
-
-    let lp_tokens: Uint128 ;
+    let lp_tokens: Uint128;
     if pair_contract_pool_liquidity == Uint128::zero() {
         // If user mints new liquidity pool -> liquidity % = sqrt(x * y) where
         // x and y is amount of token0 and token1 provided

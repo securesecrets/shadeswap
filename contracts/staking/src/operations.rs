@@ -1,25 +1,20 @@
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
 
-use cosmwasm_std::{Binary};
 use cosmwasm_std::{
-    to_binary, Addr, Attribute, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Response, StdError, StdResult, Storage, Uint128, WasmMsg,
+    to_binary, Addr, Attribute, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, Storage, Uint128, WasmMsg,
 };
-use shadeswap_shared::core::TokenType;
 use shadeswap_shared::snip20;
-use shadeswap_shared::staking::{QueryResponse, ClaimableInfo, RewardTokenInfo};
+use shadeswap_shared::staking::RewardTokenInfo;
 use shadeswap_shared::utils::ExecuteCallback;
-use shadeswap_shared::{
-    msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, Contract,
-};
-const SECONDS_IN_DAY:Uint128 = Uint128::new(24u128 * 60u128 * 60u128);
+use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, Contract};
+const SECONDS_IN_DAY: Uint128 = Uint128::new(24u128 * 60u128 * 60u128);
 
 use crate::state::{
     claim_reward_info_r, claim_reward_info_w, config_r, config_w, proxy_staker_info_r,
     proxy_staker_info_w, reward_token_list_r, reward_token_list_w, reward_token_r, reward_token_w,
     staker_index_r, staker_index_w, stakers_r, stakers_w, total_staked_r, total_staked_w,
-    total_stakers_r, total_stakers_w, ClaimRewardsInfo, ProxyStakingInfo,
-    StakingInfo,
+    total_stakers_r, total_stakers_w, ClaimRewardsInfo, ProxyStakingInfo, StakingInfo,
 };
 
 /// Calculate Staker % of Total Staking Amount
@@ -36,7 +31,7 @@ pub fn calculate_staker_shares(storage: &dyn Storage, amount: Uint128) -> StdRes
     Ok(user_share)
 }
 
-/// Store init reward token with timestamp 
+/// Store init reward token with timestamp
 pub fn store_init_reward_token_and_timestamp(
     storage: &mut dyn Storage,
     reward_token: Contract,
@@ -52,7 +47,7 @@ pub fn store_init_reward_token_and_timestamp(
         &RewardTokenInfo {
             reward_token: reward_token.to_owned(),
             daily_reward_amount: emission_amount,
-            valid_to: current_timestamp
+            valid_to: current_timestamp,
         },
     )?;
     Ok(())
@@ -85,13 +80,13 @@ pub fn set_reward_token(
     reward_token_list_w(deps.storage).save(&reward_list_token)?;
     Ok(Response::new().add_attributes(vec![
         Attribute::new("action", "set_reward_token"),
-        Attribute::new("owner", info.sender.to_string()),       
+        Attribute::new("owner", info.sender.to_string()),
         Attribute::new("daily_reward_amount", daily_reward_amount.to_string()),
         Attribute::new("valid_to", valid_to.to_string()),
     ]))
 }
 
-/// Stake 
+/// Stake
 pub fn stake(
     deps: DepsMut,
     env: Env,
@@ -371,7 +366,7 @@ pub fn claim_rewards_for_all_stakers(
 pub fn get_reward_tokens_info(storage: &dyn Storage) -> StdResult<Vec<RewardTokenInfo>> {
     let mut list_token: Vec<RewardTokenInfo> = Vec::new();
     let reward_list = reward_token_list_r(storage).load()?;
-    for addr in &reward_list {       
+    for addr in &reward_list {
         // load total reward token
         let reward_token: RewardTokenInfo = reward_token_r(storage).load(addr.as_bytes())?;
         list_token.push(reward_token.to_owned())
@@ -459,7 +454,12 @@ pub fn calculate_incremental_staking_reward(
     if last_timestamp < to_timestamp {
         let time_dif = to_timestamp - last_timestamp;
         let total_available_reward = emmision_rate.multiply_ratio(time_dif, SECONDS_IN_DAY);
-        let converted_total_reward = Decimal::from_atomics(total_available_reward, 0).or_else(|_|Err(StdError::generic_err("Decimal range exceeded on total available rewards.")))?;
+        let converted_total_reward =
+            Decimal::from_atomics(total_available_reward, 0).or_else(|_| {
+                Err(StdError::generic_err(
+                    "Decimal range exceeded on total available rewards.",
+                ))
+            })?;
         let result = converted_total_reward.checked_mul(percentage)?;
         Ok(result.atomics().checked_div(DECIMAL_FRACTIONAL)?)
     } else {
@@ -525,7 +525,8 @@ pub fn proxy_unstake(
             amount: amount,
             memo: None,
             padding: None,
-        }.to_cosmos_msg(&config.lp_token, vec![])?;
+        }
+        .to_cosmos_msg(&config.lp_token, vec![])?;
 
         messages.push(cosmos_msg);
         Ok(Response::new().add_messages(messages).add_attributes(vec![
@@ -584,7 +585,8 @@ pub fn unstake(
                 msg: Some(remove_liquidity_msg.clone()),
                 memo: None,
                 padding: None,
-            }.to_cosmos_msg(&config.lp_token, vec![])?;
+            }
+            .to_cosmos_msg(&config.lp_token, vec![])?;
 
             messages.push(cosmos_msg);
         } else {
@@ -594,7 +596,8 @@ pub fn unstake(
                 amount: amount,
                 memo: None,
                 padding: None,
-            }.to_cosmos_msg(&config.lp_token, vec![])?;
+            }
+            .to_cosmos_msg(&config.lp_token, vec![])?;
 
             messages.push(cosmos_msg);
         }
@@ -657,14 +660,18 @@ fn process_all_claimable_rewards(
             msg: None,
             memo: None,
             padding: None,
-        }.to_cosmos_msg(&Contract{
-            address: claim_reward.reward_token_addr.to_owned(),
-            code_hash: claim_reward.reward_token_code_hash.to_owned(),
-        }, vec![])?;
+        }
+        .to_cosmos_msg(
+            &Contract {
+                address: claim_reward.reward_token_addr.to_owned(),
+                code_hash: claim_reward.reward_token_code_hash.to_owned(),
+            },
+            vec![],
+        )?;
 
         messages.push(cosmos_msg);
         claim_reward.amount = Uint128::zero();
-    }  
+    }
     claim_reward_info_w(storage).save(receiver.as_bytes(), &claim_reward_tokens)?;
     Ok(())
 }

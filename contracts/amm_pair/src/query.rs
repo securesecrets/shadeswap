@@ -11,9 +11,8 @@ use shadeswap_shared::{
 };
 
 use crate::{
-    contract::query,
     operations::{calculate_lp_tokens, calculate_swap_result, lp_virtual_swap},
-    state::{config_r, trade_history_r, trade_count_r, PAGINATION_LIMIT},
+    state::{config_r, trade_count_r, trade_history_r, PAGINATION_LIMIT},
 };
 
 pub struct FactoryConfig {
@@ -262,11 +261,7 @@ pub fn trade_history(deps: Deps, count: u64) -> StdResult<TradeHistory> {
     Ok(trade_history)
 }
 
-
-pub fn trade_history_page(
-    deps: Deps,
-    pagination: Pagination,
-) -> StdResult<Vec<TradeHistory>> {
+pub fn trade_history_page(deps: Deps, pagination: Pagination) -> StdResult<Vec<TradeHistory>> {
     let count = trade_count_r(deps.storage).may_load()?.unwrap_or(0u64);
 
     if pagination.start >= count {

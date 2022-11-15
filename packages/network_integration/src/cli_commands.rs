@@ -1,13 +1,13 @@
 pub mod snip20_lib {
-    use std::io;
-    use serde_json::Result;
+    use crate::utils::{init_snip20_cli, InitConfig, GAS};
+    use cosmwasm_std::Addr;
     use secretcli::{
         cli_types::NetContract,
         secretcli::{handle, query, Report},
     };
+    use serde_json::Result;
     use snip20_reference_impl::msg::QueryAnswer;
-    use crate::utils::{init_snip20_cli, InitConfig, GAS};
-    use cosmwasm_std::Addr;
+    use std::io;
 
     pub fn create_new_snip_20(
         account_name: &str,
@@ -155,7 +155,7 @@ pub mod snip20_lib {
 pub mod factory_lib {
     use std::io;
 
-    use cosmwasm_std::{Uint128, Binary};
+    use cosmwasm_std::{Binary, Uint128};
     use secretcli::{
         cli_types::NetContract,
         secretcli::{handle, store_and_return_contract, Report},
@@ -178,18 +178,18 @@ pub mod factory_lib {
         account_name: &str,
         backend: &str,
         reports: &mut Vec<Report>,
-        api_key:&str,
+        api_key: &str,
         seed: &str,
         lp_fee_nom: u8,
         lp_fee_denom: u16,
         shade_dao_fee_nom: u8,
-        shade_dao_fee_denom: u16,                
+        shade_dao_fee_denom: u16,
         shade_dao_address: &str,
         shade_dao_code_hash: &str,
         admin_contract: &str,
         admin_contract_code_hash: &str,
         auth_addr: &str,
-        auth_code_hash: &str
+        auth_code_hash: &str,
     ) -> io::Result<NetContract> {
         println!("Creating New Factory");
         let lp_token = store_and_return_contract(
@@ -200,8 +200,11 @@ pub mod factory_lib {
         )?;
 
         let mut auth_contract: Option<Contract> = None;
-        if auth_addr != ""{
-            auth_contract = Some(Contract{address: Addr::unchecked(auth_addr), code_hash: auth_code_hash.to_string()})
+        if auth_addr != "" {
+            auth_contract = Some(Contract {
+                address: Addr::unchecked(auth_addr),
+                code_hash: auth_code_hash.to_string(),
+            })
         }
 
         let pair_contract = store_and_return_contract(
@@ -221,7 +224,7 @@ pub mod factory_lib {
                 lp_fee: Fee::new(lp_fee_nom, lp_fee_denom),
                 shade_dao_address: Contract {
                     address: Addr::unchecked(shade_dao_address.to_string()),
-                    code_hash: shade_dao_code_hash.to_string()
+                    code_hash: shade_dao_code_hash.to_string(),
                 },
             },
             lp_token_contract: ContractInstantiationInfo {
@@ -231,7 +234,10 @@ pub mod factory_lib {
             prng_seed: to_binary(seed).unwrap(),
             api_key: api_key.to_string(),
             authenticator: auth_contract,
-            admin_auth: Contract{address: Addr::unchecked(admin_contract.to_string()), code_hash: admin_contract_code_hash.to_string()},
+            admin_auth: Contract {
+                address: Addr::unchecked(admin_contract.to_string()),
+                code_hash: admin_contract_code_hash.to_string(),
+            },
         };
 
         let factory_contract =
@@ -331,12 +337,12 @@ pub mod factory_lib {
             recipient.to_string()
         );
 
-        let msg_binary: Option<Binary> = match msg{
+        let msg_binary: Option<Binary> = match msg {
             Some(mg) => Some(to_binary(&mg).unwrap()),
             None => None,
         };
 
-        let rec_code_hash = match recipient_code_hash{
+        let rec_code_hash = match recipient_code_hash {
             Some(hash) => Some(hash),
             None => None,
         };
@@ -348,13 +354,13 @@ pub mod factory_lib {
             code_hash: "".to_string(),
         };
 
-        let msg = snip20_reference_impl::msg::ExecuteMsg::Send { 
-            recipient: Addr::unchecked(token_addr.to_string()), 
-            recipient_code_hash: rec_code_hash, 
-            amount: snip_20_amount, 
-            msg: msg_binary, 
-            memo: None, 
-            padding: None 
+        let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
+            recipient: Addr::unchecked(token_addr.to_string()),
+            recipient_code_hash: rec_code_hash,
+            amount: snip_20_amount,
+            msg: msg_binary,
+            memo: None,
+            padding: None,
         };
 
         handle(
@@ -369,7 +375,6 @@ pub mod factory_lib {
         )?;
         Ok(())
     }
-
 
     pub fn increase_allowance(
         spender: String,
@@ -436,12 +441,15 @@ pub mod router_lib {
         account_name: &str,
         backend: &str,
         reports: &mut Vec<Report>,
-        admin: &str
+        admin: &str,
     ) -> io::Result<NetContract> {
         let router_msg = RouterInitMsg {
             prng_seed: to_binary(&"".to_string()).unwrap(),
             entropy: to_binary(&"".to_string()).unwrap(),
-            admin_auth: Contract { address: Addr::unchecked(admin.to_string()), code_hash: admin_code_hash.to_string()},
+            admin_auth: Contract {
+                address: Addr::unchecked(admin.to_string()),
+                code_hash: admin_code_hash.to_string(),
+            },
         };
 
         let router_contract = init(
@@ -506,13 +514,13 @@ pub mod amm_pair_lib {
     };
 
     use shadeswap_shared::{
+        amm_pair::AMMPair,
         c_std::{to_binary, Addr},
         core::{ContractInstantiationInfo, TokenPair, TokenPairAmount, TokenType},
         msg::{
             amm_pair::{
-                ExecuteMsg as AMMPairHandlMsg,
-                QueryMsg as AMMPairQueryMsg,
-                QueryMsgResponse as AMMPairQueryMsgResponse
+                ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
+                QueryMsgResponse as AMMPairQueryMsgResponse,
             },
             factory::{
                 ExecuteMsg as FactoryExecuteMsg, QueryMsg as FactoryQueryMsg,
@@ -520,7 +528,7 @@ pub mod amm_pair_lib {
             },
             staking::{ExecuteMsg as StakingExecuteMsg, StakingContractInit},
         },
-        Contract, Pagination, amm_pair::AMMPair,
+        Contract, Pagination,
     };
     use std::io;
 
@@ -561,11 +569,10 @@ pub mod amm_pair_lib {
         reward_contract_address: Option<String>,
         reward_contract_code_hash: Option<String>,
         reward_amount: Option<u128>,
-        valid_to: Option<u128>,   
-        staking_contract_decimals: u8,  
+        valid_to: Option<u128>,
+        _staking_contract_decimals: u8,
         reports: &mut Vec<Report>,
     ) -> io::Result<()> {
-    
         let factory_contract = NetContract {
             label: "".to_string(),
             id: "".to_string(),
@@ -573,19 +580,18 @@ pub mod amm_pair_lib {
             code_hash: factory_code_hash,
         };
 
-       let mut pairs:Option<TokenPair> = None;     
+        let pairs: Option<TokenPair>;
         if &token_0_address == "" {
             pairs = Some(TokenPair(
-                TokenType::NativeToken { 
-                    denom:"uscrt".to_string()
-                }, 
+                TokenType::NativeToken {
+                    denom: "uscrt".to_string(),
+                },
                 TokenType::CustomToken {
                     contract_addr: Addr::unchecked(token_1_address.clone()),
                     token_code_hash: token_1_code_hash.clone(),
                 },
             ));
-        }
-        else{
+        } else {
             pairs = Some(TokenPair(
                 TokenType::CustomToken {
                     contract_addr: Addr::unchecked(token_0_address.clone()),
@@ -599,25 +605,23 @@ pub mod amm_pair_lib {
         }
 
         let staking_contract = store_staking_contract(&account_name, &backend)?;
-        let staking_contract_init: Option<StakingContractInit> =  match reward_contract_address {
-            Some(msg) => {
-                Some(StakingContractInit {
-                    contract_info: ContractInstantiationInfo {
-                        code_hash: staking_contract.code_hash.to_string(),
-                        id: staking_contract.id.clone().parse::<u64>().unwrap(),
-                    },
-                    daily_reward_amount: Uint128::from(reward_amount.unwrap()),
-                    reward_token: TokenType::CustomToken {
-                        contract_addr: Addr::unchecked(msg.clone()),
-                        token_code_hash: reward_contract_code_hash.unwrap().to_string(),
-                    },
-                    valid_to: Uint128::new(valid_to.unwrap()),
-                    decimals: 18u8
-                })      
-            }     
-            None => None
-        };    
-       
+        let staking_contract_init: Option<StakingContractInit> = match reward_contract_address {
+            Some(msg) => Some(StakingContractInit {
+                contract_info: ContractInstantiationInfo {
+                    code_hash: staking_contract.code_hash.to_string(),
+                    id: staking_contract.id.clone().parse::<u64>().unwrap(),
+                },
+                daily_reward_amount: Uint128::from(reward_amount.unwrap()),
+                reward_token: TokenType::CustomToken {
+                    contract_addr: Addr::unchecked(msg.clone()),
+                    token_code_hash: reward_contract_code_hash.unwrap().to_string(),
+                },
+                valid_to: Uint128::new(valid_to.unwrap()),
+                decimals: 18u8,
+            }),
+            None => None,
+        };
+
         handle(
             &FactoryExecuteMsg::CreateAMMPair {
                 pair: pairs.unwrap().clone(),
@@ -637,7 +641,11 @@ pub mod amm_pair_lib {
         Ok(())
     }
 
-    pub fn list_pair_from_factory(factory_addr: String, start: u64, limit: u8) -> io::Result<Vec<AMMPair>> {
+    pub fn list_pair_from_factory(
+        factory_addr: String,
+        start: u64,
+        limit: u8,
+    ) -> io::Result<Vec<AMMPair>> {
         let factory_contract = NetContract {
             label: "".to_string(),
             id: "".to_string(),
@@ -726,7 +734,7 @@ pub mod amm_pair_lib {
                 label: "".to_string(),
                 id: "".to_string(),
                 address: amm_pair_address.to_string(),
-                code_hash:"".to_string(),
+                code_hash: "".to_string(),
             },
             staking_contract_msg,
             None,
@@ -734,7 +742,7 @@ pub mod amm_pair_lib {
         if let AMMPairQueryMsgResponse::StakingContractInfo { staking_contract } =
             staking_contract_query
         {
-            return Ok(staking_contract)
+            return Ok(staking_contract);
         }
         return Ok(None);
     }
@@ -760,52 +768,80 @@ pub mod amm_pair_lib {
             code_hash: "".to_string(),
         };
 
-        let mut pair: Option<TokenPair> = None;
-        let mut native_amount: Option<String> = None;       
+        let pair: Option<TokenPair>;
+        let mut native_amount: Option<String> = None;
         if token_0_addr == "" || token_1_addr == "" {
-
             if token_0_addr == "" {
-            let mut amo = amount_0.to_owned().to_string();
-            let denom = "uscrt".to_string();   
-            amo.push_str(&denom)        ;
-            native_amount = Some(amo.to_string());
-            pair = Some(TokenPair(
-                TokenType::NativeToken { 
-                    denom: "uscrt".to_string()
-                }, 
-                TokenType::CustomToken {
-                    contract_addr: Addr::unchecked(token_1_addr.clone()),
-                    token_code_hash: token_1_code_hash.clone(),
-                }));
+                let mut amo = amount_0.to_owned().to_string();
+                let denom = "uscrt".to_string();
+                amo.push_str(&denom);
+                native_amount = Some(amo.to_string());
+                pair = Some(TokenPair(
+                    TokenType::NativeToken {
+                        denom: "uscrt".to_string(),
+                    },
+                    TokenType::CustomToken {
+                        contract_addr: Addr::unchecked(token_1_addr.clone()),
+                        token_code_hash: token_1_code_hash.clone(),
+                    },
+                ));
 
-            // increase allowance
-            increase_allowance(pair_addr.to_owned(), amount_1, token_1_addr, account_name, backend, reports).unwrap();
-            }
-            else
-            {
-
+                // increase allowance
+                increase_allowance(
+                    pair_addr.to_owned(),
+                    amount_1,
+                    token_1_addr,
+                    account_name,
+                    backend,
+                    reports,
+                )
+                .unwrap();
+            } else {
                 let mut amo = amount_1.to_owned().to_string();
-                let denom = "uscrt".to_string();   
-                amo.push_str(&denom)        ;
+                let denom = "uscrt".to_string();
+                amo.push_str(&denom);
                 native_amount = Some(amo.to_string());
                 pair = Some(TokenPair(
                     TokenType::CustomToken {
                         contract_addr: Addr::unchecked(token_0_addr.clone()),
                         token_code_hash: token_0_code_hash.clone(),
                     },
-                    TokenType::NativeToken { 
-                        denom: "uscrt".to_string()
-                    }));
-    
+                    TokenType::NativeToken {
+                        denom: "uscrt".to_string(),
+                    },
+                ));
+
                 // increase allowance
-                increase_allowance(pair_addr.to_owned(), amount_0, token_0_addr, account_name, backend, reports).unwrap();
-                
+                increase_allowance(
+                    pair_addr.to_owned(),
+                    amount_0,
+                    token_0_addr,
+                    account_name,
+                    backend,
+                    reports,
+                )
+                .unwrap();
             }
-        }
-        else{
+        } else {
             // increase allowance
-            increase_allowance(pair_addr.to_owned(), amount_0, token_0_addr.to_owned(), account_name, backend, reports).unwrap();
-            increase_allowance(pair_addr.to_owned(), amount_1, token_1_addr.to_owned(), account_name, backend, reports).unwrap();
+            increase_allowance(
+                pair_addr.to_owned(),
+                amount_0,
+                token_0_addr.to_owned(),
+                account_name,
+                backend,
+                reports,
+            )
+            .unwrap();
+            increase_allowance(
+                pair_addr.to_owned(),
+                amount_1,
+                token_1_addr.to_owned(),
+                account_name,
+                backend,
+                reports,
+            )
+            .unwrap();
 
             pair = Some(TokenPair(
                 TokenType::CustomToken {
@@ -822,14 +858,13 @@ pub mod amm_pair_lib {
         let mut expected_return: Option<Uint128> = None;
         if exp_return != "" {
             expected_return = Some(Uint128::new(exp_return.parse::<u128>().unwrap()));
-        }       
+        }
 
         let mut staking: Option<bool> = None;
         if staking_opt == true {
             staking = Some(true);
         }
 
-        
         handle(
             &AMMPairHandlMsg::AddLiquidityToAMMContract {
                 deposit: TokenPairAmount {

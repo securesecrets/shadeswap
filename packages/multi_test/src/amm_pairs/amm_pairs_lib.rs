@@ -35,7 +35,7 @@ pub mod amm_pairs_lib{
                     code_hash: lp_token_info.code_hash,
                     id: lp_token_info.code_id,
                 },
-                factory_info: factory.clone(),
+                factory_info: Some(factory.clone()),
                 prng_seed: to_binary(seed)?,
                 entropy: to_binary(seed)?,
                 admin_auth: admin_auth.clone() ,

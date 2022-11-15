@@ -119,10 +119,10 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         &convert_to_contract_link(&token_2_contract),
     );
 
-    let factory_link = SContract {
+    let factory_link = Some(SContract {
         address: factory_contract_info.address,
         code_hash: factory_contract_info.code_hash,
-    };
+    });
 
     // INIT AMM PAIR
     let init_msg = InitMsg {
@@ -535,10 +535,10 @@ pub fn amm_pair_integration_tests_native_token() {
 
     let pair = create_token_pair_with_native(&convert_to_contract_link(&token_0_contract));
 
-    let factory_link = SContract {
+    let factory_link = Some(SContract {
         address: factory_contract_info.address,
         code_hash: factory_contract_info.code_hash,
-    };
+    });
 
     // INIT AMM PAIR
     let init_msg = InitMsg {
@@ -913,10 +913,10 @@ pub fn test_sslp_with_two_virtual_providers() {
 
     let pair = create_token_pair_with_native(&convert_to_contract_link(&token_0_contract));
 
-    let factory_link = SContract {
+    let factory_link = Some(SContract {
         address: factory_contract_info.address,
         code_hash: factory_contract_info.code_hash,
-    };
+    });
 
     // INIT AMM PAIR
     let init_msg = InitMsg {

@@ -120,10 +120,10 @@ pub fn create_pair(
         msg: to_binary(&AMMPairInitMsg {
             pair: pair.clone(),
             lp_token_contract: config.lp_token_contract.clone(),
-            factory_info: Contract {
+            factory_info: Some(Contract {
                 code_hash: env.contract.code_hash.clone(),
                 address: env.contract.address.clone(),
-            },
+            }),
             entropy: entropy,
             prng_seed: prng_seed_r(deps.storage).load()?,
             admin_auth: config.admin_auth,

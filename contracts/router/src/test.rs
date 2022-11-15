@@ -540,10 +540,10 @@ pub mod tests {
                                         address: Addr::unchecked("asd"),
                                         code_hash: "".to_string(),
                                     },
-                                    factory: Contract {
+                                    factory: Some(Contract {
                                         address: Addr::unchecked("asd"),
                                         code_hash: "".to_string(),
-                                    },
+                                    }),
                                     pair: TokenPair(
                                         TokenType::CustomToken {
                                             contract_addr: Addr::unchecked(CUSTOM_TOKEN_1.to_string()),

@@ -126,6 +126,12 @@ pub mod amm_pair {
         pub shade_dao_address: Contract,
     }
 
+    pub struct LPAddInfo {
+        pub min_lp_token: Uint128,
+        pub excess_token_0: Uint128,
+        pub excess_token_1: Uint128,
+    }
+
     pub fn generate_pair_key(pair: &TokenPair) -> Vec<u8> {
         let mut bytes: Vec<&[u8]> = Vec::new();
 
@@ -173,7 +179,8 @@ pub mod amm_pair {
     pub struct InitMsg {
         pub pair: TokenPair,
         pub lp_token_contract: ContractInstantiationInfo,
-        pub factory_info: Contract,
+        // Leave none if initializing without factory
+        pub factory_info: Option<Contract>,
         pub prng_seed: Binary,
         pub entropy: Binary,
         pub admin_auth: Contract,
@@ -270,7 +277,7 @@ pub mod amm_pair {
     pub enum QueryMsgResponse {
         GetPairInfo {
             liquidity_token: Contract,
-            factory: Contract,
+            factory: Option<Contract>,
             pair: TokenPair,
             amount_0: Uint128,
             amount_1: Uint128,
@@ -315,7 +322,7 @@ pub mod amm_pair {
             excess_token_1: Uint128,
         },
         GetConfig {
-            factory_contract: Contract,
+            factory_contract: Option<Contract>,
             lp_token: Contract,
             staking_contract: Option<Contract>,
             pair: TokenPair,

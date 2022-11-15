@@ -186,7 +186,7 @@ pub fn configure_block_send_init_funds(router: &mut App, owner_addr: &Addr, _amo
     }
 
     pub fn get_amm_pair_config(router: &mut App, amm_pair_contract: &ContractInfo) 
-    -> (SContract, SContract, Option<SContract>, TokenPair, Option<CustomFee>)  {
+    -> (Option<SContract>, SContract, Option<SContract>, TokenPair, Option<CustomFee>)  {
             let query: AMMPairQueryResponse = router.query_test(amm_pair_contract.to_owned(),to_binary(&AMMPairQueryMsg::GetConfig { }).unwrap()).unwrap();
             match query {
                 AMMPairQueryResponse::GetConfig { 

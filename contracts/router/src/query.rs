@@ -15,7 +15,7 @@ use shadeswap_shared::{
     Contract,
 };
 
-pub fn query_pair_contract_config(
+pub fn pair_contract_config(
     querier: &QuerierWrapper,
     pair_contract_address: Contract,
 ) -> StdResult<AMMPairQueryReponse> {
@@ -28,7 +28,7 @@ pub fn query_pair_contract_config(
     return Ok(result);
 }
 
-pub fn query_swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount) -> StdResult<Binary> {
+pub fn swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount) -> StdResult<Binary> {
     let mut sum_total_fee_amount: Uint128 = Uint128::zero();
     let mut sum_lp_fee_amount: Uint128 = Uint128::zero();
     let mut sum_shade_dao_fee_amount: Uint128 = Uint128::zero();

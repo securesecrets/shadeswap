@@ -20,7 +20,8 @@ use shadeswap_shared::{
 
 use crate::{
     contract::{SHADE_ROUTER_KEY, SWAP_REPLY_ID},
-    state::{config_r, config_w, epheral_storage_r, epheral_storage_w, CurrentSwapInfo}, query::query_pair_contract_config,
+    query,
+    state::{config_r, config_w, epheral_storage_r, epheral_storage_w, CurrentSwapInfo}, 
 };
 
 pub fn refresh_tokens(
@@ -65,7 +66,7 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
         };
 
         if info.path.len() > (info.current_index + 1) as usize {
-            let next_pair_contract = query_pair_contract_config(
+            let next_pair_contract = query::pair_contract_config(
                 &deps.querier,
                 Contract {
                     address: deps
@@ -143,7 +144,7 @@ pub fn swap_tokens_for_exact_tokens(
 ) -> StdResult<Response> {
     //Validates whether the amount received is greater then the amount_out_min
 
-    let next_pair_contract = query_pair_contract_config(
+    let next_pair_contract = query::pair_contract_config(
         &deps.querier,
         Contract {
             address: deps.api.addr_validate(&path[0].addr.clone())?,

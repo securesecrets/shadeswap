@@ -18,7 +18,7 @@ use crate::{
         next_swap, refresh_tokens,
         swap_tokens_for_exact_tokens,
     },
-    query::{query_swap_simulation, query_pair_contract_config},
+    query,
     state::{config_r, config_w, Config},
 };
 
@@ -145,7 +145,7 @@ fn receiver_callback(
                     path,
                     recipient,
                 } => {
-                    let pair_contract_config = query_pair_contract_config(
+                    let pair_contract_config = query::pair_contract_config(
                         &deps.querier,
                         Contract {
                             address: deps.api.addr_validate(&path[0].addr.to_string())?,
@@ -212,7 +212,7 @@ fn receiver_callback(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     pad_query_result(
         match msg {
-            QueryMsg::SwapSimulation { offer, path } => query_swap_simulation(deps, path, offer),
+            QueryMsg::SwapSimulation { offer, path } => query::swap_simulation(deps, path, offer),
             QueryMsg::GetConfig {} => return Ok(to_binary(&QueryMsgResponse::GetConfig {})?),
         },
         BLOCK_SIZE,

@@ -107,12 +107,7 @@ pub mod amm_pairs_mock {
                 } => to_binary(""),
                 QueryMsg::GetWhiteListAddress {} => to_binary(""),
                 QueryMsg::GetTradeCount {} => to_binary(""),
-                QueryMsg::GetStakingContract {} => to_binary(""),
-                QueryMsg::GetEstimatedPrice {
-                    offer: _,
-                    exclude_fee: _,
-                } => to_binary(""),
-                QueryMsg::SwapSimulation { offer } => {
+                QueryMsg::SwapSimulation {offer, exclude_fee } => {
                     let response = QueryMsgResponse::SwapSimulation {
                         total_fee_amount: Uint128::new(150u128),
                         lp_fee_amount: Uint128::new(50u128),

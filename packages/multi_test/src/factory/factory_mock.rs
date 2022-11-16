@@ -47,7 +47,7 @@ pub mod factory_mock {
             match msg {
                 QueryMsg::ListAMMPairs { pagination: _ } => to_binary(""),
                 QueryMsg::GetAMMPairAddress { pair: _ } => to_binary(""),
-                QueryMsg::GetConfig => {
+                QueryMsg::GetConfig {} => {
                     println!("getconfig factory");
                     let admin_auth: Contract = singleton_read(deps.storage, CONFIG).load()?;
                     to_binary(&QueryResponse::GetConfig {
@@ -120,11 +120,7 @@ pub mod factory_mock {
                         let config = ephemeral_storage_r(deps.storage).load()?;
                         register_amm_pair(
                             deps.storage,
-                            AMMPair {
-                                pair: config.pair,
-                                address: contract_address,
-                                enabled: true,
-                            },
+                            AMMPair {pair:config.pair,address:contract_address,enabled:true, code_hash: "".to_string() },
                         )?;
                         ephemeral_storage_w(deps.storage).remove();
                         Ok(Response::default())

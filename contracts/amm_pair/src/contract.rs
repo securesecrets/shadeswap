@@ -4,7 +4,7 @@ use crate::{
         register_pair_token, remove_addresses_from_whitelist, remove_liquidity,
         set_staking_contract, swap, update_viewing_key,
     },
-    query::{self, swap_estimate},
+    query::{self},
     state::{config_r, config_w, trade_count_r, whitelist_r, Config},
 };
 
@@ -367,7 +367,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 }
             }
             QueryMsg::GetWhiteListAddress {} => {
-                let stored_addr = whitelist_r(deps.storage).load()?;
+                let stored_addr = whitelist_r(deps.storage).may_load()?.unwrap_or(vec![]);
                 to_binary(&QueryMsgResponse::GetWhiteListAddress {
                     addresses: stored_addr,
                 })
@@ -376,19 +376,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 let count = trade_count_r(deps.storage).may_load()?.unwrap_or(0u64);
                 to_binary(&QueryMsgResponse::GetTradeCount { count })
             }
-            QueryMsg::GetStakingContract {} => {
-                let staking_contract = config_r(deps.storage).load()?.staking_contract;
-                to_binary(&QueryMsgResponse::StakingContractInfo {
-                    staking_contract: staking_contract,
-                })
-            }
-            QueryMsg::GetEstimatedPrice { offer, exclude_fee } => {
-                let swap_result = swap_estimate(deps, env, offer, exclude_fee)?;
-                to_binary(&QueryMsgResponse::EstimatedPrice {
-                    estimated_price: swap_result.price,
-                })
-            }
-            QueryMsg::SwapSimulation { offer } => query::swap_simulation(deps, env, offer),
+            QueryMsg::SwapSimulation { offer, exclude_fee } => query::swap_simulation(deps, env, offer, exclude_fee),
             QueryMsg::GetShadeDaoInfo {} => query::shade_dao_info(deps, &env),
             QueryMsg::GetEstimatedLiquidity { deposit } => {
                 query::estimated_liquidity(deps, env, &deposit)

@@ -77,7 +77,7 @@ pub fn staking_integration_tests_without_proxy() {
     // Assert Staking Config
     let query: QueryResponse = router.query_test(staking_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
     match query {
-        QueryResponse::Config { reward_token, lp_token, daily_reward_amount, amm_pair: _, admin_auth: _ } => {
+        QueryResponse::GetConfig { reward_token, lp_token, daily_reward_amount, amm_pair: _, admin_auth: _ } => {
            assert_eq!(daily_reward_amount, Uint128::new(30000u128));
            assert_eq!(reward_token.address.to_string(), reward_contract.address.to_string());
            assert_eq!(lp_token.address.to_owned(), lp_token_contract.address.to_owned());
@@ -197,7 +197,7 @@ pub fn staking_integration_tests_without_proxy() {
 
     // Assert Unstake amount < total amount 
     roll_blockchain(&mut router, 1000).unwrap();
-    let unstake_msg = ExecuteMsg::Unstake { amount: Uint128::new(500u128), remove_liqudity: Some(false)};
+    let unstake_msg = ExecuteMsg::Unstake { amount: Uint128::new(500u128), remove_liquidity: Some(false)};
     let _ = router.execute_contract(owner_addr.to_owned(), &staking_contract, &unstake_msg, &[]).unwrap();
     
     let permit_query = query_claimable_reward(&router, 
@@ -288,7 +288,7 @@ pub fn staking_integration_tests_with_proxy() {
     // Assert Staking Config
     let query: QueryResponse = router.query_test(staking_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
     match query {
-        QueryResponse::Config { reward_token, lp_token, daily_reward_amount, amm_pair: _, admin_auth: _ } => {
+        QueryResponse::GetConfig { reward_token, lp_token, daily_reward_amount, amm_pair: _, admin_auth: _ } => {
            assert_eq!(daily_reward_amount, Uint128::new(30000u128));
            assert_eq!(reward_token.address.to_string(), reward_contract.address.to_string());
            assert_eq!(lp_token.address.to_owned(), lp_token_contract.address.to_owned());

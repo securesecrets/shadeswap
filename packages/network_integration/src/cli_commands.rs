@@ -728,7 +728,7 @@ pub mod amm_pair_lib {
     }
 
     pub fn get_staking_contract(amm_pair_address: &str) -> io::Result<Option<Contract>> {
-        let staking_contract_msg = AMMPairQueryMsg::GetStakingContract {};
+        let staking_contract_msg = AMMPairQueryMsg::GetConfig {};
         let staking_contract_query: AMMPairQueryMsgResponse = query(
             &NetContract {
                 label: "".to_string(),
@@ -739,7 +739,7 @@ pub mod amm_pair_lib {
             staking_contract_msg,
             None,
         )?;
-        if let AMMPairQueryMsgResponse::StakingContractInfo { staking_contract } =
+        if let AMMPairQueryMsgResponse::GetConfig { staking_contract, factory_contract, lp_token, pair, custom_fee } =
             staking_contract_query
         {
             return Ok(staking_contract);

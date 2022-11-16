@@ -234,9 +234,9 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             amount,
             memo,
             ..
-        } => Err(StdError::generic_err("This method has been disabled.")),
+        } => Err(StdError::generic_err("Burn functionality is not enabled for this token.")),
         ExecuteMsg::BatchBurnFrom { actions, .. } => {
-            Err(StdError::generic_err("This method has been disabled."))
+            Err(StdError::generic_err("Burn functionality is not enabled for this token."))
         }
 
         // Mint
@@ -2384,72 +2384,8 @@ mod tests {
         let handle_result = execute(deps.as_mut(), mock_env(), info, handle_msg);
 
         let error = extract_error_msg(handle_result);
-        assert!(error.contains("insufficient allowance"));
-
-        // Burn more than allowance
-        let handle_msg = ExecuteMsg::IncreaseAllowance {
-            spender: Addr::unchecked("alice".to_string()),
-            amount: Uint128::new(2000),
-            padding: None,
-            expiration: None,
-        };
-        let info = mock_info("bob", &[]);
-
-        let handle_result = execute(deps.as_mut(), mock_env(), info, handle_msg);
-
-        assert!(
-            handle_result.is_ok(),
-            "handle() failed: {}",
-            handle_result.err().unwrap()
-        );
-        let handle_msg = ExecuteMsg::BurnFrom {
-            owner: Addr::unchecked("bob".to_string()),
-            amount: Uint128::new(2500),
-            memo: None,
-            padding: None,
-        };
-        let info = mock_info("alice", &[]);
-
-        let handle_result = execute(deps.as_mut(), mock_env(), info, handle_msg);
-
-        let error = extract_error_msg(handle_result);
-        assert!(error.contains("insufficient allowance"));
-
-        // Sanity check
-        let handle_msg = ExecuteMsg::BurnFrom {
-            owner: Addr::unchecked("bob".to_string()),
-            amount: Uint128::new(2000),
-            memo: None,
-            padding: None,
-        };
-        let info = mock_info("alice", &[]);
-
-        let handle_result = execute(deps.as_mut(), mock_env(), info, handle_msg);
-
-        assert!(
-            handle_result.is_ok(),
-            "handle() failed: {}",
-            handle_result.err().unwrap()
-        );
-        let bob_canonical = Addr::unchecked("bob".to_string());
-        let bob_balance = BalancesStore::load(&deps.storage, &bob_canonical);
-        assert_eq!(bob_balance, 10000 - 2000);
-        let total_supply = TotalSupplyStore::load(&deps.storage).unwrap();
-        assert_eq!(total_supply, 10000 - 2000);
-
-        // Second burn more than allowance
-        let handle_msg = ExecuteMsg::BurnFrom {
-            owner: Addr::unchecked("bob".to_string()),
-            amount: Uint128::new(1),
-            memo: None,
-            padding: None,
-        };
-        let info = mock_info("alice", &[]);
-
-        let handle_result = execute(deps.as_mut(), mock_env(), info, handle_msg);
-
-        let error = extract_error_msg(handle_result);
-        assert!(error.contains("insufficient allowance"));
+        assert!(error.contains("Burn functionality is not enabled for this token."));
+        
     }
 
     #[test]
@@ -2519,120 +2455,7 @@ mod tests {
         let handle_result = execute(deps.as_mut(), mock_env(), info, handle_msg);
 
         let error = extract_error_msg(handle_result);
-        assert!(error.contains("insufficient allowance"));
-
-        // Burn more than allowance
-        let allowance_size = 2000;
-        for name in &["bob", "jerry", "mike"] {
-            let handle_msg = ExecuteMsg::IncreaseAllowance {
-                spender: Addr::unchecked("alice".to_string()),
-                amount: Uint128::new(allowance_size),
-                padding: None,
-                expiration: None,
-            };
-            let info = mock_info(*name, &[]);
-            let handle_result = execute(deps.as_mut(), mock_env(), info, handle_msg);
-
-            assert!(
-                handle_result.is_ok(),
-                "handle() failed: {}",
-                handle_result.err().unwrap()
-            );
-            let handle_msg = ExecuteMsg::BurnFrom {
-                owner: Addr::unchecked(name.to_string()),
-                amount: Uint128::new(2500),
-                memo: None,
-                padding: None,
-            };
-            let info = mock_info("alice", &[]);
-
-            let handle_result = execute(deps.as_mut(), mock_env(), info, handle_msg);
-
-            let error = extract_error_msg(handle_result);
-            assert!(error.contains("insufficient allowance"));
-        }
-
-        // Burn some of the allowance
-        let actions: Vec<_> = [("bob", 200_u128), ("jerry", 300), ("mike", 400)]
-            .iter()
-            .map(|(name, amount)| batch::BurnFromAction {
-                owner: Addr::unchecked(name.to_string()),
-                amount: Uint128::new(*amount),
-                memo: None,
-            })
-            .collect();
-
-        let handle_msg = ExecuteMsg::BatchBurnFrom {
-            actions,
-            padding: None,
-        };
-        let info = mock_info("alice", &[]);
-
-        let handle_result = execute(deps.as_mut(), mock_env(), info, handle_msg);
-
-        assert!(
-            handle_result.is_ok(),
-            "handle() failed: {}",
-            handle_result.err().unwrap()
-        );
-        for (name, amount) in &[("bob", 200_u128), ("jerry", 300), ("mike", 400)] {
-            let name_canon = Addr::unchecked(name.to_string());
-            let balance = BalancesStore::load(&deps.storage, &name_canon);
-            assert_eq!(balance, 10000 - amount);
-        }
-        let total_supply = TotalSupplyStore::load(&deps.storage).unwrap();
-        assert_eq!(total_supply, 10000 * 3 - (200 + 300 + 400));
-
-        // Burn the rest of the allowance
-        let actions: Vec<_> = [("bob", 200_u128), ("jerry", 300), ("mike", 400)]
-            .iter()
-            .map(|(name, amount)| batch::BurnFromAction {
-                owner: Addr::unchecked(name.to_string()),
-                amount: Uint128::new(allowance_size - *amount),
-                memo: None,
-            })
-            .collect();
-
-        let handle_msg = ExecuteMsg::BatchBurnFrom {
-            actions,
-            padding: None,
-        };
-        let info = mock_info("alice", &[]);
-
-        let handle_result = execute(deps.as_mut(), mock_env(), info, handle_msg);
-
-        assert!(
-            handle_result.is_ok(),
-            "handle() failed: {}",
-            handle_result.err().unwrap()
-        );
-        for name in &["bob", "jerry", "mike"] {
-            let name_canon = Addr::unchecked(name.to_string());
-            let balance = BalancesStore::load(&deps.storage, &name_canon);
-            assert_eq!(balance, 10000 - allowance_size);
-        }
-        let total_supply = TotalSupplyStore::load(&deps.storage).unwrap();
-        assert_eq!(total_supply, 3 * (10000 - allowance_size));
-
-        // Second burn more than allowance
-        let actions: Vec<_> = ["bob", "jerry", "mike"]
-            .iter()
-            .map(|name| batch::BurnFromAction {
-                owner: Addr::unchecked(name.to_string()),
-                amount: Uint128::new(1),
-                memo: None,
-            })
-            .collect();
-        let handle_msg = ExecuteMsg::BatchBurnFrom {
-            actions,
-            padding: None,
-        };
-        let info = mock_info("alice", &[]);
-
-        let handle_result = execute(deps.as_mut(), mock_env(), info, handle_msg);
-
-        let error = extract_error_msg(handle_result);
-        assert!(error.contains("insufficient allowance"));
+        assert!(error.contains("Burn functionality is not enabled for this token."));
     }
 
     #[test]
@@ -4583,3 +4406,5 @@ mod tests {
         assert_eq!(transfers, expected_transfers);
     }
 }
+
+  

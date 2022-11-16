@@ -186,7 +186,8 @@ pub fn router_integration_tests() {
     };
     let swap_query = QueryMsg::SwapSimulation { 
         offer: offer.to_owned(),
-        path: vec![Hop{addr: amm_pairs[0].address.to_string(), code_hash: amm_contract_info.code_hash.clone()}] 
+        path: vec![Hop{addr: amm_pairs[0].address.to_string(), code_hash: amm_contract_info.code_hash.clone()}],
+        exclude_fee: None, 
     };
 
     // ASSERT SWAPSIMULATION

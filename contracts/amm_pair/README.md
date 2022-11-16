@@ -21,7 +21,6 @@
             * [GetConfig](#GetConfig)  
             * [GetWhiteListAddress](#GetWhiteListAddress)  
             * [GetTradeCount](#GetTradeCount)             
-            * [GetStakingContract](#GetStakingContract)  
             * [GetEstimatedPrice](#GetEstimatedPrice)
             * [GetEstimatedLiquidity](#GetEstimatedLiquidity)
     * [Invoke]
@@ -179,22 +178,6 @@ Get Estimated Price for amount.
 ```json
 {
   "estimated_price": "String",
-}
-```
-
-
-#### GetStakingContract
-Get Staking Contract Link if SC exists.
-
-##### Request
-| Name    | Type   | Description                                   | optional |
-|---------|--------|-----------------------------------------------|----------|
-|         |        |                                               |          |
-
-##### Response
-```json
-{
-  "staking_contract": "Option<Contract>",
 }
 ```
 

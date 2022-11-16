@@ -26,7 +26,7 @@ pub fn pair_contract_config(
     return Ok(result);
 }
 
-pub fn swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount) -> StdResult<Binary> {
+pub fn swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount, exclude_fee: Option<bool>) -> StdResult<Binary> {
     let mut sum_total_fee_amount: Uint128 = Uint128::zero();
     let mut sum_lp_fee_amount: Uint128 = Uint128::zero();
     let mut sum_shade_dao_fee_amount: Uint128 = Uint128::zero();
@@ -61,6 +61,7 @@ pub fn swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount) -> StdRes
                         code_hash: contract.code_hash.clone(),
                         msg: to_binary(&AMMPairQueryMsg::SwapSimulation {
                             offer: next_in.clone(),
+                            exclude_fee: exclude_fee,
                         })?,
                     }))?;
                 match result {

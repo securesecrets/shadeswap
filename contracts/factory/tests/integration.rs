@@ -124,6 +124,7 @@ fn factory_integration_tests() {
         pair: pair.clone(),
         address: mock_amm_pairs.address,
         enabled: true,
+        code_hash: "".to_string(),
     };
     let add_pair_msg = ExecuteMsg::AddAMMPairs { amm_pairs:  vec![amm_pair]};
     let _ = router.execute_contract(

@@ -1,12 +1,12 @@
 # ShadeSwap Core Contracts
 | Contract                    | Reference                         | Description                           |
 | --------------------------- | --------------------------------- | ------------------------------------- |
-| [`amm_pair`](./contracts/amm_pair)  | [doc](./contracts/amm_pair/README.md) | |
-| [`factory`](./contracts/factory)  | [doc](./contracts/factory/README.md) |  |
-| [`lp_token`](./contracts/lp_token)  | [doc](./contracts/lp_token/README.md) |  |
-| [`router`](./contracts/router)  | [doc](./contracts/router/README.md) |  |
-| [`snip20`](./contracts/snip20)  | [doc](./contracts/snip20/README.md) |  |
-| [`staking`](./contracts/staking)  | [doc](./contracts/staking/README.md) |  |
+| [`amm_pair`](./contracts/amm_pair)  | [doc](./contracts/amm_pair/README.md) | Individual contract used to manage a single LP pool. The contract can inherit some settings from Factory such as custom Fee.|
+| [`factory`](./contracts/factory)  | [doc](./contracts/factory/README.md) |Factory Contract that can be used to centrally manage pair contracts after initialization|
+| [`lp_token`](./contracts/lp_token)  | [doc](./contracts/lp_token/README.md) |LP Token given to users after they have added liquidity to a amm_pair contract|
+| [`router`](./contracts/router)  | [doc](./contracts/router/README.md) |Router contract used to allow for multi-hop trades|
+| [`snip20`](./contracts/snip20)  | [doc](./contracts/snip20/README.md) |Snip20 reference implementation used for testing|
+| [`staking`](./contracts/staking)  | [doc](./contracts/staking/README.md) |Staking contract that allows for users to gain rewards from adding liquidity|
 
 ## Development Environment
 

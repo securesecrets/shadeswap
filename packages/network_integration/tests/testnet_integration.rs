@@ -4,7 +4,7 @@ use cosmwasm_std::{to_binary, Addr, QueryResponse, Response, Uint128};
 use network_integration::{
     cli_commands::{
         amm_pair_lib::{
-            add_amm_pairs, add_liquidity, get_staking_contract, list_pair_from_factory,
+            add_amm_pairs, add_liquidity, list_pair_from_factory, get_staking_contract,
         },
         factory_lib::{create_factory_contract, deposit_snip20, increase_allowance},
         router_lib::create_router_contract,
@@ -1458,16 +1458,6 @@ fn run_testnet() -> Result<()> {
             get_claims_reward_msg,
             None,
         )?;
-
-        // if let StakingQueryMsgResponse::ClaimRewards {
-        // } = claims_reward_response
-        // {
-        //     assert_ne!(amount, Uint128::new(0));
-        //     assert_eq!(
-        //         reward_token.address.to_string(),
-        //         reward_token.address.clone().to_string()
-        //     )
-        // }
 
         print_header("\n\tGet Staking Contract Config Info");
         let get_config_msg = StakingQueryMsg::GetConfig {};

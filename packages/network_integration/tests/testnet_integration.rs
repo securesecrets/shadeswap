@@ -1,12 +1,21 @@
 use colored::Colorize;
-use cosmwasm_std::{Addr, Uint128, to_binary};
+use cosmwasm_std::{to_binary, Addr, QueryResponse, Response, Uint128};
 
-use network_integration::{cli_commands::{
-    amm_pair_lib::{add_amm_pairs, add_liquidity, get_staking_contract, list_pair_from_factory},
-    factory_lib::{create_factory_contract, deposit_snip20, increase_allowance},
-    router_lib::create_router_contract,
-    snip20_lib::set_viewing_key,
-}, utils::{InitConfig, ADMIN_FILE, API_KEY, generate_label, init_snip20, print_contract, print_header, ACCOUNT_KEY, AMM_PAIR_FILE, GAS, SHADE_DAO_KEY, STAKER_KEY, STORE_GAS, VIEW_KEY, get_current_timestamp, get_balance}};
+use network_integration::{
+    cli_commands::{
+        amm_pair_lib::{
+            add_amm_pairs, add_liquidity, get_staking_contract, list_pair_from_factory,
+        },
+        factory_lib::{create_factory_contract, deposit_snip20, increase_allowance},
+        router_lib::create_router_contract,
+        snip20_lib::set_viewing_key,
+    },
+    utils::{
+        generate_label, get_balance, get_current_timestamp, init_snip20, print_contract,
+        print_header, InitConfig, ACCOUNT_KEY, ADMIN_FILE, AMM_PAIR_FILE, API_KEY, GAS,
+        SHADE_DAO_KEY, STAKER_KEY, STORE_GAS, VIEW_KEY,
+    },
+};
 
 use query_authentication::{
     permit::Permit,
@@ -16,24 +25,29 @@ use query_authentication::{
 use shadeswap_shared::{
     admin::RegistryAction,
     c_std::Binary,
+    contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
     core::{TokenAmount, TokenPair, TokenPairAmount, TokenType},
+    msg::{
+        amm_pair::{
+            ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
+            QueryMsgResponse as AMMPairQueryMsgResponse,
+        },
+        factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
+        router::{
+            ExecuteMsg as RouterExecuteMsg, InvokeMsg as RouterInvokeMsg,
+            QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
+        },
+        staking::{
+            ExecuteMsg as StakingMsgHandle, InvokeMsg as StakingInvokeMsg,
+            QueryMsg as StakingQueryMsg, QueryResponse as StakingQueryMsgResponse,
+        },
+    },
     query_auth::PermitData,
     router::Hop,
     snip20,
-    staking::{AuthQuery, QueryData}, contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg, msg::{
-    amm_pair::{
-        ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
-        QueryMsgResponse as AMMPairQueryMsgResponse,
-    },
-    router::{
-        ExecuteMsg as RouterExecuteMsg, InvokeMsg as RouterInvokeMsg,
-        QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
-    },
-    staking::{
-        ExecuteMsg as StakingMsgHandle, InvokeMsg as StakingInvokeMsg,
-        QueryMsg as StakingQueryMsg, QueryResponse as StakingQueryMsgResponse,
-    },
-}, Pagination,
+    staking::{AuthQuery, QueryData},
+    utils::Query,
+    Pagination,
 };
 
 use secretcli::{
@@ -41,7 +55,6 @@ use secretcli::{
     secretcli::{account_address, handle, init, query, store_and_return_contract},
 };
 use serde_json::Result;
-
 
 #[test]
 fn run_testnet() -> Result<()> {
@@ -943,7 +956,7 @@ fn run_testnet() -> Result<()> {
     );
 
     print_header("\n\tGet Estimated Price for AMM Pair");
-    let estimated_price_query_msg = AMMPairQueryMsg::GetEstimatedPrice {
+    let estimated_price_query_msg = AMMPairQueryMsg::SwapSimulation {
         offer: TokenAmount {
             token: TokenType::CustomToken {
                 contract_addr: Addr::unchecked(scrt_token.address.clone()),
@@ -963,8 +976,15 @@ fn run_testnet() -> Result<()> {
         estimated_price_query_msg,
         None,
     )?;
-    if let AMMPairQueryMsgResponse::EstimatedPrice { estimated_price } = estimated_price_query {
-        assert_eq!(estimated_price, "0.89".to_string());
+    if let AMMPairQueryMsgResponse::SwapSimulation {
+        total_fee_amount,
+        lp_fee_amount,
+        shade_dao_fee_amount,
+        result,
+        price,
+    } = estimated_price_query
+    {
+        assert_eq!(price, "0.89".to_string());
     }
 
     print_header("\n\tGet LP Token for AMM Pair");
@@ -998,7 +1018,7 @@ fn run_testnet() -> Result<()> {
         assert_eq!(total_liquidity, Uint128::new(10000000000));
     }
 
-    let staking_contract_msg = AMMPairQueryMsg::GetStakingContract {};
+    let staking_contract_msg = AMMPairQueryMsg::GetConfig {  };
     let staking_contract_query: AMMPairQueryMsgResponse = query(
         &NetContract {
             label: "".to_string(),
@@ -1010,8 +1030,7 @@ fn run_testnet() -> Result<()> {
         None,
     )?;
 
-    if let AMMPairQueryMsgResponse::StakingContractInfo { staking_contract } =
-        staking_contract_query
+    if let AMMPairQueryMsgResponse::GetConfig { staking_contract, factory_contract, lp_token, pair, custom_fee } = staking_contract_query
     {
         println!("\n\tAllowed IncreaseAllowance for reward token - staking contract");
         // increase allowance for reward token
@@ -1062,7 +1081,7 @@ fn run_testnet() -> Result<()> {
         handle(
             &StakingMsgHandle::Unstake {
                 amount: Uint128::new(5000000000),
-                remove_liqudity: Some(true),
+                remove_liquidity: Some(true),
             },
             &NetContract {
                 label: "".to_string(),
@@ -1111,7 +1130,7 @@ fn run_testnet() -> Result<()> {
         handle(
             &StakingMsgHandle::Unstake {
                 amount: Uint128::new(50000000),
-                remove_liqudity: Some(true),
+                remove_liquidity: Some(true),
             },
             &NetContract {
                 label: "".to_string(),
@@ -1273,7 +1292,7 @@ fn run_testnet() -> Result<()> {
 
             let mut old_staked_lp_token = Uint128::zero();
 
-            if let StakingQueryMsgResponse::StakerLpTokenInfo {
+            if let StakingQueryMsgResponse::GetStakerLpTokenInfo {
                 staked_lp_token,
                 total_staked_lp_token: _,
             } = stake_lp_token_info
@@ -1347,7 +1366,7 @@ fn run_testnet() -> Result<()> {
                 None,
             )?;
 
-            if let StakingQueryMsgResponse::StakerLpTokenInfo {
+            if let StakingQueryMsgResponse::GetStakerLpTokenInfo {
                 staked_lp_token,
                 total_staked_lp_token: _,
             } = stake_lp_token_info
@@ -1371,6 +1390,7 @@ fn run_testnet() -> Result<()> {
                 addr: amm_pair_1.address.to_string(),
                 code_hash: pair_contract_code_hash.clone(),
             }],
+            exclude_fee: None,
         };
 
         let swap_result_response: RouterQueryResponse = query(
@@ -1408,7 +1428,7 @@ fn run_testnet() -> Result<()> {
             None,
         )?;
 
-        if let AMMPairQueryMsgResponse::ShadeDAOInfo {
+        if let AMMPairQueryMsgResponse::GetShadeDaoInfo {
             shade_dao_address,
             shade_dao_fee: _,
             lp_fee: _,
@@ -1462,7 +1482,7 @@ fn run_testnet() -> Result<()> {
             None,
         )?;
 
-        if let StakingQueryMsgResponse::Config {
+        if let StakingQueryMsgResponse::GetConfig {
             reward_token,
             lp_token: _,
             daily_reward_amount,
@@ -1499,7 +1519,7 @@ fn run_testnet() -> Result<()> {
             None,
         )?;
 
-        if let AMMPairQueryMsgResponse::EstimatedLiquidity {
+        if let AMMPairQueryMsgResponse::GetEstimatedLiquidity {
             lp_token,
             total_lp_token,
         } = estimated_lp_token
@@ -1524,7 +1544,7 @@ fn run_testnet() -> Result<()> {
             None,
         )?;
 
-        if let StakingQueryMsgResponse::StakerLpTokenInfo {
+        if let StakingQueryMsgResponse::GetStakerLpTokenInfo {
             staked_lp_token,
             total_staked_lp_token,
         } = stake_lp_token_info
@@ -1534,5 +1554,206 @@ fn run_testnet() -> Result<()> {
         }
     }
 
+    print_header("Running all queries");
+
+    print_header("Pair Contract");
+
+    assert!(matches!(
+        test_query_successful(
+            amm_pair_1.address.to_string(),
+            AMMPairQueryMsg::SwapSimulation {
+                offer: TokenAmount {
+                    token: token_1.clone(),
+                    amount: Uint128::from(100u64),
+                },
+                exclude_fee: None
+            },
+        )?,
+        AMMPairQueryMsgResponse::SwapSimulation { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            amm_pair_1.address.to_string(),
+            AMMPairQueryMsg::GetConfig {},
+        )?,
+        AMMPairQueryMsgResponse::GetConfig { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            amm_pair_1.address.to_string(),
+            AMMPairQueryMsg::GetPairInfo {},
+        )?,
+        AMMPairQueryMsgResponse::GetPairInfo { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            amm_pair_1.address.to_string(),
+            AMMPairQueryMsg::GetTradeHistory {
+                api_key: API_KEY.to_string(),
+                pagination: Pagination {
+                    limit: 10,
+                    start: 0
+                }
+            }
+        )?,
+        AMMPairQueryMsgResponse::GetTradeHistory { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            amm_pair_1.address.to_string(),
+            AMMPairQueryMsg::GetWhiteListAddress {},
+        )?,
+        AMMPairQueryMsgResponse::GetWhiteListAddress { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            amm_pair_1.address.to_string(),
+            AMMPairQueryMsg::GetTradeCount {},
+        )?,
+        AMMPairQueryMsgResponse::GetTradeCount { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            amm_pair_1.address.to_string(),
+            AMMPairQueryMsg::GetShadeDaoInfo {},
+        )?,
+        AMMPairQueryMsgResponse::GetShadeDaoInfo { .. }
+    ));
+
+
+    assert!(matches!(
+        test_query_successful(
+            amm_pair_1.address.to_string(),
+            AMMPairQueryMsg::GetEstimatedLiquidity { deposit: TokenPairAmount { pair: token_pair_1.clone(), amount_0: Uint128::from(100u64), amount_1: Uint128::from(100u64) } },
+        )?,
+        AMMPairQueryMsgResponse::GetEstimatedLiquidity { .. }
+    ));
+
+    print_header("Router");
+
+    assert!(matches!(
+        test_query_successful(
+            router_contract.address.to_string(),
+            RouterQueryMsg::GetConfig {},
+        )?,
+        RouterQueryResponse::GetConfig { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            router_contract.address.to_string(),
+            RouterQueryMsg::SwapSimulation {
+                offer: TokenAmount {
+                    token: token_1.clone(),
+                    amount: Uint128::from(100u64),
+                },
+                path: vec![Hop {
+                    addr: amm_pair_1.address.to_string(),
+                    code_hash: amm_pair_1.code_hash.to_string(),
+                }],
+                exclude_fee: None
+            }
+        )?,
+        RouterQueryResponse::SwapSimulation { .. }
+    ));
+
+    print_header("Factory Contract");
+
+    assert!(matches!(
+        test_query_successful(
+            factory_contract.address.to_string(),
+            FactoryQueryMsg::GetConfig {},
+        )?,
+        FactoryQueryResponse::GetConfig { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            factory_contract.address.to_string(),
+            FactoryQueryMsg::ListAMMPairs {
+                pagination: Pagination {
+                    start: 0,
+                    limit: 10
+                }
+            },
+        )?,
+        FactoryQueryResponse::ListAMMPairs { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            factory_contract.address.to_string(),
+            FactoryQueryMsg::GetAMMPairAddress { pair: token_pair_1 },
+        )?,
+        FactoryQueryResponse::GetAMMPairAddress { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            factory_contract.address.to_string(),
+            FactoryQueryMsg::AuthorizeApiKey {
+                api_key: API_KEY.to_string()
+            },
+        )?,
+        FactoryQueryResponse::AuthorizeApiKey { .. }
+    ));
+
+    print_header("Staking Contract");
+
+    let found_staking_contract = staking_contract.unwrap();
+    assert!(matches!(
+        test_query_successful(
+            found_staking_contract.address.to_string(),
+            StakingQueryMsg::GetConfig {},
+        )?,
+        StakingQueryMsgResponse::GetConfig { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            found_staking_contract.address.to_string(),
+            StakingQueryMsg::GetRewardTokens {  },
+        )?,
+        StakingQueryMsgResponse::GetRewardTokens { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            found_staking_contract.address.to_string(),
+            StakingQueryMsg::WithPermit { permit: new_permit.clone(), query: AuthQuery::GetStakerLpTokenInfo {  } },
+        )?,
+        StakingQueryMsgResponse::GetStakerLpTokenInfo { .. }
+    ));
+
+    assert!(matches!(
+        test_query_successful(
+            found_staking_contract.address.to_string(),
+            StakingQueryMsg::WithPermit { permit: new_permit, query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwrap() } },
+        )?,
+        StakingQueryMsgResponse::GetClaimReward { .. }
+    ));
+
     return Ok(());
+}
+
+fn test_query_successful<Query: serde::Serialize, Response: serde::de::DeserializeOwned>(
+    address: String,
+    msg: Query,
+) -> Result<Response> {
+    query(
+        &NetContract {
+            label: "".to_string(),
+            id: "".to_string(),
+            address: address,
+            code_hash: "".to_string(),
+        },
+        msg,
+        None,
+    )
 }

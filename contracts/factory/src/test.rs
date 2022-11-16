@@ -166,6 +166,7 @@ pub mod test_contract {
                 ),
                 address: Addr::unchecked(format!("pair_addr_{}", i)),
                 enabled: true,
+                code_hash: "".to_string()
             });
         }
 

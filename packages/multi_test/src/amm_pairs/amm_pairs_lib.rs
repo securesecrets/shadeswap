@@ -72,7 +72,8 @@ pub mod amm_pairs_lib{
         AMMPair { 
             pair: token_pair, 
             address: address.clone(), 
-            enabled: enabled  }
+            enabled: enabled,
+            code_hash: "".to_string()  }
     }
 
     pub fn create_native_token(denom: &str) -> TokenType{

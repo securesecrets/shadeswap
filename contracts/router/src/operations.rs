@@ -85,6 +85,7 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
                     amount_1: _,
                     total_liquidity: _,
                     contract_version: _,
+                    fee_info: _
                 } => {
                     info.current_index = info.current_index + 1;
 
@@ -162,6 +163,7 @@ pub fn swap_tokens_for_exact_tokens(
             amount_1: _,
             total_liquidity: _,
             contract_version: _,
+            fee_info: _
         } => {
             let next_token_in;
             if pair.0 == amount_in.token {

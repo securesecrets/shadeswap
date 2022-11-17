@@ -23,6 +23,7 @@ pub mod tests {
     use serde::Deserialize;
     use serde::Serialize;
     use shadeswap_shared::admin::ValidateAdminPermissionResponse;
+    use shadeswap_shared::amm_pair::FeeInfo;
     use shadeswap_shared::core::TokenPair;
     use shadeswap_shared::msg::amm_pair::{ExecuteMsg as AMMPairExecuteMsg};
     use shadeswap_shared::msg::factory::{ QueryResponse as FactoryQueryResponse};
@@ -557,6 +558,8 @@ pub mod tests {
                                     amount_1: Uint128::new(101),
                                     total_liquidity: Uint128::new(100),
                                     contract_version: 1,
+                                    fee_info: FeeInfo{ shade_dao_address: Addr::unchecked("".to_string()), lp_fee: Fee{ nom: 2u8, denom: 100u16 }, shade_dao_fee: Fee{ nom: 2u8, denom: 100u16 } },
+                                
                                 },
                                 ).unwrap()))
                             },

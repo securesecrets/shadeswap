@@ -214,6 +214,7 @@ pub fn configure_block_send_init_funds(router: &mut App, owner_addr: &Addr, _amo
                     amount_1,
                     total_liquidity,
                     contract_version: _,
+                    fee_info: _,
                 } => {        
                    return (total_liquidity, amount_0, amount_1)
                 },

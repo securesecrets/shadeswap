@@ -162,6 +162,7 @@ fn receiver_callback(
                             amount_1: _,
                             total_liquidity: _,
                             contract_version: _,
+                            fee_info: _
                         } => {
                             for token in pair.into_iter() {
                                 match token {

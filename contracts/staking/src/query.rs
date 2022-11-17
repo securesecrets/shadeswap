@@ -85,7 +85,7 @@ pub fn claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResu
             });
         }
     }
-    to_binary(&QueryResponse::ClaimRewards {
+    to_binary(&QueryResponse::GetClaimReward {
         claimable_rewards: result_list,
     })
 }

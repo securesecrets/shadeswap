@@ -3,7 +3,7 @@ use cosmwasm_std::{
     WasmQuery,
 };
 use shadeswap_shared::{
-    amm_pair::{AMMSettings, QueryMsgResponse, SwapInfo, TradeHistory},
+    amm_pair::{AMMSettings, QueryMsgResponse, TradeHistory, FeeInfo},
     core::{Fee, TokenAmount, TokenPairAmount, TokenType},
     factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
     snip20::helpers::token_info,
@@ -19,12 +19,6 @@ pub struct FactoryConfig {
     pub amm_settings: AMMSettings,
     pub authenticator: Option<Contract>,
     pub admin_auth: Contract,
-}
-
-pub struct FeeInfo {
-    pub shade_dao_address: Addr,
-    pub lp_fee: Fee,
-    pub shade_dao_fee: Fee,
 }
 
 pub fn factory_config(deps: Deps, factory: &Contract) -> StdResult<FactoryConfig> {

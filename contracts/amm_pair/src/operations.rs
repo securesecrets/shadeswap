@@ -348,60 +348,66 @@ pub fn lp_virtual_swap(
             let extra_token0_amount = deposit.amount_0
                 - pool_balances[0].multiply_ratio(deposit.amount_1, pool_balances[1]);
             let half_of_extra = extra_token0_amount / Uint128::from(2u32);
-            let offer = TokenAmount {
-                token: new_deposit.pair.0.clone(),
-                amount: half_of_extra,
-            };
 
-            let swap = calculate_swap_result(
-                deps,
-                env,
-                lp_fee,
-                shade_dao_fee,
-                &config,
-                &offer,
-                Some(false),
-            )?;
-            if let Some(msgs) = messages {
-                add_send_token_to_address_msg(
-                    msgs,
-                    shade_dao_address,
-                    &offer.token,
-                    swap.shade_dao_fee_amount,
+            if half_of_extra > Uint128::zero() {
+                let offer = TokenAmount {
+                    token: new_deposit.pair.0.clone(),
+                    amount: half_of_extra,
+                };
+
+                let swap = calculate_swap_result(
+                    deps,
+                    env,
+                    lp_fee,
+                    shade_dao_fee,
+                    &config,
+                    &offer,
+                    Some(false),
                 )?;
-            }
+                if let Some(msgs) = messages {
+                    add_send_token_to_address_msg(
+                        msgs,
+                        shade_dao_address,
+                        &offer.token,
+                        swap.shade_dao_fee_amount,
+                    )?;
+                }
 
-            new_deposit.amount_0 = deposit.amount_0 - half_of_extra;
-            new_deposit.amount_1 = deposit.amount_1 + swap.result.return_amount;
+                new_deposit.amount_0 = deposit.amount_0 - half_of_extra;
+                new_deposit.amount_1 = deposit.amount_1 + swap.result.return_amount;
+            }
         } else if token1_ratio > token0_ratio {
             let extra_token1_amount = deposit.amount_1
                 - pool_balances[1].multiply_ratio(deposit.amount_0, pool_balances[0]);
             let half_of_extra = extra_token1_amount / Uint128::from(2u32);
-            let offer = TokenAmount {
-                token: new_deposit.pair.1.clone(),
-                amount: half_of_extra,
-            };
 
-            let swap = calculate_swap_result(
-                deps,
-                env,
-                lp_fee,
-                shade_dao_fee,
-                &config,
-                &offer,
-                Some(false),
-            )?;
-            if let Some(msgs) = messages {
-                add_send_token_to_address_msg(
-                    msgs,
-                    shade_dao_address,
-                    &offer.token,
-                    swap.shade_dao_fee_amount,
+            if half_of_extra > Uint128::zero() {
+                let offer = TokenAmount {
+                    token: new_deposit.pair.1.clone(),
+                    amount: half_of_extra,
+                };
+
+                let swap = calculate_swap_result(
+                    deps,
+                    env,
+                    lp_fee,
+                    shade_dao_fee,
+                    &config,
+                    &offer,
+                    Some(false),
                 )?;
-            }
+                if let Some(msgs) = messages {
+                    add_send_token_to_address_msg(
+                        msgs,
+                        shade_dao_address,
+                        &offer.token,
+                        swap.shade_dao_fee_amount,
+                    )?;
+                }
 
-            new_deposit.amount_0 = deposit.amount_0 + swap.result.return_amount;
-            new_deposit.amount_1 = deposit.amount_1 - half_of_extra;
+                new_deposit.amount_0 = deposit.amount_0 + swap.result.return_amount;
+                new_deposit.amount_1 = deposit.amount_1 - half_of_extra;
+            }
         }
     }
     Ok(new_deposit)

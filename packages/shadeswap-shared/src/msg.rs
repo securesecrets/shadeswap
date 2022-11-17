@@ -20,6 +20,7 @@ pub mod router {
     };
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
         SwapTokensForExact {
             path: Vec<Hop>,
@@ -76,7 +77,7 @@ pub mod router {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        SwapSimulation { offer: TokenAmount, path: Vec<Hop> },
+        SwapSimulation { offer: TokenAmount, path: Vec<Hop>, exclude_fee: Option<bool> },
         GetConfig {},
     }
 
@@ -90,7 +91,9 @@ pub mod router {
             result: SwapResult,
             price: String,
         },
-        GetConfig {},
+        GetConfig {
+            admin_auth: Contract
+        },
     }
 }
 
@@ -115,6 +118,8 @@ pub mod amm_pair {
         pub pair: TokenPair,
         /// Address of the contract that manages the exchange.
         pub address: Addr,
+        //  Code hash of the AMM Pair
+        pub code_hash: String,
         /// Used to enable or disable the AMMPair
         pub enabled: bool,
     }
@@ -252,13 +257,9 @@ pub mod amm_pair {
         },
         GetWhiteListAddress {},
         GetTradeCount {},
-        GetStakingContract {},
-        GetEstimatedPrice {
-            offer: TokenAmount,
-            exclude_fee: Option<bool>,
-        },
         SwapSimulation {
             offer: TokenAmount,
+            exclude_fee: Option<bool>,
         },
         GetShadeDaoInfo {},
         GetEstimatedLiquidity {
@@ -290,10 +291,7 @@ pub mod amm_pair {
         GetClaimReward {
             amount: Uint128,
         },
-        StakingContractInfo {
-            staking_contract: Option<Contract>,
-        },
-        EstimatedPrice {
+        GetEstimatedPrice {
             estimated_price: String,
         },
         SwapSimulation {
@@ -303,13 +301,13 @@ pub mod amm_pair {
             result: SwapResult,
             price: String,
         },
-        ShadeDAOInfo {
+        GetShadeDaoInfo {
             shade_dao_address: String,
             shade_dao_fee: Fee,
             lp_fee: Fee,
             admin_auth: Contract,
         },
-        EstimatedLiquidity {
+        GetEstimatedLiquidity {
             lp_token: Uint128,
             total_lp_token: Uint128
         },
@@ -396,7 +394,7 @@ pub mod factory {
         // GetCount returns the current count as a json-encoded number
         ListAMMPairs { pagination: Pagination },
         GetAMMPairAddress { pair: TokenPair },
-        GetConfig,
+        GetConfig {},
         AuthorizeApiKey { api_key: String },
     }
 }
@@ -459,7 +457,7 @@ pub mod staking {
         },
         Unstake {
             amount: Uint128,
-            remove_liqudity: Option<bool>,
+            remove_liquidity: Option<bool>,
         },
         Receive {
             from: String,
@@ -520,30 +518,22 @@ pub mod staking {
         ClaimRewards {
             claimable_rewards: Vec<ClaimableInfo>,
         },
-        ContractOwner {
-            address: String,
-        },
-        StakerLpTokenInfo {
+        GetStakerLpTokenInfo {
             staked_lp_token: Uint128,
             total_staked_lp_token: Uint128,
         },
-        RewardTokenBalance {
+        GetClaimReward {
             amount: Uint128,
             reward_token: Contract,
         },
-        StakerRewardTokenBalance {
-            reward_amount: Uint128,
-            total_reward_liquidity: Uint128,
-            reward_token: Contract,
-        },
-        Config {
+        GetConfig {
             reward_token: Contract,
             lp_token: Contract,
             daily_reward_amount: Uint128,
             amm_pair: String,
             admin_auth: Contract,
         },
-        RewardTokens {
+        GetRewardTokens {
             tokens: Vec<RewardTokenInfo>,
         }
     }

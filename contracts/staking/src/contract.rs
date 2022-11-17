@@ -96,8 +96,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             ExecuteMsg::ClaimRewards {} => claim_rewards(deps, info, env),
             ExecuteMsg::Unstake {
                 amount,
-                remove_liqudity,
-            } => unstake(deps, env, info, amount, remove_liqudity),
+                remove_liquidity,
+            } => unstake(deps, env, info, amount, remove_liquidity),
             ExecuteMsg::SetAuthenticator { authenticator } => {
                 let config = config_r(deps.storage).load()?;
                 validate_admin(

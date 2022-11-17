@@ -134,6 +134,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
                             pair: config.pair,
                             address: deps.api.addr_validate(&contract_address.replace(" ", ""))?,
                             enabled: true,
+                            code_hash: config.code_hash,
                         },
                     )?;
                     ephemeral_storage_w(deps.storage).remove();

@@ -27,26 +27,6 @@ pub struct FeeInfo {
     pub shade_dao_fee: Fee,
 }
 
-pub fn swap_estimate(
-    deps: Deps,
-    env: Env,
-    offer: TokenAmount,
-    exclude_fee: Option<bool>,
-) -> StdResult<SwapInfo> {
-    let config = config_r(deps.storage).load()?;
-    let fee_info = fee_info(deps, &env)?;
-    let swap_result = calculate_swap_result(
-        deps,
-        &env,
-        fee_info.lp_fee,
-        fee_info.shade_dao_fee,
-        &config,
-        &offer,
-        exclude_fee,
-    )?;
-    Ok(swap_result)
-}
-
 pub fn factory_config(deps: Deps, factory: &Contract) -> StdResult<FactoryConfig> {
     let result: FactoryQueryResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
@@ -73,7 +53,7 @@ pub fn factory_config(deps: Deps, factory: &Contract) -> StdResult<FactoryConfig
     }
 }
 
-pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Binary> {
+pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount, exclude_fee: Option<bool>) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
 
     let fee_info = fee_info(deps, &env)?;
@@ -85,7 +65,7 @@ pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount) -> StdResult<Bi
         fee_info.shade_dao_fee,
         &config,
         &offer,
-        None,
+        exclude_fee,
     )?;
     let simulation_result = QueryMsgResponse::SwapSimulation {
         total_fee_amount: swap_result.total_fee_amount,
@@ -138,7 +118,7 @@ pub fn fee_info(deps: Deps, env: &Env) -> StdResult<FeeInfo> {
 pub fn shade_dao_info(deps: Deps, env: &Env) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
     let fee_info = fee_info(deps, &env)?;
-    let shade_dao_info = QueryMsgResponse::ShadeDAOInfo {
+    let shade_dao_info = QueryMsgResponse::GetShadeDaoInfo {
         shade_dao_address: fee_info.shade_dao_address.to_string(),
         shade_dao_fee: fee_info.shade_dao_fee,
         admin_auth: config.admin_auth,
@@ -180,7 +160,7 @@ pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount) -> S
     )?;
 
     let lp_tokens = calculate_lp_tokens(&new_deposit, pool_balances, pair_contract_pool_liquidity)?;
-    let response_msg = QueryMsgResponse::EstimatedLiquidity {
+    let response_msg = QueryMsgResponse::GetEstimatedLiquidity {
         lp_token: lp_tokens,
         total_lp_token: pair_contract_pool_liquidity,
     };

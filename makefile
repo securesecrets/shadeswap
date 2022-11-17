@@ -88,6 +88,6 @@ build-deploy:
 	cargo build --manifest-path ./packages/network_integration/Cargo.toml
 
 deploy:
-	cargo run ./target/debug/deploy
+	./target/debug/deploy
 
 

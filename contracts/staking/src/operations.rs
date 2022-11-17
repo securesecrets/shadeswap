@@ -547,7 +547,7 @@ pub fn unstake(
     env: Env,
     info: MessageInfo,
     amount: Uint128,
-    remove_liqudity: Option<bool>,
+    remove_liquidity: Option<bool>,
 ) -> StdResult<Response> {
     let caller = info.sender.clone();
     let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
@@ -571,7 +571,7 @@ pub fn unstake(
         // send back amount of lp token to pair contract to send pair token back with burn
         let config = config_r(deps.storage).load()?;
 
-        if let Some(true) = remove_liqudity {
+        if let Some(true) = remove_liquidity {
             // SEND LP Token back to Pair Contract With Remove Liquidity
             let remove_liquidity_msg = to_binary(&AmmPairInvokeMsg::RemoveLiquidity {
                 from: Some(caller.to_string()),

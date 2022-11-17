@@ -14,16 +14,12 @@ use secretcli::{
     secretcli::{handle, init, query, store_and_return_contract},
 };
 
-use shadeswap_shared::core::ContractInstantiationInfo;
-use shadeswap_shared::core::Fee;
-use shadeswap_shared::core::TokenPair;
-use shadeswap_shared::core::TokenPairAmount;
-use shadeswap_shared::core::TokenType;
-use shadeswap_shared::snip20::QueryMsg;
-use shadeswap_shared::Contract;
+use shadeswap_shared::router::Hop;
+use shadeswap_shared::router::InvokeMsg;
 use shadeswap_shared::{
     amm_pair::AMMSettings,
     contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
+    core::{ContractInstantiationInfo, Fee, TokenPair, TokenPairAmount, TokenType},
     msg::{
         amm_pair::ExecuteMsg as AMMPairHandlMsg,
         factory::{
@@ -33,7 +29,9 @@ use shadeswap_shared::{
         router::{ExecuteMsg as RouterExecuteMsg, InitMsg as RouterInitMsg},
         staking::StakingContractInit,
     },
-    Pagination,
+    snip20::QueryMsg,
+    snip20,
+    Contract, Pagination,
 };
 
 use shadeswap_shared::snip20 as snip20_reference_impl;
@@ -53,7 +51,6 @@ pub fn get_balance(contract: &NetContract, from: String, view_key: String) -> Ui
 }
 
 fn main() -> serde_json::Result<()> {
-    //redeploy_infra()?;
     deploy_fresh()?;
     return Ok(());
 }
@@ -703,4 +700,43 @@ fn deploy_fresh() -> serde_json::Result<()> {
         }
     }
     return Ok(());
+}
+
+
+fn test_trade(router_contract: String, pair_contract_address: String, pair_contract_code_hash: String, token_contract_address: String, token_contract_hash: String) -> serde_json::Result<()> {
+
+    let mut reports = vec![];
+    handle(
+        &snip20::ExecuteMsg::Send {
+            recipient: router_contract.to_string(),
+            amount: Uint128::new(36500),
+            msg: Some(
+                to_binary(&InvokeMsg::SwapTokensForExact {
+                    expected_return: None,
+                    path: vec![Hop {
+                        addr: pair_contract_address.to_string(),
+                        code_hash: pair_contract_code_hash.to_string(),
+                    }],
+                    recipient: None,
+                })
+                .unwrap(),
+            ),
+            padding: None,
+            recipient_code_hash: None,
+            memo: None,
+        },
+        &NetContract{
+            label: "".to_string(),
+            id: "".to_string(),
+            address: token_contract_address.to_string(),
+            code_hash: token_contract_hash.to_string(),
+        },
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None,
+    ).unwrap();
+    Ok(())
 }

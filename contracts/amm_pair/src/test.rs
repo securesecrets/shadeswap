@@ -601,7 +601,7 @@ pub mod tests_calculation_price_and_fee {
         let estimated_lp_bin = estimated_liquidity(deps.as_ref(), mock_env(), &deposit).unwrap();
         let msg = from_binary::<QueryMsgResponse>(&estimated_lp_bin).unwrap();
         let estimated_lp = match msg {
-            QueryMsgResponse::EstimatedLiquidity { lp_token, total_lp_token: _ } => lp_token,
+            QueryMsgResponse::GetEstimatedLiquidity { lp_token, total_lp_token: _ } => lp_token,
             _ => { panic!("Unexpected msg type from estimated lp") },
         };
 

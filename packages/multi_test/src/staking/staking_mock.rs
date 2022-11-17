@@ -58,7 +58,7 @@ pub mod staking_mock {
                 } => Ok(Response::new()),
                 ExecuteMsg::Unstake {
                     amount: _,
-                    remove_liqudity: _,
+                    remove_liquidity: _,
                 } => Ok(Response::new()),
                 ExecuteMsg::Receive {
                     from: _,

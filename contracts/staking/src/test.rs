@@ -128,7 +128,7 @@ pub mod tests {
             // QueryResponse::RewardTokenBalance { amount: _, reward_token:_ } => todo!(),
             // QueryResponse::StakerRewardTokenBalance { reward_amount: _, total_reward_liquidity:_, reward_token:_ } => todo!(),
             // QueryResponse::Config { reward_token: _, lp_token:_, daily_reward_amount:_, amm_pair:_, admin_auth:_ } => todo!(),
-            QueryResponse::RewardTokens { tokens } => {
+            QueryResponse::GetRewardTokens { tokens } => {
                 assert_eq!(tokens.len(), 1);
             }
             _ => todo!(),

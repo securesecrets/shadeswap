@@ -13,7 +13,7 @@ pub fn config(deps: Deps) -> StdResult<Binary> {
         ..
     } = config.reward_token.clone()
     {
-        let response = QueryResponse::Config {
+        let response = QueryResponse::GetConfig {
             reward_token: Contract {
                 address: contract_addr.clone(),
                 code_hash: token_code_hash.clone(),
@@ -93,7 +93,7 @@ pub fn claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResu
 pub fn staking_stake_lp_token_info(deps: Deps, staker: Addr) -> StdResult<Binary> {
     let staker_amount = stakers_r(deps.storage).may_load(&staker.as_bytes())?.map_or_else(|| Uint128::zero(), |v| v.amount);
 
-    let response_msg = QueryResponse::StakerLpTokenInfo {
+    let response_msg = QueryResponse::GetStakerLpTokenInfo {
         staked_lp_token: staker_amount,
         total_staked_lp_token: total_staked_r(deps.storage).may_load()?.map_or_else(|| Uint128::zero(), |v| v),
     };
@@ -107,7 +107,7 @@ pub fn reward_token_list(storage:& dyn Storage)
         for i in list.iter(){
             response.push(i.to_owned())
         }
-        to_binary(&QueryResponse::RewardTokens{
+        to_binary(&QueryResponse::GetRewardTokens{
             tokens: response
         })
 }

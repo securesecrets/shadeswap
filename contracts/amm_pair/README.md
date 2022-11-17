@@ -21,7 +21,6 @@
             * [GetConfig](#GetConfig)  
             * [GetWhiteListAddress](#GetWhiteListAddress)  
             * [GetTradeCount](#GetTradeCount)             
-            * [GetStakingContract](#GetStakingContract)  
             * [GetEstimatedPrice](#GetEstimatedPrice)
             * [GetEstimatedLiquidity](#GetEstimatedLiquidity)
     * [Invoke]
@@ -41,13 +40,12 @@ The Contract to hold Pair Between Swap Tokens.
 |-------------------|----------------------------------|----------------------------------------------------------------------------|----------|
 | pair              | TokenPair                        | Token Pair to hold two token                                               | no       |
 | lp_token_contract | ContractInstantiationInfo        | ContractInstantiationInfo                                                  | no       |
-| factory_info      | Contract                     | The token that will be airdropped                                          | no       |
+| factory_info      | Contract                     | Factory to manage this pair moving forwards                                          | yes       |
 | prng_seed         | Binary                           | seed to use for viewing key                                                | no       |
 | entropy           | Binary                           | Use to calculate viewing key                                               | no       |
 | admin_auth             | Contract                        | Set the admin of AMMPair Contract                                          | no      |
-| custom_fee             | CustomFee                        | The fee for the AMMPair                                          | no      |
+| custom_fee             | CustomFee                        | The fee for the AMMPair, set to none to inherit fee from Factory         | yes      |
 | staking_contract  | StakingContractInit              | Staking Contract Init Config                                               | yes      |
-| callback          | Callback                         | Callback to AmmPair Contract to register LP Token                          | yes      |
 
 ## Admin
 
@@ -59,7 +57,7 @@ Add address to whitelist, group of addresses which fee doesn't apply.
 ##### Request
 | Name    | Type      | Description                                   | optional |
 |---------|-----------|-----------------------------------------------|----------|
-| address | HumanAddr | The address to add to whitelist               | no       |
+| address | String | The address to add to whitelist               | no       |
 
 ##### Response
 ```json
@@ -77,7 +75,7 @@ Address to remove from whitelist.
 ##### Request
 | Name    | Type      | Description                                   | optional |
 |---------|-----------|-----------------------------------------------|----------|
-| addresses | Vec<HumanAddr> | The addresses to remove from whitelist          | no       |
+| addresses | Vec<String> | The addresses to remove from whitelist          | no       |
 
 ##### Response
 ```json
@@ -89,12 +87,12 @@ Address to remove from whitelist.
 ```
 
 #### SetCustomPairFee
-Set Custom Pair Fee to be used in SwapTokens.
+Set Custom Pair Fee to be used in Pair Contract.
 
 ##### Request
 | Name    | Type      | Description                                   | optional |
 |---------|-----------|-----------------------------------------------|----------|
-| custom_fee | CustomFee | Shade Dao and LP Fees          | yes       |
+| custom_fee | CustomFee | Custom Shade Dao and LP Fees          | yes       |
 
 ##### Response
 ```json
@@ -111,7 +109,7 @@ Set the Admin contract.
 ##### Request
 | Name    | Type      | Description                                   | optional |
 |---------|-----------|-----------------------------------------------|----------|
-| admin_auth | Contract | The admin authentication contract          | no       |
+| admin_auth | Contract | The admin authentication contract          | yes       |
 
 ##### Response
 ```json
@@ -127,9 +125,9 @@ Recover Funds for Address.
 ##### Request
 | Name    | Type      | Description                                   | optional |
 |---------|-----------|-----------------------------------------------|----------|
-| token | TokenType | Token type information         | no       |
+| token | TokenType | Token type of token to be recovered         | no       |
 | amount | Unit128 | The amount         | no       |
-| to | HumanAddr | The address to send the amount to         | no       |
+| to | String | The address to send the amount to         | no       |
 | msg | Binary | Message to pass in the send         | yes       |
 ##### Response
 ```json
@@ -180,22 +178,6 @@ Get Estimated Price for amount.
 ```json
 {
   "estimated_price": "String",
-}
-```
-
-
-#### GetStakingContract
-Get Staking Contract Link if SC exists.
-
-##### Request
-| Name    | Type   | Description                                   | optional |
-|---------|--------|-----------------------------------------------|----------|
-|         |        |                                               |          |
-
-##### Response
-```json
-{
-  "staking_contract": "Option<Contract>",
 }
 ```
 
@@ -265,24 +247,6 @@ Get Configuration of AMMPair Contract.
 ```
 
 
-#### GetEstimatedPrice
-Get Claimable Reward Amount for staking.
-
-##### Request
-| Name       | Type        | Description                              | optional |
-|------------|-------------|------------------------------------------|----------|
-|  offer    | TokenAmount   | Token Amount                     |    no    |
-|  exclude_fee      | bool   | exclude fee from price         |    yes    |
-
-
-##### Response
-```json
-{
-  "estimated_price": "String",
-}
-```
-
-
 #### GetEstimatedLiquidity
 Get Estimated Liquidity.
 
@@ -327,7 +291,7 @@ Swap Native Tokens.
 |-----------|----------------|--------------------------------------|----------|
 | offer     | TokenAmount | Amount and Token Type                   | no       |
 | expected_return | Uint128 | Slippage, amount willing to accept    | yes      |
-| to | HumanAddr | The address to remove from LP                  | yes       |
+| to | String | The address to remove from LP                  | yes       |
 
 ##### Response
 ```json
@@ -364,7 +328,7 @@ Extension of the SNIP20 receive callback used when receiving SNIP20 tokens used 
 
 |Name|Type|Description|Optional|
 |-|-|-|-|
-| from | HumanAddr | who invokes the callback                  | no      |
+| from | String | who invokes the callback                  | no      |
 | amount | Uint128 | amount sent               | no       |
 | msg | Binary | Message to Invoke in Pair Contract                  | yes       |
 
@@ -409,7 +373,7 @@ Swap tokens.
 
 | Name      | Type        | Description                             | optional |
 |-----------|----------------|--------------------------------------|----------|
-| to | HumanAddr | who invokes the callback                  | yes      |
+| to | String | who invokes the callback                  | yes      |
 | expected_return | Uint128 | Slippage, amount willing to accept                | yes       |
 
 
@@ -430,7 +394,7 @@ Remove liquidity for address and remove from staking if applicable.
 
 | Name      | Type        | Description                             | optional |
 |-----------|----------------|--------------------------------------|----------|
-| from | HumanAddr | address to remove liquidity             | yes      |
+| from | String | address to remove liquidity             | yes      |
 
 ##### Response
 ```json

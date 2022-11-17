@@ -212,8 +212,11 @@ fn receiver_callback(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     pad_query_result(
         match msg {
-            QueryMsg::SwapSimulation { offer, path } => query::swap_simulation(deps, path, offer),
-            QueryMsg::GetConfig {} => return Ok(to_binary(&QueryMsgResponse::GetConfig {})?),
+            QueryMsg::SwapSimulation { offer, path, exclude_fee } => query::swap_simulation(deps, path, offer, exclude_fee),
+            QueryMsg::GetConfig {} => {
+                let config = config_r(deps.storage).load()?;
+                return Ok(to_binary(&QueryMsgResponse::GetConfig { admin_auth: config.admin_auth })?)
+            },
         },
         BLOCK_SIZE,
     )

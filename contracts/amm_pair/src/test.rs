@@ -347,6 +347,17 @@ pub mod tests_calculation_price_and_fee {
     }
 
     #[test]
+    fn assert_calculate_price_b() -> StdResult<()> {
+        let price = calculate_price(
+            Uint128::from(89u128),
+            Uint128::from(1000000u128),
+            Uint128::from(1000000u128),
+        );
+        assert_eq!(Uint128::from(88u128), price?);
+        Ok(())
+    }
+
+    #[test]
     fn assert_initial_swap_with_token_success_without_fee() -> StdResult<()>
     {     
         let custom_fee: Option<CustomFee> = None;

@@ -13,7 +13,7 @@ use crate::cli_commands::{
     },
     factory_lib::{
         create_factory_contract, deposit_snip20, increase_allowance, mint_snip20,
-        send_snip_with_msg,
+        send_snip_with_msg, send_snip_with_msg_staking,
     },
     router_lib::{create_router_contract, register_snip20_router},
     snip20_lib::{balance_snip20_query, create_new_snip_20, set_viewing_key},
@@ -36,6 +36,7 @@ pub const CMDDEPOSITSNIP20: &str = "deposit";
 pub const CMDSETVIEWINGKEY: &str = "set_viewing_key";
 pub const CMDADDLIQUIDITY: &str = "add_liquidity";
 pub const CMDSENDMSGSNIP20: &str = "send_with_msg";
+pub const CMDSENDMSGSNIPSTAKING20: &str = "staking";
 
 pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> {
     if args.len() == 0 {
@@ -107,6 +108,32 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> 
             &recipient,
             recipient_code_hash,
             msg,
+            reports,
+        )?;
+    }
+
+    if args_command == CMDSENDMSGSNIPSTAKING20 {
+        if args.len() < 6 {
+            return Err(Error::new(ErrorKind::Other, "Please provide all args"));
+        }
+        let account_name = args[2].clone();
+        let backend = args[3].clone();
+        let token_addr = args[4].clone();
+        let amount = args[5].clone().parse::<u128>().unwrap();
+        let recipient = args[6].clone();
+        // OPTION
+        let mut recipient_code_hash: Option<String> = None;
+        if args.len() >= 8 {
+            recipient_code_hash = Some(args[7].clone());
+        }
+       
+        let _ = send_snip_with_msg_staking(
+            &account_name,
+            &backend,
+            &token_addr,
+            Uint128::new(amount),
+            &recipient,
+            recipient_code_hash,
             reports,
         )?;
     }
@@ -485,6 +512,7 @@ pub fn print_help() -> io::Result<()> {
     handle.write_all(b"\n\t14. Command:: deposit <account_name> <keyring_backend> <token_addr> <amount> -- Deposit to Snip20 Token")?;
     handle.write_all(b"\n\t15. Command:: set_viewing_key <account_name> <keyring_backend> <token_addr> <key> -- Set Viewing Key")?;
     handle.write_all(b"\n\t16. Command:: send_with_msg <account_name> <keyring_backend> <token_addr> <amount> <recipient> <recipient_hash> <msg> -- Send Amount & Msg with Callback")?;
+    handle.write_all(b"\n\t17. Command:: send_with_msg_for_staking <account_name> <keyring_backend> <token_addr> <amount> <recipient> <recipient_hash> -- Send Amount & Msg with Callback")?;
     handle.write_all(b"\n")?;
     handle.flush()?;
 

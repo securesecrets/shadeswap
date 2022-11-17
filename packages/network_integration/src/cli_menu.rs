@@ -118,18 +118,20 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> 
         }
         let account_name = args[2].clone();
         let backend = args[3].clone();
-        let token_addr = args[4].clone();
-        let amount = args[5].clone().parse::<u128>().unwrap();
-        let recipient = args[6].clone();
+        let sender = args[4].clone();
+        let token_addr = args[5].clone();
+        let amount = args[6].clone().parse::<u128>().unwrap();
+        let recipient = args[7].clone();
         // OPTION
         let mut recipient_code_hash: Option<String> = None;
         if args.len() >= 8 {
-            recipient_code_hash = Some(args[7].clone());
+            recipient_code_hash = Some(args[8].clone());
         }
        
         let _ = send_snip_with_msg_staking(
             &account_name,
             &backend,
+            &sender,
             &token_addr,
             Uint128::new(amount),
             &recipient,
@@ -512,7 +514,7 @@ pub fn print_help() -> io::Result<()> {
     handle.write_all(b"\n\t14. Command:: deposit <account_name> <keyring_backend> <token_addr> <amount> -- Deposit to Snip20 Token")?;
     handle.write_all(b"\n\t15. Command:: set_viewing_key <account_name> <keyring_backend> <token_addr> <key> -- Set Viewing Key")?;
     handle.write_all(b"\n\t16. Command:: send_with_msg <account_name> <keyring_backend> <token_addr> <amount> <recipient> <recipient_hash> <msg> -- Send Amount & Msg with Callback")?;
-    handle.write_all(b"\n\t17. Command:: send_with_msg_for_staking <account_name> <keyring_backend> <token_addr> <amount> <recipient> <recipient_hash> -- Send Amount & Msg with Callback")?;
+    handle.write_all(b"\n\t17. Command:: staking <account_name> <keyring_backend> <sender> <token_addr> <amount> <recipient> <recipient_hash> -- Send Amount & Msg with Callback")?;
     handle.write_all(b"\n")?;
     handle.flush()?;
 

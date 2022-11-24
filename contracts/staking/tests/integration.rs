@@ -17,7 +17,7 @@ use shadeswap_shared::Contract as SContract;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-pub fn staking_integration_tests_without_proxy() {        
+pub fn staking_integration_tests_without_proxy() {
     use multi_test::admin::admin_help::init_admin_contract;
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, store_init_auth_contract, mint_deposit_snip20, send_snip20_to_stake, get_current_block_time, convert_to_contract_link};
     use cosmwasm_std::{Uint128, Coin, StdError};
@@ -110,7 +110,7 @@ pub fn staking_integration_tests_without_proxy() {
     let permit_query = query_claimable_reward(&router, 
         &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, get_current_block_time(&router)).unwrap();
     match permit_query {
-        QueryResponse::ClaimRewards { claimable_rewards  } => {
+        QueryResponse::GetClaimReward { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),1); 
            assert_eq!(claimable_rewards[0].amount, Uint128::zero());
         },
@@ -131,7 +131,7 @@ pub fn staking_integration_tests_without_proxy() {
     let permit_query = query_claimable_reward(&router, 
         &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, get_current_block_time(&router) ).unwrap();
     match permit_query {
-        QueryResponse::ClaimRewards { claimable_rewards  } => {
+        QueryResponse::GetClaimReward { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),1); 
            assert_eq!(claimable_rewards[0].amount, Uint128::zero());
         },
@@ -166,7 +166,7 @@ pub fn staking_integration_tests_without_proxy() {
     // Assert 2 Reward Token + Claimable Reward
     let permit_query = query_claimable_reward(&router, &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, get_current_block_time(&router)  + Uint128::new(1000u128) ).unwrap();   
     match permit_query {
-        QueryResponse::ClaimRewards { claimable_rewards  } => {
+        QueryResponse::GetClaimReward { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),2); 
            assert_eq!(claimable_rewards[0].amount, Uint128::new(347u128));
            assert_eq!(claimable_rewards[1].amount, Uint128::new(34u128));  
@@ -187,7 +187,7 @@ pub fn staking_integration_tests_without_proxy() {
     ).unwrap();   
 
     match permit_query {
-        QueryResponse::ClaimRewards { claimable_rewards  } => {
+        QueryResponse::GetClaimReward { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),2); 
            assert_eq!(claimable_rewards[0].amount, Uint128::new(173u128));
            assert_eq!(claimable_rewards[1].amount, Uint128::new(17u128));  
@@ -203,7 +203,7 @@ pub fn staking_integration_tests_without_proxy() {
     let permit_query = query_claimable_reward(&router, 
         &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, get_current_block_time(&router) + Uint128::new(1000)).unwrap();
     match permit_query {
-        QueryResponse::ClaimRewards { claimable_rewards  } => {
+        QueryResponse::GetClaimReward { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),2); 
            assert_eq!(claimable_rewards[0].amount, Uint128::new(86u128));
            assert_eq!(claimable_rewards[1].amount, Uint128::new(8u128));  
@@ -216,7 +216,7 @@ pub fn staking_integration_tests_without_proxy() {
     let permit_query = query_claimable_reward(&router, 
         &staking_contract,OWNER_PUB_KEY, OWNER_PUB_KEY, get_current_block_time(&router)).unwrap();
     match permit_query {
-        QueryResponse::ClaimRewards { claimable_rewards  } => {
+        QueryResponse::GetClaimReward { claimable_rewards  } => {
             assert_eq!(claimable_rewards.len(),2); 
             assert_eq!(claimable_rewards[0].amount, Uint128::zero());
             assert_eq!(claimable_rewards[1].amount, Uint128::zero());  
@@ -322,7 +322,7 @@ pub fn staking_integration_tests_with_proxy() {
     let permit_query = query_claimable_reward(&router, 
         &staking_contract,PUB_KEY_STAKER_A, PUB_KEY_STAKER_A, get_current_block_time(&router)).unwrap();
     match permit_query {
-        QueryResponse::ClaimRewards { claimable_rewards  } => {
+        QueryResponse::GetClaimReward { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),1); 
            assert_eq!(claimable_rewards[0].amount, Uint128::zero());
         },
@@ -332,7 +332,7 @@ pub fn staking_integration_tests_with_proxy() {
     let permit_query = query_claimable_reward(&router, 
         &staking_contract,PUB_KEY_STAKER_A, PUB_KEY_STAKER_A, get_current_block_time(&router) + Uint128::new(1000u128)).unwrap();
     match permit_query {
-        QueryResponse::ClaimRewards { claimable_rewards  } => {
+        QueryResponse::GetClaimReward { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),1); 
            assert_eq!(claimable_rewards[0].amount, Uint128::new(347u128));
         },
@@ -351,7 +351,7 @@ pub fn staking_integration_tests_with_proxy() {
     let permit_query = query_claimable_reward(&router, 
         &staking_contract,PUB_KEY_STAKER_A, PUB_KEY_STAKER_A, get_current_block_time(&router)).unwrap();
     match permit_query {
-        QueryResponse::ClaimRewards { claimable_rewards  } => {
+        QueryResponse::GetClaimReward { claimable_rewards  } => {
            assert_eq!(claimable_rewards.len(),1); 
            assert_eq!(claimable_rewards[0].amount, Uint128::zero());
         },
@@ -371,7 +371,7 @@ pub fn staking_integration_tests_with_proxy() {
     let permit_query = query_claimable_reward(&router, 
         &staking_contract,PUB_KEY_STAKER_A, PUB_KEY_STAKER_A, get_current_block_time(&router)).unwrap();
     match permit_query {
-        QueryResponse::ClaimRewards { claimable_rewards  } => {
+        QueryResponse::GetClaimReward { claimable_rewards  } => {
             assert_eq!(claimable_rewards.len(),1); 
             assert_eq!(claimable_rewards[0].amount, Uint128::zero());
         },

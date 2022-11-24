@@ -792,7 +792,7 @@ pub mod amm_pair_lib {
             staking_contract_msg,
             None,
         )?;
-        if let AMMPairQueryMsgResponse::GetConfig { staking_contract, factory_contract, lp_token, pair, custom_fee } =
+        if let AMMPairQueryMsgResponse::GetConfig { staking_contract, factory_contract: _, lp_token: _, pair: _, custom_fee: _ } =
             staking_contract_query
         {
             return Ok(staking_contract);

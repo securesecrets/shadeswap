@@ -54,6 +54,7 @@ pub fn swap_simulation(deps: Deps, path: Vec<Hop>, offer: TokenAmount, exclude_f
                 amount_1: _,
                 total_liquidity: _,
                 contract_version: _,
+                fee_info: _
             } => {
                 let result: AMMPairQueryReponse =
                     querier.query(&QueryRequest::Wasm(WasmQuery::Smart {

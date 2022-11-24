@@ -299,9 +299,11 @@ pub mod tests_calculation_price_and_fee {
     use cosmwasm_std::{Decimal, from_binary};
 
     
+    use shadeswap_shared::amm_pair::QueryMsg;
     use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount};
     use shadeswap_shared::msg::amm_pair::QueryMsgResponse;
 
+    use crate::contract;
     use crate::operations::{
         add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity, is_address_in_whitelist   };
 

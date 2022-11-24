@@ -4,7 +4,7 @@ use crate::{
         register_pair_token, remove_addresses_from_whitelist, remove_liquidity,
         set_staking_contract, swap, update_viewing_key,
     },
-    query::{self},
+    query::{self, fee_info},
     state::{config_r, config_w, trade_count_r, whitelist_r, Config},
 };
 
@@ -346,6 +346,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     amount_0: balances[0],
                     amount_1: balances[1],
                     total_liquidity,
+                    fee_info: fee_info(deps, &env)?,
                     contract_version: AMM_PAIR_CONTRACT_VERSION,
                 })
             }

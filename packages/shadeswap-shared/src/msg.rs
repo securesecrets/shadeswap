@@ -77,7 +77,11 @@ pub mod router {
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
-        SwapSimulation { offer: TokenAmount, path: Vec<Hop>, exclude_fee: Option<bool> },
+        SwapSimulation {
+            offer: TokenAmount,
+            path: Vec<Hop>,
+            exclude_fee: Option<bool>,
+        },
         GetConfig {},
     }
 
@@ -92,7 +96,7 @@ pub mod router {
             price: String,
         },
         GetConfig {
-            admin_auth: Contract
+            admin_auth: Contract,
         },
     }
 }
@@ -101,8 +105,8 @@ pub mod amm_pair {
     use super::*;
     use crate::{
         core::{
-            ContractInstantiationInfo, CustomFee, Fee, TokenAmount, TokenPair,
-            TokenPairAmount, TokenType,
+            ContractInstantiationInfo, CustomFee, Fee, TokenAmount, TokenPair, TokenPairAmount,
+            TokenType,
         },
         staking::StakingContractInit,
         Contract, Pagination,
@@ -162,6 +166,14 @@ pub mod amm_pair {
     pub struct SwapResult {
         pub return_amount: Uint128,
     }
+
+    #[derive(Serialize, Deserialize, PartialEq, Clone, Debug, JsonSchema)]
+    pub struct FeeInfo {
+        pub shade_dao_address: Addr,
+        pub lp_fee: Fee,
+        pub shade_dao_fee: Fee,
+    }
+
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
     pub struct TradeHistory {
         pub price: String,
@@ -278,6 +290,7 @@ pub mod amm_pair {
             amount_1: Uint128,
             total_liquidity: Uint128,
             contract_version: u32,
+            fee_info: FeeInfo,
         },
         GetTradeHistory {
             data: Vec<TradeHistory>,
@@ -309,7 +322,7 @@ pub mod amm_pair {
         },
         GetEstimatedLiquidity {
             lp_token: Uint128,
-            total_lp_token: Uint128
+            total_lp_token: Uint128,
         },
         GetConfig {
             factory_contract: Option<Contract>,
@@ -498,7 +511,7 @@ pub mod staking {
     #[serde(rename_all = "snake_case")]
     pub enum QueryMsg {
         GetConfig {},
-        GetRewardTokens { },
+        GetRewardTokens {},
         WithPermit {
             permit: QueryPermit,
             query: AuthQuery,
@@ -509,22 +522,18 @@ pub mod staking {
     #[serde(rename_all = "snake_case")]
     pub enum AuthQuery {
         GetStakerLpTokenInfo {},
-        GetClaimReward { time: Uint128 }
+        GetClaimReward { time: Uint128 },
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
     #[serde(rename_all = "snake_case")]
     pub enum QueryResponse {
-        ClaimRewards {
+        GetClaimReward {
             claimable_rewards: Vec<ClaimableInfo>,
         },
         GetStakerLpTokenInfo {
             staked_lp_token: Uint128,
             total_staked_lp_token: Uint128,
-        },
-        GetClaimReward {
-            amount: Uint128,
-            reward_token: Contract,
         },
         GetConfig {
             reward_token: Contract,
@@ -535,7 +544,7 @@ pub mod staking {
         },
         GetRewardTokens {
             tokens: Vec<RewardTokenInfo>,
-        }
+        },
     }
 }
 

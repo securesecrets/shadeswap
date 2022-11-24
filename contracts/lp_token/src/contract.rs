@@ -230,12 +230,12 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         }
         ExecuteMsg::BatchSendFrom { actions, .. } => try_batch_send_from(deps, env, &info, actions),
         ExecuteMsg::BurnFrom {
-            owner,
-            amount,
-            memo,
+            owner: _,
+            amount: _,
+            memo: _,
             ..
         } => Err(StdError::generic_err("Burn functionality is not enabled for this token.")),
-        ExecuteMsg::BatchBurnFrom { actions, .. } => {
+        ExecuteMsg::BatchBurnFrom { actions: _, .. } => {
             Err(StdError::generic_err("Burn functionality is not enabled for this token."))
         }
 

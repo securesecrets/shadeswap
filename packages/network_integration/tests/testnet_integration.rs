@@ -1008,6 +1008,7 @@ fn run_testnet() -> Result<()> {
         amount_1: _,
         total_liquidity,
         contract_version: _,
+        fee_info: _,
     } = lp_token_info_query
     {
         println!(
@@ -1118,6 +1119,7 @@ fn run_testnet() -> Result<()> {
             amount_1: _,
             total_liquidity,
             contract_version: _,
+            fee_info: _,
         } = lp_token_info_query_unstake_a
         {
             println!(
@@ -1166,6 +1168,7 @@ fn run_testnet() -> Result<()> {
             amount_1: _,
             total_liquidity,
             contract_version: _,
+            fee_info: _,
         } = lp_token_info_query_unstake_b
         {
             println!(
@@ -1265,6 +1268,7 @@ fn run_testnet() -> Result<()> {
             amount_1: _,
             total_liquidity,
             contract_version: _,
+            fee_info: _,
         } = lp_token_info_query_unstake
         {
             println!(
@@ -1616,11 +1620,11 @@ fn run_testnet() -> Result<()> {
         AMMPairQueryMsgResponse::GetShadeDaoInfo { .. }
     ));
 
-
+    // This will check half of extra = 0
     assert!(matches!(
         test_query_successful(
             amm_pair_1.address.to_string(),
-            AMMPairQueryMsg::GetEstimatedLiquidity { deposit: TokenPairAmount { pair: token_pair_1.clone(), amount_0: Uint128::from(100u64), amount_1: Uint128::from(100u64) } },
+            AMMPairQueryMsg::GetEstimatedLiquidity { deposit: TokenPairAmount { pair: token_pair_1.clone(), amount_0: Uint128::from(1000u64), amount_1: Uint128::from(1000u64) } },
         )?,
         AMMPairQueryMsgResponse::GetEstimatedLiquidity { .. }
     ));

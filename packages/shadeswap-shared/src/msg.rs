@@ -541,6 +541,7 @@ pub mod staking {
             daily_reward_amount: Uint128,
             amm_pair: String,
             admin_auth: Contract,
+            total_staked_lp_token: Uint128
         },
         GetRewardTokens {
             tokens: Vec<RewardTokenInfo>,

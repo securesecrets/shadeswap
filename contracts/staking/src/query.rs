@@ -22,6 +22,7 @@ pub fn config(deps: Deps) -> StdResult<Binary> {
             daily_reward_amount: config.daily_reward_amount.clone(),
             amm_pair: config.amm_pair.to_string(),
             admin_auth: config.admin_auth,
+            total_staked_lp_token: total_staked_r(deps.storage).may_load()?.map_or_else(|| Uint128::zero(), |v| v)
         };
         return to_binary(&response);
     } else {

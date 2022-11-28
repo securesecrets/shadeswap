@@ -111,7 +111,6 @@ pub fn stake(
         Some(total_amount) => total_amount,
         None => Uint128::zero(),
     };
-
     total_stake_amount += amount;
     total_staked_w(deps.storage).save(&total_stake_amount)?;
 
@@ -517,6 +516,11 @@ pub fn proxy_unstake(
         )?;
 
         process_all_claimable_rewards(deps.storage, for_addr.to_string(), &mut messages)?;
+
+        let mut total_stake_amount = total_staked_w(deps.storage).load()?;
+        total_stake_amount -= amount;
+        total_staked_w(deps.storage).save(&total_stake_amount)?;
+
         // send back amount of lp token to pair contract to send pair token back with burn
         let config = config_r(deps.storage).load()?;
 
@@ -566,8 +570,13 @@ pub fn unstake(
         staker_info.amount = staker_info.amount - amount;
         staker_info.last_time_updated = current_timestamp;
         stakers_w(deps.storage).save(caller.as_bytes(), &staker_info)?;
-
+        
         process_all_claimable_rewards(deps.storage, caller.to_string(), &mut messages)?;
+
+        let mut total_stake_amount = total_staked_w(deps.storage).load()?;
+        total_stake_amount -= amount;
+        total_staked_w(deps.storage).save(&total_stake_amount)?;
+
         // send back amount of lp token to pair contract to send pair token back with burn
         let config = config_r(deps.storage).load()?;
 

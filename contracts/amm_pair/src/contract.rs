@@ -7,7 +7,7 @@ use crate::{
     query::{self, fee_info},
     state::{
         arbitrage_profit_r, arbitrage_profit_w, arbitrage_volume_r, arbitrage_volume_w, config_r,
-        config_w, trade_count_r, whitelist_r, whitelist_w, Config,
+        config_w, trade_count_r, whitelist_r, Config,
     },
 };
 
@@ -92,13 +92,13 @@ pub fn instantiate(
 
     let config = Config {
         factory_contract: msg.factory_info.clone(),
+        arbitrage_contract: msg.arbitrage_contract.clone(),
         lp_token: Contract {
-            arbitrage_contract: msg.arbitrage_contract.clone(),
             code_hash: msg.lp_token_contract.code_hash,
             address: Addr::unchecked(""),
         },
         pair: msg.pair,
-        viewing_key: viewing_key,
+        viewing_key,
         custom_fee: msg.custom_fee.clone(),
         staking_contract: None,
         staking_contract_init: msg.staking_contract,
@@ -143,7 +143,13 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 Ok(Response::default())
             }
             ExecuteMsg::SetArbitrageContract { arbitrage_contract } => {
-                apply_admin_guard(&info.sender, deps.storage)?;
+                let mut config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
                 let mut config = config_r(deps.storage).load()?;
                 config.arbitrage_contract = arbitrage_contract;
                 config_w(deps.storage).save(&config)?;
@@ -177,6 +183,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 offer,
                 expected_return,
                 to,
+                execute_arbitrage,
             } => {
                 if !offer.token.is_native_token() {
                     return Err(StdError::generic_err("Use the receive interface"));
@@ -193,6 +200,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     checked_to,
                     offer,
                     expected_return,
+                    execute_arbitrage,
                 )
             }
             ExecuteMsg::SetViewingKey { viewing_key } => update_viewing_key(env, deps, viewing_key),

@@ -3,6 +3,7 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use shadeswap_shared::{
+    amm_pair::ArbitrageCallback,
     core::{TokenAmount, TokenType},
     msg::amm_pair::{
         ExecuteMsg as AMMPairExecuteMsg, InvokeMsg as AMMPairInvokeMsg,
@@ -85,7 +86,7 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
                     amount_1: _,
                     total_liquidity: _,
                     contract_version: _,
-                    fee_info: _
+                    fee_info: _,
                 } => {
                     info.current_index = info.current_index + 1;
 
@@ -163,7 +164,7 @@ pub fn swap_tokens_for_exact_tokens(
             amount_1: _,
             total_liquidity: _,
             contract_version: _,
-            fee_info: _
+            fee_info: _,
         } => {
             let next_token_in;
             if pair.0 == amount_in.token {
@@ -210,6 +211,7 @@ fn get_trade_with_callback(
                 expected_return: None,
                 to: None,
                 offer: token_in.clone(),
+                execute_arbitrage: None,
             })?;
 
             response = response.add_submessage(SubMsg::reply_always(
@@ -235,6 +237,7 @@ fn get_trade_with_callback(
                 msg: Some(to_binary(&AMMPairInvokeMsg::SwapTokens {
                     expected_return: None,
                     to: Some(env.contract.address.to_string()),
+                    execute_arbitrage: None,
                 })?),
                 padding: None,
                 recipient_code_hash: None,

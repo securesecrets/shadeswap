@@ -162,7 +162,7 @@ pub mod amm_pair {
         pub price: String,
     }
 
-    #[derive(Serialize, Deserialize, PartialEq, Debug, JsonSchema)]
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     pub struct ArbitrageCallback {
         pub execute: bool,
         pub gas_limit: Option<u64>,
@@ -219,6 +219,7 @@ pub mod amm_pair {
             offer: TokenAmount,
             expected_return: Option<Uint128>,
             to: Option<String>,
+            execute_arbitrage: Option<ArbitrageCallback>,
         },
         // SNIP20 receiver interface
         Receive {
@@ -239,7 +240,7 @@ pub mod amm_pair {
             custom_fee: Option<CustomFee>,
         },
         SetArbitrageContract {
-            arbitrage_contract: Option<ContractLink>,
+            arbitrage_contract: Option<Contract>,
         },
         SetViewingKey {
             viewing_key: String,
@@ -323,9 +324,6 @@ pub mod amm_pair {
         },
         GetClaimReward {
             amount: Uint128,
-        },
-        StakingContractInfo {
-            staking_contract: Option<ContractLink>,
         },
         GetArbitrageStats {
             stats: ArbitrageStatistics,

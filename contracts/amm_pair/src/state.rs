@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Binary, Storage};
+use cosmwasm_std::{Addr, Binary, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,

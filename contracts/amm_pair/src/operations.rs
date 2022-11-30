@@ -253,7 +253,12 @@ pub fn swap(
         _ => arb_msg = None,
     }
 
-    Ok(Response::new().add_messages(messages))
+    match arb_msg {
+        Some(sub_msg) => Ok(Response::new()
+            .add_messages(messages)
+            .add_submessage(sub_msg)),
+        None => Ok(Response::new().add_messages(messages)),
+    }
 }
 
 // Set staking contract within the config

@@ -86,7 +86,10 @@ pub fn create_pair(
     staking_contract: Option<StakingContractInit>,
 ) -> StdResult<Response> {
     let config = config_r(deps.storage).load()?;
-    ephemeral_storage_w(deps.storage).save(&NextPairKey { pair: pair.clone(), code_hash: config.pair_contract.code_hash.to_string() })?;
+    ephemeral_storage_w(deps.storage).save(&NextPairKey {
+        pair: pair.clone(),
+        code_hash: config.pair_contract.code_hash.to_string(),
+    })?;
 
     let mut messages = vec![];
     messages.push(SubMsg::reply_on_success(
@@ -108,6 +111,7 @@ pub fn create_pair(
                 admin_auth: config.admin_auth,
                 staking_contract: staking_contract,
                 custom_fee: None,
+                arbitrage_contract: None,
             })?,
             code_hash: config.pair_contract.code_hash,
             funds: vec![],

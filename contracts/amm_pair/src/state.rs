@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Binary, Storage, Uint128};
+use cosmwasm_std::{Addr, Binary, Storage};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -16,8 +16,6 @@ pub static CONFIG: &[u8] = b"config";
 pub static TRADE_COUNT: &[u8] = b"tradecount";
 pub static TRADE_HISTORY: &[u8] = b"trade_history";
 pub static WHITELIST: &[u8] = b"whitelist";
-pub static ARBITRAGE_VOLUME: &[u8] = b"arb_vol";
-pub static ARBITRAGE_PROFIT: &[u8] = b"arb_prof";
 pub const BLOCK_SIZE: usize = 256;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -71,20 +69,4 @@ pub fn trade_history_w(storage: &mut dyn Storage) -> Bucket<TradeHistory> {
 
 pub fn trade_history_r(storage: &dyn Storage) -> ReadonlyBucket<TradeHistory> {
     bucket_read(storage, TRADE_HISTORY)
-}
-
-pub fn arbitrage_volume_w(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, ARBITRAGE_VOLUME)
-}
-
-pub fn arbitrage_volume_r(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, ARBITRAGE_VOLUME)
-}
-
-pub fn arbitrage_profit_w(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, ARBITRAGE_PROFIT)
-}
-
-pub fn arbitrage_profit_r(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, ARBITRAGE_PROFIT)
 }

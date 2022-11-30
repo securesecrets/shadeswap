@@ -282,7 +282,6 @@ pub mod amm_pair {
         },
         GetWhiteListAddress {},
         GetTradeCount {},
-        GetArbitrageStats {},
         SwapSimulation {
             offer: TokenAmount,
             exclude_fee: Option<bool>,
@@ -291,13 +290,6 @@ pub mod amm_pair {
         GetEstimatedLiquidity {
             deposit: TokenPairAmount,
         },
-    }
-
-    #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
-    #[serde(rename_all = "snake_case")]
-    pub struct ArbitrageStatistics {
-        pub volume: Uint128,
-        pub profit: Uint128,
     }
 
     #[derive(Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -324,9 +316,6 @@ pub mod amm_pair {
         },
         GetClaimReward {
             amount: Uint128,
-        },
-        GetArbitrageStats {
-            stats: ArbitrageStatistics,
         },
         GetEstimatedPrice {
             estimated_price: String,

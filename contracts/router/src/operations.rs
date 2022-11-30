@@ -3,7 +3,6 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use shadeswap_shared::{
-    amm_pair::ArbitrageCallback,
     core::{TokenAmount, TokenType},
     msg::amm_pair::{
         ExecuteMsg as AMMPairExecuteMsg, InvokeMsg as AMMPairInvokeMsg,

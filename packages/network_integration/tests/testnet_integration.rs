@@ -30,7 +30,7 @@ use shadeswap_shared::{
     msg::{
         amm_pair::{
             ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
-            QueryMsgResponse as AMMPairQueryMsgResponse,
+            QueryMsgResponse as AMMPairQueryMsgResponse, InitMsg as AMMPairInitMsg
         },
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
         router::{
@@ -1779,6 +1779,93 @@ fn run_testnet() -> Result<()> {
         StakingQueryMsgResponse::GetClaimReward { .. }
     ));
 
+    // TEST CREATE STANDALONE_AMM_PAIR
+    // CREATE USDT SNIP20
+    print_header("Initializing USDT");
+    let (_, usdt_token) = init_snip20(
+        "USDT".to_string(),
+        "USDT".to_string(),
+        8,
+        Some(InitConfig {
+            public_total_supply: Some(true),
+            enable_deposit: Some(true),
+            enable_redeem: Some(true),
+            enable_mint: Some(true),
+            enable_burn: Some(false),
+        }),
+        &mut reports,
+        ACCOUNT_KEY,
+        None,
+    )?;
+    let snip_20_code_hash = usdt_token.code_hash.clone();
+    set_viewing_key(VIEW_KEY, &usdt_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
+    print_contract(&usdt_token);
+
+    // CREATE REWARD TOKEN
+    print_header("Initializing Reward_token");
+    let (_, reward_token) = init_snip20(
+        "RWSN".to_string(),
+        "RWSN".to_string(),
+        6,
+        Some(InitConfig {
+            public_total_supply: Some(true),
+            enable_deposit: Some(true),
+            enable_redeem: Some(true),
+            enable_mint: Some(true),
+            enable_burn: Some(false),
+        }),
+        &mut reports,
+        ACCOUNT_KEY,
+        None,
+    )?;
+    print_contract(&reward_token);
+    set_viewing_key(VIEW_KEY, &reward_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
+    
+    // CREATE ETH SNIP20
+    print_header("Initializing USDT");
+    let (_, eth_token) = init_snip20(
+        "ETH".to_string(),
+        "ETH".to_string(),
+        8,
+        Some(InitConfig {
+            public_total_supply: Some(true),
+            enable_deposit: Some(true),
+            enable_redeem: Some(true),
+            enable_mint: Some(true),
+            enable_burn: Some(false),
+        }),
+        &mut reports,
+        ACCOUNT_KEY,
+        None,
+    )?;
+    print_contract(&eth_token);
+    set_viewing_key(VIEW_KEY, &eth_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
+
+    // CREATE AMM PAIR USDT-ETH
+    let amm_pair_init_msg = AMMPairInitMsg{
+        pair: TokenPair(
+            TokenType::CustomToken { contract_addr: Addr::unchecked(usdt_token.address), token_code_hash: usdt_token.code_hash.to_string() },
+            TokenType::CustomToken { contract_addr: Addr::unchecked(eth_token.address), token_code_hash: eth_token.code_hash.to_string() } 
+        ),
+        lp_token_contract: todo!(),
+        factory_info: None,
+        prng_seed: to_binary("seed")?,
+        entropy:to_binary("password")?,
+        admin_auth: Contract { address: admin_contract.address.to_string(), code_hash: admin_contract.code_hash.to_string() },
+        staking_contract: todo!(),
+        custom_fee: None,
+    };
+    // CREATE AMM PAIR
+    let amm_pair_contract = init(
+        &amm_pair_init_msg,
+        &AMM_PAIR_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
     return Ok(());
 }
 

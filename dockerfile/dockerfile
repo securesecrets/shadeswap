@@ -1,8 +1,10 @@
-FROM ghcr.io/scrtlabs/localsecret:beta-nested-attributes
+FROM ghcr.io/scrtlabs/localsecret:v1.5.1-patch.3
 
 RUN curl https://sh.rustup.rs -sSf |  sh -s -- -y
 
 RUN bash -c "source ${HOME}/.bashrc" 
+
+RUN apt update
 
 RUN apt install --assume-yes clang
 

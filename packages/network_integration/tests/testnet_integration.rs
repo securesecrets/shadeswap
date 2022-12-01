@@ -47,7 +47,7 @@ use shadeswap_shared::{
     snip20,
     staking::{AuthQuery, QueryData},
     utils::Query,
-    Pagination,
+    Pagination, Contract,
 };
 
 use secretcli::{
@@ -1056,7 +1056,7 @@ fn run_testnet() -> Result<()> {
             None,
         )
         .unwrap();
-
+        
         // send Reward token to staking contract
         handle(
             &snip20::ExecuteMsg::Send {
@@ -1079,6 +1079,27 @@ fn run_testnet() -> Result<()> {
 
         println!("\n\tUnstake 5000000000LP TOKEN");
 
+        let mut old_total_staked:Uint128;
+
+        let total_currently_staked_msg: StakingQueryMsgResponse = query(
+            &NetContract {
+                label: "".to_string(),
+                id: "".to_string(),
+                address: staking_contract.clone().unwrap().address.to_string(),
+                code_hash: "".to_string(),
+            },
+            StakingQueryMsg::GetConfig {},
+            None,
+        )?;
+
+        if let StakingQueryMsgResponse::GetConfig { total_staked_lp_token, reward_token, lp_token, daily_reward_amount, amm_pair, admin_auth } = total_currently_staked_msg {
+            old_total_staked = total_staked_lp_token;
+        }
+        else
+        {
+            panic!("Failed to get correct response")
+        }
+
         handle(
             &StakingMsgHandle::Unstake {
                 amount: Uint128::new(5000000000),
@@ -1098,6 +1119,27 @@ fn run_testnet() -> Result<()> {
             None,
         )
         .unwrap();
+
+        let total_currently_staked_msg: StakingQueryMsgResponse = query(
+            &NetContract {
+                label: "".to_string(),
+                id: "".to_string(),
+                address: staking_contract.clone().unwrap().address.to_string(),
+                code_hash: "".to_string(),
+            },
+            StakingQueryMsg::GetConfig {},
+            None,
+        )?;
+
+        if let StakingQueryMsgResponse::GetConfig { total_staked_lp_token, reward_token, lp_token, daily_reward_amount, amm_pair, admin_auth } = total_currently_staked_msg {
+            println!("{} - {}", old_total_staked, total_staked_lp_token);
+            assert!(old_total_staked > total_staked_lp_token);
+        }
+        else
+        {
+            panic!("Failed to get correct response")
+        }
+
         print_header("\n\tGet LP Token for AMM Pair");
         let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};
         let lp_token_info_query_unstake_a: AMMPairQueryMsgResponse = query(
@@ -1295,13 +1337,15 @@ fn run_testnet() -> Result<()> {
             )?;
 
             let mut old_staked_lp_token = Uint128::zero();
+            let mut old_total_staked_lp_token = Uint128::zero();
 
             if let StakingQueryMsgResponse::GetStakerLpTokenInfo {
                 staked_lp_token,
-                total_staked_lp_token: _,
+                total_staked_lp_token,
             } = stake_lp_token_info
             {
                 old_staked_lp_token = staked_lp_token;
+                old_total_staked_lp_token = total_staked_lp_token
             }
 
             print_header("\n\tRAW Adding Liquidity to SNIP20/20 staking contract");
@@ -1336,7 +1380,7 @@ fn run_testnet() -> Result<()> {
                     amount: Uint128::new(1000),
                     msg: Some(to_binary(&StakingInvokeMsg::Stake { from: account }).unwrap()),
                     padding: None,
-                    recipient_code_hash: None,
+                    recipient_code_hash: Some(staking_contract.clone().unwrap().code_hash.to_string()),
                     memo: None,
                 },
                 &NetContract {
@@ -1372,10 +1416,11 @@ fn run_testnet() -> Result<()> {
 
             if let StakingQueryMsgResponse::GetStakerLpTokenInfo {
                 staked_lp_token,
-                total_staked_lp_token: _,
+                total_staked_lp_token,
             } = stake_lp_token_info
             {
-                assert!(old_staked_lp_token < staked_lp_token)
+                assert!(old_staked_lp_token < staked_lp_token);
+                assert!(old_total_staked_lp_token < total_staked_lp_token);
             }
 
             print_header("\n\tEND Adding Liquidity to SNIP20/20 staking contract");
@@ -1482,6 +1527,7 @@ fn run_testnet() -> Result<()> {
             daily_reward_amount,
             amm_pair: _,
             admin_auth: _,
+            total_staked_lp_token,
         } = config_query_response
         {
             assert_eq!(

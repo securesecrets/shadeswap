@@ -187,12 +187,20 @@ pub fn swap(
         }
     }
 
+    //get non-offer token
+    let fee_token_denom =
+        if &config.pair.0 == &offer.token {
+            &config.pair.1
+        } else {
+            &config.pair.0
+        };
+
     // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
     let mut messages = Vec::with_capacity(2);
     add_send_token_to_address_msg(
         &mut messages,
         fee_info.shade_dao_address,
-        &offer.token,
+        fee_token_denom,
         swap_result.shade_dao_fee_amount,
     )?;
 

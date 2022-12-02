@@ -215,6 +215,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 if let Some(admin_auth) = admin_auth {
                     config.admin_auth = admin_auth;
                 }
+                config_w(deps.storage).save(&config)?;
                 Ok(Response::default())
             }
             ExecuteMsg::RecoverFunds {

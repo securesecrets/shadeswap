@@ -294,35 +294,32 @@ pub fn calculate_swap_result(
     }
 
     let amount = Uint128::from(offer.amount);
-    // conver tand get avialble balance
     let tokens_pool = calculate_token_pool_balance(deps, env, config, offer)?;
     let token0_pool = tokens_pool[0];
     let token1_pool = tokens_pool[1];
-    let lp_fee_amount;
-    let shade_dao_fee_amount;
-    // calculation fee
-    match &config.custom_fee {
-        Some(f) => {
-            lp_fee_amount = calculate_fee(offer.amount, f.lp_fee)?;
-            shade_dao_fee_amount = calculate_fee(offer.amount, f.shade_dao_fee)?;
-        }
-        None => {
-            lp_fee_amount = calculate_fee(offer.amount, lp_fee)?;
-            shade_dao_fee_amount = calculate_fee(offer.amount, shade_dao_fee)?;
+
+    let swap_return_before_fee = calculate_price(amount, token0_pool, token1_pool)?;
+
+    let mut lp_fee_amount = Uint128::zero();
+    let mut shade_dao_fee_amount = Uint128::zero();
+
+    if exclude_fee.is_none() || !exclude_fee.unwrap() { //unwrap safe because of conditional short circuiting
+        match &config.custom_fee {
+            Some(f) => {
+                lp_fee_amount = calculate_fee(swap_return_before_fee, f.lp_fee)?;
+                shade_dao_fee_amount = calculate_fee(swap_return_before_fee, f.shade_dao_fee)?;
+            }
+            None => {
+                lp_fee_amount = calculate_fee(swap_return_before_fee, lp_fee)?;
+                shade_dao_fee_amount = calculate_fee(swap_return_before_fee, shade_dao_fee)?;
+            }
         }
     }
-    // total fee
     let total_fee_amount = lp_fee_amount + shade_dao_fee_amount;
+    let final_swap_return = swap_return_before_fee - total_fee_amount;
 
-    // sub fee from offer amount
-    let mut deducted_offer_amount = offer.amount - total_fee_amount;
-    if let Some(true) = exclude_fee {
-        deducted_offer_amount = offer.amount;
-    }
-
-    let swap_amount = calculate_price(deducted_offer_amount, token0_pool, token1_pool)?;
     let result_swap = SwapResult {
-        return_amount: swap_amount,
+        return_amount: final_swap_return,
     };
 
     Ok(SwapInfo {
@@ -330,7 +327,7 @@ pub fn calculate_swap_result(
         shade_dao_fee_amount: shade_dao_fee_amount,
         total_fee_amount: total_fee_amount,
         result: result_swap,
-        price: Decimal::from_ratio(swap_amount, amount).to_string(),
+        price: Decimal::from_ratio(final_swap_return, amount).to_string(),
     })
 }
 

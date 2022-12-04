@@ -4,7 +4,7 @@ use cosmwasm_std::{to_binary, Addr, QueryResponse, Response, Uint128};
 use network_integration::{
     cli_commands::{
         amm_pair_lib::{
-            add_amm_pairs, add_liquidity, list_pair_from_factory, get_staking_contract,
+            add_amm_pairs, add_liquidity, list_pair_from_factory, get_staking_contract, store_staking_contract,
         },
         factory_lib::{create_factory_contract, deposit_snip20, increase_allowance},
         router_lib::create_router_contract,
@@ -13,10 +13,10 @@ use network_integration::{
     utils::{
         generate_label, get_balance, get_current_timestamp, init_snip20, print_contract,
         print_header, InitConfig, ACCOUNT_KEY, ADMIN_FILE, AMM_PAIR_FILE, API_KEY, GAS,
-        SHADE_DAO_KEY, STAKER_KEY, STORE_GAS, VIEW_KEY,
+        SHADE_DAO_KEY, STAKER_KEY, STORE_GAS, VIEW_KEY, LPTOKEN20_FILE,
     },
 };
-
+use shadeswap_shared::staking::StakingContractInit;
 use query_authentication::{
     permit::Permit,
     transaction::{PermitSignature, PubKey},
@@ -26,7 +26,7 @@ use shadeswap_shared::{
     admin::RegistryAction,
     c_std::Binary,
     contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
-    core::{TokenAmount, TokenPair, TokenPairAmount, TokenType},
+    core::{TokenAmount, TokenPair, TokenPairAmount, TokenType, ContractInstantiationInfo},
     msg::{
         amm_pair::{
             ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
@@ -70,6 +70,7 @@ fn run_testnet() -> Result<()> {
     let pair_contract_code_hash =
         store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?
             .code_hash;
+            
 
     type TestPermit = Permit<PermitData>;
     //secretd tx sign-doc file --from a
@@ -1822,7 +1823,7 @@ fn run_testnet() -> Result<()> {
     set_viewing_key(VIEW_KEY, &reward_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
     
     // CREATE ETH SNIP20
-    print_header("Initializing USDT");
+    print_header("Initializing ETH");
     let (_, eth_token) = init_snip20(
         "ETH".to_string(),
         "ETH".to_string(),
@@ -1841,18 +1842,48 @@ fn run_testnet() -> Result<()> {
     print_contract(&eth_token);
     set_viewing_key(VIEW_KEY, &eth_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
 
+    // STORE STAKING CONTRACT
+    let staking_contract = store_staking_contract(ACCOUNT_KEY, "test").unwrap();
+    let staking_contract_init: Option<StakingContractInit> = Some(StakingContractInit {
+        contract_info: ContractInstantiationInfo {
+            code_hash: staking_contract.code_hash.to_string(),
+            id: staking_contract.id.clone().parse::<u64>().unwrap(),
+        },
+        daily_reward_amount: Uint128::new(30000u128),
+        reward_token: TokenType::CustomToken {
+            contract_addr: Addr::unchecked(reward_token.address.to_string()),
+            token_code_hash: reward_token.code_hash.to_string(),
+        },
+        valid_to: Uint128::new(4000000000000u128),
+        decimals: 18u8,
+    });
+
+    // STORING LP TOKEN
+    let lp_token = store_and_return_contract(
+        &LPTOKEN20_FILE,
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some("test"),
+    ).unwrap();
+
     // CREATE AMM PAIR USDT-ETH
     let amm_pair_init_msg = AMMPairInitMsg{
         pair: TokenPair(
             TokenType::CustomToken { contract_addr: Addr::unchecked(usdt_token.address), token_code_hash: usdt_token.code_hash.to_string() },
             TokenType::CustomToken { contract_addr: Addr::unchecked(eth_token.address), token_code_hash: eth_token.code_hash.to_string() } 
         ),
-        lp_token_contract: todo!(),
+        lp_token_contract: ContractInstantiationInfo{
+            code_hash: lp_token.code_hash.to_string(),
+            id: lp_token.id.parse::<u64>().unwrap(),
+        },
         factory_info: None,
-        prng_seed: to_binary("seed")?,
-        entropy:to_binary("password")?,
-        admin_auth: Contract { address: admin_contract.address.to_string(), code_hash: admin_contract.code_hash.to_string() },
-        staking_contract: todo!(),
+        prng_seed: to_binary("seed").unwrap(),
+        entropy:to_binary("password").unwrap(),
+        admin_auth: Contract { 
+            address: Addr::unchecked(admin_contract.address.to_string()), 
+            code_hash: admin_contract.code_hash.to_string()
+        },
+        staking_contract: staking_contract_init,
         custom_fee: None,
     };
     // CREATE AMM PAIR

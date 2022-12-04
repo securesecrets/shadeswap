@@ -11,7 +11,7 @@ use cosmwasm_std::{
 use shadeswap_shared::{
     core::{Fee, TokenAmount, TokenPairAmount, TokenType, ViewingKey},
     msg::{
-        amm_pair::{SwapInfo, SwapResult, TradeHistory},
+        amm_pair::{ArbitrageCallback, SwapInfo, SwapResult, TradeHistory},
         staking::{InitMsg as StakingInitMsg, InvokeMsg as StakingInvokeMsg},
     },
     snip20::{
@@ -25,6 +25,7 @@ use shadeswap_shared::{
 };
 
 use crate::{
+    contract::ARBITRAGE_CONTRACT_REPLY_ID,
     contract::INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
     query::{self, factory_config},
     state::{
@@ -160,6 +161,7 @@ pub fn swap(
     recipient: Option<Addr>,
     offer: TokenAmount,
     expected_return: Option<Uint128>,
+    arbitrage_info: Option<ArbitrageCallback>,
 ) -> StdResult<Response> {
     let swaper_receiver = recipient.unwrap_or(sender.clone());
 
@@ -229,7 +231,34 @@ pub fn swap(
 
     store_trade_history(deps, &trade_history)?;
 
-    Ok(Response::new().add_messages(messages))
+    let mut arb_msg = None;
+    match config.arbitrage_contract {
+        Some(arbitrage_contract) => {
+            if let Some(arbitrage_info) = arbitrage_info {
+                if arbitrage_info.execute {
+                    let mut sub_msg = SubMsg::reply_always(
+                        CosmosMsg::Wasm(WasmMsg::Execute {
+                            contract_addr: arbitrage_contract.address.to_string(),
+                            code_hash: arbitrage_contract.code_hash,
+                            msg: arbitrage_info.msg,
+                            funds: vec![],
+                        }),
+                        ARBITRAGE_CONTRACT_REPLY_ID,
+                    );
+                    sub_msg.gas_limit = arbitrage_info.gas_limit;
+                    arb_msg = Some(sub_msg);
+                }
+            }
+        }
+        _ => arb_msg = None,
+    }
+
+    match arb_msg {
+        Some(sub_msg) => Ok(Response::new()
+            .add_messages(messages)
+            .add_submessage(sub_msg)),
+        None => Ok(Response::new().add_messages(messages)),
+    }
 }
 
 // Set staking contract within the config

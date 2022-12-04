@@ -77,7 +77,7 @@ pub fn staking_integration_tests_without_proxy() {
     // Assert Staking Config
     let query: QueryResponse = router.query_test(staking_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
     match query {
-        QueryResponse::GetConfig { reward_token, lp_token, daily_reward_amount, amm_pair: _, admin_auth: _ } => {
+        QueryResponse::GetConfig { reward_token, lp_token, daily_reward_amount, amm_pair: _, admin_auth: _, total_staked_lp_token } => {
            assert_eq!(daily_reward_amount, Uint128::new(30000u128));
            assert_eq!(reward_token.address.to_string(), reward_contract.address.to_string());
            assert_eq!(lp_token.address.to_owned(), lp_token_contract.address.to_owned());
@@ -288,7 +288,7 @@ pub fn staking_integration_tests_with_proxy() {
     // Assert Staking Config
     let query: QueryResponse = router.query_test(staking_contract.to_owned(),to_binary(&QueryMsg::GetConfig { }).unwrap()).unwrap();
     match query {
-        QueryResponse::GetConfig { reward_token, lp_token, daily_reward_amount, amm_pair: _, admin_auth: _ } => {
+        QueryResponse::GetConfig { reward_token, lp_token, daily_reward_amount, amm_pair: _, admin_auth: _, total_staked_lp_token } => {
            assert_eq!(daily_reward_amount, Uint128::new(30000u128));
            assert_eq!(reward_token.address.to_string(), reward_contract.address.to_string());
            assert_eq!(lp_token.address.to_owned(), lp_token_contract.address.to_owned());

@@ -1,7 +1,15 @@
-use cosmwasm_std::{Storage, Addr, Binary};
-use cosmwasm_storage::{singleton, singleton_read, Singleton, ReadonlySingleton, Bucket, ReadonlyBucket, bucket, bucket_read};
+use cosmwasm_std::{Addr, Binary, Storage};
+use cosmwasm_storage::{
+    bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
+    Singleton,
+};
 use serde::{Deserialize, Serialize};
-use shadeswap_shared::{msg::amm_pair::TradeHistory, core::{TokenPair, CustomFee, ViewingKey}, staking::StakingContractInit, Contract};
+use shadeswap_shared::{
+    core::{CustomFee, TokenPair, ViewingKey},
+    msg::amm_pair::TradeHistory,
+    staking::StakingContractInit,
+    Contract,
+};
 
 pub const PAGINATION_LIMIT: u8 = 30;
 pub static CONFIG: &[u8] = b"config";
@@ -15,12 +23,13 @@ pub struct Config {
     pub factory_contract: Option<Contract>,
     pub lp_token: Contract,
     pub staking_contract: Option<Contract>,
+    pub arbitrage_contract: Option<Contract>,
     pub pair: TokenPair,
     pub viewing_key: ViewingKey,
     pub custom_fee: Option<CustomFee>,
     pub staking_contract_init: Option<StakingContractInit>,
     pub prng_seed: Binary,
-    pub admin_auth: Contract
+    pub admin_auth: Contract,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -45,7 +54,6 @@ pub fn trade_count_w(storage: &mut dyn Storage) -> Singleton<u64> {
 pub fn trade_count_r(storage: &dyn Storage) -> ReadonlySingleton<u64> {
     singleton_read(storage, TRADE_COUNT)
 }
-
 
 pub fn whitelist_w(storage: &mut dyn Storage) -> Singleton<Vec<Addr>> {
     singleton(storage, WHITELIST)

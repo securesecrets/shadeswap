@@ -162,6 +162,13 @@ pub mod amm_pair {
         pub price: String,
     }
 
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    pub struct ArbitrageCallback {
+        pub execute: bool,
+        pub gas_limit: Option<u64>,
+        pub msg: Binary,
+    }
+
     #[derive(Serialize, Deserialize, PartialEq, Clone, Debug, JsonSchema)]
     pub struct SwapResult {
         pub return_amount: Uint128,
@@ -197,6 +204,7 @@ pub mod amm_pair {
         pub admin_auth: Contract,
         pub staking_contract: Option<StakingContractInit>,
         pub custom_fee: Option<CustomFee>,
+        pub arbitrage_contract: Option<Contract>,
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -211,6 +219,7 @@ pub mod amm_pair {
             offer: TokenAmount,
             expected_return: Option<Uint128>,
             to: Option<String>,
+            execute_arbitrage: Option<ArbitrageCallback>,
         },
         // SNIP20 receiver interface
         Receive {
@@ -229,6 +238,9 @@ pub mod amm_pair {
         },
         SetCustomPairFee {
             custom_fee: Option<CustomFee>,
+        },
+        SetArbitrageContract {
+            arbitrage_contract: Option<Contract>,
         },
         SetViewingKey {
             viewing_key: String,
@@ -251,6 +263,7 @@ pub mod amm_pair {
         SwapTokens {
             expected_return: Option<Uint128>,
             to: Option<String>,
+            execute_arbitrage: Option<ArbitrageCallback>,
         },
         RemoveLiquidity {
             from: Option<String>,

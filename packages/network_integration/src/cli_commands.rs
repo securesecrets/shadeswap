@@ -165,7 +165,7 @@ pub mod factory_lib {
         c_std::{to_binary, Addr},
         core::{ContractInstantiationInfo, Fee},
         msg::factory::InitMsg as FactoryInitMsg,
-        Contract,
+        Contract, staking::InvokeMsg,
     };
 
     use crate::utils::{init_contract_factory, GAS, STORE_GAS};
@@ -359,6 +359,59 @@ pub mod factory_lib {
             recipient_code_hash: rec_code_hash,
             amount: snip_20_amount,
             msg: msg_binary,
+            memo: None,
+            padding: None,
+        };
+
+        handle(
+            &msg,
+            &net_contract,
+            account_name,
+            Some(GAS),
+            Some(backend),
+            None,
+            reports,
+            None,
+        )?;
+        Ok(())
+    }
+
+    pub fn send_snip_with_msg_staking(
+        account_name: &str,
+        backend: &str,
+        sender: &str,
+        token_addr: &str,
+        snip_20_amount: Uint128,
+        recipient: &str,
+        recipient_code_hash: Option<String>,       
+        reports: &mut Vec<Report>,
+    ) -> io::Result<()> {
+        println!(
+            "Send to SNIP20 - token {} - amount {} - recipient {}",
+            token_addr.to_string(),
+            snip_20_amount.to_string(),
+            recipient.to_string()
+        );
+
+        let msg = to_binary(&InvokeMsg::Stake { from: recipient.to_string()}).unwrap();
+
+        let rec_code_hash = match recipient_code_hash {
+            Some(hash) => Some(hash),
+            None => None,
+        };
+
+        let net_contract = NetContract {
+            label: "".to_string(),
+            id: "".to_string(),
+            address: token_addr.to_string(),
+            code_hash: "".to_string(),
+        };
+
+        let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
+            recipient: Addr::unchecked(token_addr.to_string()),
+            recipient_code_hash: rec_code_hash,
+            amount: snip_20_amount,
+            msg: Some(msg),
             memo: None,
             padding: None,
         };

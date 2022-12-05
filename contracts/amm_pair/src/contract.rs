@@ -434,9 +434,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                             code_hash: config.lp_token.code_hash,
                         },
                     )?;
-
                     response.data = Some(env.contract.address.to_string().as_bytes().into());
-
                     Ok(response)
                 }
                 None => Err(StdError::generic_err(format!("Unknown reply id"))),
@@ -457,10 +455,8 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                                 .contract_info
                                 .code_hash,
                         }),
-                    )?;
-
+                    )?;                 
                     response.data = Some(env.contract.address.to_string().as_bytes().into());
-
                     Ok(response)
                 }
                 None => Err(StdError::generic_err(format!("Unknown reply id"))),

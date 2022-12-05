@@ -101,7 +101,8 @@ pub fn amm_pair_integration_tests_with_custom_token() {
             valid_to: Uint128::new(3747905010000u128),
             decimals: 18u8, 
         }), 
-        custom_fee: None
+        custom_fee: None,
+        arbitrage_contract: None,
     };       
     
     roll_blockchain(&mut router, 1).unwrap();
@@ -263,6 +264,7 @@ pub fn amm_pair_integration_tests_with_custom_token() {
         }, 
         expected_return: Some(Uint128::new(500u128)), 
         to: Some(owner_addr.to_string()),
+        execute_arbitrage: None,
     }).unwrap();
 
     let _ = send_snip20_with_msg(
@@ -414,6 +416,7 @@ pub fn amm_pair_integration_tests_native_token() {
             decimals: 18u8
         }), 
         custom_fee: None,
+        arbitrage_contract: None,
     };       
     
     roll_blockchain(&mut router, 1).unwrap();
@@ -557,7 +560,8 @@ pub fn amm_pair_integration_tests_native_token() {
             amount: Uint128::new(1000u128),
         }, 
         expected_return: Some(Uint128::new(500u128)), 
-        to: Some(owner_addr.to_string())
+        to: Some(owner_addr.to_string()),
+        execute_arbitrage: None,
     };
 
     let _ = router.execute_contract(
@@ -711,7 +715,8 @@ pub fn test_sslp_with_two_virtual_providers() {
             valid_to: Uint128::new(3747905010000u128) ,
             decimals: 18u8
         }), 
-        custom_fee: None
+        custom_fee: None,
+        arbitrage_contract: None,
     };       
     
     roll_blockchain(&mut router, 1).unwrap();

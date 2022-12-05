@@ -141,11 +141,7 @@ pub mod amm_pairs_mock {
                     expected_return: _,
                     staking: _,
                 } => Ok(Response::new()),
-                ExecuteMsg::SwapTokens {
-                    offer: _,
-                    expected_return: _,
-                    to: _,
-                } => Ok(Response::new()),
+                ExecuteMsg::SwapTokens {offer:_,expected_return:_,to:_, execute_arbitrage } => Ok(Response::new()),
                 ExecuteMsg::Receive {
                     from: _,
                     msg: _,
@@ -162,6 +158,7 @@ pub mod amm_pairs_mock {
                     msg: _msg,
                 } => Ok(Response::new()),
                 ExecuteMsg::SetConfig { admin_auth: _ } => Ok(Response::new()),
+                ExecuteMsg::SetArbitrageContract { arbitrage_contract: _ } => Ok(Response::new())
             },
             BLOCK_SIZE,
         )

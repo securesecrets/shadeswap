@@ -16,7 +16,7 @@ use network_integration::{
         SHADE_DAO_KEY, STAKER_KEY, STORE_GAS, VIEW_KEY, LPTOKEN20_FILE,
     },
 };
-use shadeswap_shared::staking::StakingContractInit;
+use shadeswap_shared::{staking::StakingContractInit, amm_pair::AMMPair};
 use query_authentication::{
     permit::Permit,
     transaction::{PermitSignature, PubKey},
@@ -32,7 +32,7 @@ use shadeswap_shared::{
             ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
             QueryMsgResponse as AMMPairQueryMsgResponse, InitMsg as AMMPairInitMsg
         },
-        factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
+        factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse, ExecuteMsg as FactoryExecuteMsg},
         router::{
             ExecuteMsg as RouterExecuteMsg, InvokeMsg as RouterInvokeMsg,
             QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
@@ -1854,7 +1854,7 @@ fn run_testnet() -> Result<()> {
             contract_addr: Addr::unchecked(reward_token.address.to_string()),
             token_code_hash: reward_token.code_hash.to_string(),
         },
-        valid_to: Uint128::new(4000000000000u128),
+        valid_to: Uint128::new(40000000u128),
         decimals: 18u8,
     });
 
@@ -1869,8 +1869,8 @@ fn run_testnet() -> Result<()> {
     // CREATE AMM PAIR USDT-ETH
     let amm_pair_init_msg = AMMPairInitMsg{
         pair: TokenPair(
-            TokenType::CustomToken { contract_addr: Addr::unchecked(usdt_token.address), token_code_hash: usdt_token.code_hash.to_string() },
-            TokenType::CustomToken { contract_addr: Addr::unchecked(eth_token.address), token_code_hash: eth_token.code_hash.to_string() } 
+            TokenType::CustomToken { contract_addr: Addr::unchecked(usdt_token.address.to_string()), token_code_hash: usdt_token.code_hash.to_string() },
+            TokenType::CustomToken { contract_addr: Addr::unchecked(eth_token.address.to_string()), token_code_hash: eth_token.code_hash.to_string() } 
         ),
         lp_token_contract: ContractInstantiationInfo{
             code_hash: lp_token.code_hash.to_string(),
@@ -1883,8 +1883,9 @@ fn run_testnet() -> Result<()> {
             address: Addr::unchecked(admin_contract.address.to_string()), 
             code_hash: admin_contract.code_hash.to_string()
         },
-        staking_contract: staking_contract_init,
+        staking_contract: None,
         custom_fee: None,
+        arbitrage_contract: None,
     };
     // CREATE AMM PAIR
     let amm_pair_contract = init(
@@ -1897,6 +1898,36 @@ fn run_testnet() -> Result<()> {
         Some("test"),
         &mut reports,
     )?;
+
+    let add_amm_pair_msg = FactoryExecuteMsg::AddAMMPairs { amm_pairs: vec![
+            AMMPair{
+                pair: TokenPair(
+                    TokenType::CustomToken { contract_addr: Addr::unchecked(usdt_token.address.to_string()), token_code_hash: usdt_token.code_hash.to_string() },
+                    TokenType::CustomToken { contract_addr: Addr::unchecked(eth_token.address.to_string()), token_code_hash: eth_token.code_hash.to_string() } 
+                ),
+                address: Addr::unchecked(amm_pair_contract.address.to_string()),
+                code_hash: amm_pair_contract.code_hash.to_string(),
+                enabled: true,
+            }
+        ]};
+
+    let _ = handle(
+        &add_amm_pair_msg,
+        &factory_contract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None
+    )?; 
+
+    print_header("\n\tGetting Pairs from Factory");
+    let amm_pairs = list_pair_from_factory(factory_contract.address.clone(), 0, 10).unwrap();
+    assert_eq!(amm_pairs.len(), 3);
+    let amm_pair_1 = amm_pairs[0].clone();
+    let amm_pair_2 = amm_pairs[1].clone();
+    assert_eq!(amm_pairs[2].address.to_string(), amm_pair_contract.address.to_string());
     return Ok(());
 }
 

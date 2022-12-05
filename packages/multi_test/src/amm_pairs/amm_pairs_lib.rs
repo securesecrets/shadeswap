@@ -40,7 +40,8 @@ pub mod amm_pairs_lib{
                 entropy: to_binary(seed)?,
                 admin_auth: admin_auth.clone() ,
                 staking_contract: staking_contract,
-                custom_fee: custom_fee
+                custom_fee: custom_fee,
+                arbitrage_contract: None,
             }, 
             &[], 
             "amm_pairs", 

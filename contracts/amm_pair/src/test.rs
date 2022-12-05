@@ -63,7 +63,11 @@ pub mod tests {
             entropy: entropy.clone(),
             admin_auth: shadeswap_shared::Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
-            custom_fee: None
+            custom_fee: None,
+            arbitrage_contract: Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let test_view_key =
@@ -125,7 +129,11 @@ pub mod tests {
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
-            custom_fee: None
+            custom_fee: None,
+            arbitrage_contract: Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let address_a = Addr::unchecked("TESTA".to_string());
@@ -196,6 +204,7 @@ pub mod tests {
             address_a.clone(),
             None,
             mk_custom_token_amount(Uint128::from(1000u128), &token_pair),
+            None,
             None
         )?;
         assert_eq!(native_swap.messages.len(), 2);
@@ -220,6 +229,7 @@ pub mod tests {
             address_a.clone(),
             None,
             mk_custom_token_amount(Uint128::from(1000u128), &token_pair),
+            None,
             None
         )?;
         assert_eq!(native_swap.messages.len(), 2);
@@ -461,7 +471,8 @@ pub mod tests_calculation_price_and_fee {
             address_a.clone(),
             Some(address_a.clone()),          
             mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), token), 
-            Some(Uint128::from(40000u128))
+            Some(Uint128::from(40000u128)),
+            None
         );
 
         match swap_and_test_slippage.unwrap_err() {
@@ -491,6 +502,7 @@ pub mod tests_calculation_price_and_fee {
             mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), 
                 mk_token_pair_custom_addr("CUSTOMER_TOKEN_3", CUSTOM_TOKEN_1)), 
             Some(Uint128::from(400u128)),
+            None
         );
 
         match swap_and_test_slippage.unwrap_err() {
@@ -518,7 +530,8 @@ pub mod tests_calculation_price_and_fee {
             Addr::unchecked(address_a.clone()),
             Some(Addr::unchecked(address_a.clone())),          
             mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), token), 
-            Some(Uint128::from(400u128))
+            Some(Uint128::from(400u128)),
+            None
         );
          assert_eq!(
             swap_and_test_slippage.unwrap().messages.len(), 
@@ -905,7 +918,11 @@ pub mod help_test_lib {
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
-            custom_fee: None
+            custom_fee: None,
+            arbitrage_contract: Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let config = config_r(&deps.storage).load()?;
@@ -1031,7 +1048,11 @@ pub mod help_test_lib {
                 decimals: 18u8
             }),
             prng_seed: to_binary(&"to_string".to_string())?,
-            admin_auth: Contract { address: Addr::unchecked(MOCK_CONTRACT_ADDR), code_hash: "".to_string() }
+            admin_auth: Contract { address: Addr::unchecked(MOCK_CONTRACT_ADDR), code_hash: "".to_string() },
+            arbitrage_contract: Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
         })
     }
 
@@ -1263,7 +1284,11 @@ pub mod help_test_lib {
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },          
             staking_contract: None,
-            custom_fee: custom_fee
+            custom_fee: custom_fee,
+            arbitrage_contract: Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
         };         
         let temp_deps = deps.branch();
         assert!(instantiate(temp_deps, env.clone(),mock_info, msg).is_ok());

@@ -103,10 +103,37 @@ pub fn register_lp_token(
                         INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
                     ));
                 }
-                None => {
-                    return Err(StdError::generic_err(
-                        "Cannot initialize staking contract without given factory",
-                    ))
+                None => {                    
+                      response = response.add_submessage(SubMsg::reply_on_success(
+                          CosmosMsg::Wasm(WasmMsg::Instantiate {
+                              code_id: c.contract_info.id,
+                              label: format!(
+                                  "ShadeSwap-Pair-Staking-Contract-{}",
+                                  &env.contract.address
+                              ),
+                              msg: to_binary(&StakingInitMsg {
+                                  daily_reward_amount: c.daily_reward_amount,
+                                  reward_token: c.reward_token.clone(),
+                                  pair_contract: Contract {
+                                      address: env.contract.address.clone(),
+                                      code_hash: env.contract.code_hash.clone(),
+                                  },
+                                  prng_seed: config.prng_seed.clone(),
+                                  lp_token: Contract {
+                                      address: lp_token_address.address.clone(),
+                                      code_hash: lp_token_address.code_hash.clone(),
+                                  },
+                                  //default to same permit authenticator as factory
+                                  authenticator: None,
+                                  //default to same admin as factory
+                                  admin_auth: config.admin_auth,
+                                  valid_to: c.valid_to,
+                              })?,
+                              code_hash: c.contract_info.code_hash.clone(),
+                              funds: vec![],
+                          }),
+                          INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
+                      ));
                 }
             }
         }

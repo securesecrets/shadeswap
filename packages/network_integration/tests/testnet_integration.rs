@@ -16,7 +16,7 @@ use network_integration::{
         SHADE_DAO_KEY, STAKER_KEY, STORE_GAS, VIEW_KEY, LPTOKEN20_FILE,
     },
 };
-use shadeswap_shared::{staking::StakingContractInit, amm_pair::AMMPair};
+use shadeswap_shared::{staking::StakingContractInit, amm_pair::AMMPair, core::Fee};
 use query_authentication::{
     permit::Permit,
     transaction::{PermitSignature, PubKey},
@@ -29,7 +29,7 @@ use shadeswap_shared::{
     core::{TokenAmount, TokenPair, TokenPairAmount, TokenType, ContractInstantiationInfo},
     msg::{
         amm_pair::{
-            ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
+            ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg, InvokeMsg as AMMInvokeMsg,
             QueryMsgResponse as AMMPairQueryMsgResponse, InitMsg as AMMPairInitMsg
         },
         factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse, ExecuteMsg as FactoryExecuteMsg},
@@ -1775,12 +1775,13 @@ fn run_testnet() -> Result<()> {
     assert!(matches!(
         test_query_successful(
             found_staking_contract.address.to_string(),
-            StakingQueryMsg::WithPermit { permit: new_permit, query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwrap() } },
+            StakingQueryMsg::WithPermit { permit: new_permit.clone(), query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwrap() } },
         )?,
         StakingQueryMsgResponse::GetClaimReward { .. }
     ));
 
     // TEST CREATE STANDALONE_AMM_PAIR
+    let account =  account_address(ACCOUNT_KEY)?;
     // CREATE USDT SNIP20
     print_header("Initializing USDT");
     let (_, usdt_token) = init_snip20(
@@ -1800,7 +1801,21 @@ fn run_testnet() -> Result<()> {
     )?;
     let snip_20_code_hash = usdt_token.code_hash.clone();
     set_viewing_key(VIEW_KEY, &usdt_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
-    print_contract(&usdt_token);
+    print_contract(&usdt_token.clone());
+    println!("\n\tDepositing 2000000000000uscrt USDT");
+    deposit_snip20(
+        ACCOUNT_KEY,
+        "test",
+        &usdt_token.address,
+        "2000000000000uscrt",
+        &mut reports,
+    )
+    .unwrap();
+
+    assert_eq!(
+        get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(2000000000000)
+    );
 
     // CREATE REWARD TOKEN
     print_header("Initializing Reward_token");
@@ -1821,7 +1836,21 @@ fn run_testnet() -> Result<()> {
     )?;
     print_contract(&reward_token);
     set_viewing_key(VIEW_KEY, &reward_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
-    
+    println!("\n\tDepositing 2000000000000uscrt REWARD TOKEN");
+    deposit_snip20(
+        ACCOUNT_KEY,
+        "test",
+        &reward_token.address,
+        "2000000000000uscrt",
+        &mut reports,
+    )
+    .unwrap();
+
+    assert_eq!(
+        get_balance(&reward_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(2000000000000)
+    );
+
     // CREATE ETH SNIP20
     print_header("Initializing ETH");
     let (_, eth_token) = init_snip20(
@@ -1841,6 +1870,20 @@ fn run_testnet() -> Result<()> {
     )?;
     print_contract(&eth_token);
     set_viewing_key(VIEW_KEY, &eth_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
+    println!("\n\tDepositing 2000000000000uscrt ETH");
+    deposit_snip20(
+        ACCOUNT_KEY,
+        "test",
+        &eth_token.address,
+        "2000000000000uscrt",
+        &mut reports,
+    )
+    .unwrap();
+
+    assert_eq!(
+        get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(2000000000000)
+    );
 
     // STORE STAKING CONTRACT
     let staking_contract = store_staking_contract(ACCOUNT_KEY, "test").unwrap();
@@ -1883,8 +1926,8 @@ fn run_testnet() -> Result<()> {
             address: Addr::unchecked(admin_contract.address.to_string()), 
             code_hash: admin_contract.code_hash.to_string()
         },
-        staking_contract: None,
-        custom_fee: None,
+        staking_contract: staking_contract_init,
+        custom_fee: Some(shadeswap_shared::core::CustomFee { shade_dao_fee: Fee::new(8,100), lp_fee: Fee::new(3, 100) }),
         arbitrage_contract: None,
     };
     // CREATE AMM PAIR
@@ -1899,12 +1942,15 @@ fn run_testnet() -> Result<()> {
         &mut reports,
     )?;
 
+    print_contract(&amm_pair_contract);
+    print_header("\n\tAMMPAIR CONTRACT ADDRESS ");
+    let token_pair = TokenPair(
+        TokenType::CustomToken { contract_addr: Addr::unchecked(usdt_token.address.to_string()), token_code_hash: usdt_token.code_hash.to_string() },
+        TokenType::CustomToken { contract_addr: Addr::unchecked(eth_token.address.to_string()), token_code_hash: eth_token.code_hash.to_string() } 
+    );
     let add_amm_pair_msg = FactoryExecuteMsg::AddAMMPairs { amm_pairs: vec![
             AMMPair{
-                pair: TokenPair(
-                    TokenType::CustomToken { contract_addr: Addr::unchecked(usdt_token.address.to_string()), token_code_hash: usdt_token.code_hash.to_string() },
-                    TokenType::CustomToken { contract_addr: Addr::unchecked(eth_token.address.to_string()), token_code_hash: eth_token.code_hash.to_string() } 
-                ),
+                pair: token_pair.clone(),
                 address: Addr::unchecked(amm_pair_contract.address.to_string()),
                 code_hash: amm_pair_contract.code_hash.to_string(),
                 enabled: true,
@@ -1922,12 +1968,228 @@ fn run_testnet() -> Result<()> {
         None
     )?; 
 
-    print_header("\n\tGetting Pairs from Factory");
+    print_header("\n\tGetting New Pairs from Factory");
     let amm_pairs = list_pair_from_factory(factory_contract.address.clone(), 0, 10).unwrap();
-    assert_eq!(amm_pairs.len(), 3);
-    let amm_pair_1 = amm_pairs[0].clone();
-    let amm_pair_2 = amm_pairs[1].clone();
+    assert_eq!(amm_pairs.len(), 3);    
     assert_eq!(amm_pairs[2].address.to_string(), amm_pair_contract.address.to_string());
+
+    print_header("\n\tIncrease Allowance for New AMM Pair");
+    increase_allowance(
+        amm_pair_contract.address.to_string(),
+        Uint128::new(500000000000),
+        usdt_token.address.clone(),
+        ACCOUNT_KEY,
+        "test",
+        &mut reports,
+    )
+    .unwrap();
+    increase_allowance(
+        amm_pair_contract.address.to_string(),
+        Uint128::new(500000000000),
+        eth_token.address.clone(),
+        ACCOUNT_KEY,
+        "test",
+        &mut reports,
+    )
+    .unwrap();
+
+    print_header("\n\tAdding Liquidity to USDT/ETH staking contract");
+    handle(
+        &AMMPairHandlMsg::AddLiquidityToAMMContract {
+            deposit: TokenPairAmount {
+                pair: token_pair.clone(),
+                amount_0: Uint128::new(20000000000),
+                amount_1: Uint128::new(20000000000),
+            },
+            expected_return: None,
+            staking: Some(true),
+        },
+        &NetContract {
+            label: "".to_string(),
+            id: "".to_string(),
+            address: amm_pair_contract.address.to_string(),
+            code_hash: amm_pair_contract.code_hash.to_string(),
+        },
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        Some("20000000000uscrt"),
+        &mut reports,
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(
+        get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(2000000000000 - 20000000000)
+    );
+    assert_eq!(
+        get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(2000000000000 - 20000000000)
+    );
+    print_header("\n\tRegistering Tokens");
+    handle(
+        &RouterExecuteMsg::RegisterSNIP20Token {
+            token_addr: usdt_token.address.clone(),
+            token_code_hash: usdt_token.code_hash.clone(),
+        },
+        &router_contract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None,
+    )
+    .unwrap();
+
+    handle(
+        &RouterExecuteMsg::RegisterSNIP20Token {
+            token_addr: eth_token.address.clone(),
+            token_code_hash: eth_token.code_hash.to_string(),
+        },
+        &router_contract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None,
+    )
+    .unwrap();
+
+    print_header("\n\tRegistering Tokens against AMM PAIR");
+    handle(
+        &RouterExecuteMsg::RegisterSNIP20Token {
+            token_addr: usdt_token.address.clone(),
+            token_code_hash: usdt_token.code_hash.clone(),
+        },
+        &amm_pair_contract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None,
+    )
+    .unwrap();
+
+    handle(
+        &RouterExecuteMsg::RegisterSNIP20Token {
+            token_addr: eth_token.address.clone(),
+            token_code_hash: eth_token.code_hash.to_string(),
+        },
+        &amm_pair_contract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None,
+    )
+    .unwrap();
+
+    // GET PAIR INFO AND ASSERT LP TOKEN & STAKING
+    let staking_contract = get_staking_contract(&amm_pair_contract.address.to_string()).unwrap();
+    assert_ne!(staking_contract, None);
+
+    print_header("GET PAIR INFO");
+    let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};
+    let lp_token_info_query_unstake: AMMPairQueryMsgResponse = query(
+        &NetContract {
+            label: "".to_string(),
+            id: "".to_string(),
+            address: amm_pair_contract.address.to_string(),
+            code_hash: "".to_string(),
+        },
+        lp_token_info_msg,
+        None,
+    )?;
+    if let AMMPairQueryMsgResponse::GetPairInfo {
+        liquidity_token,
+        factory: _,
+        pair: _,
+        amount_0: _,
+        amount_1: _,
+        total_liquidity,
+        contract_version: _,
+        fee_info: _,
+    } = lp_token_info_query_unstake
+    {
+        println!(
+            "\n\tLP Token Address {}",
+            liquidity_token.address.to_string()
+        );
+        print_header("\n\tLP Token Liquidity - 20000000000");
+        assert_eq!(total_liquidity, Uint128::new(20000000000));
+
+        let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
+            permit: new_permit.clone(),
+            query: AuthQuery::GetStakerLpTokenInfo {},
+        };
+
+        let stake_lp_token_info: StakingQueryMsgResponse = query(
+            &NetContract {
+                label: "".to_string(),
+                id: "".to_string(),
+                address: staking_contract.clone().unwrap().address.to_string(),
+                code_hash: staking_contract.clone().unwrap().code_hash.to_string(),
+            },
+            get_stake_lp_token_info,
+            None,
+        )?;
+
+        if let StakingQueryMsgResponse::GetStakerLpTokenInfo {
+            staked_lp_token,
+            total_staked_lp_token,
+        } = stake_lp_token_info
+        {
+            assert_eq!(staked_lp_token, Uint128::new(20000000000));
+            assert_eq!(total_staked_lp_token, Uint128::new(20000000000));
+        }
+    }
+
+    print_header("\n\t 1. - BUY 100 ETH Initiating USDT to ETH Swap ");
+    let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
+    let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
+    handle(
+        &snip20::ExecuteMsg::Send {
+            recipient: amm_pair_contract.address.to_string(),
+            amount: Uint128::new(10000u128),
+            msg: Some(
+                to_binary(&AMMInvokeMsg::SwapTokens { 
+                    expected_return: Some(Uint128::new(10u128)), 
+                    to: None, 
+                    execute_arbitrage: None 
+                })
+                .unwrap(),
+            ),
+            padding: None,
+            recipient_code_hash: Some(amm_pair_contract.code_hash.to_string()),
+            memo: None,
+        },
+        &usdt_token,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(
+        get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(old_eth_balance.u128() + 100)
+    );
+    assert_eq!(
+        get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(old_usdt_balance.u128() - 100)
+    );
+    assert_eq!(
+        get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(old_eth_balance.u128() + 100)
+    );
     return Ok(());
 }
 

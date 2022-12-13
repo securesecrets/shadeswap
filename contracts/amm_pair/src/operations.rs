@@ -216,12 +216,14 @@ pub fn swap(
 
     // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
     let mut messages = Vec::with_capacity(2);
-    add_send_token_to_address_msg(
-        &mut messages,
-        fee_info.shade_dao_address,
-        &offer.token,
-        swap_result.shade_dao_fee_amount,
-    )?;
+    if fee_info.shade_dao_address.to_string() != ""{
+        add_send_token_to_address_msg(
+            &mut messages,
+            fee_info.shade_dao_address,
+            &offer.token,
+            swap_result.shade_dao_fee_amount,
+        )?;
+    }   
 
     // Send Token to Buyer or Swapper
     let index = config
@@ -421,12 +423,14 @@ pub fn lp_virtual_swap(
                     Some(false),
                 )?;
                 if let Some(msgs) = messages {
-                    add_send_token_to_address_msg(
-                        msgs,
-                        shade_dao_address,
-                        &offer.token,
-                        swap.shade_dao_fee_amount,
-                    )?;
+                    if shade_dao_address.to_string() != "" {
+                        add_send_token_to_address_msg(
+                            msgs,
+                            shade_dao_address,
+                            &offer.token,
+                            swap.shade_dao_fee_amount,
+                        )?;
+                    }                   
                 }
 
                 new_deposit.amount_0 = deposit.amount_0 - half_of_extra;

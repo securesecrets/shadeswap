@@ -801,6 +801,26 @@ pub mod amm_pair_lib {
         return Ok(None);
     }
 
+    pub fn get_lp_contract(amm_pair_address: &str) -> io::Result<Option<Contract>> {
+        let staking_contract_msg = AMMPairQueryMsg::GetConfig {};
+        let staking_contract_query: AMMPairQueryMsgResponse = query(
+            &NetContract {
+                label: "".to_string(),
+                id: "".to_string(),
+                address: amm_pair_address.to_string(),
+                code_hash: "".to_string(),
+            },
+            staking_contract_msg,
+            None,
+        )?;
+        if let AMMPairQueryMsgResponse::GetConfig { staking_contract, factory_contract: _, lp_token, pair: _, custom_fee: _ } =
+            staking_contract_query
+        {
+            return Ok(Some(lp_token));
+        }
+        return Ok(None);
+    }
+
     pub fn add_liquidity(
         account_name: &str,
         backend: &str,

@@ -1780,7 +1780,12 @@ fn run_testnet() -> Result<()> {
         StakingQueryMsgResponse::GetClaimReward { .. }
     ));
 
+    //////////////////////////////////
+    /// //////////////////////////////
     // TEST CREATE STANDALONE_AMM_PAIR
+    ///////////////////////////////////
+    /// ///////////////////////////////
+    /// ///////////////////////////////
     let account =  account_address(ACCOUNT_KEY)?;
     // CREATE USDT SNIP20
     print_header("Initializing USDT");
@@ -2147,49 +2152,90 @@ fn run_testnet() -> Result<()> {
             assert_eq!(staked_lp_token, Uint128::new(20000000000));
             assert_eq!(total_staked_lp_token, Uint128::new(20000000000));
         }
+
+        print_header("\n\t 1. - BUY 100 ETH Initiating USDT to ETH Swap via AMM PAIR ");
+        let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
+        let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
+        handle(
+            &snip20::ExecuteMsg::Send {
+                recipient: amm_pair_contract.address.to_string(),
+                amount: Uint128::new(10000u128),
+                msg: Some(
+                    to_binary(&AMMInvokeMsg::SwapTokens { 
+                        expected_return: Some(Uint128::new(10u128)), 
+                        to: Some(account.to_string()), 
+                        execute_arbitrage: None 
+                    })
+                    .unwrap(),
+                ),
+                padding: None,
+                recipient_code_hash: None, //Some(pair_contract_code_hash.clone()),
+                memo: None,
+            },
+            &usdt_token,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            None,
+            &mut reports,
+            None,
+        )
+        .unwrap();
+    
+        assert_eq!(
+            get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_eth_balance.u128() + 8899)
+        );
+        assert_eq!(
+            get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_usdt_balance.u128() - 10000)
+        );
+    
+        print_header("\n\t 1. - BUY 100 ETH Initiating USDT to ETH Swap via Router ");
+        let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
+        let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
+        handle(
+            &snip20::ExecuteMsg::Send {
+                recipient: router_contract.address.to_string(),
+                amount: Uint128::new(10000u128),
+                msg: Some(
+                    to_binary(&RouterInvokeMsg::SwapTokensForExact { 
+                        expected_return: Some(Uint128::new(100)),
+                        path: vec![Hop {
+                            addr: amm_pair_contract.address.to_string(),
+                            code_hash: pair_contract_code_hash.clone(),
+                        }],
+                        recipient: Some(account.to_string()),
+                    })
+                    .unwrap(),
+                ),
+                padding: None,
+                recipient_code_hash: None,
+                memo: None,
+            },
+            &usdt_token,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            None,
+            &mut reports,
+            None,
+        )
+        .unwrap();
+    
+        assert_eq!(
+            get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_eth_balance.u128() + 8899)
+        );
+        assert_eq!(
+            get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_usdt_balance.u128() - 10000)
+        );    
+      
     }
 
-    print_header("\n\t 1. - BUY 100 ETH Initiating USDT to ETH Swap ");
-    let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
-    let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
-    handle(
-        &snip20::ExecuteMsg::Send {
-            recipient: amm_pair_contract.address.to_string(),
-            amount: Uint128::new(10000u128),
-            msg: Some(
-                to_binary(&AMMInvokeMsg::SwapTokens { 
-                    expected_return: Some(Uint128::new(10u128)), 
-                    to: None, 
-                    execute_arbitrage: None 
-                })
-                .unwrap(),
-            ),
-            padding: None,
-            recipient_code_hash: Some(amm_pair_contract.code_hash.to_string()),
-            memo: None,
-        },
-        &usdt_token,
-        ACCOUNT_KEY,
-        Some(GAS),
-        Some("test"),
-        None,
-        &mut reports,
-        None,
-    )
-    .unwrap();
+   
 
-    assert_eq!(
-        get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
-        Uint128::new(old_eth_balance.u128() + 100)
-    );
-    assert_eq!(
-        get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
-        Uint128::new(old_usdt_balance.u128() - 100)
-    );
-    assert_eq!(
-        get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
-        Uint128::new(old_eth_balance.u128() + 100)
-    );
     return Ok(());
 }
 

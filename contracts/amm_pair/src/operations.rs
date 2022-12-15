@@ -215,12 +215,11 @@ pub fn swap(
     }
 
     //get non-offer token
-    let fee_token_denom =
-        if &config.pair.0 == &offer.token {
-            &config.pair.1
-        } else {
-            &config.pair.0
-        };
+    let fee_token_denom = if &config.pair.0 == &offer.token {
+        &config.pair.1
+    } else {
+        &config.pair.0
+    };
 
     // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
     let mut messages = Vec::with_capacity(2);
@@ -340,7 +339,8 @@ pub fn calculate_swap_result(
     let mut lp_fee_amount = Uint128::zero();
     let mut shade_dao_fee_amount = Uint128::zero();
 
-    if exclude_fee.is_none() || !exclude_fee.unwrap() { //unwrap safe because of conditional short circuiting
+    if exclude_fee.is_none() || !exclude_fee.unwrap() {
+        //unwrap safe because of conditional short circuiting
         match &config.custom_fee {
             Some(f) => {
                 lp_fee_amount = calculate_fee(swap_return_before_fee, f.lp_fee)?;
@@ -391,6 +391,7 @@ pub fn remove_addresses_from_whitelist(
 pub fn lp_virtual_swap(
     deps: Deps,
     env: &Env,
+    sender: Addr,
     lp_fee: Fee,
     shade_dao_fee: Fee,
     shade_dao_address: Addr,
@@ -407,6 +408,7 @@ pub fn lp_virtual_swap(
         let ten_to_18th = Uint128::from(1_000_000_000_000_000_000u128);
         let token0_ratio = (deposit.amount_0 * ten_to_18th) / pool_balances[0]; //actual decimal doesn't matter here since these values are only compared to each other, never used in math
         let token1_ratio = (deposit.amount_1 * ten_to_18th) / pool_balances[1];
+        let is_user_whitelist = is_address_in_whitelist(deps.storage, &sender)?;
         if token0_ratio > token1_ratio {
             let extra_token0_amount = deposit.amount_0
                 - pool_balances[0].multiply_ratio(deposit.amount_1, pool_balances[1]);
@@ -425,7 +427,7 @@ pub fn lp_virtual_swap(
                     shade_dao_fee,
                     &config,
                     &offer,
-                    Some(false),
+                    Some(is_user_whitelist),
                 )?;
                 if let Some(msgs) = messages {        
                     if shade_dao_address.to_string() != ""{
@@ -459,7 +461,7 @@ pub fn lp_virtual_swap(
                     shade_dao_fee,
                     &config,
                     &offer,
-                    Some(false),
+                    Some(is_user_whitelist),
                 )?;
                 if let Some(msgs) = messages {
                     if shade_dao_address.to_string() != ""{
@@ -674,6 +676,7 @@ pub fn add_liquidity(
     let new_deposit = lp_virtual_swap(
         deps.as_ref(),
         &env,
+        info.sender.clone(),
         fee_info.lp_fee,
         fee_info.shade_dao_fee,
         fee_info.shade_dao_address,
@@ -885,9 +888,6 @@ fn calculate_token_pool_balance(
         let token0_pool = tokens_balances[index];
         let token1_pool = tokens_balances[index ^ 1];
 
-        // conver tand get avialble balance
-        let token0_pool = token0_pool;
-        let token1_pool = token1_pool;
         Ok([token0_pool, token1_pool])
     } else {
         Err(StdError::generic_err(

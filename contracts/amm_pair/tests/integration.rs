@@ -561,7 +561,7 @@ pub fn amm_pair_integration_tests_native_token() {
         }, 
         expected_return: Some(Uint128::new(500u128)), 
         to: Some(owner_addr.to_string()),
-        execute_arbitrage: None,
+        execute_arbitrage: None
     };
 
     let _ = router.execute_contract(
@@ -716,7 +716,7 @@ pub fn test_sslp_with_two_virtual_providers() {
             decimals: 18u8
         }), 
         custom_fee: None,
-        arbitrage_contract: None,
+        arbitrage_contract: None
     };       
     
     roll_blockchain(&mut router, 1).unwrap();

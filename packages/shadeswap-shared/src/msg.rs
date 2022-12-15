@@ -289,6 +289,7 @@ pub mod amm_pair {
         GetShadeDaoInfo {},
         GetEstimatedLiquidity {
             deposit: TokenPairAmount,
+            sender: Addr
         },
     }
 

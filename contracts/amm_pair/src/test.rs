@@ -64,10 +64,7 @@ pub mod tests {
             admin_auth: shadeswap_shared::Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
             custom_fee: None,
-            arbitrage_contract: Some(Contract{
-                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
-                code_hash: "ARBITRAGE_CONTRACT".to_string(),
-            }),
+            arbitrage_contract: None,
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let test_view_key =
@@ -130,10 +127,7 @@ pub mod tests {
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
             custom_fee: None,
-            arbitrage_contract: Some(Contract{
-                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
-                code_hash: "ARBITRAGE_CONTRACT".to_string(),
-            }),
+            arbitrage_contract: None,
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let address_a = Addr::unchecked("TESTA".to_string());
@@ -245,7 +239,7 @@ pub mod tests {
         config_w(deps.as_mut().storage).save(&_config)?;
         let amount = Uint128::new(1000u128);
         let result = estimated_liquidity(deps.as_ref(), env, 
-            &mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount));
+            &mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount), Addr::unchecked("random_address".to_string()));
         match result.unwrap_err() {
             e =>  assert_eq!(e, StdError::generic_err(
                 "The provided tokens dont match those managed by the contract.",
@@ -613,7 +607,7 @@ pub mod tests_calculation_price_and_fee {
             amount_1: Uint128::from(0u128)
         };
 
-        let estimated_lp_bin = estimated_liquidity(deps.as_ref(), mock_env(), &deposit).unwrap();
+        let estimated_lp_bin = estimated_liquidity(deps.as_ref(), mock_env(), &deposit, Addr::unchecked("random_address".to_string())).unwrap();
         let msg = from_binary::<QueryMsgResponse>(&estimated_lp_bin).unwrap();
         let estimated_lp = match msg {
             QueryMsgResponse::GetEstimatedLiquidity { lp_token, total_lp_token: _ } => lp_token,
@@ -919,10 +913,7 @@ pub mod help_test_lib {
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
             custom_fee: None,
-            arbitrage_contract: Some(Contract{
-                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
-                code_hash: "ARBITRAGE_CONTRACT".to_string(),
-            }),
+            arbitrage_contract: None,
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let config = config_r(&deps.storage).load()?;
@@ -1049,10 +1040,7 @@ pub mod help_test_lib {
             }),
             prng_seed: to_binary(&"to_string".to_string())?,
             admin_auth: Contract { address: Addr::unchecked(MOCK_CONTRACT_ADDR), code_hash: "".to_string() },
-            arbitrage_contract: Some(Contract{
-                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
-                code_hash: "ARBITRAGE_CONTRACT".to_string(),
-            }),
+            arbitrage_contract: None,
         })
     }
 
@@ -1285,10 +1273,7 @@ pub mod help_test_lib {
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },          
             staking_contract: None,
             custom_fee: custom_fee,
-            arbitrage_contract: Some(Contract{
-                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
-                code_hash: "ARBITRAGE_CONTRACT".to_string(),
-            }),
+            arbitrage_contract: None,
         };         
         let temp_deps = deps.branch();
         assert!(instantiate(temp_deps, env.clone(),mock_info, msg).is_ok());

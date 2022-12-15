@@ -9,10 +9,11 @@ pub mod amm_pairs_mock {
     use cosmwasm_storage::{singleton, singleton_read};
     use serde::{Deserialize, Serialize};
     use shadeswap_shared::{
-        core::{create_viewing_key, CustomFee, TokenPair, TokenType, ViewingKey, Fee},
+        amm_pair::FeeInfo,
+        core::{create_viewing_key, CustomFee, Fee, TokenPair, TokenType, ViewingKey},
         msg::amm_pair::{ExecuteMsg, InitMsg, QueryMsg, QueryMsgResponse, SwapResult},
         staking::StakingContractInit,
-        utils::{pad_query_result, pad_response_result}, amm_pair::FeeInfo,
+        utils::{pad_query_result, pad_response_result},
     };
 
     pub const BLOCK_SIZE: usize = 256;
@@ -98,7 +99,17 @@ pub mod amm_pairs_mock {
                         amount_1: Uint128::new(1000u128),
                         total_liquidity: Uint128::new(1000000),
                         contract_version: 1,
-                        fee_info: FeeInfo{ shade_dao_address: Addr::unchecked("".to_string()), lp_fee: Fee{ nom: 2u8, denom: 100u16 }, shade_dao_fee: Fee{ nom: 2u8, denom: 100u16 } },
+                        fee_info: FeeInfo {
+                            shade_dao_address: Addr::unchecked("".to_string()),
+                            lp_fee: Fee {
+                                nom: 2u8,
+                                denom: 100u16,
+                            },
+                            shade_dao_fee: Fee {
+                                nom: 2u8,
+                                denom: 100u16,
+                            },
+                        },
                     };
                     to_binary(&response)
                 }
@@ -108,7 +119,10 @@ pub mod amm_pairs_mock {
                 } => to_binary(""),
                 QueryMsg::GetWhiteListAddress {} => to_binary(""),
                 QueryMsg::GetTradeCount {} => to_binary(""),
-                QueryMsg::SwapSimulation { offer, exclude_fee:_ } => {
+                QueryMsg::SwapSimulation {
+                    offer,
+                    exclude_fee: _,
+                } => {
                     let response = QueryMsgResponse::SwapSimulation {
                         total_fee_amount: Uint128::new(150u128),
                         lp_fee_amount: Uint128::new(50u128),
@@ -121,7 +135,7 @@ pub mod amm_pairs_mock {
                     return to_binary(&response);
                 }
                 QueryMsg::GetShadeDaoInfo {} => to_binary(""),
-                QueryMsg::GetEstimatedLiquidity { deposit: _ } => to_binary(""),
+                QueryMsg::GetEstimatedLiquidity {deposit:_, sender } => to_binary(""),
             },
             BLOCK_SIZE,
         )
@@ -141,7 +155,12 @@ pub mod amm_pairs_mock {
                     expected_return: _,
                     staking: _,
                 } => Ok(Response::new()),
-                ExecuteMsg::SwapTokens {offer:_,expected_return:_,to:_, execute_arbitrage } => Ok(Response::new()),
+                ExecuteMsg::SwapTokens {
+                    offer: _,
+                    expected_return: _,
+                    to: _,
+                    execute_arbitrage,
+                } => Ok(Response::new()),
                 ExecuteMsg::Receive {
                     from: _,
                     msg: _,
@@ -158,7 +177,7 @@ pub mod amm_pairs_mock {
                     msg: _msg,
                 } => Ok(Response::new()),
                 ExecuteMsg::SetConfig { admin_auth: _ } => Ok(Response::new()),
-                ExecuteMsg::SetArbitrageContract { arbitrage_contract: _ } => Ok(Response::new())
+                ExecuteMsg::SetArbitrageContract { arbitrage_contract } => todo!(),
             },
             BLOCK_SIZE,
         )

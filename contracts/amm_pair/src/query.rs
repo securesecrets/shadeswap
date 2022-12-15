@@ -121,7 +121,7 @@ pub fn shade_dao_info(deps: Deps, env: &Env) -> StdResult<Binary> {
     to_binary(&shade_dao_info)
 }
 
-pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount) -> StdResult<Binary> {
+pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount, sender: Addr) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
 
     if config.pair != deposit.pair {
@@ -143,6 +143,7 @@ pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount) -> S
     let new_deposit = lp_virtual_swap(
         deps,
         &env,
+        sender,
         fee_info.lp_fee,
         fee_info.shade_dao_fee,
         fee_info.shade_dao_address,

@@ -218,7 +218,8 @@ pub fn router_integration_tests() {
     roll_blockchain(&mut router, 1).unwrap(); 
     let invoke_msg = to_binary(&InvokeMsg::SwapTokens { 
         expected_return: Some(Uint128::new(100u128)), 
-        to: Some(staker_a_addr.to_string()), 
+        to: Some(staker_a_addr.to_string()),
+        execute_arbitrage: None,
     }).unwrap();
    
     let msg = snip20_reference_impl::msg::ExecuteMsg::Send {

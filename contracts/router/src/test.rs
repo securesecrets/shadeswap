@@ -288,6 +288,7 @@ pub mod tests {
                 },
                 amount: Uint128::new(10u128),
             },
+            execute_arbitrage: None,
         })?;
 
         assert_eq!(result.messages[0],SubMsg::reply_always(
@@ -364,6 +365,7 @@ pub mod tests {
                 },
                 amount: Uint128::new(10u128),
             },
+            execute_arbitrage: None,
         })?;
         assert_eq!(result.messages[0],SubMsg::reply_always(
             WasmMsg::Execute {

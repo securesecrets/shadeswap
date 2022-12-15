@@ -550,7 +550,7 @@ fn run_testnet() -> Result<()> {
     );
     assert_eq!(
         get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
-        (old_shd_token_balance + Uint128::new(88))
+        (old_shd_token_balance + Uint128::new(90))
     );
 
     {
@@ -634,7 +634,7 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
-        old_shd_token_balance + Uint128::new(44)
+        old_shd_token_balance + Uint128::new(45)
     );
 
     assert_eq!(
@@ -713,7 +713,7 @@ fn run_testnet() -> Result<()> {
     );
     assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
-        old_scrt_balance + Uint128::new(2224)
+        old_scrt_balance + Uint128::new(2226)
     );
 
     print_header("\n\t 4 - SELL 36500 sSHD Initiating sSHD to sSCRT Swap ");
@@ -771,7 +771,7 @@ fn run_testnet() -> Result<()> {
     );
     assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
-        old_scrt_balance + Uint128::new(32484)
+        old_scrt_balance + Uint128::new(32486)
     );
 
     print_header("\n\t 5 - BUY 25000 sSHD Initiating sSCRT to sSHD Swap ");
@@ -1317,8 +1317,8 @@ fn run_testnet() -> Result<()> {
                 "\n\tLP Token Address {}",
                 liquidity_token.address.to_string()
             );
-            print_header("\n\tLP Token Liquidity - 5449999883");
-            assert_eq!(total_liquidity, Uint128::new(5449999883));
+            print_header("\n\tLP Token Liquidity - 5449999878");
+            assert_eq!(total_liquidity, Uint128::new(5449999878));
 
             let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
                 permit: new_permit.clone(),
@@ -1378,7 +1378,7 @@ fn run_testnet() -> Result<()> {
                 &snip20::ExecuteMsg::Send {
                     recipient: staking_contract.clone().unwrap().address.to_string(),
                     amount: Uint128::new(1000),
-                    msg: Some(to_binary(&StakingInvokeMsg::Stake { from: account }).unwrap()),
+                    msg: Some(to_binary(&StakingInvokeMsg::Stake { from: account.clone() }).unwrap()),
                     padding: None,
                     recipient_code_hash: Some(staking_contract.clone().unwrap().code_hash.to_string()),
                     memo: None,
@@ -1545,8 +1545,9 @@ fn run_testnet() -> Result<()> {
             deposit: TokenPairAmount {
                 pair: token_pair_1.clone(),
                 amount_0: Uint128::new(10000000000),
-                amount_1: Uint128::new(10000000000),
+                amount_1: Uint128::new(10000000000)
             },
+            sender: Addr::unchecked(account.clone())
         };
         let estimated_lp_token: AMMPairQueryMsgResponse = query(
             &NetContract {
@@ -1670,7 +1671,7 @@ fn run_testnet() -> Result<()> {
     assert!(matches!(
         test_query_successful(
             amm_pair_1.address.to_string(),
-            AMMPairQueryMsg::GetEstimatedLiquidity { deposit: TokenPairAmount { pair: token_pair_1.clone(), amount_0: Uint128::from(1000u64), amount_1: Uint128::from(1000u64) } },
+            AMMPairQueryMsg::GetEstimatedLiquidity {deposit:TokenPairAmount{pair:token_pair_1.clone(),amount_0:Uint128::from(1000u64),amount_1:Uint128::from(1000u64)}, sender: Addr::unchecked(account) },
         )?,
         AMMPairQueryMsgResponse::GetEstimatedLiquidity { .. }
     ));

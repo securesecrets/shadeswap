@@ -298,8 +298,8 @@ pub fn amm_pair_integration_tests_with_custom_token() {
 
     let total_liquidity: (Uint128, Uint128, Uint128) = get_pair_liquidity_pool_balance(&mut router,&amm_pair_contract);
     assert_eq!(total_liquidity.0, Uint128::new(199999000u128));
-    assert_eq!(total_liquidity.1, Uint128::new(199999970u128));
-    assert_eq!(total_liquidity.2, Uint128::new(199998062u128));
+    assert_eq!(total_liquidity.1, Uint128::new(199999971u128));
+    assert_eq!(total_liquidity.2, Uint128::new(199998060u128));
     
     // SET CUSTOM FEE
     roll_blockchain(&mut router, 1).unwrap();
@@ -593,8 +593,8 @@ pub fn amm_pair_integration_tests_native_token() {
 
     let total_liquidity: (Uint128, Uint128, Uint128) = get_pair_liquidity_pool_balance(&mut router,&amm_pair_contract);
     assert_eq!(total_liquidity.0, Uint128::new(199999000u128));
-    assert_eq!(total_liquidity.1, Uint128::new(199999970u128));
-    assert_eq!(total_liquidity.2, Uint128::new(199998062u128));
+    assert_eq!(total_liquidity.1, Uint128::new(199999971u128));
+    assert_eq!(total_liquidity.2, Uint128::new(199998060u128));
     
     // SET CUSTOM FEE
     roll_blockchain(&mut router, 1).unwrap();

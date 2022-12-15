@@ -4,7 +4,7 @@ use cosmwasm_std::{to_binary, Addr, QueryResponse, Response, Uint128};
 use network_integration::{
     cli_commands::{
         amm_pair_lib::{
-            add_amm_pairs, add_liquidity, list_pair_from_factory, get_staking_contract, store_staking_contract,
+            add_amm_pairs, add_liquidity, list_pair_from_factory, get_staking_contract, store_staking_contract,get_lp_liquidity
         },
         factory_lib::{create_factory_contract, deposit_snip20, increase_allowance},
         router_lib::create_router_contract,
@@ -551,7 +551,7 @@ fn run_testnet() -> Result<()> {
     );
     assert_eq!(
         get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
-        (old_shd_token_balance + Uint128::new(88))
+        (old_shd_token_balance + Uint128::new(90))
     );
 
     {
@@ -635,7 +635,7 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
-        old_shd_token_balance + Uint128::new(44)
+        old_shd_token_balance + Uint128::new(45)
     );
 
     assert_eq!(
@@ -714,7 +714,7 @@ fn run_testnet() -> Result<()> {
     );
     assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
-        old_scrt_balance + Uint128::new(2224)
+        old_scrt_balance + Uint128::new(2226)
     );
 
     print_header("\n\t 4 - SELL 36500 sSHD Initiating sSHD to sSCRT Swap ");
@@ -772,7 +772,7 @@ fn run_testnet() -> Result<()> {
     );
     assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
-        old_scrt_balance + Uint128::new(32484)
+        old_scrt_balance + Uint128::new(32486)
     );
 
     print_header("\n\t 5 - BUY 25000 sSHD Initiating sSCRT to sSHD Swap ");
@@ -2184,7 +2184,7 @@ fn run_testnet() -> Result<()> {
     
         assert_eq!(
             get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
-            Uint128::new(old_eth_balance.u128() + 8899)
+            Uint128::new(old_eth_balance.u128() + 8901)
         );
         assert_eq!(
             get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
@@ -2225,13 +2225,112 @@ fn run_testnet() -> Result<()> {
     
         assert_eq!(
             get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
-            Uint128::new(old_eth_balance.u128() + 8899)
+            Uint128::new(old_eth_balance.u128() + 8901)
         );
         assert_eq!(
             get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
             Uint128::new(old_usdt_balance.u128() - 10000)
-        );    
-      
+        );  
+        
+        let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
+        let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
+        print_header("\n\tAdding Liquidity to USDT/ETH - No Staking");
+        handle(
+            &AMMPairHandlMsg::AddLiquidityToAMMContract {
+                deposit: TokenPairAmount {
+                    pair: token_pair.clone(),
+                    amount_0: Uint128::new(20000000000),
+                    amount_1: Uint128::new(20000000000),
+                },
+                expected_return: None,
+                staking: Some(false),
+            },
+            &NetContract {
+                label: "".to_string(),
+                id: "".to_string(),
+                address: amm_pair_contract.address.to_string(),
+                code_hash: amm_pair_contract.code_hash.to_string(),
+            },
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            Some("20000000000uscrt"),
+            &mut reports,
+            None,
+        )
+        .unwrap();   
+        
+        assert_eq!(
+            get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_usdt_balance.u128() - 20000000000)
+        );
+        assert_eq!(
+            get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_eth_balance.u128() - 20000000000)
+        );
+
+        let lp_token_contract = NetContract {
+            label: "".to_string(),
+            id: "".to_string(),
+            address: liquidity_token.address.to_string(),
+            code_hash: liquidity_token.code_hash.to_string(),
+        };
+
+        // SET VIEWING KEY
+        set_viewing_key(VIEW_KEY, &lp_token_contract, &mut reports, ACCOUNT_KEY, "test").unwrap();
+        assert_eq!(get_balance(&lp_token_contract, 
+            account.to_string(), 
+            VIEW_KEY.to_string()),
+            Uint128::new(19999996822)
+        );
+
+        let old_liquidity = (get_lp_liquidity(&amm_pair_contract.address.to_string()).unwrap().unwrap());
+        let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
+        let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
+        print_header("\n\tSending Liquidity to USDT/ETH AMM Pair - Remove liquidity");
+         handle(
+            &snip20::ExecuteMsg::Send {
+                recipient: amm_pair_contract.address.to_string(),
+                amount: Uint128::new(9999996822),
+                msg: Some(to_binary(&AMMInvokeMsg::RemoveLiquidity{
+                    from: None,
+                    single_sided_withdraw_type: None, //None means 50/50 balanced withdraw, and a value here tells which token to send the withdraw in
+                    single_sided_expected_return: None,
+                })
+                .unwrap()),
+                padding: None,
+                recipient_code_hash: None,
+                memo: None,
+            },
+            &lp_token_contract,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            None,
+            &mut reports,
+            None,
+        )
+        .unwrap();
+        assert_eq!(get_balance(&lp_token_contract, 
+            account.to_string(), 
+            VIEW_KEY.to_string()),
+            Uint128::new(10000000000)
+        );
+
+        // ASSERT LP TOKEN - 9999996822
+        print_header("\n\tLP Token Liquidity - 9999996822");
+        let new_liquidity = (get_lp_liquidity(&amm_pair_contract.address.to_string()).unwrap()).unwrap();
+        assert_eq!(new_liquidity, Uint128::new(old_liquidity.u128() - 9999996822));
+        // ASSERT BALANCE USDT adn ETH TOKEN + 9999996822        
+        assert_eq!(
+            get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_usdt_balance.u128() + 10000002616)
+        );
+        assert_eq!(
+            get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_eth_balance.u128() + 9999993166)
+        );
+        println!("\n\tUnstake 5000000000LP TOKEN");      
     }
 
    

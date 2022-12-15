@@ -385,7 +385,7 @@ pub mod tests_calculation_price_and_fee {
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
-        let expected_amount: u128 = 1228;
+        let expected_amount: u128 = 1167;
         let fee_info = query::fee_info(deps.as_ref(), &env)?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
@@ -405,7 +405,7 @@ pub mod tests_calculation_price_and_fee {
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
         let env = mock_env();
-        let expected_amount: u128 = 1539;
+        let expected_amount: u128 = 1517;
         let fee_info = query::fee_info(deps.as_ref(), &env)?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, 
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
@@ -427,10 +427,10 @@ pub mod tests_calculation_price_and_fee {
         let fee_info = query::fee_info(deps.as_ref(), &env)?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, &token_amount,
          None)?;
-        assert_eq!(swap_result.result.return_amount, Uint128::from(122807u128));
-        assert_eq!(swap_result.lp_fee_amount, Uint128::from(560u128));
-        assert_eq!(swap_result.shade_dao_fee_amount, Uint128::from(40u128));
-        assert_eq!(swap_result.price, "61.4035".to_string());
+        assert_eq!(swap_result.result.return_amount, Uint128::from(116667u128));
+        assert_eq!(swap_result.lp_fee_amount, Uint128::from(46666u128));
+        assert_eq!(swap_result.shade_dao_fee_amount, Uint128::from(3333u128));
+        assert_eq!(swap_result.price, "58.3335".to_string());
         Ok(())
     }
     #[test]
@@ -450,7 +450,7 @@ pub mod tests_calculation_price_and_fee {
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
             Some(is_user_whitelist))?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
-        assert_eq!(Uint128::new(560u128), swap_result.lp_fee_amount);
+        assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
         Ok(())
     }
 

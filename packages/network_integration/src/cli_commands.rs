@@ -801,6 +801,34 @@ pub mod amm_pair_lib {
         return Ok(None);
     }
 
+    pub fn get_lp_liquidity(amm_pair_address: &str) -> io::Result<Option<Uint128>>{
+        let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};
+        let lp_token_info_query_unstake: AMMPairQueryMsgResponse = query(
+            &NetContract {
+                label: "".to_string(),
+                id: "".to_string(),
+                address: amm_pair_address.to_string(),
+                code_hash: "".to_string(),
+            },
+            lp_token_info_msg,
+            None,
+        )?;
+        if let AMMPairQueryMsgResponse::GetPairInfo {
+            liquidity_token,
+            factory: _,
+            pair: _,
+            amount_0: _,
+            amount_1: _,
+            total_liquidity,
+            contract_version: _,
+            fee_info: _,
+        } = lp_token_info_query_unstake{
+            return Ok(Some(total_liquidity))
+        }
+
+        return Ok(Some(Uint128::zero()));
+    }
+
     pub fn get_lp_contract(amm_pair_address: &str) -> io::Result<Option<Contract>> {
         let staking_contract_msg = AMMPairQueryMsg::GetConfig {};
         let staking_contract_query: AMMPairQueryMsgResponse = query(

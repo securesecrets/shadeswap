@@ -64,7 +64,10 @@ pub mod tests {
             admin_auth: shadeswap_shared::Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
             custom_fee: None,
-            arbitrage_contract: None,
+            arbitrage_contract: Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let test_view_key =
@@ -913,7 +916,10 @@ pub mod help_test_lib {
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
             custom_fee: None,
-            arbitrage_contract: None,
+            arbitrage_contract:  Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let config = config_r(&deps.storage).load()?;
@@ -1040,7 +1046,10 @@ pub mod help_test_lib {
             }),
             prng_seed: to_binary(&"to_string".to_string())?,
             admin_auth: Contract { address: Addr::unchecked(MOCK_CONTRACT_ADDR), code_hash: "".to_string() },
-            arbitrage_contract: None,
+            arbitrage_contract:  Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
         })
     }
 
@@ -1273,7 +1282,10 @@ pub mod help_test_lib {
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },          
             staking_contract: None,
             custom_fee: custom_fee,
-            arbitrage_contract: None,
+            arbitrage_contract:  Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
         };         
         let temp_deps = deps.branch();
         assert!(instantiate(temp_deps, env.clone(),mock_info, msg).is_ok());

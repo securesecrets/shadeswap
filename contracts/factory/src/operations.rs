@@ -111,7 +111,6 @@ pub fn create_pair(
                 admin_auth: config.admin_auth,
                 staking_contract: staking_contract,
                 custom_fee: None,
-                arbitrage_contract: None,
             })?,
             code_hash: config.pair_contract.code_hash,
             funds: vec![],

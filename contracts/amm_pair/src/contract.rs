@@ -87,7 +87,7 @@ pub fn instantiate(
 
     let config = Config {
         factory_contract: msg.factory_info.clone(),
-        arbitrage_contract: msg.arbitrage_contract.clone(),
+        arbitrage_contract: None,
         lp_token: Contract {
             code_hash: msg.lp_token_contract.code_hash,
             address: Addr::unchecked(""),

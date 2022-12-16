@@ -16,6 +16,7 @@ pub const CUSTOM_TOKEN_1: &str = "secret13q9rgw3ez5mf808vm6k0naye090hh0m5fe2436"
 pub const CUSTOM_TOKEN_2: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 pub const STAKING_CONTRACT: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 pub const FACTORY_CONTRACT_ADDRESS:& str = "secret1nulgwu6es24us9urgyvms7y02txyg0s02msgzw";
+pub const ADMIN_CONTRACT:& str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 pub const SENDER:& str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 use crate::state::config_r;
 use cosmwasm_std::{to_binary, Addr, DepsMut, Env, StdError, StdResult, Uint128};
@@ -111,7 +112,7 @@ pub mod tests {
         let entropy = to_binary(&"ENTROPY".to_string())?;
         let mut deps = mock_dependencies(&[]);
         let mut env = mock_env();
-        let mock_info = mock_info("test", &[]);
+        let mock_info = mock_info(ADMIN_CONTRACT, &[]);
         env.block.height = 200_000;
         env.contract.address = Addr::unchecked("ContractAddress".to_string());
         let token_pair = mk_token_pair();
@@ -900,7 +901,7 @@ pub mod help_test_lib {
         let seed = to_binary(&"SEED".to_string())?;
         let entropy = to_binary(&"ENTROPY".to_string())?;
         let env = mock_env();
-        let mock_info = mock_info(MOCK_CONTRACT_ADDR, &[]);
+        let mock_info = mock_info(ADMIN_CONTRACT, &[]);
         let msg = InitMsg {
             pair: token_pair.clone(),
             lp_token_contract: ContractInstantiationInfo {
@@ -1045,7 +1046,7 @@ pub mod help_test_lib {
                 decimals: 18u8
             }),
             prng_seed: to_binary(&"to_string".to_string())?,
-            admin_auth: Contract { address: Addr::unchecked(MOCK_CONTRACT_ADDR), code_hash: "".to_string() },
+            admin_auth: Contract { address: Addr::unchecked(ADMIN_CONTRACT), code_hash: "".to_string() },
             arbitrage_contract:  Some(Contract{
                 address: Addr::unchecked("ARBITRAGE_CONTRACT"),
                 code_hash: "ARBITRAGE_CONTRACT".to_string(),
@@ -1085,7 +1086,7 @@ pub mod help_test_lib {
     pub fn mock_dependencies(
         _contract_balance: &[Coin],
     ) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
-        let _contract_addr = Addr::unchecked(MOCK_CONTRACT_ADDR);
+        let _contract_addr = Addr::unchecked(ADMIN_CONTRACT);
         OwnedDeps {
             storage: MockStorage::default(),
             api: MockApi::default(),
@@ -1171,7 +1172,7 @@ pub mod help_test_lib {
                                 amm_settings: amm_settings,
                                 lp_token_contract: ContractInstantiationInfo { code_hash: "".to_string(), id: 2_u64 },
                                 authenticator: None,
-                                admin_auth: Contract { address: Addr::unchecked(MOCK_CONTRACT_ADDR), code_hash: "".to_string() }
+                                admin_auth: Contract { address: Addr::unchecked(ADMIN_CONTRACT), code_hash: "".to_string() }
                             };
                             QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(
                                 to_binary(&response).unwrap(),
@@ -1266,7 +1267,7 @@ pub mod help_test_lib {
         let entropy = to_binary(&"ENTROPY".to_string())?;
         let mut deps_api = mock_dependencies(&[]);
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);       
-        let mock_info = mock_info("CONTRACT_ADDRESS",&[]);
+        let mock_info = mock_info(ADMIN_CONTRACT,&[]);
         let msg = InitMsg {
             pair: token_pair.clone(),
             lp_token_contract: ContractInstantiationInfo{
@@ -1282,12 +1283,12 @@ pub mod help_test_lib {
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },          
             staking_contract: None,
             custom_fee: custom_fee,
-            arbitrage_contract:  Some(Contract{
-                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
-                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            arbitrage_contract: Some(Contract {
+                address: Addr::unchecked("ARBITRARY_CONTRACT"),
+                code_hash: "ARBITRARY_CONTRACT".to_string()
             }),
         };         
-        let temp_deps = deps.branch();
+        let temp_deps = deps.branch();       
         assert!(instantiate(temp_deps, env.clone(),mock_info, msg).is_ok());
         let mut config = config_r(deps.storage).load()?;    // set staking contract        
         config.lp_token = Contract{

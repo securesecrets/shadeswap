@@ -1903,8 +1903,7 @@ fn run_testnet() -> Result<()> {
             contract_addr: Addr::unchecked(reward_token.address.to_string()),
             token_code_hash: reward_token.code_hash.to_string(),
         },
-        valid_to: Uint128::new(40000000u128),
-        decimals: 18u8,
+        valid_to: Uint128::new(40000000u128)
     });
 
     // STORING LP TOKEN
@@ -1935,6 +1934,7 @@ fn run_testnet() -> Result<()> {
         staking_contract: staking_contract_init,
         custom_fee: Some(shadeswap_shared::core::CustomFee { shade_dao_fee: Fee::new(8,100), lp_fee: Fee::new(3, 100) }),
         arbitrage_contract: None,
+        lp_token_decimals: 18u8,
     };
     // CREATE AMM PAIR
     let amm_pair_contract = init(

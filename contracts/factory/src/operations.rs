@@ -84,6 +84,7 @@ pub fn create_pair(
     pair: TokenPair,
     entropy: Binary,
     staking_contract: Option<StakingContractInit>,
+    lp_token_decimals: u8
 ) -> StdResult<Response> {
     let config = config_r(deps.storage).load()?;
     ephemeral_storage_w(deps.storage).save(&NextPairKey {
@@ -112,6 +113,7 @@ pub fn create_pair(
                 staking_contract: staking_contract,
                 custom_fee: None,
                 arbitrage_contract: None,
+                lp_token_decimals: lp_token_decimals,
             })?,
             code_hash: config.pair_contract.code_hash,
             funds: vec![],

@@ -215,7 +215,7 @@ pub fn swap(
     }
 
     //get non-offer token
-    let fee_token_denom = if &config.pair.0 == &offer.token {
+    let non_offer_token = if &config.pair.0 == &offer.token {
         &config.pair.1
     } else {
         &config.pair.0
@@ -223,11 +223,11 @@ pub fn swap(
 
     // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
     let mut messages = Vec::with_capacity(2);
-    if fee_info.shade_dao_address.to_string() != ""{
+    if !swap_result.shade_dao_fee_amount.is_zero() && fee_info.shade_dao_address.to_string() != ""{
         add_send_token_to_address_msg(
             &mut messages,
             fee_info.shade_dao_address,
-            &offer.token,
+            &non_offer_token,
             swap_result.shade_dao_fee_amount,
         )?;
     }      
@@ -430,11 +430,11 @@ pub fn lp_virtual_swap(
                     Some(is_user_whitelist),
                 )?;
                 if let Some(msgs) = messages {        
-                    if shade_dao_address.to_string() != ""{
+                    if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != ""{
                         add_send_token_to_address_msg(
                             msgs,
                             shade_dao_address,
-                            &offer.token,
+                            &new_deposit.pair.1.clone(),
                             swap.shade_dao_fee_amount,
                         )?;  
                     }                 
@@ -464,11 +464,11 @@ pub fn lp_virtual_swap(
                     Some(is_user_whitelist),
                 )?;
                 if let Some(msgs) = messages {
-                    if shade_dao_address.to_string() != ""{
+                    if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != ""{
                         add_send_token_to_address_msg(
                             msgs,
                             shade_dao_address,
-                            &offer.token,
+                            &new_deposit.pair.0.clone(),
                             swap.shade_dao_fee_amount,
                         )?; 
                     }                                    

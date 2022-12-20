@@ -624,7 +624,7 @@ pub mod amm_pair_lib {
         reward_contract_code_hash: Option<String>,
         reward_amount: Option<u128>,
         valid_to: Option<u128>,
-        _staking_contract_decimals: u8,
+        lp_token_decimals: u8,
         reports: &mut Vec<Report>,
     ) -> io::Result<()> {
         let factory_contract = NetContract {
@@ -670,8 +670,7 @@ pub mod amm_pair_lib {
                     contract_addr: Addr::unchecked(msg.clone()),
                     token_code_hash: reward_contract_code_hash.unwrap().to_string(),
                 },
-                valid_to: Uint128::new(valid_to.unwrap()),
-                decimals: 18u8,
+                valid_to: Uint128::new(valid_to.unwrap())
             }),
             None => None,
         };
@@ -681,6 +680,7 @@ pub mod amm_pair_lib {
                 pair: pairs.unwrap().clone(),
                 entropy: to_binary(&entropy).unwrap(),
                 staking_contract: staking_contract_init,
+                lp_token_decimals: lp_token_decimals
             },
             &factory_contract,
             account_name,

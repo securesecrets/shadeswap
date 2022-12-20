@@ -74,7 +74,7 @@ pub fn instantiate(
             query::token_symbol(deps.querier, &msg.pair.0)?,
             query::token_symbol(deps.querier, &msg.pair.1)?
         ),
-        decimals: 18,
+        decimals: msg.lp_token_decimals,
         initial_balances: None,
         prng_seed: msg.prng_seed.clone(),
         config: Some(InitConfig {

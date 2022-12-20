@@ -352,15 +352,6 @@ pub fn init<Message: serde::Serialize>(
         gas_used: init_query.gas_used,
     });
 
-    // Look for the contract's address
-    // for attribute in &init_query.logs[0].events[0].attributes {
-    //     if attribute.msg_key == "contract_address" {
-    //         println!("CONTRAQCT-ADDRESS {}", attribute.value.clone());
-    //         contract.address = attribute.value.clone();
-    //         break;
-    //     }
-    // }
-
     //contract.address = init_query.logs[0].events[0].attributes[0].value.clone();
     for log in &init_query.logs{
         for event in &log.events{

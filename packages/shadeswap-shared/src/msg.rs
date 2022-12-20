@@ -204,7 +204,6 @@ pub mod amm_pair {
         pub admin_auth: Contract,
         pub staking_contract: Option<StakingContractInit>,
         pub custom_fee: Option<CustomFee>,
-        pub arbitrage_contract: Option<Contract>,
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]

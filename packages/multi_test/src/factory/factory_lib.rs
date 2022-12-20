@@ -121,12 +121,14 @@ pub mod factory_lib{
         seed: &str,
         staking_contract_info: &StakingContractInit,
         _router_contract: &ContractInfo,
+        lp_token_decimals: u8,
         sender: &Addr,
          ) -> StdResult<()>{
             let create_amm_pair_msg = ExecuteMsg::CreateAMMPair { 
                 pair: token_pair.to_owned(), 
                 entropy: to_binary(seed)?, 
-                staking_contract: Some(staking_contract_info.to_owned()),                 
+                staking_contract: Some(staking_contract_info.to_owned()),
+                lp_token_decimals: lp_token_decimals,                 
             };
 
             let _  = router.execute_contract(

@@ -103,10 +103,37 @@ pub fn register_lp_token(
                         INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
                     ));
                 }
-                None => {
-                    return Err(StdError::generic_err(
-                        "Cannot initialize staking contract without given factory",
-                    ))
+                None => {                    
+                      response = response.add_submessage(SubMsg::reply_on_success(
+                          CosmosMsg::Wasm(WasmMsg::Instantiate {
+                              code_id: c.contract_info.id,
+                              label: format!(
+                                  "ShadeSwap-Pair-Staking-Contract-{}",
+                                  &env.contract.address
+                              ),
+                              msg: to_binary(&StakingInitMsg {
+                                  daily_reward_amount: c.daily_reward_amount,
+                                  reward_token: c.reward_token.clone(),
+                                  pair_contract: Contract {
+                                      address: env.contract.address.clone(),
+                                      code_hash: env.contract.code_hash.clone(),
+                                  },
+                                  prng_seed: config.prng_seed.clone(),
+                                  lp_token: Contract {
+                                      address: lp_token_address.address.clone(),
+                                      code_hash: lp_token_address.code_hash.clone(),
+                                  },
+                                  //default to same permit authenticator as factory
+                                  authenticator: None,
+                                  //default to same admin as factory
+                                  admin_auth: config.admin_auth,
+                                  valid_to: c.valid_to,
+                              })?,
+                              code_hash: c.contract_info.code_hash.clone(),
+                              funds: vec![],
+                          }),
+                          INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
+                      ));
                 }
             }
         }
@@ -188,7 +215,7 @@ pub fn swap(
     }
 
     //get non-offer token
-    let fee_token_denom = if &config.pair.0 == &offer.token {
+    let non_offer_token = if &config.pair.0 == &offer.token {
         &config.pair.1
     } else {
         &config.pair.0
@@ -196,14 +223,14 @@ pub fn swap(
 
     // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
     let mut messages = Vec::with_capacity(2);
-    if !swap_result.shade_dao_fee_amount.is_zero() {
+    if !swap_result.shade_dao_fee_amount.is_zero() && fee_info.shade_dao_address.to_string() != ""{
         add_send_token_to_address_msg(
             &mut messages,
             fee_info.shade_dao_address,
-            fee_token_denom,
+            &non_offer_token,
             swap_result.shade_dao_fee_amount,
         )?;
-    }
+    }      
 
     // Send Token to Buyer or Swapper
     let index = config
@@ -402,16 +429,15 @@ pub fn lp_virtual_swap(
                     &offer,
                     Some(is_user_whitelist),
                 )?;
-                if !swap.shade_dao_fee_amount.is_zero() {
-                    //Send the other token
-                    if let Some(msgs) = messages {
+                if let Some(msgs) = messages {        
+                    if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != ""{
                         add_send_token_to_address_msg(
                             msgs,
                             shade_dao_address,
                             &new_deposit.pair.1.clone(),
                             swap.shade_dao_fee_amount,
-                        )?;
-                    }
+                        )?;  
+                    }                 
                 }
 
                 new_deposit.amount_0 = deposit.amount_0 - half_of_extra;
@@ -437,15 +463,15 @@ pub fn lp_virtual_swap(
                     &offer,
                     Some(is_user_whitelist),
                 )?;
-                if !swap.shade_dao_fee_amount.is_zero() {
-                    if let Some(msgs) = messages {
+                if let Some(msgs) = messages {
+                    if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != ""{
                         add_send_token_to_address_msg(
                             msgs,
                             shade_dao_address,
                             &new_deposit.pair.0.clone(),
                             swap.shade_dao_fee_amount,
-                        )?;
-                    }
+                        )?; 
+                    }                                    
                 }
 
                 new_deposit.amount_0 = deposit.amount_0 + swap.result.return_amount;

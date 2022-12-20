@@ -89,7 +89,7 @@ pub fn fee_info(deps: Deps, env: &Env) -> StdResult<FeeInfo> {
             match config.custom_fee {
                 Some(c) => {
                     // if no address is given then this address is used
-                    shade_dao_address = env.contract.address.clone();
+                    shade_dao_address = Addr::unchecked("");
                     lp_fee = c.lp_fee;
                     shade_dao_fee = c.shade_dao_fee;
                 }

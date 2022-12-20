@@ -9,9 +9,10 @@ pub const SENDER: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 
 #[cfg(test)]
 pub mod tests {
+    use query_authentication::{permit::Permit, transaction::{PubKey, PermitSignature}};
     use shadeswap_shared::{
-        staking::{QueryResponse, RewardTokenInfo},
-        utils::asset::Contract,
+        staking::{QueryResponse, RewardTokenInfo, QueryMsg, AuthQuery, QueryData, ExecuteMsg},
+        utils::asset::Contract, query_auth::PermitData,
     };
 
     use super::*;
@@ -36,7 +37,7 @@ pub mod tests {
     use cosmwasm_std::{
         from_binary,
         testing::{mock_info, MockApi, MockStorage},
-        Addr, Decimal, MessageInfo, StdError, StdResult, Uint128,
+        Addr, Decimal, MessageInfo, StdError, StdResult, Uint128, Binary, to_binary,
     };
 
     use shadeswap_shared::utils::testing::assert_error;
@@ -291,6 +292,77 @@ pub mod tests {
         assert_eq!(staker_info.last_time_updated, Uint128::new(1524));
         assert_eq!(total_stakers_count, Uint128::from(3u128));
         assert_eq!(claim_reward_info_a[0].amount, Uint128::zero());
+        Ok(())
+    }
+
+    #[test]
+    fn assert_unstake_deduct_amount_from_total_stakes() -> StdResult<()> {
+        type TestPermit = Permit<PermitData>;
+        //secretd tx sign-doc file --from a                    
+        let new_permit = TestPermit{
+            params: PermitData { data: to_binary(&QueryData {}).unwrap(), key: "0".to_string()},
+            chain_id: Some("secretdev-1".to_string()),
+            sequence: Some(Uint128::zero()),
+            signature: PermitSignature {
+                pub_key: PubKey::new(Binary::from_base64(&"A07oJJ9n4TYTnD7ZStYyiPbB3kXOZvqIMkchGmmPRAzf".to_string()).unwrap()),
+                signature: Binary::from_base64(&"bct9+cSJF+m51/be9/Bcc1zwfzYdMGzFMUH4VQl8EW9BuDDok6YEGzw6ZQOmu+rGqlFOfMBGybZbgINjD48rVQ==".to_string()).unwrap(),
+            },
+            account_number: Some(Uint128::zero()),
+            memo: Some("".to_string())
+        };
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
+        let stake_mock_info = mock_info(LP_TOKEN, &[]);
+        let unstake_mock_info = mock_info(STAKER_A, &[]);
+        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
+        let staker_a_addr: Addr = deps_owned.as_mut().api.addr_validate("secret1ap26qrlp8mcq2pg6r47w43l0y8zkqm8a450s03")?;   
+        let _ = stake(
+            deps.as_mut(),
+            env.clone(),
+            stake_mock_info.clone(),
+            Uint128::from(1000u128),
+            staker_a_addr.clone()
+        )?;
+        // Query With Permit StakerLpTokenInfo Staker A 1000
+        let auth_query = QueryMsg::WithPermit {
+            permit: new_permit.clone(),
+            query: AuthQuery::GetStakerLpTokenInfo{},
+        }; 
+        let raw_response = query(deps.as_ref(), env.clone(), auth_query)?;
+        let query_response: QueryResponse = from_binary(&raw_response)?;
+        match query_response {
+            QueryResponse::GetStakerLpTokenInfo { staked_lp_token, total_staked_lp_token } =>{
+                assert_eq!(staked_lp_token, Uint128::from(1000u128));
+                assert_eq!(total_staked_lp_token, Uint128::from(1000u128));
+            },
+            _ => {} 
+        }   
+        // UNSTAKE 
+        let msg_unstake = ExecuteMsg::Unstake { 
+            amount: Uint128::from(1000u128), 
+            remove_liquidity: Some(true), 
+        };
+        let _ = execute(
+            deps.as_mut(), 
+            env.clone(),
+            mock_info("secret1ap26qrlp8mcq2pg6r47w43l0y8zkqm8a450s03", &[]), 
+            msg_unstake
+        )?;       
+        // Query With Permit StakerLpTokenInfo Staker A 0
+        let auth_query = QueryMsg::WithPermit {
+            permit: new_permit.clone(),
+            query: AuthQuery::GetStakerLpTokenInfo{},
+        }; 
+        let raw_response = query(deps.as_ref(), env.clone(), auth_query)?;
+        let query_response: QueryResponse = from_binary(&raw_response)?;
+        match query_response {
+            QueryResponse::GetStakerLpTokenInfo { staked_lp_token, total_staked_lp_token } =>{
+                assert_eq!(staked_lp_token, Uint128::zero());
+                assert_eq!(total_staked_lp_token, Uint128::zero());
+            },
+            _ =>{}
+        }
         Ok(())
     }
 

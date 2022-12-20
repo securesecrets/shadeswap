@@ -98,11 +98,11 @@ pub fn amm_pair_integration_tests_with_custom_token() {
                 contract_addr: reward_contract.address.to_owned(), 
                 token_code_hash: reward_contract.code_hash.to_owned()
             },
-            valid_to: Uint128::new(3747905010000u128),
-            decimals: 18u8, 
+            valid_to: Uint128::new(3747905010000u128)
         }), 
         custom_fee: None,
         arbitrage_contract: None,
+        lp_token_decimals: 18u8
     };       
     
     roll_blockchain(&mut router, 1).unwrap();
@@ -298,8 +298,8 @@ pub fn amm_pair_integration_tests_with_custom_token() {
 
     let total_liquidity: (Uint128, Uint128, Uint128) = get_pair_liquidity_pool_balance(&mut router,&amm_pair_contract);
     assert_eq!(total_liquidity.0, Uint128::new(199999000u128));
-    assert_eq!(total_liquidity.1, Uint128::new(199999970u128));
-    assert_eq!(total_liquidity.2, Uint128::new(199998062u128));
+    assert_eq!(total_liquidity.1, Uint128::new(199999971u128));
+    assert_eq!(total_liquidity.2, Uint128::new(199998060u128));
     
     // SET CUSTOM FEE
     roll_blockchain(&mut router, 1).unwrap();
@@ -412,11 +412,11 @@ pub fn amm_pair_integration_tests_native_token() {
                 contract_addr: reward_contract.address.to_owned(), 
                 token_code_hash: reward_contract.code_hash.to_owned()
             },
-            valid_to: Uint128::new(3747905010000u128),
-            decimals: 18u8
+            valid_to: Uint128::new(3747905010000u128)
         }), 
         custom_fee: None,
         arbitrage_contract: None,
+        lp_token_decimals: 18u8
     };       
     
     roll_blockchain(&mut router, 1).unwrap();
@@ -593,8 +593,8 @@ pub fn amm_pair_integration_tests_native_token() {
 
     let total_liquidity: (Uint128, Uint128, Uint128) = get_pair_liquidity_pool_balance(&mut router,&amm_pair_contract);
     assert_eq!(total_liquidity.0, Uint128::new(199999000u128));
-    assert_eq!(total_liquidity.1, Uint128::new(199999970u128));
-    assert_eq!(total_liquidity.2, Uint128::new(199998062u128));
+    assert_eq!(total_liquidity.1, Uint128::new(199999971u128));
+    assert_eq!(total_liquidity.2, Uint128::new(199998060u128));
     
     // SET CUSTOM FEE
     roll_blockchain(&mut router, 1).unwrap();
@@ -713,10 +713,10 @@ pub fn test_sslp_with_two_virtual_providers() {
                 token_code_hash: reward_contract.code_hash.to_owned()
             },
             valid_to: Uint128::new(3747905010000u128) ,
-            decimals: 18u8
         }), 
         custom_fee: None,
-        arbitrage_contract: None
+        arbitrage_contract: None,
+        lp_token_decimals: 18u8
     };       
     
     roll_blockchain(&mut router, 1).unwrap();

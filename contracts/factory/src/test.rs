@@ -128,6 +128,7 @@ pub mod test_contract {
             pair,
             to_binary(&"entropy").unwrap(),
             None,
+            18u8
         );
 
         assert!(result.is_ok());

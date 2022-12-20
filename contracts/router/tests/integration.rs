@@ -118,6 +118,7 @@ pub fn router_integration_tests() {
             Uint128::new(30000000000u128)
         ),
         &router_contract, 
+        18u8,
         &owner_addr).unwrap();
        
     // LIST AMM PAIR
@@ -281,6 +282,7 @@ pub fn router_integration_tests() {
             Uint128::new(30000000000u128)
         ),
         &router_contract, 
+        18u8,
         &owner_addr).unwrap();
        
       // LIST AMM PAIR

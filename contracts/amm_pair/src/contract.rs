@@ -194,7 +194,16 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     execute_arbitrage,
                 )
             }
-            ExecuteMsg::SetViewingKey { viewing_key } => update_viewing_key(env, deps, viewing_key),
+            ExecuteMsg::SetViewingKey { viewing_key } => {
+                let mut config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
+                update_viewing_key(env, deps, viewing_key, &mut config)
+            },
             ExecuteMsg::SetConfig { admin_auth } => {
                 let mut config = config_r(deps.storage).load()?;
                 validate_admin(
@@ -206,6 +215,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 if let Some(admin_auth) = admin_auth {
                     config.admin_auth = admin_auth;
                 }
+                config_w(deps.storage).save(&config)?;
                 Ok(Response::default())
             }
             ExecuteMsg::RecoverFunds {

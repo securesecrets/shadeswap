@@ -748,9 +748,7 @@ pub fn add_liquidity(
         ]))
 }
 
-pub fn update_viewing_key(env: Env, deps: DepsMut, viewing_key: String) -> StdResult<Response> {
-    let mut config = config_r(deps.storage).load()?;
-
+pub fn update_viewing_key(env: Env, deps: DepsMut, viewing_key: String, config: &mut Config) -> StdResult<Response> {
     let mut messages = vec![];
     let new_viewing_key = ViewingKey(viewing_key);
     register_pair_token(&env, &mut messages, &config.pair.0, &new_viewing_key)?;

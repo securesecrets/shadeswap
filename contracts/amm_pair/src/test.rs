@@ -14,6 +14,8 @@ pub const LP_TOKEN: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 pub const LP_TOKEN_B: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy4";
 pub const CUSTOM_TOKEN_1: &str = "secret13q9rgw3ez5mf808vm6k0naye090hh0m5fe2436";
 pub const CUSTOM_TOKEN_2: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
+pub const CUSTOM_TOKEN_3: &str = "secret13q9rgw3ez5mf808vm6k0naya090hh0m5fe2436";
+pub const CUSTOM_TOKEN_4: &str = "secret1pf42ypa2awg0pxkx8lfyyrjcm28vq0qpffa8qx";
 pub const STAKING_CONTRACT: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 pub const FACTORY_CONTRACT_ADDRESS:& str = "secret1nulgwu6es24us9urgyvms7y02txyg0s02msgzw";
 pub const ADMIN_CONTRACT:& str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
@@ -31,7 +33,7 @@ pub mod tests {
     use super::*;
     use crate::contract::instantiate;
     use crate::operations::{
-        add_address_to_whitelist, add_whitelist_address, calculate_hash,
+        add_address_to_whitelist, add_whitelist_address, calculate_hash, lp_virtual_swap,
         swap, calculate_swap_result, remove_addresses_from_whitelist, is_address_in_whitelist,
     };
     use crate::query::{self, estimated_liquidity};
@@ -312,11 +314,11 @@ pub mod tests_calculation_price_and_fee {
     use shadeswap_shared::amm_pair::QueryMsg;
     use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount};
     use shadeswap_shared::msg::amm_pair::QueryMsgResponse;
-
+    use crate::operations::lp_virtual_swap;
     use crate::contract;
-    use crate::operations::{
+    use crate::operations::{ calculate_lp_tokens,
         add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity, is_address_in_whitelist   };
-
+    use crate::test::help_test_lib::mk_custom_token_pair;
     use crate::query::{self, estimated_liquidity};
     use crate::test::help_test_lib::{
         make_init_config_test_calculate_price_fee, mk_amm_settings_a,
@@ -433,6 +435,108 @@ pub mod tests_calculation_price_and_fee {
         assert_eq!(swap_result.price, "58.3335".to_string());
         Ok(())
     }
+
+
+   
+    #[test]
+    fn assert_lp_virtual_swap_return_updated_deposit_amount() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_custom_token_pair(CUSTOM_TOKEN_3, CUSTOM_TOKEN_4);
+        /// TEST CASE A
+        /// Token 0 Balance = 4949993721
+        /// Token 1 Balance = 4950007236
+        /// Deposit 50000/50000
+        let deposit = TokenPairAmount{
+            pair: token_pair.clone(),
+            amount_0: Uint128::new(50000),
+            amount_1: Uint128::new(50000)
+        };      
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;         
+        let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
+
+        let lp_tokens = calculate_lp_tokens(
+            &deposit.clone(),
+            [Uint128::new(4949993721), Uint128::new(4950007236)],
+            Uint128::new(4950000000),
+        )?;
+        // check the origin lp tokens
+        assert_eq!(lp_tokens, Uint128::new(49999));
+        let result = lp_virtual_swap(
+            deps.as_ref(),
+            &env.clone(),
+            Addr::unchecked("SENDER"),
+            Fee::new(3, 100),
+            Fee::new(7, 100),
+            Addr::unchecked(""),
+            &config,
+            &deposit,
+            Uint128::new(4950000000),
+            [Uint128::new(4949993721), Uint128::new(4950007236)],
+            None
+        )?;
+        assert_eq!(result.amount_0, Uint128::new(50000u128));
+        assert_eq!(result.amount_1, Uint128::new(50000u128));
+        // update offer
+        let deposit = TokenPairAmount{
+            pair: token_pair.clone(),
+            amount_0: result.amount_0.clone(),
+            amount_1: result.amount_1.clone()
+        }; 
+        let lp_tokens = calculate_lp_tokens(
+            &deposit.clone(),
+            [Uint128::new(4949993721), Uint128::new(4950007236)],
+            Uint128::new(4950000000),
+        )?;
+        assert_eq!(lp_tokens, Uint128::new(49999));
+
+        /// TEST CASE B
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_custom_token_pair("TOKEN6", "TOKEN7");
+        let deposit = TokenPairAmount{
+            pair: token_pair.clone(),
+            amount_0: Uint128::new(50000),
+            amount_1: Uint128::new(40000)
+        };      
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;         
+        let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
+
+        // let lp_tokens = calculate_lp_tokens(
+        //     &deposit.clone(),
+        //     [Uint128::new(4949983721), Uint128::new(4950000236)],
+        //     Uint128::new(4946700000),
+        // )?;
+        // // check the origin lp tokens
+        // assert_eq!(lp_tokens, Uint128::new(49999));
+        let result = lp_virtual_swap(
+            deps.as_ref(),
+            &env.clone(),
+            Addr::unchecked("SENDER"),
+            Fee::new(3, 100),
+            Fee::new(7, 100),
+            Addr::unchecked(""),
+            &config,
+            &deposit,
+            Uint128::new(4946700000),
+           [Uint128::new(4949983721), Uint128::new(4950000236)],
+            None
+        )?;
+        assert_eq!(result.amount_0, Uint128::new(45000u128));
+        assert_eq!(result.amount_1, Uint128::new(44500u128));
+        // update offer
+        let deposit = TokenPairAmount{
+            pair: token_pair.clone(),
+            amount_0: result.amount_0.clone(),
+            amount_1: result.amount_1.clone()
+        }; 
+        let lp_tokens = calculate_lp_tokens(
+            &deposit.clone(),
+            [Uint128::new(4949983721), Uint128::new(4950000236)],
+            Uint128::new(4946700000),
+        )?;
+        assert_eq!(lp_tokens, Uint128::new(44470));
+        Ok(())
+    }
+
     #[test]
     fn assert_initial_swap_with_zero_fee_for_whitelist_address()-> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
@@ -1223,6 +1327,90 @@ pub mod help_test_lib {
                                 _ =>  unimplemented!("CUSTOM_TOKEN_2")
                             }                            
                         },
+                        CUSTOM_TOKEN_3 => {
+                            match from_binary(&msg).unwrap(){
+                                QueryMsg::TokenInfo { /* fields */ } =>{
+                                    let balance = to_binary(&QueryAnswer::TokenInfo { 
+                                        name: "USDC".to_string(), 
+                                        symbol: "USDC".to_string(), 
+                                        decimals: 18, 
+                                        total_supply: Some(Uint128::new(1000000000000)) 
+                                    }).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                QueryMsg::Balance{address: _, key: _} =>{
+                                    let balance = to_binary(&QueryAnswer::Balance {
+                                        amount: Uint128::new(4949993721u128),
+                                    })
+                                    .unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                _ =>  unimplemented!("CUSTOM_TOKEN_3")
+                            }                            
+                        },
+                        CUSTOM_TOKEN_4 => {
+                            match from_binary(&msg).unwrap(){
+                                QueryMsg::TokenInfo { /* fields */ } =>{
+                                    let balance = to_binary(&QueryAnswer::TokenInfo { 
+                                        name: "XRM".to_string(), 
+                                        symbol: "ETH".to_string(), 
+                                        decimals: 18, 
+                                        total_supply: Some(Uint128::new(1000000000000)) 
+                                    }).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                QueryMsg::Balance{address: _, key: _} =>{
+                                    let balance = to_binary(&QueryAnswer::Balance {
+                                        amount: Uint128::new(4950007236),
+                                    })
+                                    .unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                _ =>  unimplemented!("CUSTOM_TOKEN_4")
+                            }                            
+                        },
+                        "TOKEN6" => {
+                            match from_binary(&msg).unwrap(){
+                                QueryMsg::TokenInfo { /* fields */ } =>{
+                                    let balance = to_binary(&QueryAnswer::TokenInfo { 
+                                        name: "XRM".to_string(), 
+                                        symbol: "ETH".to_string(), 
+                                        decimals: 18, 
+                                        total_supply: Some(Uint128::new(1000000000000)) 
+                                    }).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                QueryMsg::Balance{address: _, key: _} =>{
+                                    let balance = to_binary(&QueryAnswer::Balance {
+                                        amount: Uint128::new(4949983721),
+                                    })
+                                    .unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                _ =>  unimplemented!("CUSTOM_TOKEN_4")
+                            }                            
+                        },
+                        "TOKEN7" => {
+                            match from_binary(&msg).unwrap(){
+                                QueryMsg::TokenInfo { /* fields */ } =>{
+                                    let balance = to_binary(&QueryAnswer::TokenInfo { 
+                                        name: "XRM".to_string(), 
+                                        symbol: "ETH".to_string(), 
+                                        decimals: 18, 
+                                        total_supply: Some(Uint128::new(1000000000000)) 
+                                    }).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                QueryMsg::Balance{address: _, key: _} =>{
+                                    let balance = to_binary(&QueryAnswer::Balance {
+                                        amount: Uint128::new(4950000236),
+                                    })
+                                    .unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                _ =>  unimplemented!("CUSTOM_TOKEN_4")
+                            }                            
+                        },
                         LP_TOKEN => {                                   
                             let balance = to_binary(&QueryAnswer::TokenInfo { 
                                 name: "LPTOKEN".to_string(), 
@@ -1306,6 +1494,14 @@ pub mod help_test_lib {
         let pair = TokenPair(
             testing_str_to_token_type(CUSTOM_TOKEN_1),
             testing_str_to_token_type(CUSTOM_TOKEN_2),
+        );
+        pair
+    }
+
+    pub fn mk_custom_token_pair(token0: &str, token1: &str) -> TokenPair {
+        let pair = TokenPair(
+            testing_str_to_token_type(token0),
+            testing_str_to_token_type(token1),
         );
         pair
     }

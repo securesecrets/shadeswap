@@ -13,7 +13,7 @@ use crate::cli_commands::{
     },
     factory_lib::{
         create_factory_contract, deposit_snip20, increase_allowance, mint_snip20,
-        send_snip_with_msg, send_snip_with_msg_staking,
+        send_snip_with_msg, send_snip_with_msg_staking, create_admin_contract
     },
     router_lib::{create_router_contract, register_snip20_router},
     snip20_lib::{balance_snip20_query, create_new_snip_20, set_viewing_key},
@@ -37,6 +37,7 @@ pub const CMDSETVIEWINGKEY: &str = "set_viewing_key";
 pub const CMDADDLIQUIDITY: &str = "add_liquidity";
 pub const CMDSENDMSGSNIP20: &str = "send_with_msg";
 pub const CMDSENDMSGSNIPSTAKING20: &str = "staking";
+pub const CMDCREATEADMINCONTRACT: &str = "admin_contract";
 
 pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> {
     if args.len() == 0 {
@@ -112,6 +113,24 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> 
         )?;
     }
 
+    if args_command == CMDCREATEADMINCONTRACT{
+        if args.len() < 3{
+            return Err(Error::new(ErrorKind::Other, "Please provide all args"));
+        }
+        let account_name = args[2].clone();
+        let backend = args[3].clone();
+        let address = args[4].clone();
+        let super_addr = args[5].clone();
+        let admin_contract = create_admin_contract(
+            &account_name,
+            &backend,
+            &address,
+            &super_addr,
+            reports,
+        )?;
+        print_contract_details_cli(admin_contract, "Admin Contract".to_string());
+    }
+
     if args_command == CMDSENDMSGSNIPSTAKING20 {
         if args.len() < 6 {
             return Err(Error::new(ErrorKind::Other, "Please provide all args"));
@@ -137,7 +156,7 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> 
             &recipient,
             recipient_code_hash,
             reports,
-        )?;
+        )?;        
     }
 
     if args_command == CMDCREATEFACTORY {
@@ -373,11 +392,11 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> 
             if args.len() < 16 {
                 return Err(Error::new(ErrorKind::Other, "Please provide all args"));
             }
-            reward_addr = Some(args[12].clone());
-            reward_addr_code_hash = Some(args[13].clone());
-            amount = Some(args[14].clone());
+            reward_addr = Some(args[13].clone());
+            reward_addr_code_hash = Some(args[14].clone());
+            amount = Some(args[15].clone());
             amount_u128 = Some(amount.unwrap_or_default().parse::<u128>().unwrap());
-            valid_to = Some(args[15].clone().parse::<u128>().unwrap());
+            valid_to = Some(args[16].clone().parse::<u128>().unwrap());
             println!(
                 "STAKING INFO {} - {} - {} - {}",
                 reward_addr.clone().unwrap(),
@@ -515,6 +534,7 @@ pub fn print_help() -> io::Result<()> {
     handle.write_all(b"\n\t15. Command:: set_viewing_key <account_name> <keyring_backend> <token_addr> <key> -- Set Viewing Key")?;
     handle.write_all(b"\n\t16. Command:: send_with_msg <account_name> <keyring_backend> <token_addr> <amount> <recipient> <recipient_hash> <msg> -- Send Amount & Msg with Callback")?;
     handle.write_all(b"\n\t17. Command:: staking <account_name> <keyring_backend> <sender> <token_addr> <amount> <recipient> <recipient_hash> -- Send Amount & Msg with Callback")?;
+    handle.write_all(b"\n\t18. Command:: admin_contract <account_name> <keyring_backend> <user_address> <super_address> -- Create new Admin Contract")?;
     handle.write_all(b"\n")?;
     handle.flush()?;
 

@@ -1,5 +1,5 @@
 pub mod snip20_lib {
-    use crate::utils::{init_snip20_cli, InitConfig, GAS};
+    use crate::utils::{init_snip20_cli, InitConfig, GAS, STORE_GAS, ADMIN_FILE, generate_label};
     use cosmwasm_std::Addr;
     use secretcli::{
         cli_types::NetContract,
@@ -97,6 +97,8 @@ pub mod snip20_lib {
         Ok(s_contract.1)
     }
 
+   
+
     pub fn set_viewing_key(
         viewing_key: &str,
         net_contract: &NetContract,
@@ -156,24 +158,72 @@ pub mod factory_lib {
     use std::io;
 
     use cosmwasm_std::{Binary, Uint128};
+    use query_authentication::transaction::{PermitSignature, PubKey};
     use secretcli::{
-        cli_types::NetContract,
-        secretcli::{handle, store_and_return_contract, Report},
+        cli_types::{NetContract},
+        secretcli::{handle, store_and_return_contract, Report, init},
     };
     use shadeswap_shared::{
         amm_pair::AMMSettings,
         c_std::{to_binary, Addr},
         core::{ContractInstantiationInfo, Fee},
         msg::factory::InitMsg as FactoryInitMsg,
-        Contract, staking::InvokeMsg,
+        contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
+        Contract, staking::{InvokeMsg, QueryData}, query_auth::PermitData, admin::RegistryAction,
     };
+    use query_authentication::permit::Permit;
 
-    use crate::utils::{init_contract_factory, GAS, STORE_GAS};
+    use crate::utils::{init_contract_factory, GAS, STORE_GAS, ADMIN_FILE, generate_label, print_header};
 
     pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
     pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
     pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
 
+    pub fn create_admin_contract(
+        account_name: &str,
+        backend: &str,
+        address: &str,
+        super_address: &str,
+        reports: &mut Vec<Report>,
+    ) -> io::Result<NetContract> {     
+        type TestPermit = Permit<PermitData>;
+        //secretd tx sign-doc file --from a  
+    
+        print_header("\n\tInitializing Admin Contract");    
+        let admin_msg = AdminInstantiateMsg {
+            super_admin: Some(address.to_string()),
+        };
+    
+        let admin_contract = init(
+            &admin_msg,
+            &ADMIN_FILE,
+            &*generate_label(8),
+            account_name,
+            Some(STORE_GAS),
+            Some(GAS),
+            Some(backend),
+            reports,
+        )?;
+    
+        let admin_register_msg = RegistryAction::RegisterAdmin {
+            user: super_address.to_string(),
+        };
+    
+        handle(
+            &admin_register_msg,
+            &admin_contract,
+            account_name,
+            Some(GAS),
+            Some(backend),
+            Some("1000000000000uscrt"),
+            reports,
+            None,
+        )?;
+
+        Ok(admin_contract)
+    }
+
+    
     pub fn create_factory_contract(
         account_name: &str,
         backend: &str,

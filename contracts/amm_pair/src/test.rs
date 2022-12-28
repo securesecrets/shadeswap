@@ -14,8 +14,11 @@ pub const LP_TOKEN: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 pub const LP_TOKEN_B: &str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy4";
 pub const CUSTOM_TOKEN_1: &str = "secret13q9rgw3ez5mf808vm6k0naye090hh0m5fe2436";
 pub const CUSTOM_TOKEN_2: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
+pub const CUSTOM_TOKEN_3: &str = "secret13q9rgw3ez5mf808vm6k0naya090hh0m5fe2436";
+pub const CUSTOM_TOKEN_4: &str = "secret1pf42ypa2awg0pxkx8lfyyrjcm28vq0qpffa8qx";
 pub const STAKING_CONTRACT: &str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 pub const FACTORY_CONTRACT_ADDRESS:& str = "secret1nulgwu6es24us9urgyvms7y02txyg0s02msgzw";
+pub const ADMIN_CONTRACT:& str = "secret1pf42ypa2awg0pxkx8lfyyrjvm28vq0qpffa8qx";
 pub const SENDER:& str = "secret12qmz6uuapxgz7t0zed82wckl4mff5pt5czcmy2";
 use crate::state::config_r;
 use cosmwasm_std::{to_binary, Addr, DepsMut, Env, StdError, StdResult, Uint128};
@@ -30,7 +33,7 @@ pub mod tests {
     use super::*;
     use crate::contract::instantiate;
     use crate::operations::{
-        add_address_to_whitelist, add_whitelist_address, calculate_hash,
+        add_address_to_whitelist, add_whitelist_address, calculate_hash, lp_virtual_swap,
         swap, calculate_swap_result, remove_addresses_from_whitelist, is_address_in_whitelist,
     };
     use crate::query::{self, estimated_liquidity};
@@ -63,7 +66,12 @@ pub mod tests {
             entropy: entropy.clone(),
             admin_auth: shadeswap_shared::Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
-            custom_fee: None
+            custom_fee: None,
+            arbitrage_contract: Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
+            lp_token_decimals: 18u8
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let test_view_key =
@@ -107,7 +115,7 @@ pub mod tests {
         let entropy = to_binary(&"ENTROPY".to_string())?;
         let mut deps = mock_dependencies(&[]);
         let mut env = mock_env();
-        let mock_info = mock_info("test", &[]);
+        let mock_info = mock_info(ADMIN_CONTRACT, &[]);
         env.block.height = 200_000;
         env.contract.address = Addr::unchecked("ContractAddress".to_string());
         let token_pair = mk_token_pair();
@@ -125,7 +133,9 @@ pub mod tests {
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
-            custom_fee: None
+            custom_fee: None,
+            arbitrage_contract: None,
+            lp_token_decimals: 18u8
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let address_a = Addr::unchecked("TESTA".to_string());
@@ -196,6 +206,7 @@ pub mod tests {
             address_a.clone(),
             None,
             mk_custom_token_amount(Uint128::from(1000u128), &token_pair),
+            None,
             None
         )?;
         assert_eq!(native_swap.messages.len(), 2);
@@ -220,6 +231,7 @@ pub mod tests {
             address_a.clone(),
             None,
             mk_custom_token_amount(Uint128::from(1000u128), &token_pair),
+            None,
             None
         )?;
         assert_eq!(native_swap.messages.len(), 2);
@@ -235,7 +247,7 @@ pub mod tests {
         config_w(deps.as_mut().storage).save(&_config)?;
         let amount = Uint128::new(1000u128);
         let result = estimated_liquidity(deps.as_ref(), env, 
-            &mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount));
+            &mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount), Addr::unchecked("random_address".to_string()));
         match result.unwrap_err() {
             e =>  assert_eq!(e, StdError::generic_err(
                 "The provided tokens dont match those managed by the contract.",
@@ -302,11 +314,11 @@ pub mod tests_calculation_price_and_fee {
     use shadeswap_shared::amm_pair::QueryMsg;
     use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount};
     use shadeswap_shared::msg::amm_pair::QueryMsgResponse;
-
+    use crate::operations::lp_virtual_swap;
     use crate::contract;
-    use crate::operations::{
+    use crate::operations::{ calculate_lp_tokens,
         add_liquidity, add_whitelist_address, calculate_price, calculate_swap_result, swap, remove_liquidity, is_address_in_whitelist   };
-
+    use crate::test::help_test_lib::mk_custom_token_pair;
     use crate::query::{self, estimated_liquidity};
     use crate::test::help_test_lib::{
         make_init_config_test_calculate_price_fee, mk_amm_settings_a,
@@ -375,7 +387,7 @@ pub mod tests_calculation_price_and_fee {
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
-        let expected_amount: u128 = 1228;
+        let expected_amount: u128 = 1167;
         let fee_info = query::fee_info(deps.as_ref(), &env)?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
@@ -395,7 +407,7 @@ pub mod tests_calculation_price_and_fee {
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
         let env = mock_env();
-        let expected_amount: u128 = 1539;
+        let expected_amount: u128 = 1517;
         let fee_info = query::fee_info(deps.as_ref(), &env)?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, 
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
@@ -417,12 +429,114 @@ pub mod tests_calculation_price_and_fee {
         let fee_info = query::fee_info(deps.as_ref(), &env)?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, &token_amount,
          None)?;
-        assert_eq!(swap_result.result.return_amount, Uint128::from(122807u128));
-        assert_eq!(swap_result.lp_fee_amount, Uint128::from(560u128));
-        assert_eq!(swap_result.shade_dao_fee_amount, Uint128::from(40u128));
-        assert_eq!(swap_result.price, "61.4035".to_string());
+        assert_eq!(swap_result.result.return_amount, Uint128::from(116667u128));
+        assert_eq!(swap_result.lp_fee_amount, Uint128::from(46666u128));
+        assert_eq!(swap_result.shade_dao_fee_amount, Uint128::from(3333u128));
+        assert_eq!(swap_result.price, "58.3335".to_string());
         Ok(())
     }
+
+
+   
+    #[test]
+    fn assert_lp_virtual_swap_return_updated_deposit_amount() -> StdResult<()>{
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_custom_token_pair(CUSTOM_TOKEN_3, CUSTOM_TOKEN_4);
+        /// TEST CASE A
+        /// Token 0 Balance = 4949993721
+        /// Token 1 Balance = 4950007236
+        /// Deposit 50000/50000
+        let deposit = TokenPairAmount{
+            pair: token_pair.clone(),
+            amount_0: Uint128::new(50000),
+            amount_1: Uint128::new(50000)
+        };      
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;         
+        let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
+
+        let lp_tokens = calculate_lp_tokens(
+            &deposit.clone(),
+            [Uint128::new(4949993721), Uint128::new(4950007236)],
+            Uint128::new(4950000000),
+        )?;
+        // check the origin lp tokens
+        assert_eq!(lp_tokens, Uint128::new(49999));
+        let result = lp_virtual_swap(
+            deps.as_ref(),
+            &env.clone(),
+            Addr::unchecked("SENDER"),
+            Fee::new(3, 100),
+            Fee::new(7, 100),
+            Addr::unchecked(""),
+            &config,
+            &deposit,
+            Uint128::new(4950000000),
+            [Uint128::new(4949993721), Uint128::new(4950007236)],
+            None
+        )?;
+        assert_eq!(result.amount_0, Uint128::new(50000u128));
+        assert_eq!(result.amount_1, Uint128::new(50000u128));
+        // update offer
+        let deposit = TokenPairAmount{
+            pair: token_pair.clone(),
+            amount_0: result.amount_0.clone(),
+            amount_1: result.amount_1.clone()
+        }; 
+        let lp_tokens = calculate_lp_tokens(
+            &deposit.clone(),
+            [Uint128::new(4949993721), Uint128::new(4950007236)],
+            Uint128::new(4950000000),
+        )?;
+        assert_eq!(lp_tokens, Uint128::new(49999));
+
+        /// TEST CASE B
+        let mut deps = mock_dependencies(&[]);
+        let token_pair = mk_custom_token_pair("TOKEN6", "TOKEN7");
+        let deposit = TokenPairAmount{
+            pair: token_pair.clone(),
+            amount_0: Uint128::new(50000),
+            amount_1: Uint128::new(40000)
+        };      
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair.clone(), None,Some(LP_TOKEN.to_string()))?;         
+        let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
+
+        // let lp_tokens = calculate_lp_tokens(
+        //     &deposit.clone(),
+        //     [Uint128::new(4949983721), Uint128::new(4950000236)],
+        //     Uint128::new(4946700000),
+        // )?;
+        // // check the origin lp tokens
+        // assert_eq!(lp_tokens, Uint128::new(49999));
+        let result = lp_virtual_swap(
+            deps.as_ref(),
+            &env.clone(),
+            Addr::unchecked("SENDER"),
+            Fee::new(3, 100),
+            Fee::new(7, 100),
+            Addr::unchecked(""),
+            &config,
+            &deposit,
+            Uint128::new(4946700000),
+           [Uint128::new(4949983721), Uint128::new(4950000236)],
+            None
+        )?;
+        assert_eq!(result.amount_0, Uint128::new(45000u128));
+        assert_eq!(result.amount_1, Uint128::new(44500u128));
+        // update offer
+        let deposit = TokenPairAmount{
+            pair: token_pair.clone(),
+            amount_0: result.amount_0.clone(),
+            amount_1: result.amount_1.clone()
+        }; 
+        let lp_tokens = calculate_lp_tokens(
+            &deposit.clone(),
+            [Uint128::new(4949983721), Uint128::new(4950000236)],
+            Uint128::new(4946700000),
+        )?;
+        assert_eq!(lp_tokens, Uint128::new(44470));
+        Ok(())
+    }
+
     #[test]
     fn assert_initial_swap_with_zero_fee_for_whitelist_address()-> StdResult<()>{
         let mut deps = mock_dependencies(&[]);
@@ -440,7 +554,7 @@ pub mod tests_calculation_price_and_fee {
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
             Some(is_user_whitelist))?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
-        assert_eq!(Uint128::new(560u128), swap_result.lp_fee_amount);
+        assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
         Ok(())
     }
 
@@ -461,7 +575,8 @@ pub mod tests_calculation_price_and_fee {
             address_a.clone(),
             Some(address_a.clone()),          
             mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), token), 
-            Some(Uint128::from(40000u128))
+            Some(Uint128::from(40000u128)),
+            None
         );
 
         match swap_and_test_slippage.unwrap_err() {
@@ -491,6 +606,7 @@ pub mod tests_calculation_price_and_fee {
             mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), 
                 mk_token_pair_custom_addr("CUSTOMER_TOKEN_3", CUSTOM_TOKEN_1)), 
             Some(Uint128::from(400u128)),
+            None
         );
 
         match swap_and_test_slippage.unwrap_err() {
@@ -518,7 +634,8 @@ pub mod tests_calculation_price_and_fee {
             Addr::unchecked(address_a.clone()),
             Some(Addr::unchecked(address_a.clone())),          
             mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), token), 
-            Some(Uint128::from(400u128))
+            Some(Uint128::from(400u128)),
+            None
         );
          assert_eq!(
             swap_and_test_slippage.unwrap().messages.len(), 
@@ -600,7 +717,7 @@ pub mod tests_calculation_price_and_fee {
             amount_1: Uint128::from(0u128)
         };
 
-        let estimated_lp_bin = estimated_liquidity(deps.as_ref(), mock_env(), &deposit).unwrap();
+        let estimated_lp_bin = estimated_liquidity(deps.as_ref(), mock_env(), &deposit, Addr::unchecked("random_address".to_string())).unwrap();
         let msg = from_binary::<QueryMsgResponse>(&estimated_lp_bin).unwrap();
         let estimated_lp = match msg {
             QueryMsgResponse::GetEstimatedLiquidity { lp_token, total_lp_token: _ } => lp_token,
@@ -890,7 +1007,7 @@ pub mod help_test_lib {
         let seed = to_binary(&"SEED".to_string())?;
         let entropy = to_binary(&"ENTROPY".to_string())?;
         let env = mock_env();
-        let mock_info = mock_info(MOCK_CONTRACT_ADDR, &[]);
+        let mock_info = mock_info(ADMIN_CONTRACT, &[]);
         let msg = InitMsg {
             pair: token_pair.clone(),
             lp_token_contract: ContractInstantiationInfo {
@@ -905,7 +1022,12 @@ pub mod help_test_lib {
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },
             staking_contract: None,
-            custom_fee: None
+            custom_fee: None,
+            arbitrage_contract:  Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
+            lp_token_decimals: 18u8
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let config = config_r(&deps.storage).load()?;
@@ -1028,10 +1150,13 @@ pub mod help_test_lib {
                     token_code_hash: "".to_string(),
                 }, 
                 valid_to: Uint128::new(3747905010000u128),
-                decimals: 18u8
             }),
             prng_seed: to_binary(&"to_string".to_string())?,
-            admin_auth: Contract { address: Addr::unchecked(MOCK_CONTRACT_ADDR), code_hash: "".to_string() }
+            admin_auth: Contract { address: Addr::unchecked(ADMIN_CONTRACT), code_hash: "".to_string() },
+            arbitrage_contract:  Some(Contract{
+                address: Addr::unchecked("ARBITRAGE_CONTRACT"),
+                code_hash: "ARBITRAGE_CONTRACT".to_string(),
+            }),
         })
     }
 
@@ -1067,7 +1192,7 @@ pub mod help_test_lib {
     pub fn mock_dependencies(
         _contract_balance: &[Coin],
     ) -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
-        let _contract_addr = Addr::unchecked(MOCK_CONTRACT_ADDR);
+        let _contract_addr = Addr::unchecked(ADMIN_CONTRACT);
         OwnedDeps {
             storage: MockStorage::default(),
             api: MockApi::default(),
@@ -1153,7 +1278,7 @@ pub mod help_test_lib {
                                 amm_settings: amm_settings,
                                 lp_token_contract: ContractInstantiationInfo { code_hash: "".to_string(), id: 2_u64 },
                                 authenticator: None,
-                                admin_auth: Contract { address: Addr::unchecked(MOCK_CONTRACT_ADDR), code_hash: "".to_string() }
+                                admin_auth: Contract { address: Addr::unchecked(ADMIN_CONTRACT), code_hash: "".to_string() }
                             };
                             QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(
                                 to_binary(&response).unwrap(),
@@ -1202,6 +1327,90 @@ pub mod help_test_lib {
                                 _ =>  unimplemented!("CUSTOM_TOKEN_2")
                             }                            
                         },
+                        CUSTOM_TOKEN_3 => {
+                            match from_binary(&msg).unwrap(){
+                                QueryMsg::TokenInfo { /* fields */ } =>{
+                                    let balance = to_binary(&QueryAnswer::TokenInfo { 
+                                        name: "USDC".to_string(), 
+                                        symbol: "USDC".to_string(), 
+                                        decimals: 18, 
+                                        total_supply: Some(Uint128::new(1000000000000)) 
+                                    }).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                QueryMsg::Balance{address: _, key: _} =>{
+                                    let balance = to_binary(&QueryAnswer::Balance {
+                                        amount: Uint128::new(4949993721u128),
+                                    })
+                                    .unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                _ =>  unimplemented!("CUSTOM_TOKEN_3")
+                            }                            
+                        },
+                        CUSTOM_TOKEN_4 => {
+                            match from_binary(&msg).unwrap(){
+                                QueryMsg::TokenInfo { /* fields */ } =>{
+                                    let balance = to_binary(&QueryAnswer::TokenInfo { 
+                                        name: "XRM".to_string(), 
+                                        symbol: "ETH".to_string(), 
+                                        decimals: 18, 
+                                        total_supply: Some(Uint128::new(1000000000000)) 
+                                    }).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                QueryMsg::Balance{address: _, key: _} =>{
+                                    let balance = to_binary(&QueryAnswer::Balance {
+                                        amount: Uint128::new(4950007236),
+                                    })
+                                    .unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                _ =>  unimplemented!("CUSTOM_TOKEN_4")
+                            }                            
+                        },
+                        "TOKEN6" => {
+                            match from_binary(&msg).unwrap(){
+                                QueryMsg::TokenInfo { /* fields */ } =>{
+                                    let balance = to_binary(&QueryAnswer::TokenInfo { 
+                                        name: "XRM".to_string(), 
+                                        symbol: "ETH".to_string(), 
+                                        decimals: 18, 
+                                        total_supply: Some(Uint128::new(1000000000000)) 
+                                    }).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                QueryMsg::Balance{address: _, key: _} =>{
+                                    let balance = to_binary(&QueryAnswer::Balance {
+                                        amount: Uint128::new(4949983721),
+                                    })
+                                    .unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                _ =>  unimplemented!("CUSTOM_TOKEN_4")
+                            }                            
+                        },
+                        "TOKEN7" => {
+                            match from_binary(&msg).unwrap(){
+                                QueryMsg::TokenInfo { /* fields */ } =>{
+                                    let balance = to_binary(&QueryAnswer::TokenInfo { 
+                                        name: "XRM".to_string(), 
+                                        symbol: "ETH".to_string(), 
+                                        decimals: 18, 
+                                        total_supply: Some(Uint128::new(1000000000000)) 
+                                    }).unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                QueryMsg::Balance{address: _, key: _} =>{
+                                    let balance = to_binary(&QueryAnswer::Balance {
+                                        amount: Uint128::new(4950000236),
+                                    })
+                                    .unwrap();
+                                    QuerierResult::Ok(cosmwasm_std::ContractResult::Ok(balance))
+                                },
+                                _ =>  unimplemented!("CUSTOM_TOKEN_4")
+                            }                            
+                        },
                         LP_TOKEN => {                                   
                             let balance = to_binary(&QueryAnswer::TokenInfo { 
                                 name: "LPTOKEN".to_string(), 
@@ -1248,7 +1457,7 @@ pub mod help_test_lib {
         let entropy = to_binary(&"ENTROPY".to_string())?;
         let mut deps_api = mock_dependencies(&[]);
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);       
-        let mock_info = mock_info("CONTRACT_ADDRESS",&[]);
+        let mock_info = mock_info(ADMIN_CONTRACT,&[]);
         let msg = InitMsg {
             pair: token_pair.clone(),
             lp_token_contract: ContractInstantiationInfo{
@@ -1263,9 +1472,14 @@ pub mod help_test_lib {
             entropy: entropy.clone(),
             admin_auth: Contract { address: mock_info.sender.clone(), code_hash: "".to_string() },          
             staking_contract: None,
-            custom_fee: custom_fee
+            custom_fee: custom_fee,
+            arbitrage_contract: Some(Contract {
+                address: Addr::unchecked("ARBITRARY_CONTRACT"),
+                code_hash: "ARBITRARY_CONTRACT".to_string()
+            }),
+            lp_token_decimals: 18u8
         };         
-        let temp_deps = deps.branch();
+        let temp_deps = deps.branch();       
         assert!(instantiate(temp_deps, env.clone(),mock_info, msg).is_ok());
         let mut config = config_r(deps.storage).load()?;    // set staking contract        
         config.lp_token = Contract{
@@ -1280,6 +1494,14 @@ pub mod help_test_lib {
         let pair = TokenPair(
             testing_str_to_token_type(CUSTOM_TOKEN_1),
             testing_str_to_token_type(CUSTOM_TOKEN_2),
+        );
+        pair
+    }
+
+    pub fn mk_custom_token_pair(token0: &str, token1: &str) -> TokenPair {
+        let pair = TokenPair(
+            testing_str_to_token_type(token0),
+            testing_str_to_token_type(token1),
         );
         pair
     }

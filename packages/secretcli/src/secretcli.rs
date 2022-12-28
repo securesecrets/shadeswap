@@ -352,13 +352,21 @@ pub fn init<Message: serde::Serialize>(
         gas_used: init_query.gas_used,
     });
 
-    // Look for the contract's address
-    for attribute in &init_query.logs[0].events[0].attributes {
-        if attribute.msg_key == "contract_address" {
-            contract.address = attribute.value.clone();
-            break;
-        }
+    //contract.address = init_query.logs[0].events[0].attributes[0].value.clone();
+    for log in &init_query.logs{
+        for event in &log.events{
+            if event.msg_type == "wasm"{
+                for ev in &event.attributes{
+                    if ev.msg_key == "contract_address"{                          
+                        let print_addr = ev.value.clone();
+                        contract.address = ev.value.clone();
+                        println!("last addr {}", print_addr);
+                    }                        
+                }                   
+            }
+        }   
     }
+       
     // Look for the contract's code hash
     let listed_contracts = list_code()?;
 

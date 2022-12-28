@@ -4,7 +4,7 @@ use cosmwasm_std::{to_binary, Addr, QueryResponse, Response, Uint128};
 use network_integration::{
     cli_commands::{
         amm_pair_lib::{
-            add_amm_pairs, add_liquidity, list_pair_from_factory, get_staking_contract,
+            add_amm_pairs, add_liquidity, list_pair_from_factory, get_staking_contract, store_staking_contract,get_lp_liquidity
         },
         factory_lib::{create_factory_contract, deposit_snip20, increase_allowance},
         router_lib::create_router_contract,
@@ -13,10 +13,10 @@ use network_integration::{
     utils::{
         generate_label, get_balance, get_current_timestamp, init_snip20, print_contract,
         print_header, InitConfig, ACCOUNT_KEY, ADMIN_FILE, AMM_PAIR_FILE, API_KEY, GAS,
-        SHADE_DAO_KEY, STAKER_KEY, STORE_GAS, VIEW_KEY,
+        SHADE_DAO_KEY, STAKER_KEY, STORE_GAS, VIEW_KEY, LPTOKEN20_FILE,
     },
 };
-
+use shadeswap_shared::{staking::StakingContractInit, amm_pair::AMMPair, core::Fee};
 use query_authentication::{
     permit::Permit,
     transaction::{PermitSignature, PubKey},
@@ -26,13 +26,13 @@ use shadeswap_shared::{
     admin::RegistryAction,
     c_std::Binary,
     contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
-    core::{TokenAmount, TokenPair, TokenPairAmount, TokenType},
+    core::{TokenAmount, TokenPair, TokenPairAmount, TokenType, ContractInstantiationInfo},
     msg::{
         amm_pair::{
-            ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg,
-            QueryMsgResponse as AMMPairQueryMsgResponse,
+            ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg, InvokeMsg as AMMInvokeMsg,
+            QueryMsgResponse as AMMPairQueryMsgResponse, InitMsg as AMMPairInitMsg
         },
-        factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse},
+        factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse, ExecuteMsg as FactoryExecuteMsg},
         router::{
             ExecuteMsg as RouterExecuteMsg, InvokeMsg as RouterInvokeMsg,
             QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
@@ -70,6 +70,7 @@ fn run_testnet() -> Result<()> {
     let pair_contract_code_hash =
         store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?
             .code_hash;
+            
 
     type TestPermit = Permit<PermitData>;
     //secretd tx sign-doc file --from a
@@ -550,7 +551,7 @@ fn run_testnet() -> Result<()> {
     );
     assert_eq!(
         get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
-        (old_shd_token_balance + Uint128::new(88))
+        (old_shd_token_balance + Uint128::new(90))
     );
 
     {
@@ -634,7 +635,7 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
-        old_shd_token_balance + Uint128::new(44)
+        old_shd_token_balance + Uint128::new(45)
     );
 
     assert_eq!(
@@ -713,7 +714,7 @@ fn run_testnet() -> Result<()> {
     );
     assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
-        old_scrt_balance + Uint128::new(2224)
+        old_scrt_balance + Uint128::new(2226)
     );
 
     print_header("\n\t 4 - SELL 36500 sSHD Initiating sSHD to sSCRT Swap ");
@@ -771,7 +772,7 @@ fn run_testnet() -> Result<()> {
     );
     assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
-        old_scrt_balance + Uint128::new(32484)
+        old_scrt_balance + Uint128::new(32486)
     );
 
     print_header("\n\t 5 - BUY 25000 sSHD Initiating sSCRT to sSHD Swap ");
@@ -1206,8 +1207,8 @@ fn run_testnet() -> Result<()> {
             liquidity_token,
             factory: _,
             pair: _,
-            amount_0: _,
-            amount_1: _,
+            amount_0,
+            amount_1,
             total_liquidity,
             contract_version: _,
             fee_info: _,
@@ -1217,6 +1218,8 @@ fn run_testnet() -> Result<()> {
                 "\n\tLP Token Address {}",
                 liquidity_token.address.to_string()
             );
+            print_header(&("\n\tLP Token 0 Amount - ".to_owned() + &amount_0.to_string()));
+            print_header(&("\n\tLP Token 1 Amount - ".to_owned() + &amount_1.to_string()));
             print_header("\n\tLP Token Liquidity - 4950000000");
             assert_eq!(total_liquidity.clone(), Uint128::new(4950000000));
         }
@@ -1306,8 +1309,8 @@ fn run_testnet() -> Result<()> {
             liquidity_token,
             factory: _,
             pair: _,
-            amount_0: _,
-            amount_1: _,
+            amount_0,
+            amount_1,
             total_liquidity,
             contract_version: _,
             fee_info: _,
@@ -1317,8 +1320,10 @@ fn run_testnet() -> Result<()> {
                 "\n\tLP Token Address {}",
                 liquidity_token.address.to_string()
             );
-            print_header("\n\tLP Token Liquidity - 5449999883");
-            assert_eq!(total_liquidity, Uint128::new(5449999883));
+            print_header("\n\tLP Token Liquidity - (5449999878");
+            print_header(&("\n\tLP Token 0 Amount - ".to_owned() + &amount_0.to_string()));
+            print_header(&("\n\tLP Token 1 Amount - ".to_owned() + &amount_1.to_string()));
+            assert_eq!(total_liquidity, Uint128::new(5449999878u128));
 
             let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
                 permit: new_permit.clone(),
@@ -1378,7 +1383,7 @@ fn run_testnet() -> Result<()> {
                 &snip20::ExecuteMsg::Send {
                     recipient: staking_contract.clone().unwrap().address.to_string(),
                     amount: Uint128::new(1000),
-                    msg: Some(to_binary(&StakingInvokeMsg::Stake { from: account }).unwrap()),
+                    msg: Some(to_binary(&StakingInvokeMsg::Stake { from: account.clone() }).unwrap()),
                     padding: None,
                     recipient_code_hash: Some(staking_contract.clone().unwrap().code_hash.to_string()),
                     memo: None,
@@ -1545,8 +1550,9 @@ fn run_testnet() -> Result<()> {
             deposit: TokenPairAmount {
                 pair: token_pair_1.clone(),
                 amount_0: Uint128::new(10000000000),
-                amount_1: Uint128::new(10000000000),
+                amount_1: Uint128::new(10000000000)
             },
+            sender: Addr::unchecked(account.clone())
         };
         let estimated_lp_token: AMMPairQueryMsgResponse = query(
             &NetContract {
@@ -1670,7 +1676,7 @@ fn run_testnet() -> Result<()> {
     assert!(matches!(
         test_query_successful(
             amm_pair_1.address.to_string(),
-            AMMPairQueryMsg::GetEstimatedLiquidity { deposit: TokenPairAmount { pair: token_pair_1.clone(), amount_0: Uint128::from(1000u64), amount_1: Uint128::from(1000u64) } },
+            AMMPairQueryMsg::GetEstimatedLiquidity {deposit:TokenPairAmount{pair:token_pair_1.clone(),amount_0:Uint128::from(1000u64),amount_1:Uint128::from(1000u64)}, sender: Addr::unchecked(account) },
         )?,
         AMMPairQueryMsgResponse::GetEstimatedLiquidity { .. }
     ));
@@ -1774,10 +1780,565 @@ fn run_testnet() -> Result<()> {
     assert!(matches!(
         test_query_successful(
             found_staking_contract.address.to_string(),
-            StakingQueryMsg::WithPermit { permit: new_permit, query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwrap() } },
+            StakingQueryMsg::WithPermit { permit: new_permit.clone(), query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwrap() } },
         )?,
         StakingQueryMsgResponse::GetClaimReward { .. }
     ));
+
+    //////////////////////////////////
+    /// //////////////////////////////
+    // TEST CREATE STANDALONE_AMM_PAIR
+    ///////////////////////////////////
+    /// ///////////////////////////////
+    /// ///////////////////////////////
+    let account =  account_address(ACCOUNT_KEY)?;
+    // CREATE USDT SNIP20
+    print_header("Initializing USDT");
+    let (_, usdt_token) = init_snip20(
+        "USDT".to_string(),
+        "USDT".to_string(),
+        8,
+        Some(InitConfig {
+            public_total_supply: Some(true),
+            enable_deposit: Some(true),
+            enable_redeem: Some(true),
+            enable_mint: Some(true),
+            enable_burn: Some(false),
+        }),
+        &mut reports,
+        ACCOUNT_KEY,
+        None,
+    )?;
+    let snip_20_code_hash = usdt_token.code_hash.clone();
+    set_viewing_key(VIEW_KEY, &usdt_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
+    print_contract(&usdt_token.clone());
+    println!("\n\tDepositing 2000000000000uscrt USDT");
+    deposit_snip20(
+        ACCOUNT_KEY,
+        "test",
+        &usdt_token.address,
+        "2000000000000uscrt",
+        &mut reports,
+    )
+    .unwrap();
+
+    assert_eq!(
+        get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(2000000000000)
+    );
+
+    // CREATE REWARD TOKEN
+    print_header("Initializing Reward_token");
+    let (_, reward_token) = init_snip20(
+        "RWSN".to_string(),
+        "RWSN".to_string(),
+        6,
+        Some(InitConfig {
+            public_total_supply: Some(true),
+            enable_deposit: Some(true),
+            enable_redeem: Some(true),
+            enable_mint: Some(true),
+            enable_burn: Some(false),
+        }),
+        &mut reports,
+        ACCOUNT_KEY,
+        None,
+    )?;
+    print_contract(&reward_token);
+    set_viewing_key(VIEW_KEY, &reward_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
+    println!("\n\tDepositing 2000000000000uscrt REWARD TOKEN");
+    deposit_snip20(
+        ACCOUNT_KEY,
+        "test",
+        &reward_token.address,
+        "2000000000000uscrt",
+        &mut reports,
+    )
+    .unwrap();
+
+    assert_eq!(
+        get_balance(&reward_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(2000000000000)
+    );
+
+    // CREATE ETH SNIP20
+    print_header("Initializing ETH");
+    let (_, eth_token) = init_snip20(
+        "ETH".to_string(),
+        "ETH".to_string(),
+        8,
+        Some(InitConfig {
+            public_total_supply: Some(true),
+            enable_deposit: Some(true),
+            enable_redeem: Some(true),
+            enable_mint: Some(true),
+            enable_burn: Some(false),
+        }),
+        &mut reports,
+        ACCOUNT_KEY,
+        None,
+    )?;
+    print_contract(&eth_token);
+    set_viewing_key(VIEW_KEY, &eth_token, &mut reports, ACCOUNT_KEY, "test").unwrap();
+    println!("\n\tDepositing 2000000000000uscrt ETH");
+    deposit_snip20(
+        ACCOUNT_KEY,
+        "test",
+        &eth_token.address,
+        "2000000000000uscrt",
+        &mut reports,
+    )
+    .unwrap();
+
+    assert_eq!(
+        get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(2000000000000)
+    );
+
+    // STORE STAKING CONTRACT
+    let staking_contract = store_staking_contract(ACCOUNT_KEY, "test").unwrap();
+    let staking_contract_init: Option<StakingContractInit> = Some(StakingContractInit {
+        contract_info: ContractInstantiationInfo {
+            code_hash: staking_contract.code_hash.to_string(),
+            id: staking_contract.id.clone().parse::<u64>().unwrap(),
+        },
+        daily_reward_amount: Uint128::new(30000u128),
+        reward_token: TokenType::CustomToken {
+            contract_addr: Addr::unchecked(reward_token.address.to_string()),
+            token_code_hash: reward_token.code_hash.to_string(),
+        },
+        valid_to: Uint128::new(40000000u128)
+    });
+
+    // STORING LP TOKEN
+    let lp_token = store_and_return_contract(
+        &LPTOKEN20_FILE,
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some("test"),
+    ).unwrap();
+
+    // CREATE AMM PAIR USDT-ETH
+    let amm_pair_init_msg = AMMPairInitMsg{
+        pair: TokenPair(
+            TokenType::CustomToken { contract_addr: Addr::unchecked(usdt_token.address.to_string()), token_code_hash: usdt_token.code_hash.to_string() },
+            TokenType::CustomToken { contract_addr: Addr::unchecked(eth_token.address.to_string()), token_code_hash: eth_token.code_hash.to_string() } 
+        ),
+        lp_token_contract: ContractInstantiationInfo{
+            code_hash: lp_token.code_hash.to_string(),
+            id: lp_token.id.parse::<u64>().unwrap(),
+        },
+        factory_info: None,
+        prng_seed: to_binary("seed").unwrap(),
+        entropy:to_binary("password").unwrap(),
+        admin_auth: Contract { 
+            address: Addr::unchecked(admin_contract.address.to_string()), 
+            code_hash: admin_contract.code_hash.to_string()
+        },
+        staking_contract: staking_contract_init,
+        custom_fee: Some(shadeswap_shared::core::CustomFee { shade_dao_fee: Fee::new(8,100), lp_fee: Fee::new(3, 100) }),
+        arbitrage_contract: None,
+        lp_token_decimals: 18u8,
+    };
+    // CREATE AMM PAIR
+    let amm_pair_contract = init(
+        &amm_pair_init_msg,
+        &AMM_PAIR_FILE,
+        &*generate_label(8),
+        ACCOUNT_KEY,
+        Some(STORE_GAS),
+        Some(GAS),
+        Some("test"),
+        &mut reports,
+    )?;
+
+    print_contract(&amm_pair_contract);
+    print_header("\n\tAMMPAIR CONTRACT ADDRESS ");
+    let token_pair = TokenPair(
+        TokenType::CustomToken { contract_addr: Addr::unchecked(usdt_token.address.to_string()), token_code_hash: usdt_token.code_hash.to_string() },
+        TokenType::CustomToken { contract_addr: Addr::unchecked(eth_token.address.to_string()), token_code_hash: eth_token.code_hash.to_string() } 
+    );
+    let add_amm_pair_msg = FactoryExecuteMsg::AddAMMPairs { amm_pairs: vec![
+            AMMPair{
+                pair: token_pair.clone(),
+                address: Addr::unchecked(amm_pair_contract.address.to_string()),
+                code_hash: amm_pair_contract.code_hash.to_string(),
+                enabled: true,
+            }
+        ]};
+
+    let _ = handle(
+        &add_amm_pair_msg,
+        &factory_contract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None
+    )?; 
+
+    print_header("\n\tGetting New Pairs from Factory");
+    let amm_pairs = list_pair_from_factory(factory_contract.address.clone(), 0, 10).unwrap();
+    assert_eq!(amm_pairs.len(), 3);    
+    assert_eq!(amm_pairs[2].address.to_string(), amm_pair_contract.address.to_string());
+
+    print_header("\n\tIncrease Allowance for New AMM Pair");
+    increase_allowance(
+        amm_pair_contract.address.to_string(),
+        Uint128::new(500000000000),
+        usdt_token.address.clone(),
+        ACCOUNT_KEY,
+        "test",
+        &mut reports,
+    )
+    .unwrap();
+    increase_allowance(
+        amm_pair_contract.address.to_string(),
+        Uint128::new(500000000000),
+        eth_token.address.clone(),
+        ACCOUNT_KEY,
+        "test",
+        &mut reports,
+    )
+    .unwrap();
+
+    print_header("\n\tAdding Liquidity to USDT/ETH staking contract");
+    handle(
+        &AMMPairHandlMsg::AddLiquidityToAMMContract {
+            deposit: TokenPairAmount {
+                pair: token_pair.clone(),
+                amount_0: Uint128::new(20000000000),
+                amount_1: Uint128::new(20000000000),
+            },
+            expected_return: None,
+            staking: Some(true),
+        },
+        &NetContract {
+            label: "".to_string(),
+            id: "".to_string(),
+            address: amm_pair_contract.address.to_string(),
+            code_hash: amm_pair_contract.code_hash.to_string(),
+        },
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        Some("20000000000uscrt"),
+        &mut reports,
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(
+        get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(2000000000000 - 20000000000)
+    );
+    assert_eq!(
+        get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(2000000000000 - 20000000000)
+    );
+    print_header("\n\tRegistering Tokens");
+    handle(
+        &RouterExecuteMsg::RegisterSNIP20Token {
+            token_addr: usdt_token.address.clone(),
+            token_code_hash: usdt_token.code_hash.clone(),
+        },
+        &router_contract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None,
+    )
+    .unwrap();
+
+    handle(
+        &RouterExecuteMsg::RegisterSNIP20Token {
+            token_addr: eth_token.address.clone(),
+            token_code_hash: eth_token.code_hash.to_string(),
+        },
+        &router_contract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None,
+    )
+    .unwrap();
+
+    print_header("\n\tRegistering Tokens against AMM PAIR");
+    handle(
+        &RouterExecuteMsg::RegisterSNIP20Token {
+            token_addr: usdt_token.address.clone(),
+            token_code_hash: usdt_token.code_hash.clone(),
+        },
+        &amm_pair_contract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None,
+    )
+    .unwrap();
+
+    handle(
+        &RouterExecuteMsg::RegisterSNIP20Token {
+            token_addr: eth_token.address.clone(),
+            token_code_hash: eth_token.code_hash.to_string(),
+        },
+        &amm_pair_contract,
+        ACCOUNT_KEY,
+        Some(GAS),
+        Some("test"),
+        None,
+        &mut reports,
+        None,
+    )
+    .unwrap();
+
+    // GET PAIR INFO AND ASSERT LP TOKEN & STAKING
+    let staking_contract = get_staking_contract(&amm_pair_contract.address.to_string()).unwrap();
+    assert_ne!(staking_contract, None);
+
+    print_header("GET PAIR INFO");
+    let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};
+    let lp_token_info_query_unstake: AMMPairQueryMsgResponse = query(
+        &NetContract {
+            label: "".to_string(),
+            id: "".to_string(),
+            address: amm_pair_contract.address.to_string(),
+            code_hash: "".to_string(),
+        },
+        lp_token_info_msg,
+        None,
+    )?;
+    if let AMMPairQueryMsgResponse::GetPairInfo {
+        liquidity_token,
+        factory: _,
+        pair: _,
+        amount_0: _,
+        amount_1: _,
+        total_liquidity,
+        contract_version: _,
+        fee_info: _,
+    } = lp_token_info_query_unstake
+    {
+        println!(
+            "\n\tLP Token Address {}",
+            liquidity_token.address.to_string()
+        );
+        print_header("\n\tLP Token Liquidity - 20000000000");
+        assert_eq!(total_liquidity, Uint128::new(20000000000));
+
+        let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
+            permit: new_permit.clone(),
+            query: AuthQuery::GetStakerLpTokenInfo {},
+        };
+
+        let stake_lp_token_info: StakingQueryMsgResponse = query(
+            &NetContract {
+                label: "".to_string(),
+                id: "".to_string(),
+                address: staking_contract.clone().unwrap().address.to_string(),
+                code_hash: staking_contract.clone().unwrap().code_hash.to_string(),
+            },
+            get_stake_lp_token_info,
+            None,
+        )?;
+
+        if let StakingQueryMsgResponse::GetStakerLpTokenInfo {
+            staked_lp_token,
+            total_staked_lp_token,
+        } = stake_lp_token_info
+        {
+            assert_eq!(staked_lp_token, Uint128::new(20000000000));
+            assert_eq!(total_staked_lp_token, Uint128::new(20000000000));
+        }
+
+        print_header("\n\t 1. - BUY 100 ETH Initiating USDT to ETH Swap via AMM PAIR ");
+        let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
+        let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
+        handle(
+            &snip20::ExecuteMsg::Send {
+                recipient: amm_pair_contract.address.to_string(),
+                amount: Uint128::new(10000u128),
+                msg: Some(
+                    to_binary(&AMMInvokeMsg::SwapTokens { 
+                        expected_return: Some(Uint128::new(10u128)), 
+                        to: Some(account.to_string()), 
+                        execute_arbitrage: None 
+                    })
+                    .unwrap(),
+                ),
+                padding: None,
+                recipient_code_hash: None, //Some(pair_contract_code_hash.clone()),
+                memo: None,
+            },
+            &usdt_token,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            None,
+            &mut reports,
+            None,
+        )
+        .unwrap();
+    
+        assert_eq!(
+            get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_eth_balance.u128() + 8901)
+        );
+        assert_eq!(
+            get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_usdt_balance.u128() - 10000)
+        );
+    
+        print_header("\n\t 1. - BUY 100 ETH Initiating USDT to ETH Swap via Router ");
+        let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
+        let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
+        handle(
+            &snip20::ExecuteMsg::Send {
+                recipient: router_contract.address.to_string(),
+                amount: Uint128::new(10000u128),
+                msg: Some(
+                    to_binary(&RouterInvokeMsg::SwapTokensForExact { 
+                        expected_return: Some(Uint128::new(100)),
+                        path: vec![Hop {
+                            addr: amm_pair_contract.address.to_string(),
+                            code_hash: pair_contract_code_hash.clone(),
+                        }],
+                        recipient: Some(account.to_string()),
+                    })
+                    .unwrap(),
+                ),
+                padding: None,
+                recipient_code_hash: None,
+                memo: None,
+            },
+            &usdt_token,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            None,
+            &mut reports,
+            None,
+        )
+        .unwrap();
+    
+        assert_eq!(
+            get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_eth_balance.u128() + 8901)
+        );
+        assert_eq!(
+            get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_usdt_balance.u128() - 10000)
+        );  
+        
+        let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
+        let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
+        print_header("\n\tAdding Liquidity to USDT/ETH - No Staking");
+        handle(
+            &AMMPairHandlMsg::AddLiquidityToAMMContract {
+                deposit: TokenPairAmount {
+                    pair: token_pair.clone(),
+                    amount_0: Uint128::new(20000000000),
+                    amount_1: Uint128::new(20000000000),
+                },
+                expected_return: None,
+                staking: Some(false),
+            },
+            &NetContract {
+                label: "".to_string(),
+                id: "".to_string(),
+                address: amm_pair_contract.address.to_string(),
+                code_hash: amm_pair_contract.code_hash.to_string(),
+            },
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            Some("20000000000uscrt"),
+            &mut reports,
+            None,
+        )
+        .unwrap();   
+        
+        assert_eq!(
+            get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_usdt_balance.u128() - 20000000000)
+        );
+        assert_eq!(
+            get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_eth_balance.u128() - 20000000000)
+        );
+
+        let lp_token_contract = NetContract {
+            label: "".to_string(),
+            id: "".to_string(),
+            address: liquidity_token.address.to_string(),
+            code_hash: liquidity_token.code_hash.to_string(),
+        };
+
+        // SET VIEWING KEY
+        set_viewing_key(VIEW_KEY, &lp_token_contract, &mut reports, ACCOUNT_KEY, "test").unwrap();
+        assert_eq!(get_balance(&lp_token_contract, 
+            account.to_string(), 
+            VIEW_KEY.to_string()),
+            Uint128::new(19999996822)
+        );
+
+        let old_liquidity = (get_lp_liquidity(&amm_pair_contract.address.to_string()).unwrap().unwrap());
+        let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
+        let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
+        print_header("\n\tSending Liquidity to USDT/ETH AMM Pair - Remove liquidity");
+         handle(
+            &snip20::ExecuteMsg::Send {
+                recipient: amm_pair_contract.address.to_string(),
+                amount: Uint128::new(9999996822),
+                msg: Some(to_binary(&AMMInvokeMsg::RemoveLiquidity{
+                    from: None,
+                    single_sided_withdraw_type: None, //None means 50/50 balanced withdraw, and a value here tells which token to send the withdraw in
+                    single_sided_expected_return: None,
+                })
+                .unwrap()),
+                padding: None,
+                recipient_code_hash: None,
+                memo: None,
+            },
+            &lp_token_contract,
+            ACCOUNT_KEY,
+            Some(GAS),
+            Some("test"),
+            None,
+            &mut reports,
+            None,
+        )
+        .unwrap();
+        assert_eq!(get_balance(&lp_token_contract, 
+            account.to_string(), 
+            VIEW_KEY.to_string()),
+            Uint128::new(10000000000)
+        );
+
+        // ASSERT LP TOKEN - 9999996822
+        print_header("\n\tLP Token Liquidity - 9999996822");
+        let new_liquidity = (get_lp_liquidity(&amm_pair_contract.address.to_string()).unwrap()).unwrap();
+        assert_eq!(new_liquidity, Uint128::new(old_liquidity.u128() - 9999996822));
+        // ASSERT BALANCE USDT adn ETH TOKEN + 9999996822        
+        assert_eq!(
+            get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_usdt_balance.u128() + 10000002616)
+        );
+        assert_eq!(
+            get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
+            Uint128::new(old_eth_balance.u128() + 9999993166)
+        );
+        println!("\n\tUnstake 5000000000LP TOKEN");      
+    }
+
+   
 
     return Ok(());
 }

@@ -34,11 +34,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     pad_response_result(
         match msg {
             //Only admins can create pairs via factory
-            ExecuteMsg::CreateAMMPair {
-                pair,
-                entropy,
-                staking_contract,
-            } => {
+            ExecuteMsg::CreateAMMPair {pair,entropy,staking_contract, lp_token_decimals } => {
                 let config = config_r(deps.storage).load()?;
                 validate_admin(
                     &deps.querier,
@@ -46,7 +42,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     &info.sender,
                     &config.admin_auth,
                 )?;
-                create_pair(deps, env, pair, entropy, staking_contract)
+                create_pair(deps, env, pair, entropy, staking_contract, lp_token_decimals)
             }
             ExecuteMsg::SetConfig {
                 pair_contract,

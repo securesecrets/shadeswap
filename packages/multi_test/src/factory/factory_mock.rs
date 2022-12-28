@@ -96,7 +96,8 @@ pub mod factory_mock {
                 ExecuteMsg::CreateAMMPair {
                     pair: _,
                     entropy: _,
-                    staking_contract: _
+                    staking_contract: _,
+                    lp_token_decimals: u8
                 } => Ok(Response::new()),
                 ExecuteMsg::AddAMMPairs { amm_pairs: _ } => Ok(Response::new())
             },

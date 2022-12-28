@@ -41,6 +41,21 @@ pub fn instantiate(
         ));
     }
 
+    //Validate address
+    let _admin_address = deps
+        .api
+        .addr_validate(&msg.admin_auth.address.to_string())?;
+
+    //Don't allow for custom fee and factory
+    if msg.custom_fee.as_ref().is_some()
+        && (msg.custom_fee.as_ref().unwrap().lp_fee.denom == 0u16
+            || msg.custom_fee.as_ref().unwrap().shade_dao_fee.denom == 0u16)
+    {
+        return Err(StdError::generic_err(
+            "One of the custom fee denoms are zero.",
+        ));
+    }
+
     let mut response = Response::new();
     let mut messages = vec![];
     let viewing_key = create_viewing_key(&env, &info, msg.prng_seed.clone(), msg.entropy.clone());
@@ -59,7 +74,7 @@ pub fn instantiate(
             query::token_symbol(deps.querier, &msg.pair.0)?,
             query::token_symbol(deps.querier, &msg.pair.1)?
         ),
-        decimals: 18,
+        decimals: msg.lp_token_decimals,
         initial_balances: None,
         prng_seed: msg.prng_seed.clone(),
         config: Some(InitConfig {
@@ -409,8 +424,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 query::swap_simulation(deps, env, offer, exclude_fee)
             }
             QueryMsg::GetShadeDaoInfo {} => query::shade_dao_info(deps, &env),
-            QueryMsg::GetEstimatedLiquidity { deposit } => {
-                query::estimated_liquidity(deps, env, &deposit)
+            QueryMsg::GetEstimatedLiquidity { deposit, sender } => {
+                query::estimated_liquidity(deps, env, &deposit, sender)
             }
             QueryMsg::GetConfig {} => {
                 let config = config_r(deps.storage).load()?;
@@ -444,9 +459,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                             code_hash: config.lp_token.code_hash,
                         },
                     )?;
-
                     response.data = Some(env.contract.address.to_string().as_bytes().into());
-
                     Ok(response)
                 }
                 None => Err(StdError::generic_err(format!("Unknown reply id"))),
@@ -467,10 +480,8 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                                 .contract_info
                                 .code_hash,
                         }),
-                    )?;
-
+                    )?;                 
                     response.data = Some(env.contract.address.to_string().as_bytes().into());
-
                     Ok(response)
                 }
                 None => Err(StdError::generic_err(format!("Unknown reply id"))),

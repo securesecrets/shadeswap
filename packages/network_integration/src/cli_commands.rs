@@ -1,5 +1,5 @@
 pub mod snip20_lib {
-    use crate::utils::{init_snip20_cli, InitConfig, GAS};
+    use crate::utils::{init_snip20_cli, InitConfig, GAS, STORE_GAS, ADMIN_FILE, generate_label};
     use cosmwasm_std::Addr;
     use secretcli::{
         cli_types::NetContract,
@@ -97,6 +97,8 @@ pub mod snip20_lib {
         Ok(s_contract.1)
     }
 
+   
+
     pub fn set_viewing_key(
         viewing_key: &str,
         net_contract: &NetContract,
@@ -156,24 +158,72 @@ pub mod factory_lib {
     use std::io;
 
     use cosmwasm_std::{Binary, Uint128};
+    use query_authentication::transaction::{PermitSignature, PubKey};
     use secretcli::{
-        cli_types::NetContract,
-        secretcli::{handle, store_and_return_contract, Report},
+        cli_types::{NetContract},
+        secretcli::{handle, store_and_return_contract, Report, init},
     };
     use shadeswap_shared::{
         amm_pair::AMMSettings,
         c_std::{to_binary, Addr},
         core::{ContractInstantiationInfo, Fee},
         msg::factory::InitMsg as FactoryInitMsg,
-        Contract,
+        contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
+        Contract, staking::{InvokeMsg, QueryData}, query_auth::PermitData, admin::RegistryAction,
     };
+    use query_authentication::permit::Permit;
 
-    use crate::utils::{init_contract_factory, GAS, STORE_GAS};
+    use crate::utils::{init_contract_factory, GAS, STORE_GAS, ADMIN_FILE, generate_label, print_header};
 
     pub const LPTOKEN20_FILE: &str = "../../compiled/lp_token.wasm.gz";
     pub const AMM_PAIR_FILE: &str = "../../compiled/amm_pair.wasm.gz";
     pub const FACTORY_FILE: &str = "../../compiled/factory.wasm.gz";
 
+    pub fn create_admin_contract(
+        account_name: &str,
+        backend: &str,
+        address: &str,
+        super_address: &str,
+        reports: &mut Vec<Report>,
+    ) -> io::Result<NetContract> {     
+        type TestPermit = Permit<PermitData>;
+        //secretd tx sign-doc file --from a  
+    
+        print_header("\n\tInitializing Admin Contract");    
+        let admin_msg = AdminInstantiateMsg {
+            super_admin: Some(address.to_string()),
+        };
+    
+        let admin_contract = init(
+            &admin_msg,
+            &ADMIN_FILE,
+            &*generate_label(8),
+            account_name,
+            Some(STORE_GAS),
+            Some(GAS),
+            Some(backend),
+            reports,
+        )?;
+    
+        let admin_register_msg = RegistryAction::RegisterAdmin {
+            user: super_address.to_string(),
+        };
+    
+        handle(
+            &admin_register_msg,
+            &admin_contract,
+            account_name,
+            Some(GAS),
+            Some(backend),
+            Some("1000000000000uscrt"),
+            reports,
+            None,
+        )?;
+
+        Ok(admin_contract)
+    }
+
+    
     pub fn create_factory_contract(
         account_name: &str,
         backend: &str,
@@ -376,6 +426,59 @@ pub mod factory_lib {
         Ok(())
     }
 
+    pub fn send_snip_with_msg_staking(
+        account_name: &str,
+        backend: &str,
+        sender: &str,
+        token_addr: &str,
+        snip_20_amount: Uint128,
+        recipient: &str,
+        recipient_code_hash: Option<String>,       
+        reports: &mut Vec<Report>,
+    ) -> io::Result<()> {
+        println!(
+            "Send to SNIP20 - token {} - amount {} - recipient {}",
+            token_addr.to_string(),
+            snip_20_amount.to_string(),
+            recipient.to_string()
+        );
+
+        let msg = to_binary(&InvokeMsg::Stake { from: recipient.to_string()}).unwrap();
+
+        let rec_code_hash = match recipient_code_hash {
+            Some(hash) => Some(hash),
+            None => None,
+        };
+
+        let net_contract = NetContract {
+            label: "".to_string(),
+            id: "".to_string(),
+            address: token_addr.to_string(),
+            code_hash: "".to_string(),
+        };
+
+        let msg = snip20_reference_impl::msg::ExecuteMsg::Send {
+            recipient: Addr::unchecked(token_addr.to_string()),
+            recipient_code_hash: rec_code_hash,
+            amount: snip_20_amount,
+            msg: Some(msg),
+            memo: None,
+            padding: None,
+        };
+
+        handle(
+            &msg,
+            &net_contract,
+            account_name,
+            Some(GAS),
+            Some(backend),
+            None,
+            reports,
+            None,
+        )?;
+        Ok(())
+    }
+
     pub fn increase_allowance(
         spender: String,
         amount: Uint128,
@@ -556,6 +659,7 @@ pub mod amm_pair_lib {
         Ok(stored_amm_pairs)
     }
 
+    
     pub fn add_amm_pairs(
         factory_addr: String,
         factory_code_hash: String,
@@ -570,7 +674,7 @@ pub mod amm_pair_lib {
         reward_contract_code_hash: Option<String>,
         reward_amount: Option<u128>,
         valid_to: Option<u128>,
-        _staking_contract_decimals: u8,
+        lp_token_decimals: u8,
         reports: &mut Vec<Report>,
     ) -> io::Result<()> {
         let factory_contract = NetContract {
@@ -616,8 +720,7 @@ pub mod amm_pair_lib {
                     contract_addr: Addr::unchecked(msg.clone()),
                     token_code_hash: reward_contract_code_hash.unwrap().to_string(),
                 },
-                valid_to: Uint128::new(valid_to.unwrap()),
-                decimals: 18u8,
+                valid_to: Uint128::new(valid_to.unwrap())
             }),
             None => None,
         };
@@ -627,6 +730,7 @@ pub mod amm_pair_lib {
                 pair: pairs.unwrap().clone(),
                 entropy: to_binary(&entropy).unwrap(),
                 staking_contract: staking_contract_init,
+                lp_token_decimals: lp_token_decimals
             },
             &factory_contract,
             account_name,
@@ -743,6 +847,54 @@ pub mod amm_pair_lib {
             staking_contract_query
         {
             return Ok(staking_contract);
+        }
+        return Ok(None);
+    }
+
+    pub fn get_lp_liquidity(amm_pair_address: &str) -> io::Result<Option<Uint128>>{
+        let lp_token_info_msg = AMMPairQueryMsg::GetPairInfo {};
+        let lp_token_info_query_unstake: AMMPairQueryMsgResponse = query(
+            &NetContract {
+                label: "".to_string(),
+                id: "".to_string(),
+                address: amm_pair_address.to_string(),
+                code_hash: "".to_string(),
+            },
+            lp_token_info_msg,
+            None,
+        )?;
+        if let AMMPairQueryMsgResponse::GetPairInfo {
+            liquidity_token,
+            factory: _,
+            pair: _,
+            amount_0: _,
+            amount_1: _,
+            total_liquidity,
+            contract_version: _,
+            fee_info: _,
+        } = lp_token_info_query_unstake{
+            return Ok(Some(total_liquidity))
+        }
+
+        return Ok(Some(Uint128::zero()));
+    }
+
+    pub fn get_lp_contract(amm_pair_address: &str) -> io::Result<Option<Contract>> {
+        let staking_contract_msg = AMMPairQueryMsg::GetConfig {};
+        let staking_contract_query: AMMPairQueryMsgResponse = query(
+            &NetContract {
+                label: "".to_string(),
+                id: "".to_string(),
+                address: amm_pair_address.to_string(),
+                code_hash: "".to_string(),
+            },
+            staking_contract_msg,
+            None,
+        )?;
+        if let AMMPairQueryMsgResponse::GetConfig { staking_contract, factory_contract: _, lp_token, pair: _, custom_fee: _ } =
+            staking_contract_query
+        {
+            return Ok(Some(lp_token));
         }
         return Ok(None);
     }

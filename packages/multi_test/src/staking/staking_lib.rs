@@ -24,8 +24,7 @@ pub mod staking_lib{
             },
             daily_reward_amount: daily_reward_amount,
             reward_token: reward_token,
-            valid_to: valid_to,
-            decimals: 18u8,
+            valid_to: valid_to
         }
     }
 }

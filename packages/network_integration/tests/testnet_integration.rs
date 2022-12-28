@@ -1207,8 +1207,8 @@ fn run_testnet() -> Result<()> {
             liquidity_token,
             factory: _,
             pair: _,
-            amount_0: _,
-            amount_1: _,
+            amount_0,
+            amount_1,
             total_liquidity,
             contract_version: _,
             fee_info: _,
@@ -1218,6 +1218,8 @@ fn run_testnet() -> Result<()> {
                 "\n\tLP Token Address {}",
                 liquidity_token.address.to_string()
             );
+            print_header(&("\n\tLP Token 0 Amount - ".to_owned() + &amount_0.to_string()));
+            print_header(&("\n\tLP Token 1 Amount - ".to_owned() + &amount_1.to_string()));
             print_header("\n\tLP Token Liquidity - 4950000000");
             assert_eq!(total_liquidity.clone(), Uint128::new(4950000000));
         }
@@ -1307,8 +1309,8 @@ fn run_testnet() -> Result<()> {
             liquidity_token,
             factory: _,
             pair: _,
-            amount_0: _,
-            amount_1: _,
+            amount_0,
+            amount_1,
             total_liquidity,
             contract_version: _,
             fee_info: _,
@@ -1318,8 +1320,10 @@ fn run_testnet() -> Result<()> {
                 "\n\tLP Token Address {}",
                 liquidity_token.address.to_string()
             );
-            print_header("\n\tLP Token Liquidity - (5449999883");
-            assert_eq!(total_liquidity, Uint128::new(5449999883u128));
+            print_header("\n\tLP Token Liquidity - (5449999878");
+            print_header(&("\n\tLP Token 0 Amount - ".to_owned() + &amount_0.to_string()));
+            print_header(&("\n\tLP Token 1 Amount - ".to_owned() + &amount_1.to_string()));
+            assert_eq!(total_liquidity, Uint128::new(5449999878u128));
 
             let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
                 permit: new_permit.clone(),

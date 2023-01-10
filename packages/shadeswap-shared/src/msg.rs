@@ -236,6 +236,10 @@ pub mod amm_pair {
         },
         SetConfig {
             admin_auth: Option<Contract>,
+            lp_token: Option<Contract>,
+        },
+        SetFactoryContract {
+            factory_contract: Option<Contract>,
         },
         SetCustomPairFee {
             custom_fee: Option<CustomFee>,

@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use cosmwasm_std::{Addr, Uint128, Storage};
 use cosmwasm_storage::{singleton, Singleton, ReadonlySingleton, singleton_read, bucket_read, bucket, ReadonlyBucket, Bucket};
+use schemars::_serde_json::de::Read;
 use serde::{Serialize, Deserialize};
-use shadeswap_shared::{core::{TokenType, ViewingKey}, Contract, staking::RewardTokenInfo};
+use shadeswap_shared::{core::{TokenType, ViewingKey}, Contract, staking::RewardTokenInfo, sha2::digest::generic_array::typenum::UInt};
 
 pub static CONFIG: &[u8] = b"CONFIG";
 pub static STAKERS: &[u8] = b"LIST_STAKERS";
@@ -16,6 +19,7 @@ pub static STAKER_INDEX: &[u8] = b"STAKER_INDEX";
 pub static REWARD_TOKEN_INFO: &[u8] = b"REWARD_TOKEN_INFO";
 pub static REWARD_TOKEN_LIST: &[u8] = b"REWARD_TOKEN_LIST";
 pub static PROXY_STAKE: &[u8] = b"PROXY_STAKE";
+pub static REWARD_TOKEN_PER_TOKEN_PAID: &[u8] = b"REWARD_TOKEN_PER_TOKEN_PAID";
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct Config {
@@ -30,15 +34,13 @@ pub struct Config {
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct StakingInfo{
     pub amount: Uint128,
-    pub proxy_staked: Uint128,
-    pub last_time_updated: Uint128,
+    pub proxy_staked: Uint128
 }
 
 #[derive(Serialize, Deserialize,  PartialEq, Debug)]
 pub struct ProxyStakingInfo{
     pub amount: Uint128
 }
-
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct RewardTokenInfoList{
@@ -48,8 +50,8 @@ pub struct RewardTokenInfoList{
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct ClaimRewardsInfo{
     pub amount: Uint128,
-    pub reward_token_addr: Addr,
-    pub reward_token_code_hash: String
+    pub reward_token: TokenType,
+    pub reward_token_per_token_paid: Uint128
 }
 
 pub fn config_w(storage: &mut dyn Storage) -> Singleton<Config> {
@@ -77,11 +79,11 @@ pub fn proxy_staker_info_r(storage: &dyn Storage) -> ReadonlyBucket<ProxyStaking
 }
 
 
-pub fn claim_reward_info_w(storage: &mut dyn Storage) -> Bucket<Vec<ClaimRewardsInfo>> {
+pub fn claim_reward_info_w(storage: &mut dyn Storage) -> Bucket<HashMap<String,ClaimRewardsInfo>> {
     bucket(storage, CLAIM_REWARDS)
 }
 
-pub fn claim_reward_info_r(storage: &dyn Storage) -> ReadonlyBucket<Vec<ClaimRewardsInfo>> {
+pub fn claim_reward_info_r(storage: &dyn Storage) -> ReadonlyBucket<HashMap<String,ClaimRewardsInfo>> {
     bucket_read(storage, CLAIM_REWARDS)
 }
 
@@ -101,22 +103,6 @@ pub fn prng_seed_r(storage: &dyn Storage) -> ReadonlySingleton<Vec<u8>> {
     singleton_read(storage, PGRN_SEED)
 }
 
-pub fn total_stakers_w(storage: &mut dyn Storage) -> Singleton<Uint128> {
-    singleton(storage, TOTAL_STAKERS)
-}
-
-pub fn total_stakers_r(storage: &dyn Storage) -> ReadonlySingleton<Uint128> {
-    singleton_read(storage, TOTAL_STAKERS)
-}
-
-pub fn staker_index_w(storage: &mut dyn Storage) -> Bucket<Addr> {
-    bucket(storage, STAKER_INDEX)
-}
-
-pub fn staker_index_r(storage: &dyn Storage) -> ReadonlyBucket<Addr> {
-    bucket_read(storage, STAKER_INDEX)
-}
-
 pub fn total_staked_w(storage: &mut dyn Storage) -> Singleton<Uint128> {
     singleton(storage, TOTAL_STAKED)
 }
@@ -133,10 +119,10 @@ pub fn reward_token_r(storage: &dyn Storage) -> ReadonlyBucket<RewardTokenInfo> 
     bucket_read(storage, REWARD_TOKEN_INFO)
 }
 
-pub fn reward_token_list_w(storage: &mut dyn Storage) -> Singleton<Vec<Addr>> {
+pub fn reward_token_list_w(storage: &mut dyn Storage) -> Singleton<Vec<String>> {
     singleton(storage, REWARD_TOKEN_LIST)
 }
 
-pub fn reward_token_list_r(storage: &dyn Storage) -> ReadonlySingleton<Vec<Addr>> {
+pub fn reward_token_list_r(storage: &dyn Storage) -> ReadonlySingleton<Vec<String>> {
     singleton_read(storage, REWARD_TOKEN_LIST)
 }

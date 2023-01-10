@@ -331,10 +331,10 @@ pub fn calculate_swap_result(
 
     let amount = Uint128::from(offer.amount);
     let tokens_pool = calculate_token_pool_balance(deps, env, config, offer)?;
-    let token0_pool = tokens_pool[0];
-    let token1_pool = tokens_pool[1];
+    let token_in_pool = tokens_pool[0];
+    let token_out_pool = tokens_pool[1];
 
-    let swap_return_before_fee = calculate_price(amount, token0_pool, token1_pool)?;
+    let swap_return_before_fee = calculate_price(amount, token_in_pool, token_out_pool)?;
 
     let mut lp_fee_amount = Uint128::zero();
     let mut shade_dao_fee_amount = Uint128::zero();
@@ -613,10 +613,10 @@ pub fn remove_liquidity(
 // Calculate the price given LP information
 pub fn calculate_price(
     amount: Uint128,
-    token0_pool_balance: Uint128,
-    token1_pool_balance: Uint128,
+    token_in_pool_balance: Uint128,
+    token_out_pool_balance: Uint128,
 ) -> StdResult<Uint128> {
-    Ok(token1_pool_balance.multiply_ratio(amount, token0_pool_balance + amount))
+    Ok(token_out_pool_balance.multiply_ratio(amount, token_in_pool_balance + amount))
 }
 
 // Add liquidity to pool
@@ -867,6 +867,9 @@ fn add_send_token_to_address_msg(
 }
 
 fn calculate_fee(amount: Uint128, fee: Fee) -> StdResult<Uint128> {
+    if fee.denom == 0u16 {
+        return Ok(Uint128::zero())
+    }
     let amount = amount.multiply_ratio(fee.nom, fee.denom);
     Ok(amount)
 }
@@ -883,10 +886,10 @@ fn calculate_token_pool_balance(
         config.viewing_key.0.clone(),
     )?;
     if let Some(index) = config.pair.get_token_index(&swap_offer.token) {
-        let token0_pool = tokens_balances[index];
-        let token1_pool = tokens_balances[index ^ 1];
+        let token_in_pool = tokens_balances[index];
+        let token_out_pool = tokens_balances[index ^ 1];
 
-        Ok([token0_pool, token1_pool])
+        Ok([token_in_pool, token_out_pool])
     } else {
         Err(StdError::generic_err(
             "The offered token is not traded on this contract".to_string(),

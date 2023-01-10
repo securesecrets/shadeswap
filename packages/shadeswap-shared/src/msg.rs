@@ -137,19 +137,13 @@ pub mod amm_pair {
 
     pub fn generate_pair_key(pair: &TokenPair) -> Vec<u8> {
         let mut bytes: Vec<&[u8]> = Vec::new();
+        let mut values: Vec<String> = Vec::new();
 
-        match &pair.0 {
-            TokenType::NativeToken { denom } => bytes.push(denom.as_bytes()),
-            TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_bytes()),
-        }
-
-        match &pair.1 {
-            TokenType::NativeToken { denom } => bytes.push(denom.as_bytes()),
-            TokenType::CustomToken { contract_addr, .. } => bytes.push(contract_addr.as_bytes()),
-        }
-
-        bytes.sort();
-
+        values.push(pair.0.unique_key());
+        values.push(pair.1.unique_key());
+        values.sort();
+        bytes.push(values[0].as_bytes());
+        bytes.push(values[1].as_bytes());
         bytes.concat()
     }
 
@@ -448,15 +442,17 @@ pub mod staking {
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
     pub struct ClaimableInfo {
-        pub token_address: Addr,
+        pub token_address: String,
         pub amount: Uint128,
     }
 
     #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
     pub struct RewardTokenInfo {
-        pub reward_token: Contract,
-        pub daily_reward_amount: Uint128,
+        pub reward_token: TokenType,
+        pub reward_rate: Uint128,
         pub valid_to: Uint128,
+        pub reward_per_token_stored: Uint128,
+        pub last_update_time: Uint128
     }
 
     #[cw_serde]
@@ -493,7 +489,7 @@ pub mod staking {
             amount: Uint128,
         },
         SetRewardToken {
-            reward_token: Contract,
+            reward_token: TokenType,
             daily_reward_amount: Uint128,
             valid_to: Uint128,
         },

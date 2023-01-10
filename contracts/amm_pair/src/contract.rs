@@ -46,13 +46,13 @@ pub fn instantiate(
         .api
         .addr_validate(&msg.admin_auth.address.to_string())?;
 
-    //Don't allow for custom fee and factory
+    //Don't allow for custom fee with invalid zeros
     if msg.custom_fee.as_ref().is_some()
-        && (msg.custom_fee.as_ref().unwrap().lp_fee.denom == 0u16
-            || msg.custom_fee.as_ref().unwrap().shade_dao_fee.denom == 0u16)
+        && ((msg.custom_fee.as_ref().unwrap().lp_fee.denom == 0u16  && msg.custom_fee.as_ref().unwrap().lp_fee.nom != 0u8)
+            || (msg.custom_fee.as_ref().unwrap().shade_dao_fee.denom == 0u16 && msg.custom_fee.as_ref().unwrap().shade_dao_fee.nom != 0u8))
     {
         return Err(StdError::generic_err(
-            "One of the custom fee denoms are zero.",
+            "One of the custom fee denoms are zero and nom is not 0.",
         ));
     }
 
@@ -138,6 +138,15 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 staking,
             } => add_liquidity(deps, env, &info, deposit, expected_return, staking),
             ExecuteMsg::SetCustomPairFee { custom_fee } => {
+                //Don't allow for custom fee with invalid zeros
+                if custom_fee.as_ref().is_some()
+                && ((custom_fee.as_ref().unwrap().lp_fee.denom == 0u16  && custom_fee.as_ref().unwrap().lp_fee.nom != 0u8)
+                    || (custom_fee.as_ref().unwrap().shade_dao_fee.denom == 0u16 && custom_fee.as_ref().unwrap().shade_dao_fee.nom != 0u8))
+                {
+                    return Err(StdError::generic_err(
+                        "One of the custom fee denoms are zero and nom is not 0.",
+                    ));
+                }
                 let mut config = config_r(deps.storage).load()?;
                 validate_admin(
                     &deps.querier,

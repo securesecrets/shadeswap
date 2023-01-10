@@ -27,6 +27,13 @@ impl TokenType {
             TokenType::CustomToken { .. } => false,
         }
     }
+    pub fn unique_key(&self) -> String {
+        match self {
+            //add c and n to not allow for duplicate keys
+            TokenType::NativeToken { denom  } => "n_".to_owned() + denom,
+            TokenType::CustomToken { contract_addr, token_code_hash : _ } => "c_".to_owned() + contract_addr.as_str(),
+        }
+    }
     pub fn is_custom_token(&self) -> bool {
         match self {
             TokenType::NativeToken { .. } => false,

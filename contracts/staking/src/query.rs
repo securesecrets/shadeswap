@@ -2,8 +2,8 @@ use cosmwasm_std::{Binary, StdResult, StdError, Deps, Uint128, Addr, Storage, to
 use shadeswap_shared::core::TokenType;
 use shadeswap_shared::staking::{QueryResponse, ClaimableInfo, RewardTokenInfo};
 use shadeswap_shared::utils::asset::Contract;
-use crate::operations::{find_claimable_reward_for_staker_by_reward_token, calculate_incremental_staking_reward, get_reward_tokens_info, calculate_staker_shares};
-use crate::state::{stakers_r, total_staked_r, config_r};
+use crate::operations::{get_reward_tokens_info, earned};
+use crate::state::{stakers_r, total_staked_r, config_r, claim_reward_info_r, reward_token_w, reward_token_r};
 
 pub fn config(deps: Deps) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
@@ -33,58 +33,15 @@ pub fn config(deps: Deps) -> StdResult<Binary> {
 pub fn claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResult<Binary> {
     // load stakers   
     let mut result_list: Vec<ClaimableInfo> = Vec::new();
-    let staker_info = stakers_r(deps.storage).load(staker.as_bytes())?;
-    let reward_token_list: Vec<RewardTokenInfo> = get_reward_tokens_info(deps.storage)?;
-    let percentage = calculate_staker_shares(deps.storage, staker_info.amount)?;
-    for reward_token in reward_token_list.iter() {
-        if reward_token.valid_to < staker_info.last_time_updated {
-            let reward: Uint128;
-            println!("time {} - valid_to {}", time.to_string(), reward_token.valid_to.to_string());
-            if time > reward_token.valid_to {
-                // calculate reward amount for each reward token
-                reward = calculate_incremental_staking_reward(
-                    percentage,
-                    staker_info.last_time_updated,
-                    time,
-                    reward_token.daily_reward_amount,
-                )?;
-            } else {
-                reward = calculate_incremental_staking_reward(
-                    percentage,
-                    staker_info.last_time_updated,
-                    reward_token.valid_to,
-                    reward_token.daily_reward_amount,
-                )?;
-            }
-            // load any existing claimable reward for specif user
-            let claimable_reward = find_claimable_reward_for_staker_by_reward_token(
-                deps.storage,
-                &staker,
-                &reward_token.reward_token,
-            )?;
-            
-            result_list.push(ClaimableInfo {
-                token_address: reward_token.reward_token.address.to_owned(),
-                amount: claimable_reward.amount + reward,
-            });
-        }
-        else{
-            let reward = calculate_incremental_staking_reward(
-                percentage,
-                staker_info.last_time_updated,
-                time,
-                reward_token.daily_reward_amount,
-            )?;
-            let claimable_reward = find_claimable_reward_for_staker_by_reward_token(
-                deps.storage,
-                &staker,
-                &reward_token.reward_token,
-            )?;
-            result_list.push(ClaimableInfo {
-                token_address: reward_token.reward_token.address.to_owned(),
-                amount: claimable_reward.amount + reward,
-            });
-        }
+    for claim_info in claim_reward_info_r(deps.storage)
+        .load(staker.clone().as_bytes())?
+        .iter()
+    {
+        let reward_token_info: RewardTokenInfo = reward_token_r(deps.storage).load(claim_info.1.reward_token.unique_key().as_bytes())?;
+        result_list.push(ClaimableInfo {
+            token_address: claim_info.1.reward_token.unique_key(),
+            amount: earned(&staker, claim_info.1.amount, reward_token_info.reward_per_token_stored, claim_info.1.reward_token_per_token_paid, deps.storage)?
+        });
     }
     to_binary(&QueryResponse::GetClaimReward {
         claimable_rewards: result_list,

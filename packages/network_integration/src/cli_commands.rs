@@ -811,10 +811,7 @@ pub mod amm_pair_lib {
 
         handle(
             &StakingExecuteMsg::SetRewardToken {
-                reward_token: Contract {
-                    address: Addr::unchecked(token_addr.to_string()),
-                    code_hash: token_code_hash.to_string(),
-                },
+                reward_token: TokenType::CustomToken { contract_addr: Addr::unchecked(token_addr.to_string()), token_code_hash: token_code_hash.to_string() } ,
                 daily_reward_amount: daily_reward_amount,
                 valid_to: valid_to,
             },

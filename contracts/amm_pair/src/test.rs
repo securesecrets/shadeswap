@@ -312,7 +312,7 @@ pub mod tests_calculation_price_and_fee {
 
     
     use shadeswap_shared::amm_pair::QueryMsg;
-    use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount};
+    use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount, TokenPair};
     use shadeswap_shared::msg::amm_pair::QueryMsgResponse;
     use crate::operations::lp_virtual_swap;
     use crate::contract;
@@ -364,6 +364,24 @@ pub mod tests_calculation_price_and_fee {
     fn assert_initial_swap_with_token_success_without_fee() -> StdResult<()>
     {     
         let custom_fee: Option<CustomFee> = None;
+        let mut deps = mock_dependencies(&[]);
+        let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
+        let token_pair = mk_token_pair_test_calculation_price_fee();
+        let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
+        let offer_amount: u128 = 2000;
+        let expected_amount: u128 = 1666;
+        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
+            &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
+             Some(true));
+        assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
+        Ok(())
+    }
+
+    #[test]
+    fn assert_initial_swap_with_token_success_with_no_shadedao_fee() -> StdResult<()>
+    {     
+        let custom_fee: Option<CustomFee> = Some(CustomFee { shade_dao_fee: Fee{ nom: 0u8, denom: 0u16 }, lp_fee: Fee{ nom: 1u8, denom: 1u16 } });
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
         let token_pair = mk_token_pair_test_calculation_price_fee();

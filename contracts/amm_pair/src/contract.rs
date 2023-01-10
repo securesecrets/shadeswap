@@ -219,7 +219,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 )?;
                 update_viewing_key(env, deps, viewing_key, &mut config)
             },
-            ExecuteMsg::SetConfig { admin_auth } => {
+            ExecuteMsg::SetConfig { admin_auth, lp_token } => {
                 let mut config = config_r(deps.storage).load()?;
                 validate_admin(
                     &deps.querier,
@@ -230,6 +230,21 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 if let Some(admin_auth) = admin_auth {
                     config.admin_auth = admin_auth;
                 }
+                if let Some(lp_token) = lp_token {
+                    config.lp_token = lp_token;
+                }
+                config_w(deps.storage).save(&config)?;
+                Ok(Response::default())
+            }
+            ExecuteMsg::SetFactoryContract { factory_contract } => {
+                let mut config = config_r(deps.storage).load()?;
+                validate_admin(
+                    &deps.querier,
+                    AdminPermissions::ShadeSwapAdmin,
+                    &info.sender,
+                    &config.admin_auth,
+                )?;
+                config.factory_contract = factory_contract;
                 config_w(deps.storage).save(&config)?;
                 Ok(Response::default())
             }

@@ -341,7 +341,7 @@ pub fn router_integration_tests() {
         "password",
         &token_1_contract
     ).unwrap();
-    assert_eq!(balance, Uint128::new(889u128));
+    assert_eq!(balance, Uint128::new(970u128));
  
 }
 

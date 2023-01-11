@@ -78,12 +78,11 @@ pub fn proxy_staker_info_r(storage: &dyn Storage) -> ReadonlyBucket<ProxyStaking
     bucket_read(storage, PROXY_STAKE)
 }
 
-
-pub fn claim_reward_info_w(storage: &mut dyn Storage) -> Bucket<HashMap<String,ClaimRewardsInfo>> {
+pub fn claim_reward_info_w(storage: &mut dyn Storage) -> Bucket<ClaimRewardsInfo> {
     bucket(storage, CLAIM_REWARDS)
 }
 
-pub fn claim_reward_info_r(storage: &dyn Storage) -> ReadonlyBucket<HashMap<String,ClaimRewardsInfo>> {
+pub fn claim_reward_info_r(storage: &dyn Storage) -> ReadonlyBucket<ClaimRewardsInfo> {
     bucket_read(storage, CLAIM_REWARDS)
 }
 

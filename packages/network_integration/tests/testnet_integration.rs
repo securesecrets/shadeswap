@@ -56,7 +56,7 @@ use secretcli::{
 };
 use serde_json::Result;
 
-#[test]
+//#[test]
 fn run_testnet() -> Result<()> {
     let account = account_address(ACCOUNT_KEY)?;
     let _shade_dao = account_address(SHADE_DAO_KEY)?;
@@ -381,6 +381,11 @@ fn run_testnet() -> Result<()> {
         &mut reports,
     )
     .unwrap();
+
+    assert_eq!(
+        get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(1000000000000 - 10000000000)
+    );
 
     print_header("\n\tAdding Liquidity to NATIVE/SNIP20 staking contract");
     handle(

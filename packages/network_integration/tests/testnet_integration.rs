@@ -56,7 +56,7 @@ use secretcli::{
 };
 use serde_json::Result;
 
-//#[test]
+#[test]
 fn run_testnet() -> Result<()> {
     let account = account_address(ACCOUNT_KEY)?;
     let _shade_dao = account_address(SHADE_DAO_KEY)?;

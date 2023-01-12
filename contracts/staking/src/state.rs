@@ -49,7 +49,7 @@ pub struct RewardTokenInfoList{
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct ClaimRewardsInfo{
-    pub amount: Uint128,
+    pub rewards: Uint128,
     pub reward_token: TokenType,
     pub reward_token_per_token_paid: Uint128
 }

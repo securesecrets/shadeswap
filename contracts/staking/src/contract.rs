@@ -66,7 +66,6 @@ pub fn instantiate(
     };
 
     let mut reward_token_list: Vec<String> = Vec::new();
-    reward_token_list.push(msg.reward_token.unique_key());
     reward_token_list_w(deps.storage).save(&reward_token_list)?;
 
     set_reward_token(deps, env.clone(), msg.daily_reward_amount, msg.reward_token, msg.valid_to)?;

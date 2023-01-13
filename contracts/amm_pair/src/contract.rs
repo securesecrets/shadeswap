@@ -432,7 +432,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             QueryMsg::SwapSimulation { offer, exclude_fee } => {
                 query::swap_simulation(deps, env, offer, exclude_fee)
             }
-            QueryMsg::GetShadeDaoInfo {} => query::shade_dao_info(deps, &env),
+            QueryMsg::GetShadeDaoInfo {} => query::shade_dao_info(deps),
             QueryMsg::GetEstimatedLiquidity { deposit, sender } => {
                 query::estimated_liquidity(deps, env, &deposit, sender)
             }

@@ -158,7 +158,6 @@ pub mod factory_lib {
     use std::io;
 
     use cosmwasm_std::{Binary, Uint128};
-    use query_authentication::transaction::{PermitSignature, PubKey};
     use secretcli::{
         cli_types::{NetContract},
         secretcli::{handle, store_and_return_contract, Report, init},
@@ -169,7 +168,7 @@ pub mod factory_lib {
         core::{ContractInstantiationInfo, Fee},
         msg::factory::InitMsg as FactoryInitMsg,
         contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
-        Contract, staking::{InvokeMsg, QueryData}, query_auth::PermitData, admin::RegistryAction,
+        Contract, staking::{InvokeMsg}, query_auth::PermitData, admin::RegistryAction,
     };
     use query_authentication::permit::Permit;
 

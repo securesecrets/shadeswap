@@ -46,7 +46,6 @@ use shadeswap_shared::{
     router::Hop,
     snip20,
     staking::{AuthQuery, QueryData},
-    utils::Query,
     Pagination, Contract,
 };
 

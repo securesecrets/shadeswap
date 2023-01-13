@@ -109,7 +109,7 @@ pub fn fee_info(deps: Deps) -> StdResult<FeeInfo> {
     })
 }
 
-pub fn shade_dao_info(deps: Deps, env: &Env) -> StdResult<Binary> {
+pub fn shade_dao_info(deps: Deps) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
     let fee_info = fee_info(deps)?;
     let shade_dao_info = QueryMsgResponse::GetShadeDaoInfo {

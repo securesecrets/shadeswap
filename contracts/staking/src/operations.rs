@@ -1,22 +1,17 @@
-const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
-
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::ops::Div;
-
 use cosmwasm_std::{
     to_binary, Addr, Attribute, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
     StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use shadeswap_shared::core::TokenType;
 use shadeswap_shared::snip20;
+use shadeswap_shared::snip20::helpers::set_viewing_key_msg;
 use shadeswap_shared::staking::RewardTokenInfo;
 use shadeswap_shared::utils::ExecuteCallback;
 use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, Contract};
 const SECONDS_IN_DAY: Uint128 = Uint128::new(24u128 * 60u128 * 60u128);
 const MAX_DECIMALS: Uint128 = Uint128::new(1_000_000_000_000_000_000);
 
-use crate::contract::SHADE_STAKING_KEY;
+use crate::contract::{SHADE_STAKING_VIEWKEY};
 use crate::state::{
     claim_reward_info_r, claim_reward_info_w, config_r, config_w, proxy_staker_info_r,
     proxy_staker_info_w, reward_token_list_r, reward_token_list_w, reward_token_r, reward_token_w,
@@ -51,11 +46,11 @@ pub fn store_init_reward_token_and_timestamp(
 /// Stake
 pub fn stake(
     deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
+    env: &Env,
+    info: &MessageInfo,
     amount: Uint128,
-    from_addr: Addr,
-    for_addr: Addr,
+    from_addr: &Addr,
+    for_addr: &Addr,
 ) -> StdResult<Response> {
     // this is receiver for LP Token send to staking contract ->
     let config = config_r(deps.storage).load()?;
@@ -142,8 +137,8 @@ pub fn generate_proxy_staking_key(from: &Addr, for_addr: &Addr) -> Vec<u8> {
 pub fn claim_rewards(
     deps: DepsMut,
     current_timestamp: Uint128,
-    claimer: Addr,
-    env: Env,
+    claimer: &Addr,
+    env: &Env,
 ) -> StdResult<Response> {
     let receiver = claimer.clone();
     update_reward(current_timestamp, &receiver, deps.storage, &env)?;
@@ -181,7 +176,7 @@ pub fn claim_rewards(
 
 pub fn set_reward_token(
     deps: DepsMut,
-    env: Env,
+    env: &Env,
     daily_reward_amount: Uint128,
     reward_token: TokenType,
     valid_to: Uint128,
@@ -193,8 +188,24 @@ pub fn set_reward_token(
         reward_token_w(deps.storage).may_load(reward_token.unique_key().as_bytes())?;
     let mut token_info: RewardTokenInfo;
 
+    let mut messages = vec![];
+
     match token_info_option {
         None => {
+            match reward_token.clone() {
+                TokenType::CustomToken { contract_addr, token_code_hash } => {
+                    messages.push(set_viewing_key_msg(
+                        SHADE_STAKING_VIEWKEY.to_string(),
+                        None,
+                        &Contract {
+                            address: contract_addr.clone(),
+                            code_hash: token_code_hash.to_string(),
+                        },
+                    )?);
+                },
+                TokenType::NativeToken { denom:_ } => (),
+            }
+
             let mut reward_token_list = reward_token_list_w(deps.storage).load()?;
             reward_token_list.push(reward_token.unique_key());
             reward_token_list_w(deps.storage).save(&reward_token_list)?;
@@ -213,34 +224,17 @@ pub fn set_reward_token(
             if current_timestamp >= valid_to {
                 token_info.reward_rate = daily_reward_amount.checked_div(SECONDS_IN_DAY)?;
             } else {
-                let remaining = valid_to.checked_sub(current_timestamp)?;
-                let leftover = remaining.checked_mul(token_info.reward_rate)?;
                 token_info.reward_rate = daily_reward_amount
-                    //.checked_add(leftover)?
                     .checked_div(SECONDS_IN_DAY)?
             }
         }
     }
 
-    // Ensure the provided reward amount is not more than the balance in the contract.
-    // This keeps the reward rate in the right range, preventing overflows due to
-    // very high values of rewardRate in the earned and rewardsPerToken functions;
-    // Reward + leftover must be less than 2^128 / 10^18 to avoid overflow.
-    // let balance = reward_token.query_balance(
-    //     deps.as_ref(),
-    //     env.contract.address.to_string(),
-    //     SHADE_STAKING_KEY.to_string(),
-    // )?;
-
-    // if daily_reward_amount > balance {
-    //     return Err(StdError::generic_err("Provided reward rate is too high"));
-    // }
-
     token_info.last_update_time = current_timestamp;
     token_info.valid_to = valid_to;
 
     reward_token_w(deps.storage).save(reward_token.unique_key().as_bytes(), &token_info)?;
-    Ok(Response::new().add_attributes(vec![
+    Ok(Response::new().add_messages(messages).add_attributes(vec![
         Attribute::new("action", "set_reward_token"),
         Attribute::new("daily_reward_amount", daily_reward_amount.to_string()),
         Attribute::new("valid_to", valid_to.to_string()),
@@ -273,9 +267,9 @@ pub fn update_authenticator(
 /// Unstake Amount
 pub fn unstake(
     deps: DepsMut,
-    env: Env,
-    from_address: Addr,
-    for_address: Addr,
+    env: &Env,
+    from_address: &Addr,
+    for_address: &Addr,
     amount: Uint128,
     remove_liquidity: Option<bool>,
 ) -> StdResult<Response> {

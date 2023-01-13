@@ -27,7 +27,7 @@ pub mod tests {
         contract::{auth_queries, execute, query},
         operations::{
             calculate_staker_shares, claim_rewards, earned, generate_proxy_staking_key,
-            get_user_claim_key, set_reward_token, stake, unstake, update_reward, reward_per_token,
+            get_user_claim_key, reward_per_token, set_reward_token, stake, unstake, update_reward,
         },
         query::{self},
         state::{
@@ -59,7 +59,7 @@ pub mod tests {
     fn assert_init_config() -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
-        let config: Config = make_init_config(deps.as_mut(), env, Uint128::from(100u128))?;
+        let config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         assert_eq!(config.daily_reward_amount, Uint128::from(100u128));
         assert_eq!(
             config.reward_token,
@@ -81,14 +81,14 @@ pub mod tests {
         let mock_info = mock_info(LP_TOKEN, &[]);
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> =
             mock_dependencies(&[]).into();
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let _stake = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1500u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         let user_shares =
             calculate_staker_shares(deps.as_mut().storage, Uint128::from(500u128)).unwrap();
@@ -105,11 +105,17 @@ pub mod tests {
     fn assert_get_reward_token_list_success() -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
-        set_reward_token(deps.as_mut(), env.clone(), Uint128::new(100000000000u128), TokenType::CustomToken {
-            contract_addr: Addr::unchecked("REWARD_TOKEN_A".to_string()),
-            token_code_hash: "".to_string(),
-        }, Uint128::new(30000000000000u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
+        set_reward_token(
+            deps.as_mut(),
+            &env,
+            Uint128::new(100000000000u128),
+            TokenType::CustomToken {
+                contract_addr: Addr::unchecked("REWARD_TOKEN_A".to_string()),
+                token_code_hash: "".to_string(),
+            },
+            Uint128::new(30000000000000u128),
+        )?;
         let auth_query = shadeswap_shared::staking::QueryMsg::GetRewardTokens {};
         let raw_response = query(deps.as_ref(), env, auth_query)?;
         let query_response: QueryResponse = from_binary(&raw_response)?;
@@ -129,14 +135,14 @@ pub mod tests {
         let mock_info = mock_info(LP_TOKEN, &[]);
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> =
             mock_dependencies(&[]).into();
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let _stake = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1500u128),
-            deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         let user_shares =
             calculate_staker_shares(deps.as_mut().storage, Uint128::from(500u128)).unwrap();
@@ -153,39 +159,39 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let _env_b = mock_custom_env(CONTRACT_ADDRESS, 1571797854, 1534);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         let _stake_b = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1500u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
         )?;
         let _stake_c = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1700u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_C)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_C)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_C)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_C)?,
         )?;
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         Ok(())
     }
@@ -197,39 +203,39 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let _env_b = mock_custom_env(CONTRACT_ADDRESS, 1571797854, 1534);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         let _stake_b = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1500u128),
-            deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
         )?;
         let _stake_c = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1700u128),
-            deps_owned.as_mut().api.addr_validate(PROXY_STAKER_B)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_C)?,
+            &deps_owned.as_mut().api.addr_validate(PROXY_STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_C)?,
         )?;
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         Ok(())
     }
@@ -240,37 +246,37 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let stake_mock_info = mock_info(LP_TOKEN, &[]);
         let unstake_mock_info = mock_info(STAKER_A, &[]);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         let _stake_b = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1500u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
         )?;
         let _stake_c = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1700u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_C)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_C)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_C)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_C)?,
         )?;
         let _unstake_a = unstake(
             deps.as_mut(),
-            env.clone(),
-            unstake_mock_info.sender.clone(),
-            unstake_mock_info.sender.clone(),
+            &env,
+            &unstake_mock_info.sender.clone(),
+            &unstake_mock_info.sender.clone(),
             Uint128::from(1000u128),
             Some(true),
         )?;
@@ -284,8 +290,9 @@ pub mod tests {
             )?;
 
         let staker_info = stakers_r(deps.as_mut().storage)
-            .load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
+            .load(&deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
         assert_eq!(claim_reward_info_a.rewards, Uint128::zero());
+        assert_eq!(staker_info.amount, Uint128::zero());
         Ok(())
     }
 
@@ -307,7 +314,7 @@ pub mod tests {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let stake_mock_info = mock_info(LP_TOKEN, &[]);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let staker_a_addr: Addr = deps_owned
             .as_mut()
@@ -315,11 +322,11 @@ pub mod tests {
             .addr_validate("secret1ap26qrlp8mcq2pg6r47w43l0y8zkqm8a450s03")?;
         let _ = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1000u128),
-            staker_a_addr.clone(),
-            staker_a_addr.clone(),
+            &staker_a_addr.clone(),
+            &staker_a_addr.clone(),
         )?;
         // Query With Permit StakerLpTokenInfo Staker A 1000
         let auth_query = QueryMsg::WithPermit {
@@ -375,22 +382,22 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let stake_mock_info = mock_info(LP_TOKEN, &[]);
         let unstake_mock_info = mock_info(STAKER_A, &[]);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
 
         let _unstake_a = unstake(
             deps.as_mut(),
-            env.clone(),
-            unstake_mock_info.sender.clone(),
-            unstake_mock_info.sender.clone(),
+            &env,
+            &unstake_mock_info.sender.clone(),
+            &unstake_mock_info.sender.clone(),
             Uint128::from(100000u128),
             Some(true),
         );
@@ -410,22 +417,22 @@ pub mod tests {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let unstake_mock_info = mock_info(STAKER_A, &[]);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
-        
-        let stake_a = stake(
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
+
+        stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info(LP_TOKEN, &[]),
+            &env,
+            &mock_info(LP_TOKEN, &[]),
             Uint128::from(100000u128),
-            Addr::unchecked(STAKER_B),
-            Addr::unchecked(STAKER_B),
+            &Addr::unchecked(STAKER_B),
+            &Addr::unchecked(STAKER_B),
         )?;
 
         let _unstake_a = unstake(
             deps.as_mut(),
-            env.clone(),
-            unstake_mock_info.sender.clone(),
-            unstake_mock_info.sender.clone(),
+            &env,
+            &unstake_mock_info.sender.clone(),
+            &unstake_mock_info.sender.clone(),
             Uint128::from(100000u128),
             Some(true),
         );
@@ -444,8 +451,7 @@ pub mod tests {
     fn assert_set_native_token_throws_exception() -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
-        let mut _config: Config =
-            make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let mut _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         _config.reward_token = TokenType::NativeToken {
             denom: "uscrt".to_string(),
         };
@@ -465,20 +471,20 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let unstake_mock_info = mock_info(STAKER_A, &[]);
         let stake_mock_info = mock_info(LP_TOKEN, &[]);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1000u128),
-            Addr::unchecked(STAKER_A),
-            Addr::unchecked(STAKER_B),
+            &Addr::unchecked(STAKER_A),
+            &Addr::unchecked(STAKER_B),
         )?;
         let _unstake_proxy_a = unstake(
             deps.as_mut(),
-            env.clone(),
-            unstake_mock_info.sender.clone(),
-            Addr::unchecked(STAKER_C),
+            &env,
+            &unstake_mock_info.sender.clone(),
+            &Addr::unchecked(STAKER_C),
             Uint128::from(100000u128),
             Some(false),
         );
@@ -490,17 +496,17 @@ pub mod tests {
 
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1000u128),
-            Addr::unchecked(STAKER_A),
-            Addr::unchecked(STAKER_B),
+            &Addr::unchecked(STAKER_A),
+            &Addr::unchecked(STAKER_B),
         )?;
         let _unstake_proxy_a = unstake(
             deps.as_mut(),
-            env.clone(),
-            unstake_mock_info.sender.clone(),
-            Addr::unchecked(STAKER_B),
+            &env,
+            &unstake_mock_info.sender.clone(),
+            &Addr::unchecked(STAKER_B),
             Uint128::from(100000u128),
             Some(false),
         );
@@ -520,14 +526,14 @@ pub mod tests {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let stake_mock_info = mock_info(STAKER_B, &[]);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1000u128),
-            Addr::unchecked(STAKER_A),
-            Addr::unchecked(STAKER_C),
+            &Addr::unchecked(STAKER_A),
+            &Addr::unchecked(STAKER_C),
         );
         match _stake_a {
             Ok(_) => todo!(),
@@ -541,14 +547,14 @@ pub mod tests {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let stake_mock_info = mock_info(STAKER_B, &[]);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1000u128),
-            Addr::unchecked(STAKER_A),
-            Addr::unchecked(STAKER_A),
+            &Addr::unchecked(STAKER_A),
+            &Addr::unchecked(STAKER_A),
         );
         match _stake_a {
             Ok(_) => todo!(),
@@ -562,37 +568,37 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let stake_mock_info = mock_info(LP_TOKEN, &[]);
         let unstake_mock_info = mock_info(PROXY_STAKER_A, &[]);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         let _stake_b = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1500u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
         )?;
         let _stake_c = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1700u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_C)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_C)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_C)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_C)?,
         )?;
         let _unstake_a = unstake(
             deps.as_mut(),
-            env.clone(),
-            unstake_mock_info.sender.clone(),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &env,
+            &unstake_mock_info.sender.clone(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             Uint128::from(1000u128),
             None,
         )?;
@@ -607,13 +613,14 @@ pub mod tests {
             )?;
 
         let staker_info = stakers_r(deps.as_mut().storage)
-            .load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
+            .load(&deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
 
         let proxy_staker_info =
             proxy_staker_info_r(deps.as_mut().storage).load(&generate_proxy_staking_key(
-                &deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
-                &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+                &&deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
+                &&deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             ))?;
+        assert_eq!(staker_info.amount, Uint128::zero());
         assert_eq!(proxy_staker_info.amount, Uint128::zero());
         assert_eq!(claim_reward_info_a.rewards, Uint128::zero());
         Ok(())
@@ -625,27 +632,28 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 1500000);
         let env_b = mock_custom_env(CONTRACT_ADDRESS, 1534, 1600000);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let _config: Config =
-            make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(300000u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         // STAKER A
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(),
-            deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(),
         )
         .unwrap();
         // assert there is no claim reward for staker a
-        let claim_reward_info = claim_reward_info_r(deps.as_mut().storage).load(
-            get_user_claim_key(
-                deps_owned.as_mut().api.addr_validate(STAKER_A)?.to_string(),
-                reward_token().unique_key(),
+        let claim_reward_info = claim_reward_info_r(deps.as_mut().storage)
+            .load(
+                get_user_claim_key(
+                    deps_owned.as_mut().api.addr_validate(STAKER_A)?.to_string(),
+                    reward_token().unique_key(),
+                )
+                .as_bytes(),
             )
-            .as_bytes(),
-        ).unwrap();
+            .unwrap();
 
         // Claimable for staker A throws Exception
         assert_eq!(claim_reward_info.rewards, Uint128::zero());
@@ -655,14 +663,19 @@ pub mod tests {
         // STAKER B
         let _stake_b = stake(
             deps.as_mut(),
-            env_b.clone(),
-            mock_info.clone(),
+            &env_b,
+            &mock_info,
             Uint128::from(1500u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
         )?;
 
-        update_reward(Uint128::new(1600000),  &deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(), deps.as_mut().storage, &env)?;
+        update_reward(
+            Uint128::new(1600000),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(),
+            deps.as_mut().storage,
+            &env,
+        )?;
 
         // Assert Staker A claimable reward
         let claim_reward_info_a: ClaimRewardsInfo = claim_reward_info_r(deps.as_mut().storage)
@@ -682,24 +695,21 @@ pub mod tests {
         // Claimable for staker A throws Exception
         match claim_reward_info_b {
             Ok(_) => todo!(),
-            Err(err) => assert_eq!(
-                err,
-                StdError::not_found("staking::state::ClaimRewardsInfo")
-            ),
+            Err(err) => assert_eq!(err, StdError::not_found("staking::state::ClaimRewardsInfo")),
         }
 
         // timestamp 1600000000
         claim_rewards(
             deps.as_mut(),
             Uint128::new(1600000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            env_b.clone(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &env_b,
         )?;
         claim_rewards(
             deps.as_mut(),
             Uint128::new(1600000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
-            env_b.clone(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &env_b,
         )?;
 
         let claim_reward_info_a: ClaimRewardsInfo = claim_reward_info_r(deps.as_mut().storage)
@@ -723,23 +733,26 @@ pub mod tests {
         assert_eq!(claim_reward_info_a.rewards, Uint128::new(0u128));
         assert_eq!(claim_reward_info_b.rewards, Uint128::new(0u128));
         let staker_info_a = stakers_r(deps.as_mut().storage)
-            .load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
+            .load(&deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
         let staker_info_b = stakers_r(deps.as_mut().storage)
             .load(deps_owned.as_mut().api.addr_validate(STAKER_B)?.as_bytes())?;
+
+        assert_eq!(staker_info_a.amount, Uint128::new(1000));
+        assert_eq!(staker_info_b.amount, Uint128::new(1500));
 
         // move timestamp 1700000000
 
         claim_rewards(
             deps.as_mut(),
             Uint128::new(1700000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            env_b.clone(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &env_b,
         )?;
         claim_rewards(
             deps.as_mut(),
             Uint128::new(1700000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
-            env_b,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &env_b,
         )?;
 
         let claim_reward_info_a: ClaimRewardsInfo = claim_reward_info_r(deps.as_mut().storage)
@@ -765,8 +778,21 @@ pub mod tests {
     }
 
     #[test]
-    fn assert_calculation()-> StdResult<()>  {
-        assert_eq!(reward_per_token(Uint128::new(16000000u128), &RewardTokenInfo { reward_token: reward_token(), reward_rate: Uint128::new(3), valid_to: Uint128::new(17000000u128), reward_per_token_stored: Uint128::new(0), last_update_time: Uint128::new(15000000u128) }, Uint128::new(1000u128))?, Uint128::new(3000000000000000000000u128));
+    fn assert_calculation() -> StdResult<()> {
+        assert_eq!(
+            reward_per_token(
+                Uint128::new(16000000u128),
+                &RewardTokenInfo {
+                    reward_token: reward_token(),
+                    reward_rate: Uint128::new(3),
+                    valid_to: Uint128::new(17000000u128),
+                    reward_per_token_stored: Uint128::new(0),
+                    last_update_time: Uint128::new(15000000u128)
+                },
+                Uint128::new(1000u128)
+            )?,
+            Uint128::new(3000000000000000000000u128)
+        );
         Ok(())
     }
 
@@ -783,29 +809,33 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 15000000);
         let env_b = mock_custom_env(CONTRACT_ADDRESS, 1600, 16000000);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let _config: Config =
-            make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(300000u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         let _stake_b = stake(
             deps.as_mut(),
-            env_b.clone(),
-            mock_info.clone(),
+            &env_b,
+            &mock_info,
             Uint128::from(1500u128),
-            deps_owned.as_ref().api.addr_validate(STAKER_B)?,
-            deps_owned.as_ref().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_ref().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_ref().api.addr_validate(STAKER_B)?,
         )?;
         // let user_shares =
         //     calculate_staker_shares(deps.as_mut().storage, Uint128::from(1000u128)).unwrap();
 
-        update_reward(Uint128::from(16000000u128), &deps_owned.as_mut().api.addr_validate(STAKER_A)?, deps.as_mut().storage, &env_b)?;
+        update_reward(
+            Uint128::from(16000000u128),
+            &&deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            deps.as_mut().storage,
+            &env_b,
+        )?;
 
         let claim_reward_info_a: ClaimRewardsInfo = claim_reward_info_r(deps.as_mut().storage)
             .load(
@@ -825,31 +855,35 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 15000000);
         let env_b = mock_custom_env(CONTRACT_ADDRESS, 1534, 16000000);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let _config: Config =
-            make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(300000u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         let _stake_b = stake(
             deps.as_mut(),
-            env_b.clone(),
-            mock_info.clone(),
+            &env_b,
+            &mock_info,
             Uint128::from(1500u128),
-            deps_owned.as_ref().api.addr_validate(STAKER_B)?,
-            deps_owned.as_ref().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_ref().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_ref().api.addr_validate(STAKER_B)?,
         )?;
 
         let reward_tokens = reward_token_list_r(deps.as_mut().storage).load().unwrap();
         let reward_token_info: RewardTokenInfo = reward_token_r(deps.as_mut().storage)
             .load(reward_tokens[0].to_owned().as_bytes())
             .unwrap();
-        update_reward(Uint128::from(16000000u128), &deps_owned.as_mut().api.addr_validate(STAKER_A)?, deps.as_mut().storage, &env)?;
+        update_reward(
+            Uint128::from(16000000u128),
+            &&deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            deps.as_mut().storage,
+            &env,
+        )?;
 
         let claim_reward_info_a: ClaimRewardsInfo = claim_reward_info_r(deps.as_mut().storage)
             .load(
@@ -861,7 +895,7 @@ pub mod tests {
             )?;
 
         let staker_info = stakers_r(deps.as_ref().storage)
-            .load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
+            .load(&deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
         let staking_reward = earned(
             staker_info.amount,
             reward_token_info.reward_per_token_stored,
@@ -877,19 +911,23 @@ pub mod tests {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 15000000);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let _config: Config =
-            make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(300000u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(),
-            deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(),
         )
         .unwrap();
-        update_reward(Uint128::from(16000000u128), &deps_owned.as_mut().api.addr_validate(STAKER_A)?, deps.as_mut().storage, &env)?;
+        update_reward(
+            Uint128::from(16000000u128),
+            &&deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            deps.as_mut().storage,
+            &env,
+        )?;
 
         let claim_reward_info_b = claim_reward_info_r(deps.as_mut().storage).load(
             deps_owned
@@ -901,10 +939,7 @@ pub mod tests {
         );
         match claim_reward_info_b {
             Ok(_) => todo!(),
-            Err(err) => assert_eq!(
-                err,
-                StdError::not_found("staking::state::ClaimRewardsInfo")
-            ),
+            Err(err) => assert_eq!(err, StdError::not_found("staking::state::ClaimRewardsInfo")),
         }
         Ok(())
     }
@@ -915,40 +950,40 @@ pub mod tests {
         let env = mock_custom_env(CONTRACT_ADDRESS, 1571797523, 1524);
         let stake_mock_info = mock_info(LP_TOKEN, &[]);
         let unstake_mock_info = mock_info(PROXY_STAKER_A, &[]);
-        let _config: Config = make_init_config(deps.as_mut(), env.clone(), Uint128::from(100u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(100u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         let _stake_b = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1500u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
         )?;
         let _stake_c = stake(
             deps.as_mut(),
-            env.clone(),
-            stake_mock_info.clone(),
+            &env,
+            &stake_mock_info,
             Uint128::from(1700u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_C)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_C)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_C)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_C)?,
         )?;
 
         //Check you cannot unstake what you did not stake
         assert_error(
             unstake(
                 deps.as_mut(),
-                env.clone(),
-                unstake_mock_info.sender.clone(),
-                deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+                &env,
+                &unstake_mock_info.sender.clone(),
+                &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
                 Uint128::from(1000u128),
                 None,
             ),
@@ -959,9 +994,9 @@ pub mod tests {
         assert_error(
             unstake(
                 deps.as_mut(),
-                env.clone(),
-                deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
-                deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+                &env,
+                &deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
+                &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
                 Uint128::from(1001u128),
                 None,
             ),
@@ -972,9 +1007,9 @@ pub mod tests {
         assert_error(
             unstake(
                 deps.as_mut(),
-                env.clone(),
-                unstake_mock_info.sender.clone(),
-                unstake_mock_info.sender.clone(),
+                &env,
+                &unstake_mock_info.sender.clone(),
+                &unstake_mock_info.sender.clone(),
                 Uint128::from(1000u128),
                 Some(true),
             ),
@@ -983,32 +1018,12 @@ pub mod tests {
 
         let _unstake_a = unstake(
             deps.as_mut(),
-            env.clone(),
-            unstake_mock_info.sender.clone(),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &env,
+            &unstake_mock_info.sender.clone(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             Uint128::from(1000u128),
             None,
         )?;
-
-        // let claim_reward_info_a: ClaimRewardsInfo = claim_reward_info_r(deps.as_mut().storage)
-        //     .load(
-        //         get_user_claim_key(
-        //             deps_owned.as_mut().api.addr_validate(STAKER_A)?.to_string(),
-        //             reward_token().unique_key(),
-        //         )
-        //         .as_bytes(),
-        //     )?;
-
-        // let staker_info = stakers_r(deps.as_mut().storage)
-        //     .load(deps_owned.as_mut().api.addr_validate(STAKER_A)?.as_bytes())?;
-
-        // let proxy_staker_info =
-        //     proxy_staker_info_r(deps.as_mut().storage).load(&generate_proxy_staking_key(
-        //         &deps_owned.as_mut().api.addr_validate(PROXY_STAKER_A)?,
-        //         &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-        //     ))?;
-        // assert_eq!(proxy_staker_info.amount, Uint128::zero());
-        // assert_eq!(claim_reward_info_a.rewards, Uint128::zero());
         Ok(())
     }
 
@@ -1018,54 +1033,60 @@ pub mod tests {
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(LP_TOKEN, 1500, 16000000);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let _config: Config =
-            make_init_config(deps.as_mut(), env.clone(), Uint128::from(300000u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(300000u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1000u128),
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
         )?;
         let _stake_b = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::from(1500u128),
-            deps_owned.as_ref().api.addr_validate(STAKER_B)?,
-            deps_owned.as_ref().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_ref().api.addr_validate(STAKER_B)?,
+            &deps_owned.as_ref().api.addr_validate(STAKER_B)?,
         )?;
         let current_timestamp = Uint128::from(17000000u128);
 
         claim_rewards(
             deps.as_mut(),
             current_timestamp,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            env.clone(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &env,
         )?;
 
         claim_rewards(
             deps.as_mut(),
             current_timestamp,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            env.clone(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &env,
         )?;
-        let claim_reward_info_a =        claim_reward_info_r(deps.as_mut().storage).load(
+        let claim_reward_info_a = claim_reward_info_r(deps.as_mut().storage).load(
             get_user_claim_key(
                 deps_owned.as_mut().api.addr_validate(STAKER_A)?.to_string(),
                 reward_token().unique_key(),
             )
-            .as_bytes())?;
+            .as_bytes(),
+        )?;
 
-        update_reward(current_timestamp, &deps_owned.as_mut().api.addr_validate(STAKER_B)?, deps.as_mut().storage, &env)?;
-        let claim_reward_info_b =        claim_reward_info_r(deps.as_mut().storage).load(
+        update_reward(
+            current_timestamp,
+            &&deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            deps.as_mut().storage,
+            &env,
+        )?;
+        let claim_reward_info_b = claim_reward_info_r(deps.as_mut().storage).load(
             get_user_claim_key(
                 deps_owned.as_mut().api.addr_validate(STAKER_B)?.to_string(),
                 reward_token().unique_key(),
             )
-            .as_bytes())?;
+            .as_bytes(),
+        )?;
         assert_eq!(claim_reward_info_a.rewards, Uint128::new(0u128));
         assert_eq!(claim_reward_info_b.rewards, Uint128::new(1800000u128));
         Ok(())
@@ -1085,30 +1106,28 @@ pub mod tests {
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 16000000);
         let mock_info = mock_info(LP_TOKEN, &[]);
-        let staker_a = deps_owned.as_mut().api.addr_validate(STAKER_A)?;
+        let staker_a = &deps_owned.as_mut().api.addr_validate(STAKER_A)?;
         let staker_b = deps_owned.as_mut().api.addr_validate(STAKER_B)?;
-        let _config: Config =
-            make_init_config(deps.as_mut(), env.clone(), Uint128::new(300000u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::new(300000u128))?;
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::new(1000u128),
-            staker_a.clone(),
-            staker_a.clone(),
+            &staker_a,
+            &staker_a,
         )?;
         let _stake_b = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info.clone(),
+            &env,
+            &mock_info,
             Uint128::new(1500u128),
-            staker_b.clone(),
-            staker_b.clone(),
+            &staker_b,
+            &staker_b,
         )?;
-        let current_timestamp = Uint128::from(21000000u128);
         set_reward_token(
             deps.as_mut(),
-            mock_custom_env(CONTRACT_ADDRESS, 15834, 17000000),
+            &mock_custom_env(CONTRACT_ADDRESS, 15834, 17000000),
             Uint128::new(300000u128),
             TokenType::CustomToken {
                 contract_addr: Addr::unchecked(CONTRACT_ADDRESS),
@@ -1121,31 +1140,34 @@ pub mod tests {
         claim_rewards(
             deps.as_mut(),
             current_timestamp,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            env.clone(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &env,
         )?;
         claim_rewards(
             deps.as_mut(),
             current_timestamp,
-            deps_owned.as_mut().api.addr_validate(STAKER_A)?,
-            env.clone(),
+            &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
+            &env,
         )?;
         let claim_reward_info_a = claim_reward_info_r(deps.as_mut().storage).load(
             get_user_claim_key(
                 deps_owned.as_mut().api.addr_validate(STAKER_A)?.to_string(),
                 reward_token().unique_key(),
             )
-            .as_bytes())?;
-            update_reward(current_timestamp, &staker_b, deps.as_mut().storage, &env)?;
-        let claim_reward_info_b =
-        claim_reward_info_r(deps.as_mut().storage).load(
+            .as_bytes(),
+        )?;
+        update_reward(current_timestamp, &staker_b, deps.as_mut().storage, &env)?;
+        let claim_reward_info_b = claim_reward_info_r(deps.as_mut().storage).load(
             get_user_claim_key(
                 deps_owned.as_mut().api.addr_validate(STAKER_B)?.to_string(),
                 reward_token().unique_key(),
             )
-            .as_bytes())?;
+            .as_bytes(),
+        )?;
         let staker_info_a = stakers_r(deps.as_mut().storage).load(staker_a.clone().as_bytes())?;
         let staker_info_b = stakers_r(deps.as_mut().storage).load(staker_b.clone().as_bytes())?;
+        assert_eq!(staker_info_a.amount, Uint128::new(1000));
+        assert_eq!(staker_info_b.amount, Uint128::new(1500));
         assert_eq!(claim_reward_info_a.rewards, Uint128::new(0));
         assert_eq!(claim_reward_info_b.rewards, Uint128::new(1800000u128));
         Ok(())
@@ -1162,30 +1184,28 @@ pub mod tests {
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
         let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 16000000);
         let mock_info_lp_token = mock_info(LP_TOKEN, &[]);
-        let mock_info_a: MessageInfo = mock_info(STAKER_A, &[]);
-        let staker_a = deps_owned.as_mut().api.addr_validate(STAKER_A)?;
+        let staker_a = &deps_owned.as_mut().api.addr_validate(STAKER_A)?;
         let staker_b = deps_owned.as_mut().api.addr_validate(STAKER_B)?;
-        let _config: Config =
-            make_init_config(deps.as_mut(), env.clone(), Uint128::new(300000u128))?;
+        let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::new(300000u128))?;
         let _stake_a = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info_lp_token.clone(),
+            &env,
+            &mock_info_lp_token,
             Uint128::new(1000u128),
-            staker_a.clone(),
-            staker_a.clone(),
+            &staker_a.clone(),
+            &staker_a.clone(),
         )?;
         let _stake_b = stake(
             deps.as_mut(),
-            env.clone(),
-            mock_info_lp_token.clone(),
+            &env,
+            &mock_info_lp_token,
             Uint128::new(1500u128),
-            staker_b.clone(),
-            staker_b.clone(),
+            &staker_b,
+            &staker_b,
         )?;
         set_reward_token(
             deps.as_mut(),
-            mock_custom_env(CONTRACT_ADDRESS, 15834, 17000000),
+            &mock_custom_env(CONTRACT_ADDRESS, 15834, 17000000),
             Uint128::new(300000u128),
             reward_token(),
             Uint128::new(19000000u128),
@@ -1194,26 +1214,27 @@ pub mod tests {
         claim_rewards(
             deps.as_mut(),
             current_timestamp,
-            staker_a.clone(),
-            mock_custom_env(&CONTRACT_ADDRESS, 1600, 21000000),
+            &staker_a,
+            &mock_custom_env(&CONTRACT_ADDRESS, 1600, 21000000),
         )?;
-        let claim_reward_info_a =
-            claim_reward_info_r(deps.as_mut().storage).load(
-                get_user_claim_key(
-                    deps_owned.as_mut().api.addr_validate(STAKER_A)?.to_string(),
-                    reward_token().unique_key(),
-                )
-                .as_bytes())?;
-        
-        update_reward(Uint128::new(21000000u128), &deps_owned.as_mut().api.addr_validate(STAKER_B)?, deps.as_mut().storage, &env)?;
-
-        let claim_reward_info_b =
-        claim_reward_info_r(deps.as_mut().storage).load(
+        let claim_reward_info_a = claim_reward_info_r(deps.as_mut().storage).load(
             get_user_claim_key(
-                staker_b.to_string(),
+                deps_owned.as_mut().api.addr_validate(STAKER_A)?.to_string(),
                 reward_token().unique_key(),
             )
-            .as_bytes())?;
+            .as_bytes(),
+        )?;
+
+        update_reward(
+            Uint128::new(21000000u128),
+            &&deps_owned.as_mut().api.addr_validate(STAKER_B)?,
+            deps.as_mut().storage,
+            &env,
+        )?;
+
+        let claim_reward_info_b = claim_reward_info_r(deps.as_mut().storage).load(
+            get_user_claim_key(staker_b.to_string(), reward_token().unique_key()).as_bytes(),
+        )?;
         assert_eq!(claim_reward_info_a.rewards, Uint128::zero());
         assert_eq!(claim_reward_info_b.rewards, Uint128::new(5400000u128));
         Ok(())
@@ -1233,7 +1254,6 @@ pub mod test_help_lib {
     use serde::{Deserialize, Serialize};
     use shadeswap_shared::{
         admin::ValidateAdminPermissionResponse,
-        core::TokenType,
         snip20::{manager::Balance, QueryAnswer},
         staking::InitMsg,
         Contract,
@@ -1241,7 +1261,8 @@ pub mod test_help_lib {
 
     use crate::{
         contract::instantiate,
-        state::{config_r, config_w, Config}, test::tests::reward_token,
+        state::{config_r, config_w, Config},
+        test::tests::reward_token,
     };
 
     pub fn make_reward_token_contract(address: &str, code_hash: &str) -> StdResult<Contract> {
@@ -1254,7 +1275,7 @@ pub mod test_help_lib {
 
     pub fn make_init_config(
         mut deps: DepsMut,
-        env: Env,
+        env: &Env,
         daily_reward_amount: Uint128,
     ) -> StdResult<Config> {
         let info = mock_info(SENDER, &[]);

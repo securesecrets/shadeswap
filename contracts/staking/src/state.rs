@@ -1,10 +1,7 @@
-use std::collections::HashMap;
-
 use cosmwasm_std::{Addr, Uint128, Storage};
 use cosmwasm_storage::{singleton, Singleton, ReadonlySingleton, singleton_read, bucket_read, bucket, ReadonlyBucket, Bucket};
-use schemars::_serde_json::de::Read;
 use serde::{Serialize, Deserialize};
-use shadeswap_shared::{core::{TokenType, ViewingKey}, Contract, staking::RewardTokenInfo, sha2::digest::generic_array::typenum::UInt};
+use shadeswap_shared::{core::{TokenType, ViewingKey}, Contract, staking::RewardTokenInfo};
 
 pub static CONFIG: &[u8] = b"CONFIG";
 pub static STAKERS: &[u8] = b"LIST_STAKERS";

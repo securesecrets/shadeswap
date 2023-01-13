@@ -1,6 +1,6 @@
 use crate::operations::{earned, get_reward_tokens_info, get_user_claim_key, reward_per_token};
 use crate::state::{
-    claim_reward_info_r, config_r, reward_token_list_r, reward_token_r, reward_token_w, stakers_r,
+    claim_reward_info_r, config_r, reward_token_list_r, reward_token_r, stakers_r,
     total_staked_r,
 };
 use cosmwasm_std::{to_binary, Addr, Binary, Deps, StdError, StdResult, Storage, Uint128};

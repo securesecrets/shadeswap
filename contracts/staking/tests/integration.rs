@@ -477,31 +477,71 @@ pub fn staking_integration_tests() {
     }
 
     // OWNER cannot unstake the funds he put in
-    assert!(router
-        .execute_contract(owner_addr.to_owned(), &staking_contract, &ExecuteMsg::Unstake {
-            amount: Uint128::new(500u128),
-            remove_liquidity: Some(false),
-        }, &[]).is_err() == true);
+    assert!(
+        router
+            .execute_contract(
+                owner_addr.to_owned(),
+                &staking_contract,
+                &ExecuteMsg::Unstake {
+                    amount: Uint128::new(500u128),
+                    remove_liquidity: Some(false),
+                },
+                &[]
+            )
+            .is_err()
+            == true
+    );
 
     // STAKER_A cannot unstake more then he put in
-    assert!(router
-        .execute_contract(staker_a_addr.to_owned(), &staking_contract, &ExecuteMsg::Unstake {
-            amount: Uint128::new(1500u128),
-            remove_liquidity: Some(false),
-        }, &[]).is_err() == true);
-    
+    assert!(
+        router
+            .execute_contract(
+                staker_a_addr.to_owned(),
+                &staking_contract,
+                &ExecuteMsg::Unstake {
+                    amount: Uint128::new(1500u128),
+                    remove_liquidity: Some(false),
+                },
+                &[]
+            )
+            .is_err()
+            == true
+    );
+
     // SET VIEWKEY
     let view_key = "VIEWING_KEY";
     set_viewing_key(&mut router, &lp_token_contract, view_key, &owner_addr).unwrap();
-    let lp_token_balance = get_snip20_balance(&mut router, &lp_token_contract, &owner_addr.to_string(), view_key);  
+    let lp_token_balance = get_snip20_balance(
+        &mut router,
+        &lp_token_contract,
+        &owner_addr.to_string(),
+        view_key,
+    );
     // OWNER can unstake the funds he put in
-    assert!(router
-        .execute_contract(owner_addr.to_owned(), &staking_contract, &ExecuteMsg::ProxyUnstake { 
-            amount: Uint128::new(500u128),
-            for_addr: staker_a_addr.to_string(),
-        }, &[]).is_ok() == true);
+    assert!(
+        router
+            .execute_contract(
+                owner_addr.to_owned(),
+                &staking_contract,
+                &ExecuteMsg::ProxyUnstake {
+                    amount: Uint128::new(500u128),
+                    for_addr: staker_a_addr.to_string(),
+                },
+                &[]
+            )
+            .is_ok()
+            == true
+    );
     // Make sure owner gets funds back
-    assert_eq!(get_snip20_balance(&mut router, &lp_token_contract, &owner_addr.to_string(), view_key), lp_token_balance + Uint128::new(500));
+    assert_eq!(
+        get_snip20_balance(
+            &mut router,
+            &lp_token_contract,
+            &owner_addr.to_string(),
+            view_key
+        ),
+        lp_token_balance + Uint128::new(500)
+    );
 
     // STAKE LP TOKEN
     send_snip20_to_stake(
@@ -515,7 +555,7 @@ pub fn staking_integration_tests() {
     .unwrap();
 
     // Increment time by 5000
-    roll_blockchain(&mut router, 1000).unwrap();   
+    roll_blockchain(&mut router, 1000).unwrap();
 
     //Assert owner balance
     {
@@ -546,7 +586,58 @@ pub fn staking_integration_tests() {
         assert_eq!(balances.1, Uint128::new(51250u128));
         assert_eq!(balances.2, Uint128::new(102500u128));
     }
-        
+
+    // CHANGE EXISTING REWARD TOKEN
+    let set_reward_msg = ExecuteMsg::SetRewardToken {
+        reward_token: TokenType::CustomToken {
+            contract_addr: reward_contract_b.address.to_owned(),
+            token_code_hash: reward_contract_b.code_hash.to_owned(),
+        },
+        daily_reward_amount: Uint128::new(500000u128),
+        valid_to: Uint128::new(3747905010000u128),
+    };
+
+    let _ = router
+        .execute_contract(
+            owner_addr.to_owned(),
+            &staking_contract,
+            &set_reward_msg,
+            &[],
+        )
+        .unwrap();
+
+    // Increment time by 5000
+    roll_blockchain(&mut router, 1000).unwrap();
+
+    //Assert owner balance
+    {
+        let balances = query_claimable_reward(
+            &router,
+            &staking_contract,
+            OWNER_PUB_KEY,
+            OWNER_PUB_KEY,
+            get_current_block_time(&router),
+        )
+        .unwrap();
+        assert_eq!(balances.0, 2);
+        assert_eq!(balances.1, Uint128::new(27500u128));
+        assert_eq!(balances.2, Uint128::new(53750u128));
+    }
+
+    // Assert staker A balance
+    {
+        let balances = query_claimable_reward(
+            &router,
+            &staking_contract,
+            PUB_KEY_STAKER_A,
+            PUB_KEY_STAKER_A,
+            get_current_block_time(&router),
+        )
+        .unwrap();
+        assert_eq!(balances.0, 2);
+        assert_eq!(balances.1, Uint128::new(62500u128));
+        assert_eq!(balances.2, Uint128::new(121250u128));
+    }
 }
 
 pub mod staking_help_query {

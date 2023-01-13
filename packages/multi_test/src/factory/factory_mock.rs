@@ -97,7 +97,7 @@ pub mod factory_mock {
                     pair: _,
                     entropy: _,
                     staking_contract: _,
-                    lp_token_decimals: u8
+                    lp_token_decimals: _u8
                 } => Ok(Response::new()),
                 ExecuteMsg::AddAMMPairs { amm_pairs: _ } => Ok(Response::new())
             },

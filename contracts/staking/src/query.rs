@@ -1,4 +1,4 @@
-use crate::operations::{earned, get_reward_tokens_info, get_user_claim_key};
+use crate::operations::{earned, get_reward_tokens_info, get_user_claim_key, reward_per_token};
 use crate::state::{
     claim_reward_info_r, config_r, reward_token_list_r, reward_token_r, reward_token_w, stakers_r,
     total_staked_r,
@@ -41,6 +41,11 @@ pub fn claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResu
 
     let reward_list = reward_token_list_r(deps.storage).load()?;
     let staker_info_option = stakers_r(deps.storage).may_load(staker.as_bytes())?;
+    let total_staked = match total_staked_r(deps.storage).may_load()? {
+        Some(s) => s,
+        None => Uint128::zero(),
+    };
+
     match staker_info_option {
         Some(staker_info) => {
             for addr in &reward_list {
@@ -52,14 +57,15 @@ pub fn claim_reward_for_user(deps: Deps, staker: Addr, time: Uint128) -> StdResu
                     Some(claim_info) => {
                         let reward_token_info: RewardTokenInfo = reward_token_r(deps.storage)
                             .load(claim_info.reward_token.unique_key().as_bytes())?;
+
                         result_list.push(ClaimableInfo {
                             token_address: claim_info.reward_token.unique_key(),
                             amount: earned(
                                 staker_info.amount,
-                                reward_token_info.reward_per_token_stored,
+                                reward_per_token(time, &reward_token_info, total_staked)?,
                                 claim_info.reward_token_per_token_paid,
                                 claim_info.rewards,
-                            )?,
+                            )?
                         });
                     }
                     None => (),

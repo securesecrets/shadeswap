@@ -639,22 +639,16 @@ pub mod tests {
         )
         .unwrap();
         // assert there is no claim reward for staker a
-        let claim_reward_info_err = claim_reward_info_r(deps.as_mut().storage).load(
+        let claim_reward_info = claim_reward_info_r(deps.as_mut().storage).load(
             get_user_claim_key(
                 deps_owned.as_mut().api.addr_validate(STAKER_A)?.to_string(),
                 reward_token().unique_key(),
             )
             .as_bytes(),
-        );
+        ).unwrap();
 
         // Claimable for staker A throws Exception
-        match claim_reward_info_err {
-            Ok(_) => todo!(),
-            Err(err) => assert_eq!(
-                err,
-                StdError::not_found("staking::state::ClaimRewardsInfo")
-            ),
-        }
+        assert_eq!(claim_reward_info.rewards, Uint128::zero());
         let total_staked_amount = total_staked_r(deps.as_mut().storage).load().unwrap();
         assert_eq!(total_staked_amount, Uint128::new(1000u128));
 

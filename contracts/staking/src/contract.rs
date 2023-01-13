@@ -13,7 +13,7 @@ use shadeswap_shared::{
 
 use crate::{
     operations::{
-        claim_rewards, set_reward_token, stake, store_init_reward_token_and_timestamp,
+        claim_rewards, set_reward_token, stake,
         unstake, update_authenticator, 
     },
     query,

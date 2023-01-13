@@ -1,5 +1,5 @@
 pub mod snip20_lib {
-    use crate::utils::{init_snip20_cli, InitConfig, GAS, STORE_GAS, ADMIN_FILE, generate_label};
+    use crate::utils::{init_snip20_cli, InitConfig, GAS};
     use cosmwasm_std::Addr;
     use secretcli::{
         cli_types::NetContract,

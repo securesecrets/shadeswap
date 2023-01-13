@@ -55,7 +55,7 @@ pub fn stake(
     info: MessageInfo,
     amount: Uint128,
     from_addr: Addr,
-    for_addr: Addr
+    for_addr: Addr,
 ) -> StdResult<Response> {
     // this is receiver for LP Token send to staking contract ->
     let config = config_r(deps.storage).load()?;
@@ -287,8 +287,7 @@ pub fn unstake(
 
     if from_address == for_address {
         if let Some(mut staker_info) = stakers_r(deps.storage).may_load(for_address.as_bytes())? {
-
-            if amount > staker_info.amount {
+            if amount > (staker_info.amount - staker_info.proxy_staked) {
                 return Err(StdError::generic_err(
                     "Unstaking Amount is higher then actual staking amount".to_string(),
                 ));
@@ -318,11 +317,6 @@ pub fn unstake(
                 }
                 .to_cosmos_msg(&config.lp_token, vec![])?;
 
-
-                let mut total_stake_amount = total_staked_w(deps.storage).load()?;
-                total_stake_amount -= amount;
-                total_staked_w(deps.storage).save(&total_stake_amount)?;
-
                 messages.push(cosmos_msg);
             } else {
                 // SEND LP Token back to Staker And User Will Manually Remove Liquidity
@@ -335,12 +329,11 @@ pub fn unstake(
                 .to_cosmos_msg(&config.lp_token, vec![])?;
 
                 messages.push(cosmos_msg);
-
-
-                let mut total_stake_amount = total_staked_w(deps.storage).load()?;
-                total_stake_amount -= amount;
-                total_staked_w(deps.storage).save(&total_stake_amount)?;
             }
+            let mut total_stake_amount = total_staked_w(deps.storage).load()?;
+            total_stake_amount -= amount;
+            total_staked_w(deps.storage).save(&total_stake_amount)?;
+
             return Ok(Response::new().add_messages(messages).add_attributes(vec![
                 Attribute::new("action", "unstake"),
                 Attribute::new("amount", amount),
@@ -390,7 +383,6 @@ pub fn unstake(
 
             messages.push(cosmos_msg);
 
-
             let mut total_stake_amount = total_staked_w(deps.storage).load()?;
             total_stake_amount -= amount;
             total_staked_w(deps.storage).save(&total_stake_amount)?;
@@ -429,6 +421,7 @@ pub fn create_send_msg(
     Ok(msg)
 }
 
+// Takes the earliest of the two dates
 pub fn last_time_reward_applicable(
     current_timestamp: Uint128,
     valid_to: Uint128,
@@ -490,29 +483,41 @@ pub fn update_reward(
     for addr in &reward_list {
         // load total reward token
         if let Some(mut reward_token_info) = reward_token_w(storage).may_load(addr.as_bytes())? {
-            reward_token_info.reward_per_token_stored =
+            let reward_per_token =
                 reward_per_token(current_timestamp, &reward_token_info, total_staked)?;
+            reward_token_info.reward_per_token_stored = reward_per_token;
             reward_token_info.last_update_time =
                 last_time_reward_applicable(current_timestamp, reward_token_info.valid_to)?;
+
+            if address.to_string() != env.contract.address.to_string() {
+                if claim_reward_info_w(storage)
+                    .may_load(get_user_claim_key(address.to_string(), addr.to_string()).as_bytes())?
+                    .is_none()
+                {
+                    claim_reward_info_w(storage).save(
+                        get_user_claim_key(address.to_string(), addr.to_string()).as_bytes(),
+                        &ClaimRewardsInfo {
+                            rewards: Uint128::zero(),
+                            reward_token: reward_token_info.clone().reward_token,
+                            reward_token_per_token_paid: reward_token_info
+                                .clone()
+                                .reward_per_token_stored,
+                        },
+                    )?;
+                };
+            }
 
             reward_token_w(storage).save(addr.as_bytes(), &reward_token_info)?;
 
             if let Some(staker_info) = stakers_r(storage).may_load(address.as_bytes())? {
                 if address.to_string() != env.contract.address.to_string() {
-                    let mut claim_reward_info = match claim_reward_info_w(storage).may_load(
+                    //safe due to check above
+                    let mut claim_reward_info = claim_reward_info_w(storage).load(
                         get_user_claim_key(address.to_string(), addr.to_string()).as_bytes(),
-                    )? {
-                        Some(hm) => hm,
-                        None => ClaimRewardsInfo {
-                            rewards: Uint128::zero(),
-                            reward_token: reward_token_info.clone().reward_token,
-                            reward_token_per_token_paid: Uint128::zero(),
-                        },
-                    };
-
+                    )?;
                     let new_amount = earned(
                         staker_info.amount,
-                        reward_per_token(current_timestamp, &reward_token_info, total_staked)?,
+                        reward_per_token,
                         claim_reward_info.reward_token_per_token_paid,
                         claim_reward_info.rewards,
                     )?;

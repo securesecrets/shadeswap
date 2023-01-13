@@ -192,7 +192,7 @@ pub fn swap(
 ) -> StdResult<Response> {
     let swaper_receiver = recipient.unwrap_or(sender.clone());
 
-    let fee_info = query::fee_info(deps.as_ref(), &env)?;
+    let fee_info = query::fee_info(deps.as_ref())?;
     // check if user whitelist
     let is_user_whitelist = is_address_in_whitelist(deps.storage, &sender)?;
     let swap_result = calculate_swap_result(
@@ -511,7 +511,7 @@ pub fn remove_liquidity(
 
     //if user wants purely one token, virtually swap entire withdraw into that token
     if let Some(withdraw_type) = single_sided_withdraw_type {
-        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let fee_info = query::fee_info(deps.as_ref())?;
         let withdraw_in_token0: bool = if config.pair.contains(&withdraw_type) {
             Ok(config.pair.0 == withdraw_type)
         } else {
@@ -669,7 +669,7 @@ pub fn add_liquidity(
         }
     }
 
-    let fee_info = query::fee_info(deps.as_ref(), &env)?;
+    let fee_info = query::fee_info(deps.as_ref())?;
 
     let pair_contract_pool_liquidity = query::total_supply(deps.as_ref(), &config.lp_token)?;
 

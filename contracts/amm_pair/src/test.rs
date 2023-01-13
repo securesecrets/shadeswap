@@ -265,7 +265,7 @@ pub mod tests {
         let config = make_init_config(token_pair.clone(),&mut deps)?;
         let amount = Uint128::new(1000u128);
         let wrong_pair = mk_token_pair_custom_addr("WRONG_TOKEN_A", "WRONG_TOKEN_B");
-        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee,
             &config,
             &mk_custom_token_amount(amount, &wrong_pair), 
@@ -370,7 +370,7 @@ pub mod tests_calculation_price_and_fee {
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
         let expected_amount: u128 = 1666;
-        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
              Some(true));
@@ -388,7 +388,7 @@ pub mod tests_calculation_price_and_fee {
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
         let expected_amount: u128 = 1666;
-        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
              Some(true));
@@ -406,7 +406,7 @@ pub mod tests_calculation_price_and_fee {
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
         let expected_amount: u128 = 1167;
-        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
              None);
@@ -426,7 +426,7 @@ pub mod tests_calculation_price_and_fee {
         let offer_amount: u128 = 2000;
         let env = mock_env();
         let expected_amount: u128 = 1517;
-        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, 
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
          None);
@@ -444,7 +444,7 @@ pub mod tests_calculation_price_and_fee {
         let token_amount = mk_custom_token_amount_test_calculation_price_fee(Uint128::from(2000u128), config.pair.clone());   
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
         assert_eq!(config.factory_contract.clone().unwrap().address.as_str(), FACTORY_CONTRACT_ADDRESS.clone());
-        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, &token_amount,
          None)?;
         assert_eq!(swap_result.result.return_amount, Uint128::from(116667u128));
@@ -566,7 +566,7 @@ pub mod tests_calculation_price_and_fee {
         let _expected_lp_fee: u128 = 40;      
         let address_a = Addr::unchecked("TESTA".to_string());
         add_whitelist_address(deps.as_mut().storage, address_a.clone())?;    
-        let fee_info = query::fee_info(deps.as_ref(), &env)?;
+        let fee_info = query::fee_info(deps.as_ref())?;
         let is_user_whitelist = is_address_in_whitelist(deps.as_mut().as_ref().storage, &address_a)?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 

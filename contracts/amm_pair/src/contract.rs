@@ -398,7 +398,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     amount_0: balances[0],
                     amount_1: balances[1],
                     total_liquidity,
-                    fee_info: fee_info(deps, &env)?,
+                    fee_info: fee_info(deps)?,
                     contract_version: AMM_PAIR_CONTRACT_VERSION,
                 })
             }

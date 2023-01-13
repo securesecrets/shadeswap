@@ -424,11 +424,8 @@ pub mod factory {
 
 pub mod staking {
     use crate::{core::TokenType, query_auth::QueryPermit, Contract};
-
     use super::*;
     use cosmwasm_schema::cw_serde;
-
-    use cosmwasm_std::Addr;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
 

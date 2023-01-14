@@ -9,7 +9,7 @@ use shadeswap_shared::staking::RewardTokenInfo;
 use shadeswap_shared::utils::ExecuteCallback;
 use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, Contract};
 const SECONDS_IN_DAY: Uint128 = Uint128::new(24u128 * 60u128 * 60u128);
-const MAX_DECIMALS: Uint128 = Uint128::new(1_000_000_000_000_000_000);
+pub const MAX_DECIMALS: Uint128 = Uint128::new(1_000_000_000_000_000_000);
 
 use crate::contract::{SHADE_STAKING_VIEWKEY};
 use crate::state::{
@@ -133,6 +133,36 @@ pub fn generate_proxy_staking_key(from: &Addr, for_addr: &Addr) -> Vec<u8> {
     [from.as_bytes(), for_addr.as_bytes()].concat()
 }
 
+fn get_reward_msgs(
+    storage: &mut dyn Storage,
+    claimer: &Addr,
+    env: &Env,
+    messages: &mut Vec<CosmosMsg>) -> StdResult<()> {
+        let reward_list = reward_token_list_r(storage).load()?;
+        for addr in &reward_list {
+            let key = get_user_claim_key(claimer.to_string(), addr.to_string());
+            let claim_info_option = claim_reward_info_r(storage).may_load(key.as_bytes())?;
+    
+            match claim_info_option {
+                Some(claim_info) => {
+                    let total = claim_info.rewards;
+                    if total > Uint128::zero() {
+                        messages.push(claim_info.reward_token.create_send_msg(
+                            env.contract.address.to_string(),
+                            claimer.to_string(),
+                            total,
+                        )?);
+                        let mut new_data = claim_info.clone();
+                        new_data.rewards = Uint128::zero();
+                        claim_reward_info_w(storage).save(key.as_bytes(), &new_data)?;
+                    }
+                }
+                None => (),
+            }
+        }
+        Ok(())
+    }
+
 /// Execute Claim Rewards for Staker
 pub fn claim_rewards(
     deps: DepsMut,
@@ -144,30 +174,7 @@ pub fn claim_rewards(
     update_reward(current_timestamp, &receiver, deps.storage, &env)?;
 
     let mut messages: Vec<CosmosMsg> = Vec::new();
-
-    let reward_list = reward_token_list_r(deps.storage).load()?;
-    for addr in &reward_list {
-        let key = get_user_claim_key(receiver.to_string(), addr.to_string());
-        let claim_info_option = claim_reward_info_r(deps.storage).may_load(key.as_bytes())?;
-
-        match claim_info_option {
-            Some(claim_info) => {
-                let total = claim_info.rewards;
-                if total > Uint128::zero() {
-                    messages.push(claim_info.reward_token.create_send_msg(
-                        env.contract.address.to_string(),
-                        receiver.to_string(),
-                        total,
-                    )?);
-                    let mut new_data = claim_info.clone();
-                    new_data.rewards = Uint128::zero();
-                    claim_reward_info_w(deps.storage).save(key.as_bytes(), &new_data)?;
-                }
-            }
-            None => (),
-        }
-    }
-
+    get_reward_msgs(deps.storage, claimer, env, &mut messages)?;
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         Attribute::new("action", "claim_rewards"),
         Attribute::new("caller", claimer.to_string()),
@@ -211,7 +218,7 @@ pub fn set_reward_token(
             reward_token_list_w(deps.storage).save(&reward_token_list)?;
             token_info = RewardTokenInfo {
                 reward_token: reward_token.to_owned(),
-                reward_rate: daily_reward_amount.checked_div(SECONDS_IN_DAY)?,
+                reward_rate: daily_reward_amount.checked_mul(MAX_DECIMALS)?.checked_div(SECONDS_IN_DAY)?,
                 valid_to: current_timestamp,
                 reward_per_token_stored: Uint128::zero(),
                 last_update_time: current_timestamp,
@@ -222,9 +229,9 @@ pub fn set_reward_token(
         Some(ti) => {
             token_info = ti;
             if current_timestamp >= valid_to {
-                token_info.reward_rate = daily_reward_amount.checked_div(SECONDS_IN_DAY)?;
+                token_info.reward_rate = daily_reward_amount.checked_mul(MAX_DECIMALS)?.checked_div(SECONDS_IN_DAY)?;
             } else {
-                token_info.reward_rate = daily_reward_amount
+                token_info.reward_rate = daily_reward_amount.checked_mul(MAX_DECIMALS)?
                     .checked_div(SECONDS_IN_DAY)?
             }
         }
@@ -286,6 +293,8 @@ pub fn unstake(
                     "Unstaking Amount is higher then actual staking amount".to_string(),
                 ));
             }
+    
+            get_reward_msgs(deps.storage, for_address, env, &mut messages)?;
 
             staker_info.amount = staker_info.amount - amount;
             stakers_w(deps.storage).save(for_address.as_bytes(), &staker_info)?;
@@ -441,7 +450,6 @@ pub fn reward_per_token(
         (last_time_reward_applicable(current_timestamp, reward_token.valid_to)?
             .checked_sub(reward_token.last_update_time)?)
         .checked_mul(reward_token.reward_rate)?
-        .checked_mul(MAX_DECIMALS)?
         .checked_div(total_staked)?,
     )?);
 }

@@ -687,7 +687,7 @@ pub mod tests {
                 .as_bytes(),
             )?;
 
-        assert_eq!(claim_reward_info_a.rewards, Uint128::new(300000u128));
+        assert_eq!(claim_reward_info_a.rewards, Uint128::new(347222u128));
 
         // Claimable for staker B throws Exception
         let claim_reward_info_b = claim_reward_info_r(deps.as_mut().storage)
@@ -791,7 +791,7 @@ pub mod tests {
                 },
                 Uint128::new(1000u128)
             )?,
-            Uint128::new(3000000000000000000000u128)
+            Uint128::new(3000u128)
         );
         Ok(())
     }
@@ -845,7 +845,7 @@ pub mod tests {
                 )
                 .as_bytes(),
             )?;
-        assert_eq!(claim_reward_info_a.rewards, Uint128::from(3000000u128));
+        assert_eq!(claim_reward_info_a.rewards, Uint128::from(3472222u128));
         Ok(())
     }
 
@@ -902,7 +902,7 @@ pub mod tests {
             claim_reward_info_a.reward_token_per_token_paid,
             claim_reward_info_a.rewards,
         )?;
-        assert_eq!(staking_reward, Uint128::from(3000000u128));
+        assert_eq!(staking_reward, Uint128::from(3472222u128));
         Ok(())
     }
 
@@ -1088,7 +1088,7 @@ pub mod tests {
             .as_bytes(),
         )?;
         assert_eq!(claim_reward_info_a.rewards, Uint128::new(0u128));
-        assert_eq!(claim_reward_info_b.rewards, Uint128::new(1800000u128));
+        assert_eq!(claim_reward_info_b.rewards, Uint128::new(2083333u128));
         Ok(())
     }
 
@@ -1169,7 +1169,7 @@ pub mod tests {
         assert_eq!(staker_info_a.amount, Uint128::new(1000));
         assert_eq!(staker_info_b.amount, Uint128::new(1500));
         assert_eq!(claim_reward_info_a.rewards, Uint128::new(0));
-        assert_eq!(claim_reward_info_b.rewards, Uint128::new(1800000u128));
+        assert_eq!(claim_reward_info_b.rewards, Uint128::new(2083333u128));
         Ok(())
     }
 
@@ -1236,7 +1236,7 @@ pub mod tests {
             get_user_claim_key(staker_b.to_string(), reward_token().unique_key()).as_bytes(),
         )?;
         assert_eq!(claim_reward_info_a.rewards, Uint128::zero());
-        assert_eq!(claim_reward_info_b.rewards, Uint128::new(5400000u128));
+        assert_eq!(claim_reward_info_b.rewards, Uint128::new(6249999u128));
         Ok(())
     }
 }

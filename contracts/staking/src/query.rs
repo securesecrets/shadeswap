@@ -1,4 +1,4 @@
-use crate::operations::{earned, get_reward_tokens_info, get_user_claim_key, reward_per_token};
+use crate::operations::{earned, get_reward_tokens_info, get_user_claim_key, reward_per_token, MAX_DECIMALS};
 use crate::state::{
     claim_reward_info_r, config_r, reward_token_list_r, reward_token_r, stakers_r,
     total_staked_r,
@@ -22,7 +22,6 @@ pub fn config(deps: Deps) -> StdResult<Binary> {
                 code_hash: token_code_hash.clone(),
             },
             lp_token: config.lp_token.clone(),
-            daily_reward_amount: config.daily_reward_amount.clone(),
             amm_pair: config.amm_pair.to_string(),
             admin_auth: config.admin_auth,
             total_staked_lp_token: total_staked_r(deps.storage)
@@ -97,7 +96,9 @@ pub fn reward_token_list(storage: &dyn Storage) -> StdResult<Binary> {
     let list: Vec<RewardTokenInfo> = get_reward_tokens_info(storage)?;
     let mut response: Vec<RewardTokenInfo> = vec![];
     for i in list.iter() {
-        response.push(i.to_owned())
+        let mut reward_token = i.clone();
+        reward_token.reward_rate = i.reward_rate / MAX_DECIMALS;
+        response.push(reward_token);
     }
     to_binary(&QueryResponse::GetRewardTokens { tokens: response })
 }

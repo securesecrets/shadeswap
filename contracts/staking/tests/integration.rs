@@ -114,12 +114,10 @@ pub fn staking_integration_tests() {
         QueryResponse::GetConfig {
             reward_token,
             lp_token,
-            daily_reward_amount,
             amm_pair: _,
             admin_auth: _,
             total_staked_lp_token,
         } => {
-            assert_eq!(daily_reward_amount, Uint128::new(300000u128));
             assert_eq!(
                 reward_token.address.to_string(),
                 reward_contract.address.to_string()
@@ -195,7 +193,7 @@ pub fn staking_integration_tests() {
     )
     .unwrap();
     assert_eq!(balances.0, 1);
-    assert_eq!(balances.1, Uint128::new(15000));
+    assert_eq!(balances.1, Uint128::new(17361));
 
     let msg = ExecuteMsg::ClaimRewards {};
     router
@@ -262,7 +260,7 @@ pub fn staking_integration_tests() {
 
     // There will only be one token as the user has not done an action yet
     assert_eq!(balances.0, 1);
-    assert_eq!(balances.1, Uint128::new(7500u128));
+    assert_eq!(balances.1, Uint128::new(8680u128));
 
     let msg = ExecuteMsg::ClaimRewards {};
     router
@@ -321,8 +319,8 @@ pub fn staking_integration_tests() {
         .unwrap();
 
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(7500u128));
-        assert_eq!(balances.2, Uint128::new(15000u128));
+        assert_eq!(balances.1, Uint128::new(8680u128));
+        assert_eq!(balances.2, Uint128::new(17361u128));
     }
 
     // Check staker A balance
@@ -338,8 +336,8 @@ pub fn staking_integration_tests() {
         .unwrap();
 
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(7500u128));
-        assert_eq!(balances.2, Uint128::new(15000u128));
+        assert_eq!(balances.1, Uint128::new(8680u128));
+        assert_eq!(balances.2, Uint128::new(17361u128));
     }
 
     // Increment time by 5000
@@ -364,8 +362,8 @@ pub fn staking_integration_tests() {
         )
         .unwrap();
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(15000u128));
-        assert_eq!(balances.2, Uint128::new(30000u128));
+        assert_eq!(balances.1, Uint128::new(0u128));
+        assert_eq!(balances.2, Uint128::new(0u128));
     }
 
     // Assert staker A balance
@@ -379,8 +377,8 @@ pub fn staking_integration_tests() {
         )
         .unwrap();
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(15000u128));
-        assert_eq!(balances.2, Uint128::new(30000u128));
+        assert_eq!(balances.1, Uint128::new(17361u128));
+        assert_eq!(balances.2, Uint128::new(34722u128));
     }
 
     // Increment time by 5000
@@ -397,8 +395,8 @@ pub fn staking_integration_tests() {
         )
         .unwrap();
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(20000u128));
-        assert_eq!(balances.2, Uint128::new(40000u128));
+        assert_eq!(balances.1, Uint128::new(5787u128));
+        assert_eq!(balances.2, Uint128::new(11574u128));
     }
 
     // Assert staker A balance
@@ -412,8 +410,8 @@ pub fn staking_integration_tests() {
         )
         .unwrap();
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(25000u128));
-        assert_eq!(balances.2, Uint128::new(50000u128));
+        assert_eq!(balances.1, Uint128::new(28935u128));
+        assert_eq!(balances.2, Uint128::new(57870u128));
     }
 
     // Assert Unstake the whole amount
@@ -429,8 +427,8 @@ pub fn staking_integration_tests() {
     )
     .unwrap();
     assert_eq!(balances.0, 2);
-    assert_eq!(balances.1, Uint128::new(20000u128));
-    assert_eq!(balances.2, Uint128::new(40000u128));
+    assert_eq!(balances.1, Uint128::new(0u128));
+    assert_eq!(balances.2, Uint128::new(0u128));
 
     //OWNER STAKE ON BEHALF OF STAKER_A
     let _ = send_snip20_to_proxy_stake(
@@ -457,8 +455,8 @@ pub fn staking_integration_tests() {
         )
         .unwrap();
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(20000u128));
-        assert_eq!(balances.2, Uint128::new(40000u128));
+        assert_eq!(balances.1, Uint128::new(0u128));
+        assert_eq!(balances.2, Uint128::new(0u128));
     }
 
     // Assert staker A balance
@@ -472,8 +470,8 @@ pub fn staking_integration_tests() {
         )
         .unwrap();
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(40000u128));
-        assert_eq!(balances.2, Uint128::new(80000u128));
+        assert_eq!(balances.1, Uint128::new(46296u128));
+        assert_eq!(balances.2, Uint128::new(92592u128));
     }
 
     // OWNER cannot unstake the funds he put in
@@ -568,8 +566,8 @@ pub fn staking_integration_tests() {
         )
         .unwrap();
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(23750u128));
-        assert_eq!(balances.2, Uint128::new(47500u128));
+        assert_eq!(balances.1, Uint128::new(4340u128));
+        assert_eq!(balances.2, Uint128::new(8680u128));
     }
 
     // Assert staker A balance
@@ -583,8 +581,8 @@ pub fn staking_integration_tests() {
         )
         .unwrap();
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(51250u128));
-        assert_eq!(balances.2, Uint128::new(102500u128));
+        assert_eq!(balances.1, Uint128::new(59316u128));
+        assert_eq!(balances.2, Uint128::new(118633u128));
     }
 
     // CHANGE EXISTING REWARD TOKEN
@@ -620,8 +618,8 @@ pub fn staking_integration_tests() {
         )
         .unwrap();
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(27500u128));
-        assert_eq!(balances.2, Uint128::new(53750u128));
+        assert_eq!(balances.1, Uint128::new(8680u128));
+        assert_eq!(balances.2, Uint128::new(15914u128));
     }
 
     // Assert staker A balance
@@ -635,8 +633,8 @@ pub fn staking_integration_tests() {
         )
         .unwrap();
         assert_eq!(balances.0, 2);
-        assert_eq!(balances.1, Uint128::new(62500u128));
-        assert_eq!(balances.2, Uint128::new(121250u128));
+        assert_eq!(balances.1, Uint128::new(72337u128));
+        assert_eq!(balances.2, Uint128::new(140335u128));
     }
 }
 

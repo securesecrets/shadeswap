@@ -546,7 +546,6 @@ pub mod staking {
         GetConfig {
             reward_token: Contract,
             lp_token: Contract,
-            daily_reward_amount: Uint128,
             amm_pair: String,
             admin_auth: Contract,
             total_staked_lp_token: Uint128

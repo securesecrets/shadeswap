@@ -9,6 +9,7 @@ use cosmwasm_std::{
     Response, StdError, StdResult, Storage, SubMsg, Uint128, Uint256, WasmMsg,
 };
 use shadeswap_shared::{
+    amm_pair::ExecuteMsgResponse,
     core::{Fee, TokenAmount, TokenPairAmount, TokenType, ViewingKey},
     msg::{
         amm_pair::{ArbitrageCallback, SwapInfo, SwapResult, TradeHistory},
@@ -103,37 +104,37 @@ pub fn register_lp_token(
                         INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
                     ));
                 }
-                None => {                    
-                      response = response.add_submessage(SubMsg::reply_on_success(
-                          CosmosMsg::Wasm(WasmMsg::Instantiate {
-                              code_id: c.contract_info.id,
-                              label: format!(
-                                  "ShadeSwap-Pair-Staking-Contract-{}",
-                                  &env.contract.address
-                              ),
-                              msg: to_binary(&StakingInitMsg {
-                                  daily_reward_amount: c.daily_reward_amount,
-                                  reward_token: c.reward_token.clone(),
-                                  pair_contract: Contract {
-                                      address: env.contract.address.clone(),
-                                      code_hash: env.contract.code_hash.clone(),
-                                  },
-                                  prng_seed: config.prng_seed.clone(),
-                                  lp_token: Contract {
-                                      address: lp_token_address.address.clone(),
-                                      code_hash: lp_token_address.code_hash.clone(),
-                                  },
-                                  //default to same permit authenticator as factory
-                                  authenticator: None,
-                                  //default to same admin as factory
-                                  admin_auth: config.admin_auth,
-                                  valid_to: c.valid_to,
-                              })?,
-                              code_hash: c.contract_info.code_hash.clone(),
-                              funds: vec![],
-                          }),
-                          INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
-                      ));
+                None => {
+                    response = response.add_submessage(SubMsg::reply_on_success(
+                        CosmosMsg::Wasm(WasmMsg::Instantiate {
+                            code_id: c.contract_info.id,
+                            label: format!(
+                                "ShadeSwap-Pair-Staking-Contract-{}",
+                                &env.contract.address
+                            ),
+                            msg: to_binary(&StakingInitMsg {
+                                daily_reward_amount: c.daily_reward_amount,
+                                reward_token: c.reward_token.clone(),
+                                pair_contract: Contract {
+                                    address: env.contract.address.clone(),
+                                    code_hash: env.contract.code_hash.clone(),
+                                },
+                                prng_seed: config.prng_seed.clone(),
+                                lp_token: Contract {
+                                    address: lp_token_address.address.clone(),
+                                    code_hash: lp_token_address.code_hash.clone(),
+                                },
+                                //default to same permit authenticator as factory
+                                authenticator: None,
+                                //default to same admin as factory
+                                admin_auth: config.admin_auth,
+                                valid_to: c.valid_to,
+                            })?,
+                            code_hash: c.contract_info.code_hash.clone(),
+                            funds: vec![],
+                        }),
+                        INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
+                    ));
                 }
             }
         }
@@ -223,14 +224,14 @@ pub fn swap(
 
     // Send Shade_Dao_Fee back to shade_dao_address which is 0.1%
     let mut messages = Vec::with_capacity(2);
-    if !swap_result.shade_dao_fee_amount.is_zero() && fee_info.shade_dao_address.to_string() != ""{
+    if !swap_result.shade_dao_fee_amount.is_zero() && fee_info.shade_dao_address.to_string() != "" {
         add_send_token_to_address_msg(
             &mut messages,
             fee_info.shade_dao_address,
             &non_offer_token,
             swap_result.shade_dao_fee_amount,
         )?;
-    }      
+    }
 
     // Send Token to Buyer or Swapper
     let index = config
@@ -254,7 +255,7 @@ pub fn swap(
         action = "SELL".to_string();
     }
     let trade_history = TradeHistory {
-        price: swap_result.price,
+        price: swap_result.price.clone(),
         amount_in: swap_result.result.return_amount,
         amount_out: offer.amount,
         timestamp: env.block.time.seconds(),
@@ -293,7 +294,16 @@ pub fn swap(
         Some(sub_msg) => Ok(Response::new()
             .add_messages(messages)
             .add_submessage(sub_msg)),
-        None => Ok(Response::new().add_messages(messages)),
+        None => Ok(Response::new().add_messages(messages).set_data(to_binary(&
+            ExecuteMsgResponse::SwapResult {
+                price: swap_result.price,
+                amount_in: offer.amount,
+                amount_out: swap_result.result.return_amount,
+                lp_fee_amount: swap_result.lp_fee_amount,
+                total_fee_amount: swap_result.total_fee_amount,
+                shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
+            }
+        )?)),
     }
 }
 
@@ -360,9 +370,9 @@ pub fn calculate_swap_result(
     };
 
     Ok(SwapInfo {
-        lp_fee_amount: lp_fee_amount,
-        shade_dao_fee_amount: shade_dao_fee_amount,
-        total_fee_amount: total_fee_amount,
+        lp_fee_amount,
+        shade_dao_fee_amount,
+        total_fee_amount,
         result: result_swap,
         price: Decimal::from_ratio(final_swap_return, amount).to_string(),
     })
@@ -429,15 +439,15 @@ pub fn lp_virtual_swap(
                     &offer,
                     Some(is_user_whitelist),
                 )?;
-                if let Some(msgs) = messages {        
-                    if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != ""{
+                if let Some(msgs) = messages {
+                    if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != "" {
                         add_send_token_to_address_msg(
                             msgs,
                             shade_dao_address,
                             &new_deposit.pair.1.clone(),
                             swap.shade_dao_fee_amount,
-                        )?;  
-                    }                 
+                        )?;
+                    }
                 }
 
                 new_deposit.amount_0 = deposit.amount_0 - half_of_extra;
@@ -464,14 +474,14 @@ pub fn lp_virtual_swap(
                     Some(is_user_whitelist),
                 )?;
                 if let Some(msgs) = messages {
-                    if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != ""{
+                    if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != "" {
                         add_send_token_to_address_msg(
                             msgs,
                             shade_dao_address,
                             &new_deposit.pair.0.clone(),
                             swap.shade_dao_fee_amount,
-                        )?; 
-                    }                                    
+                        )?;
+                    }
                 }
 
                 new_deposit.amount_0 = deposit.amount_0 + swap.result.return_amount;
@@ -784,7 +794,12 @@ pub fn add_liquidity(
         ]))
 }
 
-pub fn update_viewing_key(env: Env, deps: DepsMut, viewing_key: String, config: &mut Config) -> StdResult<Response> {
+pub fn update_viewing_key(
+    env: Env,
+    deps: DepsMut,
+    viewing_key: String,
+    config: &mut Config,
+) -> StdResult<Response> {
     let mut messages = vec![];
     let new_viewing_key = ViewingKey(viewing_key);
     register_pair_token(&env, &mut messages, &config.pair.0, &new_viewing_key)?;
@@ -868,7 +883,7 @@ fn add_send_token_to_address_msg(
 
 fn calculate_fee(amount: Uint128, fee: Fee) -> StdResult<Uint128> {
     if fee.denom == 0u16 {
-        return Ok(Uint128::zero())
+        return Ok(Uint128::zero());
     }
     let amount = amount.multiply_ratio(fee.nom, fee.denom);
     Ok(amount)

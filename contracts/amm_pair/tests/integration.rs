@@ -337,8 +337,9 @@ pub fn amm_pair_integration_tests_native_token() {
     use amm_pair::contract::{instantiate, query, execute};
     use multi_test::admin::admin_help::init_admin_contract;
     use multi_test::help_lib::integration_help_lib::{roll_blockchain, mint_deposit_snip20, increase_allowance, store_init_factory_contract, create_token_pair, convert_to_contract_link, send_snip20_with_msg, get_snip20_balance, set_viewing_key, get_amm_pair_config, get_pair_liquidity_pool_balance, create_token_pair_with_native};
-    use cosmwasm_std::{Uint128, Coin, Timestamp};
+    use cosmwasm_std::{Uint128, Coin, Timestamp, from_binary};
     use multi_test::util_addr::util_addr::{OWNER, STAKER_A, STAKER_B};       
+    use shadeswap_shared::amm_pair::ExecuteMsgResponse;
     use shadeswap_shared::core::{ContractInstantiationInfo, TokenPairAmount, TokenAmount, CustomFee, Fee};
     use shadeswap_shared::msg::amm_pair::InvokeMsg;
     
@@ -582,12 +583,31 @@ pub fn amm_pair_integration_tests_native_token() {
         execute_arbitrage: None
     };
 
-    let _ = router.execute_contract(
+    let result = router.execute_contract(
         owner_addr.to_owned(),
         &amm_pair_contract,
         &swap_msg,
         &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(1000u128) }]
     ).unwrap();
+
+    match result.data {
+        Some(d) => {
+            match from_binary(&Some(d).unwrap()).unwrap() {
+                ExecuteMsgResponse::SwapResult { price, amount_in, amount_out, total_fee_amount, lp_fee_amount, shade_dao_fee_amount } => {
+                    assert_eq!(price, "0.941");
+                    assert_eq!(amount_in, Uint128::new(1000u128));
+                    assert_eq!(amount_out, Uint128::new(941u128));
+                    assert_eq!(total_fee_amount, Uint128::new(58u128));
+                    assert_eq!(lp_fee_amount, Uint128::new(29u128));
+                    assert_eq!(shade_dao_fee_amount, Uint128::new(29u128));
+                }
+                _ => panic!("Failed to match result")
+            }
+        },
+        None => panic!("Failed to match result"),
+    }
+
+ 
 
     // REMOVE LIQUIDITY
     roll_blockchain(&mut router, 1).unwrap();

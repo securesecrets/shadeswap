@@ -8,12 +8,12 @@ use shadeswap_shared::{
         ExecuteMsg as AMMPairExecuteMsg, InvokeMsg as AMMPairInvokeMsg,
         QueryMsgResponse as AMMPairQueryReponse,
     },
-    router::Hop,
+    router::{Hop, ExecuteMsgResponse},
     snip20::{
         self,
         helpers::{register_receive, set_viewing_key_msg},
     },
-    Contract,
+    Contract
 };
 
 use crate::{
@@ -122,7 +122,12 @@ pub fn next_swap(deps: DepsMut, env: Env, mut response: Response) -> StdResult<R
                 env.contract.address.to_string(),
                 info.recipient.to_string(),
                 token_in.amount,
-            )?]);
+            )?]).set_data(to_binary(&
+                ExecuteMsgResponse::SwapResult {
+                    amount_in: info.amount.amount,
+                    amount_out: token_in.amount
+                }
+            )?);
 
             Ok(response)
         }

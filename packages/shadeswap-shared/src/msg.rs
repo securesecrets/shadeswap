@@ -21,6 +21,16 @@ pub mod router {
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
+    pub enum ExecuteMsgResponse {
+        SwapResult{
+            amount_in: Uint128,
+            amount_out: Uint128
+        }
+    }
+
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
     pub enum InvokeMsg {
         SwapTokensForExact {
             path: Vec<Hop>,
@@ -251,6 +261,21 @@ pub mod amm_pair {
     impl ExecuteCallback for ExecuteMsg {
         const BLOCK_SIZE: usize = 256;
     }
+    
+
+    #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum ExecuteMsgResponse {
+        SwapResult{
+            price: String,
+            amount_in: Uint128,
+            amount_out: Uint128,
+            total_fee_amount: Uint128,
+            lp_fee_amount: Uint128,
+            shade_dao_fee_amount: Uint128,
+        }
+    }
+
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]

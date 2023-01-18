@@ -78,20 +78,31 @@ pub fn fee_info(deps: Deps) -> StdResult<FeeInfo> {
 
     let config = config_r(deps.storage).load()?;
 
-    match &config.factory_contract {
-        Some(c) => {
-            let amm_settings = factory_config(deps, c)?.amm_settings;
-            shade_dao_address = amm_settings.shade_dao_address.address;
-            lp_fee = amm_settings.lp_fee;
-            shade_dao_fee = amm_settings.shade_dao_fee;
-        }
+    let amm_settings: Option<AMMSettings> = if let Some(factory_contract) = &config.factory_contract {
+        Some(factory_config(deps, factory_contract)?.amm_settings)
+    } else {
+        None
+    };
+
+    //set dao address
+    shade_dao_address = if let Some(amm_s) = amm_settings.clone() {
+        amm_s.shade_dao_address.address
+    } else {
+        // if no address is given then this address is used
+        Addr::unchecked("")
+    };
+
+    //set fees
+    match &config.custom_fee {
+        Some(custom_fee) => {
+            lp_fee = custom_fee.lp_fee;
+            shade_dao_fee = custom_fee.shade_dao_fee;
+        },
         None => {
-            match config.custom_fee {
-                Some(c) => {
-                    // if no address is given then this address is used
-                    shade_dao_address = Addr::unchecked("");
-                    lp_fee = c.lp_fee;
-                    shade_dao_fee = c.shade_dao_fee;
+            match &amm_settings {
+                Some(amm_settings) => {
+                    lp_fee = amm_settings.lp_fee;
+                    shade_dao_fee = amm_settings.shade_dao_fee;
                 }
                 None => {
                     return Err(StdError::generic_err(

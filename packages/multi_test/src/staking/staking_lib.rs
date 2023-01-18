@@ -15,7 +15,8 @@ pub mod staking_lib{
         code_hash: &str,
         daily_reward_amount: Uint128,
         reward_token: TokenType,
-        valid_to: Uint128
+        valid_to: Uint128,
+        custom_label: Option<String>
     ) -> StakingContractInit {
         StakingContractInit{
             contract_info: ContractInstantiationInfo{
@@ -24,7 +25,8 @@ pub mod staking_lib{
             },
             daily_reward_amount: daily_reward_amount,
             reward_token: reward_token,
-            valid_to: valid_to
+            valid_to: valid_to,
+            custom_label: custom_label,
         }
     }
 }

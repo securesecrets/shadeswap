@@ -721,7 +721,8 @@ pub mod amm_pair_lib {
                     contract_addr: Addr::unchecked(msg.clone()),
                     token_code_hash: reward_contract_code_hash.unwrap().to_string(),
                 },
-                valid_to: Uint128::new(valid_to.unwrap())
+                valid_to: Uint128::new(valid_to.unwrap()),
+                custom_label: None,
             }),
             None => None,
         };

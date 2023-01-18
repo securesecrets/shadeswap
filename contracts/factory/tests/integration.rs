@@ -108,6 +108,7 @@ fn factory_integration_tests() {
                 token_code_hash: reward_contract.code_hash.clone() 
             },
             valid_to: Uint128::new(30000000u128),
+            custom_label: None
         }),
         None,
         "seed",
@@ -175,6 +176,7 @@ fn factory_integration_tests() {
                 token_code_hash: reward_contract.code_hash.clone() 
             },
             valid_to: Uint128::new(30000000u128),
+            custom_label: None
         }),
         lp_token_decimals: 18u8,
         lp_token_custom_label: None,
@@ -214,7 +216,8 @@ fn factory_integration_tests() {
                 contract_addr: reward_contract.address.clone(), 
                 token_code_hash: reward_contract.code_hash.clone() 
             },
-            valid_to: Uint128::new(30000000u128)
+            valid_to: Uint128::new(30000000u128),
+            custom_label: None
         }),
         lp_token_decimals: 18u8,
         lp_token_custom_label: None,

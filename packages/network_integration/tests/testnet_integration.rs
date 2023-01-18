@@ -4,7 +4,8 @@ use cosmwasm_std::{to_binary, Addr, QueryResponse, Response, Uint128};
 use network_integration::{
     cli_commands::{
         amm_pair_lib::{
-            add_amm_pairs, add_liquidity, list_pair_from_factory, get_staking_contract, store_staking_contract,get_lp_liquidity
+            add_amm_pairs, add_liquidity, get_lp_liquidity, get_staking_contract,
+            list_pair_from_factory, store_staking_contract,
         },
         factory_lib::{create_factory_contract, deposit_snip20, increase_allowance},
         router_lib::create_router_contract,
@@ -13,26 +14,29 @@ use network_integration::{
     utils::{
         generate_label, get_balance, get_current_timestamp, init_snip20, print_contract,
         print_header, InitConfig, ACCOUNT_KEY, ADMIN_FILE, AMM_PAIR_FILE, API_KEY, GAS,
-        SHADE_DAO_KEY, STAKER_KEY, STORE_GAS, VIEW_KEY, LPTOKEN20_FILE,
+        LPTOKEN20_FILE, SHADE_DAO_KEY, STAKER_KEY, STORE_GAS, VIEW_KEY,
     },
 };
-use shadeswap_shared::{staking::StakingContractInit, amm_pair::AMMPair, core::Fee};
 use query_authentication::{
     permit::Permit,
     transaction::{PermitSignature, PubKey},
 };
+use shadeswap_shared::{amm_pair::AMMPair, core::Fee, staking::StakingContractInit};
 
 use shadeswap_shared::{
     admin::RegistryAction,
     c_std::Binary,
     contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
-    core::{TokenAmount, TokenPair, TokenPairAmount, TokenType, ContractInstantiationInfo},
+    core::{ContractInstantiationInfo, TokenAmount, TokenPair, TokenPairAmount, TokenType},
     msg::{
         amm_pair::{
-            ExecuteMsg as AMMPairHandlMsg, QueryMsg as AMMPairQueryMsg, InvokeMsg as AMMInvokeMsg,
-            QueryMsgResponse as AMMPairQueryMsgResponse, InitMsg as AMMPairInitMsg
+            ExecuteMsg as AMMPairHandlMsg, InitMsg as AMMPairInitMsg, InvokeMsg as AMMInvokeMsg,
+            QueryMsg as AMMPairQueryMsg, QueryMsgResponse as AMMPairQueryMsgResponse,
         },
-        factory::{QueryMsg as FactoryQueryMsg, QueryResponse as FactoryQueryResponse, ExecuteMsg as FactoryExecuteMsg},
+        factory::{
+            ExecuteMsg as FactoryExecuteMsg, QueryMsg as FactoryQueryMsg,
+            QueryResponse as FactoryQueryResponse,
+        },
         router::{
             ExecuteMsg as RouterExecuteMsg, InvokeMsg as RouterInvokeMsg,
             QueryMsg as RouterQueryMsg, QueryMsgResponse as RouterQueryResponse,
@@ -46,7 +50,7 @@ use shadeswap_shared::{
     router::Hop,
     snip20,
     staking::{AuthQuery, QueryData},
-    Pagination, Contract,
+    Contract, Pagination,
 };
 
 use secretcli::{
@@ -69,7 +73,6 @@ fn run_testnet() -> Result<()> {
     let pair_contract_code_hash =
         store_and_return_contract(AMM_PAIR_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))?
             .code_hash;
-            
 
     type TestPermit = Permit<PermitData>;
     //secretd tx sign-doc file --from a
@@ -297,8 +300,8 @@ fn run_testnet() -> Result<()> {
         Some(3450000000000u128),
         18u8,
         &mut reports,
-        None, 
-        None
+        None,
+        None,
     )
     .unwrap();
 
@@ -320,8 +323,8 @@ fn run_testnet() -> Result<()> {
         None,
         18u8,
         &mut reports,
-        Some("PAIR CONTRACT".to_string()),
-        Some("LP_TOKEN".to_string())
+        Some("PAIR_CONTRACT".to_owned() + &factory_contract.address.to_string()),
+        Some("LP_TOKEN_A".to_owned() + &factory_contract.address.to_string()),
     )
     .unwrap();
 
@@ -986,10 +989,10 @@ fn run_testnet() -> Result<()> {
         None,
     )?;
     if let AMMPairQueryMsgResponse::SwapSimulation {
-        total_fee_amount:_,
-        lp_fee_amount:_,
-        shade_dao_fee_amount:_,
-        result:_,
+        total_fee_amount: _,
+        lp_fee_amount: _,
+        shade_dao_fee_amount: _,
+        result: _,
         price,
     } = estimated_price_query
     {
@@ -1028,7 +1031,7 @@ fn run_testnet() -> Result<()> {
         assert_eq!(total_liquidity, Uint128::new(10000000000));
     }
 
-    let staking_contract_msg = AMMPairQueryMsg::GetConfig {  };
+    let staking_contract_msg = AMMPairQueryMsg::GetConfig {};
     let staking_contract_query: AMMPairQueryMsgResponse = query(
         &NetContract {
             label: "".to_string(),
@@ -1040,7 +1043,13 @@ fn run_testnet() -> Result<()> {
         None,
     )?;
 
-    if let AMMPairQueryMsgResponse::GetConfig { staking_contract, factory_contract, lp_token, pair, custom_fee } = staking_contract_query
+    if let AMMPairQueryMsgResponse::GetConfig {
+        staking_contract,
+        factory_contract,
+        lp_token,
+        pair,
+        custom_fee,
+    } = staking_contract_query
     {
         println!("\n\tAllowed IncreaseAllowance for reward token - staking contract");
         // increase allowance for reward token
@@ -1065,7 +1074,7 @@ fn run_testnet() -> Result<()> {
             None,
         )
         .unwrap();
-        
+
         // send Reward token to staking contract
         handle(
             &snip20::ExecuteMsg::Send {
@@ -1088,7 +1097,7 @@ fn run_testnet() -> Result<()> {
 
         println!("\n\tUnstake 5000000000LP TOKEN");
 
-        let mut old_total_staked:Uint128;
+        let mut old_total_staked: Uint128;
 
         let total_currently_staked_msg: StakingQueryMsgResponse = query(
             &NetContract {
@@ -1101,11 +1110,16 @@ fn run_testnet() -> Result<()> {
             None,
         )?;
 
-        if let StakingQueryMsgResponse::GetConfig { total_staked_lp_token, reward_token, lp_token, amm_pair, admin_auth } = total_currently_staked_msg {
-            old_total_staked = total_staked_lp_token;
-        }
-        else
+        if let StakingQueryMsgResponse::GetConfig {
+            total_staked_lp_token,
+            reward_token,
+            lp_token,
+            amm_pair,
+            admin_auth,
+        } = total_currently_staked_msg
         {
+            old_total_staked = total_staked_lp_token;
+        } else {
             panic!("Failed to get correct response")
         }
 
@@ -1140,12 +1154,17 @@ fn run_testnet() -> Result<()> {
             None,
         )?;
 
-        if let StakingQueryMsgResponse::GetConfig { total_staked_lp_token, reward_token, lp_token, amm_pair, admin_auth } = total_currently_staked_msg {
+        if let StakingQueryMsgResponse::GetConfig {
+            total_staked_lp_token,
+            reward_token,
+            lp_token,
+            amm_pair,
+            admin_auth,
+        } = total_currently_staked_msg
+        {
             println!("{} - {}", old_total_staked, total_staked_lp_token);
             assert!(old_total_staked > total_staked_lp_token);
-        }
-        else
-        {
+        } else {
             panic!("Failed to get correct response")
         }
 
@@ -1391,9 +1410,16 @@ fn run_testnet() -> Result<()> {
                 &snip20::ExecuteMsg::Send {
                     recipient: staking_contract.clone().unwrap().address.to_string(),
                     amount: Uint128::new(1000),
-                    msg: Some(to_binary(&StakingInvokeMsg::Stake { from: account.clone() }).unwrap()),
+                    msg: Some(
+                        to_binary(&StakingInvokeMsg::Stake {
+                            from: account.clone(),
+                        })
+                        .unwrap(),
+                    ),
                     padding: None,
-                    recipient_code_hash: Some(staking_contract.clone().unwrap().code_hash.to_string()),
+                    recipient_code_hash: Some(
+                        staking_contract.clone().unwrap().code_hash.to_string(),
+                    ),
                     memo: None,
                 },
                 &NetContract {
@@ -1556,9 +1582,9 @@ fn run_testnet() -> Result<()> {
             deposit: TokenPairAmount {
                 pair: token_pair_1.clone(),
                 amount_0: Uint128::new(10000000000),
-                amount_1: Uint128::new(10000000000)
+                amount_1: Uint128::new(10000000000),
             },
-            sender: Addr::unchecked(account.clone())
+            sender: Addr::unchecked(account.clone()),
         };
         let estimated_lp_token: AMMPairQueryMsgResponse = query(
             &NetContract {
@@ -1682,7 +1708,14 @@ fn run_testnet() -> Result<()> {
     assert!(matches!(
         test_query_successful(
             amm_pair_1.address.to_string(),
-            AMMPairQueryMsg::GetEstimatedLiquidity {deposit:TokenPairAmount{pair:token_pair_1.clone(),amount_0:Uint128::from(1000u64),amount_1:Uint128::from(1000u64)}, sender: Addr::unchecked(account) },
+            AMMPairQueryMsg::GetEstimatedLiquidity {
+                deposit: TokenPairAmount {
+                    pair: token_pair_1.clone(),
+                    amount_0: Uint128::from(1000u64),
+                    amount_1: Uint128::from(1000u64)
+                },
+                sender: Addr::unchecked(account)
+            },
         )?,
         AMMPairQueryMsgResponse::GetEstimatedLiquidity { .. }
     ));
@@ -1770,7 +1803,7 @@ fn run_testnet() -> Result<()> {
     assert!(matches!(
         test_query_successful(
             found_staking_contract.address.to_string(),
-            StakingQueryMsg::GetRewardTokens {  },
+            StakingQueryMsg::GetRewardTokens {},
         )?,
         StakingQueryMsgResponse::GetRewardTokens { .. }
     ));
@@ -1778,7 +1811,10 @@ fn run_testnet() -> Result<()> {
     assert!(matches!(
         test_query_successful(
             found_staking_contract.address.to_string(),
-            StakingQueryMsg::WithPermit { permit: new_permit.clone(), query: AuthQuery::GetStakerLpTokenInfo {  } },
+            StakingQueryMsg::WithPermit {
+                permit: new_permit.clone(),
+                query: AuthQuery::GetStakerLpTokenInfo {}
+            },
         )?,
         StakingQueryMsgResponse::GetStakerLpTokenInfo { .. }
     ));
@@ -1786,7 +1822,12 @@ fn run_testnet() -> Result<()> {
     assert!(matches!(
         test_query_successful(
             found_staking_contract.address.to_string(),
-            StakingQueryMsg::WithPermit { permit: new_permit.clone(), query: AuthQuery::GetClaimReward { time: get_current_timestamp().unwrap() } },
+            StakingQueryMsg::WithPermit {
+                permit: new_permit.clone(),
+                query: AuthQuery::GetClaimReward {
+                    time: get_current_timestamp().unwrap()
+                }
+            },
         )?,
         StakingQueryMsgResponse::GetClaimReward { .. }
     ));
@@ -1797,7 +1838,7 @@ fn run_testnet() -> Result<()> {
     ///////////////////////////////////
     /// ///////////////////////////////
     /// ///////////////////////////////
-    let account =  account_address(ACCOUNT_KEY)?;
+    let account = account_address(ACCOUNT_KEY)?;
     // CREATE USDT SNIP20
     print_header("Initializing USDT");
     let (_, usdt_token) = init_snip20(
@@ -1913,36 +1954,43 @@ fn run_testnet() -> Result<()> {
             contract_addr: Addr::unchecked(reward_token.address.to_string()),
             token_code_hash: reward_token.code_hash.to_string(),
         },
-        valid_to: Uint128::new(40000000u128)
+        valid_to: Uint128::new(40000000u128),
+        custom_label: Some("THIS IS A TEST".to_string()),
     });
 
     // STORING LP TOKEN
-    let lp_token = store_and_return_contract(
-        &LPTOKEN20_FILE,
-        ACCOUNT_KEY,
-        Some(STORE_GAS),
-        Some("test"),
-    ).unwrap();
+    let lp_token =
+        store_and_return_contract(&LPTOKEN20_FILE, ACCOUNT_KEY, Some(STORE_GAS), Some("test"))
+            .unwrap();
 
     // CREATE AMM PAIR USDT-ETH
-    let amm_pair_init_msg = AMMPairInitMsg{
+    let amm_pair_init_msg = AMMPairInitMsg {
         pair: TokenPair(
-            TokenType::CustomToken { contract_addr: Addr::unchecked(usdt_token.address.to_string()), token_code_hash: usdt_token.code_hash.to_string() },
-            TokenType::CustomToken { contract_addr: Addr::unchecked(eth_token.address.to_string()), token_code_hash: eth_token.code_hash.to_string() } 
+            TokenType::CustomToken {
+                contract_addr: Addr::unchecked(usdt_token.address.to_string()),
+                token_code_hash: usdt_token.code_hash.to_string(),
+            },
+            TokenType::CustomToken {
+                contract_addr: Addr::unchecked(eth_token.address.to_string()),
+                token_code_hash: eth_token.code_hash.to_string(),
+            },
         ),
-        lp_token_contract: ContractInstantiationInfo{
+        lp_token_contract: ContractInstantiationInfo {
             code_hash: lp_token.code_hash.to_string(),
             id: lp_token.id.parse::<u64>().unwrap(),
         },
         factory_info: None,
         prng_seed: to_binary("seed").unwrap(),
-        entropy:to_binary("password").unwrap(),
-        admin_auth: Contract { 
-            address: Addr::unchecked(admin_contract.address.to_string()), 
-            code_hash: admin_contract.code_hash.to_string()
+        entropy: to_binary("password").unwrap(),
+        admin_auth: Contract {
+            address: Addr::unchecked(admin_contract.address.to_string()),
+            code_hash: admin_contract.code_hash.to_string(),
         },
         staking_contract: staking_contract_init,
-        custom_fee: Some(shadeswap_shared::core::CustomFee { shade_dao_fee: Fee::new(8,100), lp_fee: Fee::new(3, 100) }),
+        custom_fee: Some(shadeswap_shared::core::CustomFee {
+            shade_dao_fee: Fee::new(8, 100),
+            lp_fee: Fee::new(3, 100),
+        }),
         arbitrage_contract: None,
         lp_token_decimals: 18u8,
         lp_token_custom_label: Some("THIS IS A TEST".to_string()),
@@ -1962,17 +2010,23 @@ fn run_testnet() -> Result<()> {
     print_contract(&amm_pair_contract);
     print_header("\n\tAMMPAIR CONTRACT ADDRESS ");
     let token_pair = TokenPair(
-        TokenType::CustomToken { contract_addr: Addr::unchecked(usdt_token.address.to_string()), token_code_hash: usdt_token.code_hash.to_string() },
-        TokenType::CustomToken { contract_addr: Addr::unchecked(eth_token.address.to_string()), token_code_hash: eth_token.code_hash.to_string() } 
+        TokenType::CustomToken {
+            contract_addr: Addr::unchecked(usdt_token.address.to_string()),
+            token_code_hash: usdt_token.code_hash.to_string(),
+        },
+        TokenType::CustomToken {
+            contract_addr: Addr::unchecked(eth_token.address.to_string()),
+            token_code_hash: eth_token.code_hash.to_string(),
+        },
     );
-    let add_amm_pair_msg = FactoryExecuteMsg::AddAMMPairs { amm_pairs: vec![
-            AMMPair{
-                pair: token_pair.clone(),
-                address: Addr::unchecked(amm_pair_contract.address.to_string()),
-                code_hash: amm_pair_contract.code_hash.to_string(),
-                enabled: true,
-            }
-        ]};
+    let add_amm_pair_msg = FactoryExecuteMsg::AddAMMPairs {
+        amm_pairs: vec![AMMPair {
+            pair: token_pair.clone(),
+            address: Addr::unchecked(amm_pair_contract.address.to_string()),
+            code_hash: amm_pair_contract.code_hash.to_string(),
+            enabled: true,
+        }],
+    };
 
     let _ = handle(
         &add_amm_pair_msg,
@@ -1982,13 +2036,16 @@ fn run_testnet() -> Result<()> {
         Some("test"),
         None,
         &mut reports,
-        None
-    )?; 
+        None,
+    )?;
 
     print_header("\n\tGetting New Pairs from Factory");
     let amm_pairs = list_pair_from_factory(factory_contract.address.clone(), 0, 10).unwrap();
-    assert_eq!(amm_pairs.len(), 3);    
-    assert_eq!(amm_pairs[2].address.to_string(), amm_pair_contract.address.to_string());
+    assert_eq!(amm_pairs.len(), 3);
+    assert_eq!(
+        amm_pairs[2].address.to_string(),
+        amm_pair_contract.address.to_string()
+    );
 
     print_header("\n\tIncrease Allowance for New AMM Pair");
     increase_allowance(
@@ -2173,10 +2230,10 @@ fn run_testnet() -> Result<()> {
                 recipient: amm_pair_contract.address.to_string(),
                 amount: Uint128::new(10000u128),
                 msg: Some(
-                    to_binary(&AMMInvokeMsg::SwapTokens { 
-                        expected_return: Some(Uint128::new(10u128)), 
-                        to: Some(account.to_string()), 
-                        execute_arbitrage: None 
+                    to_binary(&AMMInvokeMsg::SwapTokens {
+                        expected_return: Some(Uint128::new(10u128)),
+                        to: Some(account.to_string()),
+                        execute_arbitrage: None,
                     })
                     .unwrap(),
                 ),
@@ -2193,7 +2250,7 @@ fn run_testnet() -> Result<()> {
             None,
         )
         .unwrap();
-    
+
         assert_eq!(
             get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
             Uint128::new(old_eth_balance.u128() + 8901)
@@ -2202,7 +2259,7 @@ fn run_testnet() -> Result<()> {
             get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
             Uint128::new(old_usdt_balance.u128() - 10000)
         );
-    
+
         print_header("\n\t 1. - BUY 100 ETH Initiating USDT to ETH Swap via Router ");
         let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
         let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
@@ -2211,7 +2268,7 @@ fn run_testnet() -> Result<()> {
                 recipient: router_contract.address.to_string(),
                 amount: Uint128::new(10000u128),
                 msg: Some(
-                    to_binary(&RouterInvokeMsg::SwapTokensForExact { 
+                    to_binary(&RouterInvokeMsg::SwapTokensForExact {
                         expected_return: Some(Uint128::new(100)),
                         path: vec![Hop {
                             addr: amm_pair_contract.address.to_string(),
@@ -2234,7 +2291,7 @@ fn run_testnet() -> Result<()> {
             None,
         )
         .unwrap();
-    
+
         assert_eq!(
             get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
             Uint128::new(old_eth_balance.u128() + 8901)
@@ -2242,8 +2299,8 @@ fn run_testnet() -> Result<()> {
         assert_eq!(
             get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
             Uint128::new(old_usdt_balance.u128() - 10000)
-        );  
-        
+        );
+
         let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
         let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
         print_header("\n\tAdding Liquidity to USDT/ETH - No Staking");
@@ -2270,8 +2327,8 @@ fn run_testnet() -> Result<()> {
             &mut reports,
             None,
         )
-        .unwrap();   
-        
+        .unwrap();
+
         assert_eq!(
             get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
             Uint128::new(old_usdt_balance.u128() - 20000000000)
@@ -2289,27 +2346,41 @@ fn run_testnet() -> Result<()> {
         };
 
         // SET VIEWING KEY
-        set_viewing_key(VIEW_KEY, &lp_token_contract, &mut reports, ACCOUNT_KEY, "test").unwrap();
-        assert_eq!(get_balance(&lp_token_contract, 
-            account.to_string(), 
-            VIEW_KEY.to_string()),
+        set_viewing_key(
+            VIEW_KEY,
+            &lp_token_contract,
+            &mut reports,
+            ACCOUNT_KEY,
+            "test",
+        )
+        .unwrap();
+        assert_eq!(
+            get_balance(
+                &lp_token_contract,
+                account.to_string(),
+                VIEW_KEY.to_string()
+            ),
             Uint128::new(19999996822)
         );
 
-        let old_liquidity = (get_lp_liquidity(&amm_pair_contract.address.to_string()).unwrap().unwrap());
+        let old_liquidity = (get_lp_liquidity(&amm_pair_contract.address.to_string())
+            .unwrap()
+            .unwrap());
         let old_usdt_balance = get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string());
         let old_eth_balance = get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string());
         print_header("\n\tSending Liquidity to USDT/ETH AMM Pair - Remove liquidity");
-         handle(
+        handle(
             &snip20::ExecuteMsg::Send {
                 recipient: amm_pair_contract.address.to_string(),
                 amount: Uint128::new(9999996822),
-                msg: Some(to_binary(&AMMInvokeMsg::RemoveLiquidity{
-                    from: None,
-                    single_sided_withdraw_type: None, //None means 50/50 balanced withdraw, and a value here tells which token to send the withdraw in
-                    single_sided_expected_return: None,
-                })
-                .unwrap()),
+                msg: Some(
+                    to_binary(&AMMInvokeMsg::RemoveLiquidity {
+                        from: None,
+                        single_sided_withdraw_type: None, //None means 50/50 balanced withdraw, and a value here tells which token to send the withdraw in
+                        single_sided_expected_return: None,
+                    })
+                    .unwrap(),
+                ),
                 padding: None,
                 recipient_code_hash: None,
                 memo: None,
@@ -2323,17 +2394,24 @@ fn run_testnet() -> Result<()> {
             None,
         )
         .unwrap();
-        assert_eq!(get_balance(&lp_token_contract, 
-            account.to_string(), 
-            VIEW_KEY.to_string()),
+        assert_eq!(
+            get_balance(
+                &lp_token_contract,
+                account.to_string(),
+                VIEW_KEY.to_string()
+            ),
             Uint128::new(10000000000)
         );
 
         // ASSERT LP TOKEN - 9999996822
         print_header("\n\tLP Token Liquidity - 9999996822");
-        let new_liquidity = (get_lp_liquidity(&amm_pair_contract.address.to_string()).unwrap()).unwrap();
-        assert_eq!(new_liquidity, Uint128::new(old_liquidity.u128() - 9999996822));
-        // ASSERT BALANCE USDT adn ETH TOKEN + 9999996822        
+        let new_liquidity =
+            (get_lp_liquidity(&amm_pair_contract.address.to_string()).unwrap()).unwrap();
+        assert_eq!(
+            new_liquidity,
+            Uint128::new(old_liquidity.u128() - 9999996822)
+        );
+        // ASSERT BALANCE USDT adn ETH TOKEN + 9999996822
         assert_eq!(
             get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
             Uint128::new(old_usdt_balance.u128() + 10000002616)
@@ -2342,10 +2420,8 @@ fn run_testnet() -> Result<()> {
             get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
             Uint128::new(old_eth_balance.u128() + 9999993166)
         );
-        println!("\n\tUnstake 5000000000LP TOKEN");      
+        println!("\n\tUnstake 5000000000LP TOKEN");
     }
-
-   
 
     return Ok(());
 }
@@ -2358,7 +2434,7 @@ fn test_query_successful<Query: serde::Serialize, Response: serde::de::Deseriali
         &NetContract {
             label: "".to_string(),
             id: "".to_string(),
-            address: address,
+            address,
             code_hash: "".to_string(),
         },
         msg,

@@ -462,7 +462,8 @@ pub mod staking {
         pub contract_info: ContractInstantiationInfo,
         pub daily_reward_amount: Uint128,
         pub reward_token: TokenType,
-        pub valid_to: Uint128
+        pub valid_to: Uint128,
+        pub custom_label: Option<String>
     }
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]

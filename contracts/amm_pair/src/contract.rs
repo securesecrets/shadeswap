@@ -466,7 +466,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                         Contract {
                             address: contract_address,
                             code_hash: config.lp_token.code_hash,
-                        },
+                        }
                     )?;
                     response.data = Some(env.contract.address.to_string().as_bytes().into());
                     Ok(response)

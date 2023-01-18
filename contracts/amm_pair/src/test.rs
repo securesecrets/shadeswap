@@ -1171,6 +1171,7 @@ pub mod help_test_lib {
                     token_code_hash: "".to_string(),
                 }, 
                 valid_to: Uint128::new(3747905010000u128),
+                custom_label: None,
             }),
             prng_seed: to_binary(&"to_string".to_string())?,
             admin_auth: Contract { address: Addr::unchecked(ADMIN_CONTRACT), code_hash: "".to_string() },

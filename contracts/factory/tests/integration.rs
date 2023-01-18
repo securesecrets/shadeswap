@@ -176,7 +176,9 @@ fn factory_integration_tests() {
             },
             valid_to: Uint128::new(30000000u128),
         }),
-        lp_token_decimals: 18u8
+        lp_token_decimals: 18u8,
+        lp_token_custom_label: None,
+        amm_pair_custom_label: None
     };
     
     let _ = router.execute_contract(
@@ -214,7 +216,9 @@ fn factory_integration_tests() {
             },
             valid_to: Uint128::new(30000000u128)
         }),
-        lp_token_decimals: 18u8
+        lp_token_decimals: 18u8,
+        lp_token_custom_label: None,
+        amm_pair_custom_label: None
     };
     
     let _ = router.execute_contract(

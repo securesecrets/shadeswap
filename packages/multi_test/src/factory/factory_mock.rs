@@ -93,12 +93,7 @@ pub mod factory_mock {
                     api_key: _,
                     admin_auth: _,
                 } => Ok(Response::new()),
-                ExecuteMsg::CreateAMMPair {
-                    pair: _,
-                    entropy: _,
-                    staking_contract: _,
-                    lp_token_decimals: _u8
-                } => Ok(Response::new()),
+                ExecuteMsg::CreateAMMPair {pair:_,entropy:_,staking_contract:_,lp_token_decimals:_u8, lp_token_custom_label: _, amm_pair_custom_label } => Ok(Response::new()),
                 ExecuteMsg::AddAMMPairs { amm_pairs: _ } => Ok(Response::new())
             },
             BLOCK_SIZE,

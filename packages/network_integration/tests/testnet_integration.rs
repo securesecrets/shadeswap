@@ -297,6 +297,8 @@ fn run_testnet() -> Result<()> {
         Some(3450000000000u128),
         18u8,
         &mut reports,
+        None, 
+        None
     )
     .unwrap();
 
@@ -318,6 +320,8 @@ fn run_testnet() -> Result<()> {
         None,
         18u8,
         &mut reports,
+        Some("PAIR CONTRACT".to_string()),
+        Some("LP_TOKEN".to_string())
     )
     .unwrap();
 
@@ -1941,6 +1945,7 @@ fn run_testnet() -> Result<()> {
         custom_fee: Some(shadeswap_shared::core::CustomFee { shade_dao_fee: Fee::new(8,100), lp_fee: Fee::new(3, 100) }),
         arbitrage_contract: None,
         lp_token_decimals: 18u8,
+        lp_token_custom_label: Some("THIS IS A TEST".to_string()),
     };
     // CREATE AMM PAIR
     let amm_pair_contract = init(

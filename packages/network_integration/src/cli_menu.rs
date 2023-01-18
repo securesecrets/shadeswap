@@ -422,6 +422,8 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> 
             valid_to,
             decimals.parse::<u8>().unwrap(),
             reports,
+            None,
+            None
         )?;
 
         println!(

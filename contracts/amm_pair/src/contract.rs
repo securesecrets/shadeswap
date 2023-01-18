@@ -90,10 +90,10 @@ pub fn instantiate(
         CosmosMsg::Wasm(WasmMsg::Instantiate {
             code_id: msg.lp_token_contract.id,
             msg: to_binary(&init_snip20_msg)?,
-            label: format!(
+            label: msg.lp_token_custom_label.unwrap_or(format!(
                 "{}-{}-ShadeSwap-Pair-Token-{}",
                 &msg.pair.0, &msg.pair.1, &env.contract.address
-            ),
+            )),
             code_hash: msg.lp_token_contract.code_hash.clone(),
             funds: vec![],
         }),

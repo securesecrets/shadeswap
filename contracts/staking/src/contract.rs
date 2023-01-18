@@ -94,7 +94,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 let checked_from = deps.api.addr_validate(&from)?;
                 receiver_callback(deps, env, info, checked_from, amount, msg)
             },
-            ExecuteMsg::ClaimRewards {} => claim_rewards(deps, Uint128::new((env.block.time.seconds()) as u128),&info.sender, &env),
+            ExecuteMsg::ClaimRewards {} => claim_rewards(deps, &info.sender, &env),
             ExecuteMsg::Unstake {
                 amount,
                 remove_liquidity,

@@ -1955,7 +1955,7 @@ fn run_testnet() -> Result<()> {
             token_code_hash: reward_token.code_hash.to_string(),
         },
         valid_to: Uint128::new(40000000u128),
-        custom_label: Some("THIS IS A TEST".to_string()),
+        custom_label: Some(("THIS IS A TEST".to_owned() + &factory_contract.address.to_string()).to_string()),
     });
 
     // STORING LP TOKEN

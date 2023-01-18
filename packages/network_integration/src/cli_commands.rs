@@ -1,5 +1,5 @@
 pub mod snip20_lib {
-    use crate::utils::{init_snip20_cli, InitConfig, GAS, STORE_GAS, ADMIN_FILE, generate_label};
+    use crate::utils::{init_snip20_cli, InitConfig, GAS};
     use cosmwasm_std::Addr;
     use secretcli::{
         cli_types::NetContract,
@@ -158,7 +158,6 @@ pub mod factory_lib {
     use std::io;
 
     use cosmwasm_std::{Binary, Uint128};
-    use query_authentication::transaction::{PermitSignature, PubKey};
     use secretcli::{
         cli_types::{NetContract},
         secretcli::{handle, store_and_return_contract, Report, init},
@@ -169,7 +168,7 @@ pub mod factory_lib {
         core::{ContractInstantiationInfo, Fee},
         msg::factory::InitMsg as FactoryInitMsg,
         contract_interfaces::admin::InstantiateMsg as AdminInstantiateMsg,
-        Contract, staking::{InvokeMsg, QueryData}, query_auth::PermitData, admin::RegistryAction,
+        Contract, staking::{InvokeMsg}, query_auth::PermitData, admin::RegistryAction,
     };
     use query_authentication::permit::Permit;
 
@@ -811,10 +810,7 @@ pub mod amm_pair_lib {
 
         handle(
             &StakingExecuteMsg::SetRewardToken {
-                reward_token: Contract {
-                    address: Addr::unchecked(token_addr.to_string()),
-                    code_hash: token_code_hash.to_string(),
-                },
+                reward_token: TokenType::CustomToken { contract_addr: Addr::unchecked(token_addr.to_string()), token_code_hash: token_code_hash.to_string() } ,
                 daily_reward_amount: daily_reward_amount,
                 valid_to: valid_to,
             },

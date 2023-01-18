@@ -159,7 +159,7 @@ pub mod amm_pairs_mock {
                     offer: _,
                     expected_return: _,
                     to: _,
-                    execute_arbitrage,
+                    execute_arbitrage: _,
                 } => Ok(Response::new()),
                 ExecuteMsg::Receive {
                     from: _,
@@ -177,7 +177,7 @@ pub mod amm_pairs_mock {
                     msg: _msg,
                 } => Ok(Response::new()),
                 ExecuteMsg::SetConfig { admin_auth: _ } => Ok(Response::new()),
-                ExecuteMsg::SetArbitrageContract { arbitrage_contract } => todo!(),
+                ExecuteMsg::SetArbitrageContract { arbitrage_contract : _} => todo!(),
             },
             BLOCK_SIZE,
         )

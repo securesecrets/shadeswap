@@ -65,7 +65,6 @@ fn secretcli_run(command: Vec<String>, max_retry: Option<i32>) -> Result<Value> 
         println!("{:?}", &String::from_utf8_lossy(&out));
     }
     
-    //println!("{:?}", &String::from_utf8_lossy(&out));
     serde_json::from_str(&String::from_utf8_lossy(&out))
 }
 

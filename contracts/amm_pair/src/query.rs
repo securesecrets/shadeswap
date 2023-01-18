@@ -50,7 +50,7 @@ pub fn factory_config(deps: Deps, factory: &Contract) -> StdResult<FactoryConfig
 pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount, exclude_fee: Option<bool>) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
 
-    let fee_info = fee_info(deps, &env)?;
+    let fee_info = fee_info(deps)?;
 
     let swap_result = calculate_swap_result(
         deps,
@@ -71,7 +71,7 @@ pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount, exclude_fee: Op
     to_binary(&simulation_result)
 }
 
-pub fn fee_info(deps: Deps, env: &Env) -> StdResult<FeeInfo> {
+pub fn fee_info(deps: Deps) -> StdResult<FeeInfo> {
     let shade_dao_address: Addr;
     let lp_fee: Fee;
     let shade_dao_fee: Fee;
@@ -121,9 +121,9 @@ pub fn fee_info(deps: Deps, env: &Env) -> StdResult<FeeInfo> {
     })
 }
 
-pub fn shade_dao_info(deps: Deps, env: &Env) -> StdResult<Binary> {
+pub fn shade_dao_info(deps: Deps) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
-    let fee_info = fee_info(deps, &env)?;
+    let fee_info = fee_info(deps)?;
     let shade_dao_info = QueryMsgResponse::GetShadeDaoInfo {
         shade_dao_address: fee_info.shade_dao_address.to_string(),
         shade_dao_fee: fee_info.shade_dao_fee,
@@ -150,7 +150,7 @@ pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount, send
 
     let pair_contract_pool_liquidity = total_supply(deps, &config.lp_token)?;
 
-    let fee_info = fee_info(deps, &env)?;
+    let fee_info = fee_info(deps)?;
 
     let new_deposit = lp_virtual_swap(
         deps,

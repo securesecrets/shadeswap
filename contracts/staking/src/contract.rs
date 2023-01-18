@@ -13,14 +13,15 @@ use shadeswap_shared::{
 
 use crate::{
     operations::{
-        claim_rewards, proxy_stake, proxy_unstake, set_reward_token, stake, store_init_reward_token_and_timestamp,
+        claim_rewards, set_reward_token, stake,
         unstake, update_authenticator, 
     },
     query,
-    state::{config_r, config_w, prng_seed_w, Config},
+    state::{config_r, config_w, prng_seed_w, Config, reward_token_list_w},
 };
 
 pub const BLOCK_SIZE: usize = 256;
+pub const SHADE_STAKING_VIEWKEY: &str = "SHADE_STAKING_VIEWKEY";
 
 #[entry_point]
 pub fn instantiate(
@@ -49,7 +50,7 @@ pub fn instantiate(
     )?);
 
     // store reward token to the list
-    let reward_token_address: Contract = match msg.reward_token {
+    let reward_token_address: Contract = match msg.reward_token.clone() {
         TokenType::CustomToken {
             contract_addr,
             token_code_hash,
@@ -62,13 +63,12 @@ pub fn instantiate(
                 "Invalid Token Type for Reward Token".to_string(),
             ))
         }
-    };    
-    store_init_reward_token_and_timestamp(
-        deps.storage,
-        reward_token_address.to_owned(),
-        msg.daily_reward_amount,        
-        msg.valid_to
-    )?;
+    };
+
+    let reward_token_list: Vec<String> = Vec::new();
+    reward_token_list_w(deps.storage).save(&reward_token_list)?;
+
+    set_reward_token(deps, &env, msg.daily_reward_amount, msg.reward_token, msg.valid_to)?;
 
     let mut response = Response::new();
     response.data = Some(env.contract.address.as_bytes().into());
@@ -83,9 +83,10 @@ pub fn instantiate(
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     pad_response_result(
         match msg {
+            // Allow another sender to unstake for a specific user for which they previously proxy staked for.
             ExecuteMsg::ProxyUnstake { for_addr, amount } => {
                 let checked_for_addr = deps.api.addr_validate(&for_addr)?;
-                proxy_unstake(deps, env, info, checked_for_addr, amount)
+                unstake(deps, &env, &info.sender, &checked_for_addr, amount, Some(false))
             }
             ExecuteMsg::Receive {
                 from, amount, msg, ..
@@ -93,11 +94,11 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 let checked_from = deps.api.addr_validate(&from)?;
                 receiver_callback(deps, env, info, checked_from, amount, msg)
             },
-            ExecuteMsg::ClaimRewards {} => claim_rewards(deps, info, env),
+            ExecuteMsg::ClaimRewards {} => claim_rewards(deps, Uint128::new((env.block.time.seconds()) as u128),&info.sender, &env),
             ExecuteMsg::Unstake {
                 amount,
                 remove_liquidity,
-            } => unstake(deps, env, info, amount, remove_liquidity),
+            } => unstake(deps, &env, &info.sender,  &info.sender, amount, remove_liquidity),
             ExecuteMsg::SetAuthenticator { authenticator } => {
                 let config = config_r(deps.storage).load()?;
                 validate_admin(
@@ -133,8 +134,9 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                     &info.sender,
                     &config.admin_auth,
                 )?;
-                set_reward_token(deps, env, info, reward_token, daily_reward_amount, valid_to)
+                set_reward_token(deps, &env,  daily_reward_amount, reward_token ,valid_to)
             }
+            // This can be used by admins to recover any funds that were sent accidentally to staking contract.
             ExecuteMsg::RecoverFunds {
                 token,
                 amount,
@@ -196,14 +198,15 @@ fn receiver_callback(
                     return Err(StdError::generic_err("Sender was not LP Token".to_string()));
                 }
                 let checked_from = deps.api.addr_validate(&from)?;
-                stake(deps, env, info, amount, checked_from)
+                stake(deps, &env, &info, amount, &checked_from, &checked_from)
             }
+            // Allow another sender to stake for a specific user. Only the sender can unstake the funds using proxy unstake
             InvokeMsg::ProxyStake { for_addr } => {
                 if config.lp_token.address != info.sender {
                     return Err(StdError::generic_err("Sender was not LP Token".to_string()));
                 }
                 let checked_for_addr = deps.api.addr_validate(&for_addr)?;
-                proxy_stake(deps, env, info, amount, from, checked_for_addr)
+                stake(deps, &env, &info, amount, &from, &checked_for_addr)
             }
         },
         BLOCK_SIZE,

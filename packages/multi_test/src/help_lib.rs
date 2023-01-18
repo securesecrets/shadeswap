@@ -349,8 +349,7 @@ pub fn configure_block_send_init_funds(router: &mut App, owner_addr: &Addr, _amo
         stake_contract: &ContractInfo,
         amount: Uint128,
         staker: &Addr,
-        _proxy_addr: &Addr,
-        sender: &Addr
+        proxy_addr: &Addr
     ) -> StdResult<AppResponse>{        
         let invoke_msg = to_binary(&InvokeMsg::ProxyStake { 
             for_addr: staker.to_string()})?;
@@ -365,7 +364,7 @@ pub fn configure_block_send_init_funds(router: &mut App, owner_addr: &Addr, _amo
         };
 
         let response: AppResponse = router.execute_contract(
-            sender.to_owned(),
+            proxy_addr.to_owned(),
             &contract.clone(),
             &msg,
             &[], // 

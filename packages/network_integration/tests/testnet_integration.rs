@@ -46,7 +46,6 @@ use shadeswap_shared::{
     router::Hop,
     snip20,
     staking::{AuthQuery, QueryData},
-    utils::Query,
     Pagination, Contract,
 };
 
@@ -381,6 +380,11 @@ fn run_testnet() -> Result<()> {
         &mut reports,
     )
     .unwrap();
+
+    assert_eq!(
+        get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
+        Uint128::new(1000000000000 - 10000000000)
+    );
 
     print_header("\n\tAdding Liquidity to NATIVE/SNIP20 staking contract");
     handle(
@@ -978,10 +982,10 @@ fn run_testnet() -> Result<()> {
         None,
     )?;
     if let AMMPairQueryMsgResponse::SwapSimulation {
-        total_fee_amount,
-        lp_fee_amount,
-        shade_dao_fee_amount,
-        result,
+        total_fee_amount:_,
+        lp_fee_amount:_,
+        shade_dao_fee_amount:_,
+        result:_,
         price,
     } = estimated_price_query
     {
@@ -1093,7 +1097,7 @@ fn run_testnet() -> Result<()> {
             None,
         )?;
 
-        if let StakingQueryMsgResponse::GetConfig { total_staked_lp_token, reward_token, lp_token, daily_reward_amount, amm_pair, admin_auth } = total_currently_staked_msg {
+        if let StakingQueryMsgResponse::GetConfig { total_staked_lp_token, reward_token, lp_token, amm_pair, admin_auth } = total_currently_staked_msg {
             old_total_staked = total_staked_lp_token;
         }
         else
@@ -1132,7 +1136,7 @@ fn run_testnet() -> Result<()> {
             None,
         )?;
 
-        if let StakingQueryMsgResponse::GetConfig { total_staked_lp_token, reward_token, lp_token, daily_reward_amount, amm_pair, admin_auth } = total_currently_staked_msg {
+        if let StakingQueryMsgResponse::GetConfig { total_staked_lp_token, reward_token, lp_token, amm_pair, admin_auth } = total_currently_staked_msg {
             println!("{} - {}", old_total_staked, total_staked_lp_token);
             assert!(old_total_staked > total_staked_lp_token);
         }
@@ -1529,7 +1533,6 @@ fn run_testnet() -> Result<()> {
         if let StakingQueryMsgResponse::GetConfig {
             reward_token,
             lp_token: _,
-            daily_reward_amount,
             amm_pair: _,
             admin_auth: _,
             total_staked_lp_token,
@@ -1543,7 +1546,6 @@ fn run_testnet() -> Result<()> {
                 reward_token.code_hash.to_string(),
                 reward_token.code_hash.clone()
             );
-            assert_eq!(daily_reward_amount, Uint128::new(3450000000000));
         }
         print_header("\n\tGet Estimated LP Token & Total LP Token Liquditiy");
         let get_estimated_lp_token = AMMPairQueryMsg::GetEstimatedLiquidity {

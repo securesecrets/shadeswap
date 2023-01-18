@@ -61,7 +61,6 @@ pub fn stake(
     }
 
     update_reward(
-        Uint128::new((env.block.time.seconds()) as u128),
         &for_addr,
         deps.storage,
         &env,
@@ -166,12 +165,11 @@ fn get_reward_msgs(
 /// Execute Claim Rewards for Staker
 pub fn claim_rewards(
     deps: DepsMut,
-    current_timestamp: Uint128,
     claimer: &Addr,
     env: &Env,
 ) -> StdResult<Response> {
     let receiver = claimer.clone();
-    update_reward(current_timestamp, &receiver, deps.storage, &env)?;
+    update_reward(&receiver, deps.storage, &env)?;
 
     let mut messages: Vec<CosmosMsg> = Vec::new();
     get_reward_msgs(deps.storage, claimer, env, &mut messages)?;
@@ -189,7 +187,7 @@ pub fn set_reward_token(
     valid_to: Uint128,
 ) -> StdResult<Response> {
     let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
-    update_reward(current_timestamp, &env.contract.address, deps.storage, &env)?;
+    update_reward(&env.contract.address, deps.storage, &env)?;
 
     let token_info_option =
         reward_token_w(deps.storage).may_load(reward_token.unique_key().as_bytes())?;
@@ -280,9 +278,8 @@ pub fn unstake(
     amount: Uint128,
     remove_liquidity: Option<bool>,
 ) -> StdResult<Response> {
-    let current_timestamp = Uint128::new((env.block.time.seconds()) as u128);
 
-    update_reward(current_timestamp, &for_address, deps.storage, &env)?;
+    update_reward( &for_address, deps.storage, &env)?;
 
     let mut messages: Vec<CosmosMsg> = Vec::new();
 
@@ -472,11 +469,11 @@ pub fn earned(
 }
 
 pub fn update_reward(
-    current_timestamp: Uint128,
     address: &Addr,
     storage: &mut dyn Storage,
     env: &Env,
 ) -> StdResult<()> {
+    let current_timestamp = Uint128::new(env.block.time.seconds() as u128);
     let reward_list = reward_token_list_r(storage).load()?;
     let total_staked = match total_staked_r(storage).may_load()? {
         Some(s) => s,

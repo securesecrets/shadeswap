@@ -290,21 +290,26 @@ pub fn swap(
         _ => arb_msg = None,
     }
 
-    match arb_msg {
-        Some(sub_msg) => Ok(Response::new()
-            .add_messages(messages)
-            .add_submessage(sub_msg)),
-        None => Ok(Response::new().add_messages(messages).set_data(to_binary(&
-            ExecuteMsgResponse::SwapResult {
-                price: swap_result.price,
-                amount_in: offer.amount,
-                amount_out: swap_result.result.return_amount,
-                lp_fee_amount: swap_result.lp_fee_amount,
-                total_fee_amount: swap_result.total_fee_amount,
-                shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
-            }
-        )?)),
+    let mut response = Response::new();
+
+    if let Some(sub_msg) = arb_msg {
+        response = response.add_submessage(sub_msg);
     }
+
+    Ok(response
+        .add_messages(messages)
+        .add_attributes(vec![
+            Attribute::new("amount_in", offer.amount),
+            Attribute::new("amount_out", swap_result.result.return_amount),
+        ])
+        .set_data(to_binary(&ExecuteMsgResponse::SwapResult {
+            price: swap_result.price,
+            amount_in: offer.amount,
+            amount_out: swap_result.result.return_amount,
+            lp_fee_amount: swap_result.lp_fee_amount,
+            total_fee_amount: swap_result.total_fee_amount,
+            shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
+        })?))
 }
 
 // Set staking contract within the config

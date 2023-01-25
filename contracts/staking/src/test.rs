@@ -42,7 +42,7 @@ pub mod tests {
     use cosmwasm_std::{
         from_binary,
         testing::{mock_info, MockApi, MockStorage},
-        to_binary, Addr, Binary, Decimal, MessageInfo, StdError, StdResult, Uint128,
+        to_binary, Addr, Binary, Decimal, MessageInfo, StdError, StdResult, Timestamp, Uint128,
     };
 
     use shadeswap_shared::utils::testing::assert_error;
@@ -629,8 +629,8 @@ pub mod tests {
     #[test]
     fn assert_staking_with_claim_rewards() -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
-        let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 1500000);
-        let env_b = mock_custom_env(CONTRACT_ADDRESS, 1534, 1600000);
+        let mut env = mock_custom_env(CONTRACT_ADDRESS, 1500, 1500000);
+        let mut env_b = mock_custom_env(CONTRACT_ADDRESS, 1534, 1600000);
         let mock_info = mock_info(LP_TOKEN, &[]);
         let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(300000u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
@@ -670,8 +670,9 @@ pub mod tests {
             &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
         )?;
 
+        env.block.time = Timestamp::from_seconds(1600000u64);
+
         update_reward(
-            Uint128::new(1600000),
             &deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(),
             deps.as_mut().storage,
             &env,
@@ -698,16 +699,16 @@ pub mod tests {
             Err(err) => assert_eq!(err, StdError::not_found("staking::state::ClaimRewardsInfo")),
         }
 
+        env_b.block.time = Timestamp::from_seconds(1600000u64);
+
         // timestamp 1600000000
         claim_rewards(
             deps.as_mut(),
-            Uint128::new(1600000u128),
             &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             &env_b,
         )?;
         claim_rewards(
             deps.as_mut(),
-            Uint128::new(1600000u128),
             &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
             &env_b,
         )?;
@@ -742,15 +743,15 @@ pub mod tests {
 
         // move timestamp 1700000000
 
+        env_b.block.time = Timestamp::from_seconds(1700000u64);
+
         claim_rewards(
             deps.as_mut(),
-            Uint128::new(1700000u128),
             &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             &env_b,
         )?;
         claim_rewards(
             deps.as_mut(),
-            Uint128::new(1700000u128),
             &deps_owned.as_mut().api.addr_validate(STAKER_B)?,
             &env_b,
         )?;
@@ -806,8 +807,8 @@ pub mod tests {
     #[test]
     fn assert_calculate_staking_reward() -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
-        let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 15000000);
-        let env_b = mock_custom_env(CONTRACT_ADDRESS, 1600, 16000000);
+        let mut env = mock_custom_env(CONTRACT_ADDRESS, 1500, 15000000);
+        let mut env_b = mock_custom_env(CONTRACT_ADDRESS, 1600, 16000000);
         let mock_info = mock_info(LP_TOKEN, &[]);
         let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(300000u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
@@ -827,11 +828,10 @@ pub mod tests {
             &deps_owned.as_ref().api.addr_validate(STAKER_B)?,
             &deps_owned.as_ref().api.addr_validate(STAKER_B)?,
         )?;
-        // let user_shares =
-        //     calculate_staker_shares(deps.as_mut().storage, Uint128::from(1000u128)).unwrap();
+
+        env_b.block.time = Timestamp::from_seconds(1600000u64);
 
         update_reward(
-            Uint128::from(16000000u128),
             &&deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             deps.as_mut().storage,
             &env_b,
@@ -852,8 +852,8 @@ pub mod tests {
     #[test]
     fn assert_calculate_proxy_staking_reward() -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
-        let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 15000000);
-        let env_b = mock_custom_env(CONTRACT_ADDRESS, 1534, 16000000);
+        let mut env = mock_custom_env(CONTRACT_ADDRESS, 1500, 15000000);
+        let mut env_b = mock_custom_env(CONTRACT_ADDRESS, 1534, 16000000);
         let mock_info = mock_info(LP_TOKEN, &[]);
         let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(300000u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
@@ -878,8 +878,10 @@ pub mod tests {
         let reward_token_info: RewardTokenInfo = reward_token_r(deps.as_mut().storage)
             .load(reward_tokens[0].to_owned().as_bytes())
             .unwrap();
+
+        env_b.block.time = Timestamp::from_seconds(1600000u64);
+
         update_reward(
-            Uint128::from(16000000u128),
             &&deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             deps.as_mut().storage,
             &env,
@@ -909,7 +911,7 @@ pub mod tests {
     #[test]
     fn assert_staking_first_time_store_timestamp() -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
-        let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 15000000);
+        let mut env = mock_custom_env(CONTRACT_ADDRESS, 1500, 15000000);
         let mock_info = mock_info(LP_TOKEN, &[]);
         let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(300000u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
@@ -922,8 +924,10 @@ pub mod tests {
             &deps_owned.as_mut().api.addr_validate(STAKER_A).unwrap(),
         )
         .unwrap();
+
+        env.block.time = Timestamp::from_seconds(1600000u64);
+
         update_reward(
-            Uint128::from(16000000u128),
             &&deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             deps.as_mut().storage,
             &env,
@@ -1031,7 +1035,7 @@ pub mod tests {
     fn assert_staking_last_time_claim_less_than_valid_to_current_timestamp_less_than_valid_to(
     ) -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
-        let env = mock_custom_env(LP_TOKEN, 1500, 16000000);
+        let mut env = mock_custom_env(LP_TOKEN, 1500, 16000000);
         let mock_info = mock_info(LP_TOKEN, &[]);
         let _config: Config = make_init_config(deps.as_mut(), &env, Uint128::from(300000u128))?;
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
@@ -1051,18 +1055,17 @@ pub mod tests {
             &deps_owned.as_ref().api.addr_validate(STAKER_B)?,
             &deps_owned.as_ref().api.addr_validate(STAKER_B)?,
         )?;
-        let current_timestamp = Uint128::from(17000000u128);
+
+        env.block.time = Timestamp::from_seconds(17000000u64);
 
         claim_rewards(
             deps.as_mut(),
-            current_timestamp,
             &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             &env,
         )?;
 
         claim_rewards(
             deps.as_mut(),
-            current_timestamp,
             &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             &env,
         )?;
@@ -1075,7 +1078,6 @@ pub mod tests {
         )?;
 
         update_reward(
-            current_timestamp,
             &&deps_owned.as_mut().api.addr_validate(STAKER_B)?,
             deps.as_mut().storage,
             &env,
@@ -1104,7 +1106,7 @@ pub mod tests {
     ) -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
-        let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 16000000);
+        let mut env = mock_custom_env(CONTRACT_ADDRESS, 1500, 16000000);
         let mock_info = mock_info(LP_TOKEN, &[]);
         let staker_a = &deps_owned.as_mut().api.addr_validate(STAKER_A)?;
         let staker_b = deps_owned.as_mut().api.addr_validate(STAKER_B)?;
@@ -1135,17 +1137,16 @@ pub mod tests {
             },
             Uint128::new(19000000u128),
         )?;
-        let current_timestamp = Uint128::from(17000000u128);
+
+        env.block.time = Timestamp::from_seconds(1700000u64);
 
         claim_rewards(
             deps.as_mut(),
-            current_timestamp,
             &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             &env,
         )?;
         claim_rewards(
             deps.as_mut(),
-            current_timestamp,
             &deps_owned.as_mut().api.addr_validate(STAKER_A)?,
             &env,
         )?;
@@ -1156,7 +1157,7 @@ pub mod tests {
             )
             .as_bytes(),
         )?;
-        update_reward(current_timestamp, &staker_b, deps.as_mut().storage, &env)?;
+        update_reward(&staker_b, deps.as_mut().storage, &env)?;
         let claim_reward_info_b = claim_reward_info_r(deps.as_mut().storage).load(
             get_user_claim_key(
                 deps_owned.as_mut().api.addr_validate(STAKER_B)?.to_string(),
@@ -1182,7 +1183,7 @@ pub mod tests {
     fn assert_claim_reward_no_change_last_time_reward_info() -> StdResult<()> {
         let mut deps = mock_dependencies(&[]);
         let mut deps_owned: OwnedDeps<MockStorage, MockApi, MockQuerier> = mock_dependencies(&[]);
-        let env = mock_custom_env(CONTRACT_ADDRESS, 1500, 16000000);
+        let mut env = mock_custom_env(CONTRACT_ADDRESS, 1500, 16000000);
         let mock_info_lp_token = mock_info(LP_TOKEN, &[]);
         let staker_a = &deps_owned.as_mut().api.addr_validate(STAKER_A)?;
         let staker_b = deps_owned.as_mut().api.addr_validate(STAKER_B)?;
@@ -1211,9 +1212,9 @@ pub mod tests {
             Uint128::new(19000000u128),
         )?;
         let current_timestamp = Uint128::from(21000000u128);
+
         claim_rewards(
             deps.as_mut(),
-            current_timestamp,
             &staker_a,
             &mock_custom_env(&CONTRACT_ADDRESS, 1600, 21000000),
         )?;
@@ -1225,8 +1226,10 @@ pub mod tests {
             .as_bytes(),
         )?;
 
+
+        env.block.time = Timestamp::from_seconds(21000000u64);
+
         update_reward(
-            Uint128::new(21000000u128),
             &&deps_owned.as_mut().api.addr_validate(STAKER_B)?,
             deps.as_mut().storage,
             &env,

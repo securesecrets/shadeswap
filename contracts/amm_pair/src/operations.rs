@@ -49,7 +49,7 @@ pub fn add_whitelist_address(storage: &mut dyn Storage, address: Addr) -> StdRes
 pub fn register_lp_token(
     deps: DepsMut,
     env: &Env,
-    lp_token_address: Contract,
+    lp_token_address: Contract
 ) -> StdResult<Response> {
     let mut config = config_r(deps.storage).load()?;
 
@@ -76,10 +76,10 @@ pub fn register_lp_token(
                     response = response.add_submessage(SubMsg::reply_on_success(
                         CosmosMsg::Wasm(WasmMsg::Instantiate {
                             code_id: c.contract_info.id,
-                            label: format!(
+                            label: c.custom_label.unwrap_or(format!(
                                 "ShadeSwap-Pair-Staking-Contract-{}",
                                 &env.contract.address
-                            ),
+                            )),
                             msg: to_binary(&StakingInitMsg {
                                 daily_reward_amount: c.daily_reward_amount,
                                 reward_token: c.reward_token.clone(),
@@ -108,10 +108,10 @@ pub fn register_lp_token(
                     response = response.add_submessage(SubMsg::reply_on_success(
                         CosmosMsg::Wasm(WasmMsg::Instantiate {
                             code_id: c.contract_info.id,
-                            label: format!(
+                            label: c.custom_label.unwrap_or(format!(
                                 "ShadeSwap-Pair-Staking-Contract-{}",
                                 &env.contract.address
-                            ),
+                            )),
                             msg: to_binary(&StakingInitMsg {
                                 daily_reward_amount: c.daily_reward_amount,
                                 reward_token: c.reward_token.clone(),

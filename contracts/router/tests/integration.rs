@@ -115,7 +115,8 @@ pub fn router_integration_tests() {
             TokenType::CustomToken { 
                 contract_addr: reward_contract.address.clone(), 
                 token_code_hash: reward_contract.code_hash.clone() },
-            Uint128::new(30000000000u128)
+            Uint128::new(30000000000u128),
+            None
         ),
         &router_contract, 
         18u8,
@@ -279,7 +280,8 @@ pub fn router_integration_tests() {
             TokenType::CustomToken { 
                 contract_addr: reward_contract.address.clone(), 
                 token_code_hash: reward_contract.code_hash.clone() },
-            Uint128::new(30000000000u128)
+            Uint128::new(30000000000u128),
+            None
         ),
         &router_contract, 
         18u8,

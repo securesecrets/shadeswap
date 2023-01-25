@@ -98,11 +98,13 @@ pub fn amm_pair_integration_tests_with_custom_token() {
                 contract_addr: reward_contract.address.to_owned(), 
                 token_code_hash: reward_contract.code_hash.to_owned()
             },
-            valid_to: Uint128::new(3747905010000u128)
+            valid_to: Uint128::new(3747905010000u128),
+            custom_label: None
         }), 
         custom_fee: None,
         arbitrage_contract: None,
-        lp_token_decimals: 18u8
+        lp_token_decimals: 18u8,
+        lp_token_custom_label: None
     };       
     
     roll_blockchain(&mut router, 1).unwrap();
@@ -421,11 +423,13 @@ pub fn amm_pair_integration_tests_native_token() {
                 contract_addr: reward_contract.address.to_owned(), 
                 token_code_hash: reward_contract.code_hash.to_owned()
             },
-            valid_to: Uint128::new(3747905010000u128)
+            valid_to: Uint128::new(3747905010000u128),
+            custom_label: None
         }), 
         custom_fee: None,
         arbitrage_contract: None,
-        lp_token_decimals: 18u8
+        lp_token_decimals: 18u8,
+        lp_token_custom_label: None
     };       
     
     roll_blockchain(&mut router, 1).unwrap();
@@ -750,11 +754,13 @@ pub fn test_sslp_with_two_virtual_providers() {
                 contract_addr: reward_contract.address.to_owned(), 
                 token_code_hash: reward_contract.code_hash.to_owned()
             },
-            valid_to: Uint128::new(3747905010000u128) ,
+            valid_to: Uint128::new(3747905010000u128),
+            custom_label: None
         }), 
         custom_fee: None,
         arbitrage_contract: None,
-        lp_token_decimals: 18u8
+        lp_token_decimals: 18u8,
+        lp_token_custom_label: None
     };       
     
     roll_blockchain(&mut router, 1).unwrap();

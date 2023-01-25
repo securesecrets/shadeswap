@@ -78,7 +78,6 @@ pub fn fee_info(deps: Deps) -> StdResult<FeeInfo> {
 
     let config = config_r(deps.storage).load()?;
 
-    //get factory settings
     let amm_settings: Option<AMMSettings> = if let Some(factory_contract) = &config.factory_contract {
         Some(factory_config(deps, factory_contract)?.amm_settings)
     } else {
@@ -86,8 +85,8 @@ pub fn fee_info(deps: Deps) -> StdResult<FeeInfo> {
     };
 
     //set dao address
-    shade_dao_address = if let Some(amm_settings) = amm_settings {
-        amm_settings.shade_dao_address.address
+    shade_dao_address = if let Some(amm_s) = amm_settings.clone() {
+        amm_s.shade_dao_address.address
     } else {
         // if no address is given then this address is used
         Addr::unchecked("")

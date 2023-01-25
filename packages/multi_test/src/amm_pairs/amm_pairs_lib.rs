@@ -43,6 +43,7 @@ pub mod amm_pairs_lib{
                 custom_fee: custom_fee,
                 arbitrage_contract: None,
                 lp_token_decimals: 18u8,
+                lp_token_custom_label: None,
             }, 
             &[], 
             "amm_pairs", 

@@ -71,7 +71,8 @@ pub mod tests {
                 address: Addr::unchecked("ARBITRAGE_CONTRACT"),
                 code_hash: "ARBITRAGE_CONTRACT".to_string(),
             }),
-            lp_token_decimals: 18u8
+            lp_token_decimals: 18u8,
+            lp_token_custom_label: None,
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let test_view_key =
@@ -135,7 +136,8 @@ pub mod tests {
             staking_contract: None,
             custom_fee: None,
             arbitrage_contract: None,
-            lp_token_decimals: 18u8
+            lp_token_decimals: 18u8,
+            lp_token_custom_label: None,
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let address_a = Addr::unchecked("TESTA".to_string());
@@ -1045,7 +1047,8 @@ pub mod help_test_lib {
                 address: Addr::unchecked("ARBITRAGE_CONTRACT"),
                 code_hash: "ARBITRAGE_CONTRACT".to_string(),
             }),
-            lp_token_decimals: 18u8
+            lp_token_decimals: 18u8,
+            lp_token_custom_label: None,
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let config = config_r(&deps.storage).load()?;
@@ -1168,6 +1171,7 @@ pub mod help_test_lib {
                     token_code_hash: "".to_string(),
                 }, 
                 valid_to: Uint128::new(3747905010000u128),
+                custom_label: None,
             }),
             prng_seed: to_binary(&"to_string".to_string())?,
             admin_auth: Contract { address: Addr::unchecked(ADMIN_CONTRACT), code_hash: "".to_string() },
@@ -1495,7 +1499,8 @@ pub mod help_test_lib {
                 address: Addr::unchecked("ARBITRARY_CONTRACT"),
                 code_hash: "ARBITRARY_CONTRACT".to_string()
             }),
-            lp_token_decimals: 18u8
+            lp_token_decimals: 18u8,
+            lp_token_custom_label: None,
         };         
         let temp_deps = deps.branch();       
         assert!(instantiate(temp_deps, env.clone(),mock_info, msg).is_ok());

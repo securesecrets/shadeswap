@@ -210,6 +210,7 @@ pub mod amm_pair {
         pub custom_fee: Option<CustomFee>,
         pub arbitrage_contract: Option<Contract>,
         pub lp_token_decimals: u8,
+        pub lp_token_custom_label: Option<String>
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -404,7 +405,9 @@ pub mod factory {
             pair: TokenPair,
             entropy: Binary,
             staking_contract: Option<StakingContractInit>,
-            lp_token_decimals: u8
+            lp_token_decimals: u8,
+            amm_pair_custom_label: Option<String>,
+            lp_token_custom_label: Option<String>
         },
         AddAMMPairs {
             amm_pairs: Vec<AMMPair>,
@@ -459,7 +462,8 @@ pub mod staking {
         pub contract_info: ContractInstantiationInfo,
         pub daily_reward_amount: Uint128,
         pub reward_token: TokenType,
-        pub valid_to: Uint128
+        pub valid_to: Uint128,
+        pub custom_label: Option<String>
     }
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]

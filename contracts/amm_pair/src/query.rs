@@ -78,7 +78,6 @@ pub fn fee_info(deps: Deps) -> StdResult<FeeInfo> {
 
     let config = config_r(deps.storage).load()?;
 
-    //get factory settings
     let amm_settings: Option<AMMSettings> = if let Some(factory_contract) = &config.factory_contract {
         Some(factory_config(deps, factory_contract)?.amm_settings)
     } else {

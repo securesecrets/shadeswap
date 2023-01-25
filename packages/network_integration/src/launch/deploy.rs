@@ -490,8 +490,11 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 token_code_hash: usdt_contract.code_hash.to_string(),
                             },
                             valid_to: Uint128::new(3747905010000u128),
+                            custom_label: None
                         }),
                         lp_token_decimals: 18u8,
+                        lp_token_custom_label: None,
+                        amm_pair_custom_label: None,
                     },
                     &factory_contract,
                     ACCOUNT_KEY,
@@ -520,8 +523,11 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 token_code_hash: usdt_contract.code_hash.to_string(),
                             },
                             valid_to: Uint128::new(3747905010000u128),
+                            custom_label: None
                         }),
-                        lp_token_decimals: 18u8
+                        lp_token_decimals: 18u8,
+                        lp_token_custom_label: None,
+                        amm_pair_custom_label: None
                     },
                     &factory_contract,
                     ACCOUNT_KEY,

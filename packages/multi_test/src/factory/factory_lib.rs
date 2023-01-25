@@ -128,7 +128,9 @@ pub mod factory_lib{
                 pair: token_pair.to_owned(), 
                 entropy: to_binary(seed)?, 
                 staking_contract: Some(staking_contract_info.to_owned()),
-                lp_token_decimals: lp_token_decimals,                 
+                lp_token_decimals: lp_token_decimals,
+                lp_token_custom_label: None,
+                amm_pair_custom_label: None,                 
             };
 
             let _  = router.execute_contract(

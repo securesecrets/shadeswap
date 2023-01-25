@@ -11,7 +11,7 @@ use shadeswap_shared::{msg::amm_pair::InvokeMsg as AmmPairInvokeMsg, Contract};
 const SECONDS_IN_DAY: Uint128 = Uint128::new(24u128 * 60u128 * 60u128);
 pub const MAX_DECIMALS: Uint128 = Uint128::new(1_000_000_000_000_000_000);
 
-use crate::contract::{SHADE_STAKING_VIEWKEY};
+use crate::contract::SHADE_STAKING_VIEWKEY;
 use crate::state::{
     claim_reward_info_r, claim_reward_info_w, config_r, config_w, proxy_staker_info_r,
     proxy_staker_info_w, reward_token_list_r, reward_token_list_w, reward_token_r, reward_token_w,
@@ -133,35 +133,46 @@ pub fn generate_proxy_staking_key(from: &Addr, for_addr: &Addr) -> Vec<u8> {
     [from.as_bytes(), for_addr.as_bytes()].concat()
 }
 
-fn get_reward_msgs(
+fn get_rewards(
     storage: &mut dyn Storage,
     claimer: &Addr,
     env: &Env,
-    messages: &mut Vec<CosmosMsg>) -> StdResult<()> {
-        let reward_list = reward_token_list_r(storage).load()?;
-        for addr in &reward_list {
-            let key = get_user_claim_key(claimer.to_string(), addr.to_string());
-            let claim_info_option = claim_reward_info_r(storage).may_load(key.as_bytes())?;
-    
-            match claim_info_option {
-                Some(claim_info) => {
-                    let total = claim_info.rewards;
-                    if total > Uint128::zero() {
-                        messages.push(claim_info.reward_token.create_send_msg(
+    response: &Response,
+) -> StdResult<Response> {
+    let reward_list = reward_token_list_r(storage).load()?;
+    let mut claim_response = response.clone();
+    for addr in &reward_list {
+        let key = get_user_claim_key(claimer.to_string(), addr.to_string());
+        let claim_info_option = claim_reward_info_r(storage).may_load(key.as_bytes())?;
+
+        match claim_info_option {
+            Some(claim_info) => {
+                let total = claim_info.rewards;
+                if total > Uint128::zero() {
+                    let reward_token = match claim_info.reward_token.clone() {
+                        TokenType::CustomToken { contract_addr, .. } => contract_addr.to_string(),
+                        TokenType::NativeToken { denom } => denom,
+                    };
+                    claim_response = claim_response
+                        .add_message(claim_info.reward_token.create_send_msg(
                             env.contract.address.to_string(),
                             claimer.to_string(),
                             total,
-                        )?);
-                        let mut new_data = claim_info.clone();
-                        new_data.rewards = Uint128::zero();
-                        claim_reward_info_w(storage).save(key.as_bytes(), &new_data)?;
-                    }
+                        )?)
+                        .add_attributes(vec![
+                            Attribute::new("reward_token", reward_token),
+                            Attribute::new("claim_amount", total),
+                        ]);
+                    let mut new_data = claim_info.clone();
+                    new_data.rewards = Uint128::zero();
+                    claim_reward_info_w(storage).save(key.as_bytes(), &new_data)?;
                 }
-                None => (),
             }
+            None => (),
         }
-        Ok(())
     }
+    Ok(claim_response)
+}
 
 /// Execute Claim Rewards for Staker
 pub fn claim_rewards(
@@ -173,9 +184,8 @@ pub fn claim_rewards(
     let receiver = claimer.clone();
     update_reward(current_timestamp, &receiver, deps.storage, &env)?;
 
-    let mut messages: Vec<CosmosMsg> = Vec::new();
-    get_reward_msgs(deps.storage, claimer, env, &mut messages)?;
-    Ok(Response::new().add_messages(messages).add_attributes(vec![
+    let response = get_rewards(deps.storage, claimer, env, &Response::new())?;
+    Ok(response.add_attributes(vec![
         Attribute::new("action", "claim_rewards"),
         Attribute::new("caller", claimer.to_string()),
     ]))
@@ -200,7 +210,10 @@ pub fn set_reward_token(
     match token_info_option {
         None => {
             match reward_token.clone() {
-                TokenType::CustomToken { contract_addr, token_code_hash } => {
+                TokenType::CustomToken {
+                    contract_addr,
+                    token_code_hash,
+                } => {
                     messages.push(set_viewing_key_msg(
                         SHADE_STAKING_VIEWKEY.to_string(),
                         None,
@@ -209,8 +222,8 @@ pub fn set_reward_token(
                             code_hash: token_code_hash.to_string(),
                         },
                     )?);
-                },
-                TokenType::NativeToken { denom:_ } => (),
+                }
+                TokenType::NativeToken { denom: _ } => (),
             }
 
             let mut reward_token_list = reward_token_list_w(deps.storage).load()?;
@@ -218,7 +231,9 @@ pub fn set_reward_token(
             reward_token_list_w(deps.storage).save(&reward_token_list)?;
             token_info = RewardTokenInfo {
                 reward_token: reward_token.to_owned(),
-                reward_rate: daily_reward_amount.checked_mul(MAX_DECIMALS)?.checked_div(SECONDS_IN_DAY)?,
+                reward_rate: daily_reward_amount
+                    .checked_mul(MAX_DECIMALS)?
+                    .checked_div(SECONDS_IN_DAY)?,
                 valid_to: current_timestamp,
                 reward_per_token_stored: Uint128::zero(),
                 last_update_time: current_timestamp,
@@ -229,9 +244,12 @@ pub fn set_reward_token(
         Some(ti) => {
             token_info = ti;
             if current_timestamp >= valid_to {
-                token_info.reward_rate = daily_reward_amount.checked_mul(MAX_DECIMALS)?.checked_div(SECONDS_IN_DAY)?;
+                token_info.reward_rate = daily_reward_amount
+                    .checked_mul(MAX_DECIMALS)?
+                    .checked_div(SECONDS_IN_DAY)?;
             } else {
-                token_info.reward_rate = daily_reward_amount.checked_mul(MAX_DECIMALS)?
+                token_info.reward_rate = daily_reward_amount
+                    .checked_mul(MAX_DECIMALS)?
                     .checked_div(SECONDS_IN_DAY)?
             }
         }
@@ -284,8 +302,6 @@ pub fn unstake(
 
     update_reward(current_timestamp, &for_address, deps.storage, &env)?;
 
-    let mut messages: Vec<CosmosMsg> = Vec::new();
-
     if from_address == for_address {
         if let Some(mut staker_info) = stakers_r(deps.storage).may_load(for_address.as_bytes())? {
             if amount > (staker_info.amount - staker_info.proxy_staked) {
@@ -293,8 +309,8 @@ pub fn unstake(
                     "Unstaking Amount is higher then actual staking amount".to_string(),
                 ));
             }
-    
-            get_reward_msgs(deps.storage, for_address, env, &mut messages)?;
+
+            let mut response = get_rewards(deps.storage, for_address, env, &Response::new())?;
 
             staker_info.amount = staker_info.amount - amount;
             stakers_w(deps.storage).save(for_address.as_bytes(), &staker_info)?;
@@ -320,7 +336,7 @@ pub fn unstake(
                 }
                 .to_cosmos_msg(&config.lp_token, vec![])?;
 
-                messages.push(cosmos_msg);
+                response = response.add_message(cosmos_msg);
             } else {
                 // SEND LP Token back to Staker And User Will Manually Remove Liquidity
                 let cosmos_msg = snip20::ExecuteMsg::Transfer {
@@ -331,13 +347,13 @@ pub fn unstake(
                 }
                 .to_cosmos_msg(&config.lp_token, vec![])?;
 
-                messages.push(cosmos_msg);
+                response = response.add_message(cosmos_msg);
             }
             let mut total_stake_amount = total_staked_w(deps.storage).load()?;
             total_stake_amount -= amount;
             total_staked_w(deps.storage).save(&total_stake_amount)?;
 
-            return Ok(Response::new().add_messages(messages).add_attributes(vec![
+            return Ok(response.add_attributes(vec![
                 Attribute::new("action", "unstake"),
                 Attribute::new("amount", amount),
                 Attribute::new("staker", for_address.as_str()),
@@ -353,14 +369,13 @@ pub fn unstake(
         if let Some(mut proxy_staker_info) =
             proxy_staker_info_r(deps.storage).may_load(proxy_staking_key)?
         {
-            // remove staker
-            let mut messages: Vec<CosmosMsg> = Vec::new();
             // check if the amount is higher than what has been totally staked and proxy staked by this caller
             if amount > proxy_staker_info.amount || amount > staker_info.proxy_staked {
                 return Err(StdError::generic_err(
                     "Unstaking Amount is higher then actual staking amount".to_string(),
                 ));
             }
+            let mut messages: Vec<CosmosMsg> = Vec::new();
 
             staker_info.amount -= amount;
             staker_info.proxy_staked -= amount;

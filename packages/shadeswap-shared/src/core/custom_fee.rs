@@ -3,12 +3,12 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, JsonSchema, PartialEq, Clone, Copy, Debug)]
 pub struct Fee {
-    pub nom: u8,
-    pub denom: u16,
+    pub nom: u64,
+    pub denom: u64,
 }
 
 impl Fee {
-    pub fn new(nom: u8, denom: u16) -> Self {
+    pub fn new(nom: u64, denom: u64) -> Self {
         Self { nom, denom }
     }
 }

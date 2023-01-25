@@ -102,12 +102,12 @@ pub mod amm_pairs_mock {
                         fee_info: FeeInfo {
                             shade_dao_address: Addr::unchecked("".to_string()),
                             lp_fee: Fee {
-                                nom: 2u8,
-                                denom: 100u16,
+                                nom: 2u64,
+                                denom: 100u64,
                             },
                             shade_dao_fee: Fee {
-                                nom: 2u8,
-                                denom: 100u16,
+                                nom: 2u64,
+                                denom: 100u64,
                             },
                         },
                     };

@@ -882,7 +882,7 @@ fn add_send_token_to_address_msg(
 }
 
 fn calculate_fee(amount: Uint128, fee: Fee) -> StdResult<Uint128> {
-    if fee.denom == 0u16 {
+    if fee.denom == 0u64 {
         return Ok(Uint128::zero());
     }
     let amount = amount.multiply_ratio(fee.nom, fee.denom);

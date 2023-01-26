@@ -132,7 +132,7 @@ pub fn shade_dao_info(deps: Deps) -> StdResult<Binary> {
     to_binary(&shade_dao_info)
 }
 
-pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount, sender: Addr) -> StdResult<Binary> {
+pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount, sender: Addr, execute_sslp_virtual_swap: Option<bool>) -> StdResult<Binary> {
     let config = config_r(deps.storage).load()?;
 
     if config.pair != deposit.pair {
@@ -151,19 +151,24 @@ pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount, send
 
     let fee_info = fee_info(deps)?;
 
-    let new_deposit = lp_virtual_swap(
-        deps,
-        &env,
-        sender,
-        fee_info.lp_fee,
-        fee_info.shade_dao_fee,
-        fee_info.shade_dao_address,
-        &config,
-        &deposit,
-        pair_contract_pool_liquidity,
-        pool_balances,
-        None,
-    )?;
+    let new_deposit =
+        if execute_sslp_virtual_swap.is_some() && execute_sslp_virtual_swap.unwrap() {
+            lp_virtual_swap(
+                deps,
+                &env,
+                sender,
+                fee_info.lp_fee,
+                fee_info.shade_dao_fee,
+                fee_info.shade_dao_address,
+                &config,
+                &deposit,
+                pair_contract_pool_liquidity,
+                pool_balances,
+                None,
+            )?
+        } else {
+            deposit.clone()
+        };
 
     let lp_tokens = calculate_lp_tokens(&new_deposit, pool_balances, pair_contract_pool_liquidity)?;
     let response_msg = QueryMsgResponse::GetEstimatedLiquidity {

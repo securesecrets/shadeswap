@@ -219,6 +219,7 @@ pub mod amm_pair {
             deposit: TokenPairAmount,
             expected_return: Option<Uint128>,
             staking: Option<bool>,
+            execute_sslp_virtual_swap: Option<bool>,
         },
         SwapTokens {
             /// The token type to swap from.
@@ -310,7 +311,8 @@ pub mod amm_pair {
         GetShadeDaoInfo {},
         GetEstimatedLiquidity {
             deposit: TokenPairAmount,
-            sender: Addr
+            sender: Addr,
+            execute_sslp_virtual_swap: Option<bool>,
         },
     }
 

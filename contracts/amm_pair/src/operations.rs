@@ -637,6 +637,7 @@ pub fn add_liquidity(
     deposit: TokenPairAmount,
     expected_return: Option<Uint128>,
     staking: Option<bool>,
+    execute_sslp_virtual_swap: Option<bool>,
 ) -> StdResult<Response> {
     let config = config_r(deps.storage).load()?;
 
@@ -683,19 +684,24 @@ pub fn add_liquidity(
 
     let pair_contract_pool_liquidity = query::total_supply(deps.as_ref(), &config.lp_token)?;
 
-    let new_deposit = lp_virtual_swap(
-        deps.as_ref(),
-        &env,
-        info.sender.clone(),
-        fee_info.lp_fee,
-        fee_info.shade_dao_fee,
-        fee_info.shade_dao_address,
-        &config,
-        &deposit,
-        pair_contract_pool_liquidity,
-        pool_balances,
-        Some(&mut pair_messages),
-    )?;
+    let new_deposit = 
+        if execute_sslp_virtual_swap.is_some() && execute_sslp_virtual_swap.unwrap() {
+            lp_virtual_swap(
+                deps.as_ref(),
+                &env,
+                info.sender.clone(),
+                fee_info.lp_fee,
+                fee_info.shade_dao_fee,
+                fee_info.shade_dao_address,
+                &config,
+                &deposit,
+                pair_contract_pool_liquidity,
+                pool_balances,
+                Some(&mut pair_messages),
+            )?
+        } else {
+            deposit.clone()
+        };
 
     let lp_tokens = calculate_lp_tokens(&new_deposit, pool_balances, pair_contract_pool_liquidity)?;
 

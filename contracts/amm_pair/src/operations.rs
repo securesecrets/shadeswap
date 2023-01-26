@@ -664,11 +664,11 @@ pub fn remove_liquidity(
 
     if let (Some(swap_info), Some(amount_in)) = (swap_info, amount_in) {
         Ok(response.add_attributes(vec![
-            Attribute::new("amount_in", amount_in),
-            Attribute::new("amount_out", swap_info.result.return_amount),
-            Attribute::new("lp_fee_amount", swap_info.lp_fee_amount),
-            Attribute::new("total_fee_amount", swap_info.total_fee_amount),
-            Attribute::new("shade_dao_fee_amount", swap_info.shade_dao_fee_amount),
+            Attribute::new("virtual_amount_in", amount_in),
+            Attribute::new("virtual_amount_out", swap_info.result.return_amount),
+            Attribute::new("virtual_lp_fee_amount", swap_info.lp_fee_amount),
+            Attribute::new("virtual_total_fee_amount", swap_info.total_fee_amount),
+            Attribute::new("virtual_shade_dao_fee_amount", swap_info.shade_dao_fee_amount),
         ]))
     } else {
         Ok(response)

@@ -157,7 +157,7 @@ pub mod amm_pair {
         bytes.concat()
     }
 
-    #[derive(Serialize, Deserialize, PartialEq, Debug, JsonSchema)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug, JsonSchema, Clone)]
     pub struct SwapInfo {
         pub total_fee_amount: Uint128,
         pub lp_fee_amount: Uint128,

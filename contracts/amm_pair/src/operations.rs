@@ -536,6 +536,9 @@ pub fn remove_liquidity(
 
     let mut pool_withdrawn: [Uint128; 2] = [Uint128::zero(), Uint128::zero()];
 
+    let mut amount_in: Option<Uint128> = None;
+    let mut swap_info: Option<SwapInfo> = None;
+
     for (i, pool_amount) in pool_balances.iter().enumerate() {
         let pool_amount = *pool_amount;
         pool_withdrawn[i] = pool_amount.multiply_ratio(withdraw_amount, total_liquidity)
@@ -567,6 +570,8 @@ pub fn remove_liquidity(
                 &offer,
                 Some(false),
             )?;
+            amount_in = Some(pool_withdrawn[1]);
+            swap_info = Some(swap.clone());
 
             pool_withdrawn[0] += swap.result.return_amount;
             pool_withdrawn[1] = Uint128::zero();
@@ -593,6 +598,8 @@ pub fn remove_liquidity(
                 &offer,
                 Some(false),
             )?;
+            amount_in = Some(pool_withdrawn[0]);
+            swap_info = Some(swap.clone());
 
             pool_withdrawn[0] = Uint128::zero();
             pool_withdrawn[1] += swap.result.return_amount;
@@ -637,7 +644,8 @@ pub fn remove_liquidity(
         TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
         TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
     };
-    Ok(Response::new()
+
+    let response = Response::new()
         .add_messages(pair_messages)
         .add_attributes(vec![
             Attribute::new("action", "remove_liquidity"),
@@ -652,7 +660,19 @@ pub fn remove_liquidity(
             Attribute::new("token1_denom", token1_denom),
             Attribute::new("refund_amount0", pool_withdrawn[0]),
             Attribute::new("refund_amount1", pool_withdrawn[1]),
+        ]);
+
+    if let (Some(swap_info), Some(amount_in)) = (swap_info, amount_in) {
+        Ok(response.add_attributes(vec![
+            Attribute::new("amount_in", amount_in),
+            Attribute::new("amount_out", swap_info.result.return_amount),
+            Attribute::new("lp_fee_amount", swap_info.lp_fee_amount),
+            Attribute::new("total_fee_amount", swap_info.total_fee_amount),
+            Attribute::new("shade_dao_fee_amount", swap_info.shade_dao_fee_amount),
         ]))
+    } else {
+        Ok(response)
+    }
 }
 
 // Calculate the price given LP information

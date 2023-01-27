@@ -234,24 +234,24 @@ pub fn swap(
     }
 
     // Send Token to Buyer or Swapper
-    let index = config
+    let input_token_index = config
         .pair
         .get_token_index(&offer.token)
         .expect("The token is not in this contract"); // Safe, checked in do_swap
-    let token = config
+    let output_token = config
         .pair
-        .get_token(index ^ 1)
+        .get_token(input_token_index ^ 1)
         .expect("The token is not in this contract");
-    messages.push(token.create_send_msg(
+    messages.push(output_token.create_send_msg(
         env.contract.address.to_string(),
         swaper_receiver.to_string(),
         swap_result.result.return_amount,
     )?);
     let mut action = "".to_string();
-    if index == 0 {
+    if input_token_index == 0 {
         action = "BUY".to_string();
     }
-    if index == 1 {
+    if input_token_index == 1 {
         action = "SELL".to_string();
     }
     let trade_history = TradeHistory {
@@ -290,21 +290,43 @@ pub fn swap(
         _ => arb_msg = None,
     }
 
-    match arb_msg {
-        Some(sub_msg) => Ok(Response::new()
-            .add_messages(messages)
-            .add_submessage(sub_msg)),
-        None => Ok(Response::new().add_messages(messages).set_data(to_binary(&
-            ExecuteMsgResponse::SwapResult {
-                price: swap_result.price,
-                amount_in: offer.amount,
-                amount_out: swap_result.result.return_amount,
-                lp_fee_amount: swap_result.lp_fee_amount,
-                total_fee_amount: swap_result.total_fee_amount,
-                shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
-            }
-        )?)),
+    let mut response = Response::new();
+
+    if let Some(sub_msg) = arb_msg {
+        response = response.add_submessage(sub_msg);
     }
+
+    let (token_in_addr, token_in_denom) = match config.pair.get_token(input_token_index).expect("Failed to find input token") {
+        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
+        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
+    };
+    let (token_out_addr, token_out_denom) = match output_token {
+        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
+        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
+    };
+
+    Ok(response
+        .add_messages(messages)
+        .add_attributes(vec![
+            Attribute::new("amount_in", offer.amount),
+            Attribute::new("amount_out", swap_result.result.return_amount),
+            Attribute::new("lp_fee_amount", swap_result.lp_fee_amount),
+            Attribute::new("total_fee_amount", swap_result.total_fee_amount),
+            Attribute::new("shade_dao_fee_amount", swap_result.shade_dao_fee_amount),
+            Attribute::new("token_in_addr", token_in_addr),
+            Attribute::new("token_in_denom", token_in_denom),
+            Attribute::new("token_out_addr", token_out_addr),
+            Attribute::new("token_out_denom", token_out_denom),
+            Attribute::new("shade_dao_fee_amount", swap_result.shade_dao_fee_amount),
+        ])
+        .set_data(to_binary(&ExecuteMsgResponse::SwapResult {
+            price: swap_result.price,
+            amount_in: offer.amount,
+            amount_out: swap_result.result.return_amount,
+            lp_fee_amount: swap_result.lp_fee_amount,
+            total_fee_amount: swap_result.total_fee_amount,
+            shade_dao_fee_amount: swap_result.shade_dao_fee_amount,
+        })?))
 }
 
 // Set staking contract within the config
@@ -514,6 +536,9 @@ pub fn remove_liquidity(
 
     let mut pool_withdrawn: [Uint128; 2] = [Uint128::zero(), Uint128::zero()];
 
+    let mut amount_in: Option<Uint128> = None;
+    let mut swap_info: Option<SwapInfo> = None;
+
     for (i, pool_amount) in pool_balances.iter().enumerate() {
         let pool_amount = *pool_amount;
         pool_withdrawn[i] = pool_amount.multiply_ratio(withdraw_amount, total_liquidity)
@@ -545,6 +570,8 @@ pub fn remove_liquidity(
                 &offer,
                 Some(false),
             )?;
+            amount_in = Some(pool_withdrawn[1]);
+            swap_info = Some(swap.clone());
 
             pool_withdrawn[0] += swap.result.return_amount;
             pool_withdrawn[1] = Uint128::zero();
@@ -571,6 +598,8 @@ pub fn remove_liquidity(
                 &offer,
                 Some(false),
             )?;
+            amount_in = Some(pool_withdrawn[0]);
+            swap_info = Some(swap.clone());
 
             pool_withdrawn[0] = Uint128::zero();
             pool_withdrawn[1] += swap.result.return_amount;
@@ -606,7 +635,17 @@ pub fn remove_liquidity(
             code_hash: config.lp_token.code_hash,
         },
     )?);
-    Ok(Response::new()
+
+    let (token0_addr, token0_denom) = match &config.pair.0 {
+        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
+        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
+    };
+    let (token1_addr, token1_denom) = match &config.pair.1 {
+        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
+        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
+    };
+
+    let response = Response::new()
         .add_messages(pair_messages)
         .add_attributes(vec![
             Attribute::new("action", "remove_liquidity"),
@@ -615,9 +654,25 @@ pub fn remove_liquidity(
                 "refund_assets",
                 format!("{}, {}", &config.pair.0, &config.pair.1),
             ),
+            Attribute::new("token0_addr", token0_addr),
+            Attribute::new("token0_denom", token0_denom),
+            Attribute::new("token1_addr", token1_addr),
+            Attribute::new("token1_denom", token1_denom),
             Attribute::new("refund_amount0", pool_withdrawn[0]),
             Attribute::new("refund_amount1", pool_withdrawn[1]),
+        ]);
+
+    if let (Some(swap_info), Some(amount_in)) = (swap_info, amount_in) {
+        Ok(response.add_attributes(vec![
+            Attribute::new("virtual_amount_in", amount_in),
+            Attribute::new("virtual_amount_out", swap_info.result.return_amount),
+            Attribute::new("virtual_lp_fee_amount", swap_info.lp_fee_amount),
+            Attribute::new("virtual_total_fee_amount", swap_info.total_fee_amount),
+            Attribute::new("virtual_shade_dao_fee_amount", swap_info.shade_dao_fee_amount),
         ]))
+    } else {
+        Ok(response)
+    }
 }
 
 // Calculate the price given LP information
@@ -790,6 +845,8 @@ pub fn add_liquidity(
             Attribute::new("staking", format!("{}", add_to_staking)),
             Attribute::new("action", "add_liquidity_to_pair_contract"),
             Attribute::new("assets", format!("{}, {}", deposit.pair.0, deposit.pair.1)),
+            Attribute::new("original_input_amounts", format!("{}, {}", deposit.amount_0, deposit.amount_1)),
+            Attribute::new("input_after_virtual_swap", format!("{}, {}", new_deposit.amount_0, new_deposit.amount_1)),
             Attribute::new("share_pool", lp_tokens),
         ]))
 }

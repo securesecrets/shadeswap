@@ -164,6 +164,15 @@ pub mod amm_pair {
         pub shade_dao_fee_amount: Uint128,
         pub result: SwapResult,
         pub price: String,
+        pub new_input_pool: Uint128,
+        pub new_output_pool: Uint128,
+        pub index_of_input_token: u8,
+        pub index_of_output_token: u8,
+    }
+
+    pub struct VirtualSwapResponse {
+        pub output: TokenPairAmount,
+        pub swap_info: Option<SwapInfo>,
     }
 
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

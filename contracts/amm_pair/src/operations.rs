@@ -9,7 +9,7 @@ use cosmwasm_std::{
     Response, StdError, StdResult, Storage, SubMsg, Uint128, Uint256, WasmMsg,
 };
 use shadeswap_shared::{
-    amm_pair::ExecuteMsgResponse,
+    amm_pair::{ExecuteMsgResponse, VirtualSwapResponse},
     core::{Fee, TokenAmount, TokenPairAmount, TokenType, ViewingKey},
     msg::{
         amm_pair::{ArbitrageCallback, SwapInfo, SwapResult, TradeHistory},
@@ -386,12 +386,23 @@ pub fn calculate_swap_result(
         return_amount: final_swap_return,
     };
 
+    let index_of_input_token = config.pair.get_token_index(&offer.token).expect("Token not in pair") as u8;
+    let index_of_output_token = match index_of_input_token {
+        0 => 1,
+        1 => 0,
+        _ => return Err(StdError::generic_err("Unrecognized index")),
+    };
+
     Ok(SwapInfo {
         lp_fee_amount,
         shade_dao_fee_amount,
         total_fee_amount,
         result: result_swap,
         price: Decimal::from_ratio(final_swap_return, offer.amount).to_string(),
+        new_input_pool: token_in_pool.checked_add(offer.amount)?,
+        new_output_pool: token_out_pool.checked_sub(final_swap_return.checked_add(shade_dao_fee_amount)?)?, // output pool is "original_pool - (swap + shade_dao_fee)" because it keeps the lp fee
+        index_of_input_token,
+        index_of_output_token,
     })
 }
 
@@ -427,8 +438,9 @@ pub fn lp_virtual_swap(
     total_lp_token_supply: Uint128,
     pool_balances: [Uint128; 2],
     messages: Option<&mut Vec<CosmosMsg>>,
-) -> StdResult<TokenPairAmount> {
+) -> StdResult<VirtualSwapResponse> {
     let mut new_deposit = deposit.clone();
+    let mut swap_info = None;
 
     if !total_lp_token_supply.is_zero() {
         //determine which token should be swapped for other
@@ -455,7 +467,7 @@ pub fn lp_virtual_swap(
                     &config,
                     &offer,
                     Some(is_user_whitelist),
-                    true
+                    false
                 )?;
                 if let Some(msgs) = messages {
                     if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != "" {
@@ -470,6 +482,7 @@ pub fn lp_virtual_swap(
 
                 new_deposit.amount_0 = deposit.amount_0 - half_of_extra;
                 new_deposit.amount_1 = deposit.amount_1 + swap.result.return_amount;
+                swap_info = Some(swap);
             }
         } else if token1_ratio > token0_ratio {
             let extra_token1_amount = deposit.amount_1
@@ -490,7 +503,7 @@ pub fn lp_virtual_swap(
                     &config,
                     &offer,
                     Some(is_user_whitelist),
-                    true
+                    false
                 )?;
                 if let Some(msgs) = messages {
                     if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != "" {
@@ -505,10 +518,11 @@ pub fn lp_virtual_swap(
 
                 new_deposit.amount_0 = deposit.amount_0 + swap.result.return_amount;
                 new_deposit.amount_1 = deposit.amount_1 - half_of_extra;
+                swap_info = Some(swap);
             }
         }
     }
-    Ok(new_deposit)
+    Ok(VirtualSwapResponse { output: new_deposit, swap_info })
 }
 
 // Remove liquidity from the LP Pool
@@ -696,6 +710,60 @@ pub fn add_liquidity(
         env.contract.address.to_string(),
         config.viewing_key.0.clone(),
     )?;
+
+    // pool balances at this point should represent the original pools before this lp provide, so don't send snip20s yet and subtract native balance
+    for (i, (amount, token)) in deposit.into_iter().enumerate() {
+        match &token {
+            TokenType::CustomToken {
+                ..
+            } => {},
+            TokenType::NativeToken { .. } => {
+                // If the asset is native token, balance is already increased.
+                // To calculate properly we should subtract user deposit from the pool.
+                token.assert_sent_native_token_balance(info, amount)?;
+                pool_balances[i] = pool_balances[i] - amount;
+            }
+        }
+    }
+
+    let fee_info = query::fee_info(deps.as_ref())?;
+
+    let pair_contract_pool_liquidity = query::total_supply(deps.as_ref(), &config.lp_token)?;
+
+    let new_deposit = 
+        if let Some(false) = execute_sslp_virtual_swap {
+            deposit.clone()
+        } else {
+            let swap_return = lp_virtual_swap(
+                deps.as_ref(),
+                &env,
+                info.sender.clone(),
+                fee_info.lp_fee,
+                fee_info.shade_dao_fee,
+                fee_info.shade_dao_address,
+                &config,
+                &deposit,
+                pair_contract_pool_liquidity,
+                pool_balances,
+                Some(&mut pair_messages),
+            )?;
+
+            //after swap goes through, update pool sizes as if swap was executed
+            if let Some(swap_info) = swap_return.swap_info {
+                if swap_info.index_of_input_token == 0{
+                    pool_balances[0] = swap_info.new_input_pool;
+                    pool_balances[1] = swap_info.new_output_pool;
+                } else {
+                    pool_balances[0] = swap_info.new_output_pool;
+                    pool_balances[1] = swap_info.new_input_pool;
+                }
+            }
+            swap_return.output
+        };
+
+    let lp_tokens = calculate_lp_tokens(&new_deposit, pool_balances, pair_contract_pool_liquidity)?;
+
+    //transfer original deposit tokens, after all virtual math is complete to avoid throwing off pool balances
     for (i, (amount, token)) in deposit.into_iter().enumerate() {
         match &token {
             TokenType::CustomToken {
@@ -714,40 +782,9 @@ pub fn add_liquidity(
                     },
                 )?);
             }
-            TokenType::NativeToken { .. } => {
-                // If the asset is native token, balance is already increased.
-                // To calculate properly we should subtract user deposit from the pool.
-                token.assert_sent_native_token_balance(info, amount)?;
-                pool_balances[i] = pool_balances[i] - amount;
-            }
+            TokenType::NativeToken { .. } => {}
         }
     }
-
-    let fee_info = query::fee_info(deps.as_ref())?;
-
-    let pair_contract_pool_liquidity = query::total_supply(deps.as_ref(), &config.lp_token)?;
-
-    let new_deposit = 
-        if let Some(false) = execute_sslp_virtual_swap {
-            deposit.clone()
-        } else {
-            lp_virtual_swap(
-                deps.as_ref(),
-                &env,
-                info.sender.clone(),
-                fee_info.lp_fee,
-                fee_info.shade_dao_fee,
-                fee_info.shade_dao_address,
-                &config,
-                &deposit,
-                pair_contract_pool_liquidity,
-                pool_balances,
-                Some(&mut pair_messages),
-            )?
-        };
-
-    let lp_tokens = calculate_lp_tokens(&new_deposit, pool_balances, pair_contract_pool_liquidity)?;
-
     if let Some(e) = expected_return {
         if e > lp_tokens {
             return Err(StdError::generic_err(format!(

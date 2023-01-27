@@ -157,7 +157,7 @@ pub mod amm_pair {
         bytes.concat()
     }
 
-    #[derive(Serialize, Deserialize, PartialEq, Debug, JsonSchema)]
+    #[derive(Serialize, Deserialize, PartialEq, Debug, JsonSchema, Clone)]
     pub struct SwapInfo {
         pub total_fee_amount: Uint128,
         pub lp_fee_amount: Uint128,
@@ -210,6 +210,7 @@ pub mod amm_pair {
         pub custom_fee: Option<CustomFee>,
         pub arbitrage_contract: Option<Contract>,
         pub lp_token_decimals: u8,
+        pub lp_token_custom_label: Option<String>
     }
     #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
@@ -218,6 +219,7 @@ pub mod amm_pair {
             deposit: TokenPairAmount,
             expected_return: Option<Uint128>,
             staking: Option<bool>,
+            execute_sslp_virtual_swap: Option<bool>,
         },
         SwapTokens {
             /// The token type to swap from.
@@ -309,7 +311,8 @@ pub mod amm_pair {
         GetShadeDaoInfo {},
         GetEstimatedLiquidity {
             deposit: TokenPairAmount,
-            sender: Addr
+            sender: Addr,
+            execute_sslp_virtual_swap: Option<bool>,
         },
     }
 
@@ -404,7 +407,9 @@ pub mod factory {
             pair: TokenPair,
             entropy: Binary,
             staking_contract: Option<StakingContractInit>,
-            lp_token_decimals: u8
+            lp_token_decimals: u8,
+            amm_pair_custom_label: Option<String>,
+            lp_token_custom_label: Option<String>
         },
         AddAMMPairs {
             amm_pairs: Vec<AMMPair>,
@@ -459,7 +464,8 @@ pub mod staking {
         pub contract_info: ContractInstantiationInfo,
         pub daily_reward_amount: Uint128,
         pub reward_token: TokenType,
-        pub valid_to: Uint128
+        pub valid_to: Uint128,
+        pub custom_label: Option<String>
     }
 
     #[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]

@@ -43,6 +43,7 @@ pub mod amm_pairs_lib{
                 custom_fee: custom_fee,
                 arbitrage_contract: None,
                 lp_token_decimals: 18u8,
+                lp_token_custom_label: None,
             }, 
             &[], 
             "amm_pairs", 
@@ -52,10 +53,10 @@ pub mod amm_pairs_lib{
     }
 
     pub fn create_amm_settings(
-        lp_fee_nom: u8,
-        lp_fee_denom: u16,
-        shade_fee_nom: u8,
-        shade_fee_denom: u16,
+        lp_fee_nom: u64,
+        lp_fee_denom: u64,
+        shade_fee_nom: u64,
+        shade_fee_denom: u64,
         shade_dao_address: &Addr
     ) -> AMMSettings
     {
@@ -117,7 +118,8 @@ pub mod amm_pairs_lib{
                             amount_1
             ), 
             expected_return: expected_return, 
-            staking: staking 
+            staking: staking,
+            execute_sslp_virtual_swap: None,
         };
 
         let _  = router.execute_contract(

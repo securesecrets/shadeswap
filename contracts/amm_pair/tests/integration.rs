@@ -98,11 +98,13 @@ pub fn amm_pair_integration_tests_with_custom_token() {
                 contract_addr: reward_contract.address.to_owned(), 
                 token_code_hash: reward_contract.code_hash.to_owned()
             },
-            valid_to: Uint128::new(3747905010000u128)
+            valid_to: Uint128::new(3747905010000u128),
+            custom_label: None
         }), 
         custom_fee: None,
         arbitrage_contract: None,
-        lp_token_decimals: 18u8
+        lp_token_decimals: 18u8,
+        lp_token_custom_label: None
     };       
     
     roll_blockchain(&mut router, 1).unwrap();
@@ -172,7 +174,8 @@ pub fn amm_pair_integration_tests_with_custom_token() {
             amount_1: Uint128::new(100000000u128),
         }, 
         expected_return: Some(Uint128::new(1000u128)), 
-        staking: Some(true) 
+        staking: Some(true),
+        execute_sslp_virtual_swap: None,
     };
  
     let _ = router.execute_contract(
@@ -219,7 +222,8 @@ pub fn amm_pair_integration_tests_with_custom_token() {
             amount_1: Uint128::new(100000000u128),
         }, 
         expected_return: None, 
-        staking: Some(false) 
+        staking: Some(false),
+        execute_sslp_virtual_swap: None,
     };   
  
     let _ = router.execute_contract(
@@ -421,11 +425,13 @@ pub fn amm_pair_integration_tests_native_token() {
                 contract_addr: reward_contract.address.to_owned(), 
                 token_code_hash: reward_contract.code_hash.to_owned()
             },
-            valid_to: Uint128::new(3747905010000u128)
+            valid_to: Uint128::new(3747905010000u128),
+            custom_label: None
         }), 
         custom_fee: None,
         arbitrage_contract: None,
-        lp_token_decimals: 18u8
+        lp_token_decimals: 18u8,
+        lp_token_custom_label: None
     };       
     
     roll_blockchain(&mut router, 1).unwrap();
@@ -480,7 +486,8 @@ pub fn amm_pair_integration_tests_native_token() {
             amount_1: Uint128::new(100000000u128),
         }, 
         expected_return: Some(Uint128::new(1000u128)), 
-        staking: Some(true) 
+        staking: Some(true),
+        execute_sslp_virtual_swap: None,
     };
  
     let _ = router.execute_contract(
@@ -527,7 +534,8 @@ pub fn amm_pair_integration_tests_native_token() {
             amount_1: Uint128::new(100000000u128),
         }, 
         expected_return: None, 
-        staking: Some(false) 
+        staking: Some(false),
+        execute_sslp_virtual_swap: None,
     };
  
     let _ = router.execute_contract(
@@ -750,11 +758,13 @@ pub fn test_sslp_with_two_virtual_providers() {
                 contract_addr: reward_contract.address.to_owned(), 
                 token_code_hash: reward_contract.code_hash.to_owned()
             },
-            valid_to: Uint128::new(3747905010000u128) ,
+            valid_to: Uint128::new(3747905010000u128),
+            custom_label: None
         }), 
         custom_fee: None,
         arbitrage_contract: None,
-        lp_token_decimals: 18u8
+        lp_token_decimals: 18u8,
+        lp_token_custom_label: None
     };       
     
     roll_blockchain(&mut router, 1).unwrap();
@@ -809,7 +819,8 @@ pub fn test_sslp_with_two_virtual_providers() {
             amount_1: Uint128::new(100000000u128),
         }, 
         expected_return: Some(Uint128::new(100000001u128)), 
-        staking: Some(false) 
+        staking: Some(false),
+        execute_sslp_virtual_swap: None,
     };
     let result = router.execute_contract(
         owner_addr.to_owned(),
@@ -827,7 +838,8 @@ pub fn test_sslp_with_two_virtual_providers() {
             amount_1: Uint128::new(100000000u128),
         }, 
         expected_return: None, 
-        staking: Some(false) 
+        staking: Some(false),
+        execute_sslp_virtual_swap: None,
     };
  
     let _ = router.execute_contract(
@@ -877,7 +889,8 @@ pub fn test_sslp_with_two_virtual_providers() {
             amount_1: Uint128::new(100000000u128),
         }, 
         expected_return: None, 
-        staking: None
+        staking: None,
+        execute_sslp_virtual_swap: Some(true),
     };
  
     let _ = router.execute_contract(
@@ -902,7 +915,8 @@ pub fn test_sslp_with_two_virtual_providers() {
             amount_1: Uint128::zero(),
         }, 
         expected_return: None, 
-        staking: Some(false) 
+        staking: Some(false),
+        execute_sslp_virtual_swap: Some(true),
     };
  
     let _ = router.execute_contract(

@@ -102,12 +102,12 @@ pub mod amm_pairs_mock {
                         fee_info: FeeInfo {
                             shade_dao_address: Addr::unchecked("".to_string()),
                             lp_fee: Fee {
-                                nom: 2u8,
-                                denom: 100u16,
+                                nom: 2u64,
+                                denom: 100u64,
                             },
                             shade_dao_fee: Fee {
-                                nom: 2u8,
-                                denom: 100u16,
+                                nom: 2u64,
+                                denom: 100u64,
                             },
                         },
                     };
@@ -135,7 +135,7 @@ pub mod amm_pairs_mock {
                     return to_binary(&response);
                 }
                 QueryMsg::GetShadeDaoInfo {} => to_binary(""),
-                QueryMsg::GetEstimatedLiquidity {deposit:_, sender } => to_binary(""),
+                QueryMsg::GetEstimatedLiquidity { .. } => to_binary(""),
             },
             BLOCK_SIZE,
         )
@@ -150,11 +150,7 @@ pub mod amm_pairs_mock {
     ) -> StdResult<Response> {
         pad_response_result(
             match msg {
-                ExecuteMsg::AddLiquidityToAMMContract {
-                    deposit: _,
-                    expected_return: _,
-                    staking: _,
-                } => Ok(Response::new()),
+                ExecuteMsg::AddLiquidityToAMMContract { .. } => Ok(Response::new()),
                 ExecuteMsg::SwapTokens {
                     offer: _,
                     expected_return: _,

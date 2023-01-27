@@ -48,8 +48,8 @@ pub fn instantiate(
 
     //Don't allow for custom fee with invalid zeros
     if msg.custom_fee.as_ref().is_some()
-        && ((msg.custom_fee.as_ref().unwrap().lp_fee.denom == 0u16  && msg.custom_fee.as_ref().unwrap().lp_fee.nom != 0u8)
-            || (msg.custom_fee.as_ref().unwrap().shade_dao_fee.denom == 0u16 && msg.custom_fee.as_ref().unwrap().shade_dao_fee.nom != 0u8))
+        && ((msg.custom_fee.as_ref().unwrap().lp_fee.denom == 0u64  && msg.custom_fee.as_ref().unwrap().lp_fee.nom != 0u64)
+            || (msg.custom_fee.as_ref().unwrap().shade_dao_fee.denom == 0u64 && msg.custom_fee.as_ref().unwrap().shade_dao_fee.nom != 0u64))
     {
         return Err(StdError::generic_err(
             "One of the custom fee denoms are zero and nom is not 0.",
@@ -90,10 +90,10 @@ pub fn instantiate(
         CosmosMsg::Wasm(WasmMsg::Instantiate {
             code_id: msg.lp_token_contract.id,
             msg: to_binary(&init_snip20_msg)?,
-            label: format!(
+            label: msg.lp_token_custom_label.unwrap_or(format!(
                 "{}-{}-ShadeSwap-Pair-Token-{}",
                 &msg.pair.0, &msg.pair.1, &env.contract.address
-            ),
+            )),
             code_hash: msg.lp_token_contract.code_hash.clone(),
             funds: vec![],
         }),
@@ -136,12 +136,13 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 deposit,
                 expected_return,
                 staking,
-            } => add_liquidity(deps, env, &info, deposit, expected_return, staking),
+                execute_sslp_virtual_swap,
+            } => add_liquidity(deps, env, &info, deposit, expected_return, staking, execute_sslp_virtual_swap),
             ExecuteMsg::SetCustomPairFee { custom_fee } => {
                 //Don't allow for custom fee with invalid zeros
                 if custom_fee.as_ref().is_some()
-                && ((custom_fee.as_ref().unwrap().lp_fee.denom == 0u16  && custom_fee.as_ref().unwrap().lp_fee.nom != 0u8)
-                    || (custom_fee.as_ref().unwrap().shade_dao_fee.denom == 0u16 && custom_fee.as_ref().unwrap().shade_dao_fee.nom != 0u8))
+                && ((custom_fee.as_ref().unwrap().lp_fee.denom == 0u64  && custom_fee.as_ref().unwrap().lp_fee.nom != 0u64)
+                    || (custom_fee.as_ref().unwrap().shade_dao_fee.denom == 0u64 && custom_fee.as_ref().unwrap().shade_dao_fee.nom != 0u64))
                 {
                     return Err(StdError::generic_err(
                         "One of the custom fee denoms are zero and nom is not 0.",
@@ -433,8 +434,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 query::swap_simulation(deps, env, offer, exclude_fee)
             }
             QueryMsg::GetShadeDaoInfo {} => query::shade_dao_info(deps),
-            QueryMsg::GetEstimatedLiquidity { deposit, sender } => {
-                query::estimated_liquidity(deps, env, &deposit, sender)
+            QueryMsg::GetEstimatedLiquidity { deposit, sender, execute_sslp_virtual_swap } => {
+                query::estimated_liquidity(deps, env, &deposit, sender, execute_sslp_virtual_swap)
             }
             QueryMsg::GetConfig {} => {
                 let config = config_r(deps.storage).load()?;
@@ -466,7 +467,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
                         Contract {
                             address: contract_address,
                             code_hash: config.lp_token.code_hash,
-                        },
+                        }
                     )?;
                     response.data = Some(env.contract.address.to_string().as_bytes().into());
                     Ok(response)

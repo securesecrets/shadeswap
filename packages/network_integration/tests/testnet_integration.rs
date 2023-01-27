@@ -300,6 +300,8 @@ fn run_testnet() -> Result<()> {
         Some(3450000000000u128),
         18u8,
         &mut reports,
+        None,
+        None,
     )
     .unwrap();
 
@@ -321,6 +323,8 @@ fn run_testnet() -> Result<()> {
         None,
         18u8,
         &mut reports,
+        Some("PAIR_CONTRACT".to_owned() + &factory_contract.address.to_string()),
+        Some("LP_TOKEN_A".to_owned() + &factory_contract.address.to_string()),
     )
     .unwrap();
 
@@ -399,6 +403,7 @@ fn run_testnet() -> Result<()> {
             },
             expected_return: None,
             staking: None,
+            execute_sslp_virtual_swap: None,
         },
         &NetContract {
             label: "".to_string(),
@@ -1337,6 +1342,7 @@ fn run_testnet() -> Result<()> {
                 },
                 expected_return: None,
                 staking: Some(true),
+                execute_sslp_virtual_swap: None,
             },
             &NetContract {
                 label: "".to_string(),
@@ -1423,6 +1429,7 @@ fn run_testnet() -> Result<()> {
                     },
                     expected_return: None,
                     staking: Some(false),
+                    execute_sslp_virtual_swap: None,
                 },
                 &NetContract {
                     label: "".to_string(),
@@ -1618,6 +1625,7 @@ fn run_testnet() -> Result<()> {
                 amount_1: Uint128::new(10000000000),
             },
             sender: Addr::unchecked(account.clone()),
+            execute_sslp_virtual_swap: None,
         };
         let estimated_lp_token: AMMPairQueryMsgResponse = query(
             &NetContract {
@@ -1747,7 +1755,8 @@ fn run_testnet() -> Result<()> {
                     amount_0: Uint128::from(1000u64),
                     amount_1: Uint128::from(1000u64)
                 },
-                sender: Addr::unchecked(account)
+                sender: Addr::unchecked(account),
+                execute_sslp_virtual_swap: None,
             },
         )?,
         AMMPairQueryMsgResponse::GetEstimatedLiquidity { .. }
@@ -1988,6 +1997,7 @@ fn run_testnet() -> Result<()> {
             token_code_hash: reward_token.code_hash.to_string(),
         },
         valid_to: Uint128::new(40000000u128),
+        custom_label: Some(("THIS IS A TEST".to_owned() + &factory_contract.address.to_string()).to_string()),
     });
 
     // STORING LP TOKEN
@@ -2025,6 +2035,7 @@ fn run_testnet() -> Result<()> {
         }),
         arbitrage_contract: None,
         lp_token_decimals: 18u8,
+        lp_token_custom_label: Some("THIS IS A TEST".to_string()),
     };
     // CREATE AMM PAIR
     let amm_pair_contract = init(
@@ -2108,6 +2119,7 @@ fn run_testnet() -> Result<()> {
             },
             expected_return: None,
             staking: Some(true),
+            execute_sslp_virtual_swap: None,
         },
         &NetContract {
             label: "".to_string(),
@@ -2344,6 +2356,7 @@ fn run_testnet() -> Result<()> {
                 },
                 expected_return: None,
                 staking: Some(false),
+                execute_sslp_virtual_swap: None,
             },
             &NetContract {
                 label: "".to_string(),
@@ -2431,7 +2444,7 @@ fn run_testnet() -> Result<()> {
                 account.to_string(),
                 VIEW_KEY.to_string()
             ),
-            Uint128::new(10000000000)
+            Uint128::new(9999999999)
         );
 
         // ASSERT LP TOKEN - 9999996822

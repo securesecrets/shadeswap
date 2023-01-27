@@ -71,7 +71,8 @@ pub mod tests {
                 address: Addr::unchecked("ARBITRAGE_CONTRACT"),
                 code_hash: "ARBITRAGE_CONTRACT".to_string(),
             }),
-            lp_token_decimals: 18u8
+            lp_token_decimals: 18u8,
+            lp_token_custom_label: None,
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let test_view_key =
@@ -135,7 +136,8 @@ pub mod tests {
             staking_contract: None,
             custom_fee: None,
             arbitrage_contract: None,
-            lp_token_decimals: 18u8
+            lp_token_decimals: 18u8,
+            lp_token_custom_label: None,
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let address_a = Addr::unchecked("TESTA".to_string());
@@ -247,7 +249,7 @@ pub mod tests {
         config_w(deps.as_mut().storage).save(&_config)?;
         let amount = Uint128::new(1000u128);
         let result = estimated_liquidity(deps.as_ref(), env, 
-            &mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount), Addr::unchecked("random_address".to_string()));
+            &mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount), Addr::unchecked("random_address".to_string()), None);
         match result.unwrap_err() {
             e =>  assert_eq!(e, StdError::generic_err(
                 "The provided tokens dont match those managed by the contract.",
@@ -381,7 +383,7 @@ pub mod tests_calculation_price_and_fee {
     #[test]
     fn assert_initial_swap_with_token_success_with_no_shadedao_fee() -> StdResult<()>
     {     
-        let custom_fee: Option<CustomFee> = Some(CustomFee { shade_dao_fee: Fee{ nom: 0u8, denom: 0u16 }, lp_fee: Fee{ nom: 1u8, denom: 1u16 } });
+        let custom_fee: Option<CustomFee> = Some(CustomFee { shade_dao_fee: Fee{ nom: 0u64, denom: 0u64 }, lp_fee: Fee{ nom: 1u64, denom: 1u64 } });
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
         let token_pair = mk_token_pair_test_calculation_price_fee();
@@ -677,7 +679,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(10000u128)
             },
             Some(Uint128::from(10000001u128)),
-            None
+            None,
+            None,
         );
 
         assert!(add_liquidity_with_err.is_err());
@@ -735,7 +738,7 @@ pub mod tests_calculation_price_and_fee {
             amount_1: Uint128::from(0u128)
         };
 
-        let estimated_lp_bin = estimated_liquidity(deps.as_ref(), mock_env(), &deposit, Addr::unchecked("random_address".to_string())).unwrap();
+        let estimated_lp_bin = estimated_liquidity(deps.as_ref(), mock_env(), &deposit, Addr::unchecked("random_address".to_string()), Some(true)).unwrap();
         let msg = from_binary::<QueryMsgResponse>(&estimated_lp_bin).unwrap();
         let estimated_lp = match msg {
             QueryMsgResponse::GetEstimatedLiquidity { lp_token, total_lp_token: _ } => lp_token,
@@ -748,7 +751,8 @@ pub mod tests_calculation_price_and_fee {
             &mock_info,
             deposit,
             None,
-            None
+            None,
+            Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -774,7 +778,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(100u128)
             },
             None,
-            None
+            None,
+            None,
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -803,7 +808,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(0u128)
             },
             None,
-            None
+            None,
+            Some(true)
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let sslp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -833,7 +839,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(50u128)
             },
             None,
-            None
+            None,
+            Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let imbalanced_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -886,7 +893,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(10u128)
             },
             None,
-            None
+            None,
+            Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let imbalanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -901,7 +909,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(0u128)
             },
             None,
-            None
+            None,
+            Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let sslp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -916,7 +925,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(55u128)
             },
             None,
-            None
+            None,
+            None,
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -947,7 +957,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(100000u128)
             },
             Some(Uint128::from(10000000u128)),
-            None
+            None,
+            Some(true),
         )?;       
         Ok(())
     }
@@ -973,7 +984,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(100000u128)
             },
             Some(Uint128::from(9999999u128)),
-            None
+            None,
+            Some(true),
         )?;       
         Ok(())
     }
@@ -995,7 +1007,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(100000u128)
             },
             None,
-            None
+            None,
+            Some(true),
         )?;       
 
         Ok(())
@@ -1045,7 +1058,8 @@ pub mod help_test_lib {
                 address: Addr::unchecked("ARBITRAGE_CONTRACT"),
                 code_hash: "ARBITRAGE_CONTRACT".to_string(),
             }),
-            lp_token_decimals: 18u8
+            lp_token_decimals: 18u8,
+            lp_token_custom_label: None,
         };
         assert!(instantiate(deps.as_mut(), env.clone(), mock_info.clone(), msg).is_ok());
         let config = config_r(&deps.storage).load()?;
@@ -1168,6 +1182,7 @@ pub mod help_test_lib {
                     token_code_hash: "".to_string(),
                 }, 
                 valid_to: Uint128::new(3747905010000u128),
+                custom_label: None,
             }),
             prng_seed: to_binary(&"to_string".to_string())?,
             admin_auth: Contract { address: Addr::unchecked(ADMIN_CONTRACT), code_hash: "".to_string() },
@@ -1495,7 +1510,8 @@ pub mod help_test_lib {
                 address: Addr::unchecked("ARBITRARY_CONTRACT"),
                 code_hash: "ARBITRARY_CONTRACT".to_string()
             }),
-            lp_token_decimals: 18u8
+            lp_token_decimals: 18u8,
+            lp_token_custom_label: None,
         };         
         let temp_deps = deps.branch();       
         assert!(instantiate(temp_deps, env.clone(),mock_info, msg).is_ok());

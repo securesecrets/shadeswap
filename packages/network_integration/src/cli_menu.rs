@@ -168,10 +168,10 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> 
         let backend = args[3].clone();
         let api_key = args[4].clone();
         let seed = args[5].clone();
-        let lp_fee_nom = args[6].clone().parse::<u8>().unwrap();
-        let lp_fee_denom = args[7].clone().parse::<u16>().unwrap();
-        let shade_dao_fee_nom = args[8].clone().parse::<u8>().unwrap();
-        let shade_dao_fee_denom = args[9].clone().parse::<u16>().unwrap();
+        let lp_fee_nom = args[6].clone().parse::<u64>().unwrap();
+        let lp_fee_denom = args[7].clone().parse::<u64>().unwrap();
+        let shade_dao_fee_nom = args[8].clone().parse::<u64>().unwrap();
+        let shade_dao_fee_denom = args[9].clone().parse::<u64>().unwrap();
         let shade_dao_address = args[10].clone();
         let shade_dao_code_hash = args[11].clone();
         let admin_contract = args[12].clone();
@@ -422,6 +422,8 @@ pub fn parse_args(args: &[String], reports: &mut Vec<Report>) -> io::Result<()> 
             valid_to,
             decimals.parse::<u8>().unwrap(),
             reports,
+            None,
+            None
         )?;
 
         println!(

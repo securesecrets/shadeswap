@@ -269,7 +269,7 @@ pub mod tests {
         let swap_result = calculate_swap_result(deps.as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee,
             &config,
             &mk_custom_token_amount(amount, &wrong_pair), 
-            None);
+            None, true);
             
         match swap_result.unwrap_err() {
             e =>  assert_eq!(e, StdError::generic_err(
@@ -373,7 +373,7 @@ pub mod tests_calculation_price_and_fee {
         let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-             Some(true));
+             Some(true), true);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -391,7 +391,7 @@ pub mod tests_calculation_price_and_fee {
         let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-             Some(true));
+             Some(true), true);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -409,7 +409,7 @@ pub mod tests_calculation_price_and_fee {
         let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-             None);
+             None, true);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -429,7 +429,7 @@ pub mod tests_calculation_price_and_fee {
         let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, 
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-         None);
+         None, true);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -446,7 +446,7 @@ pub mod tests_calculation_price_and_fee {
         assert_eq!(config.factory_contract.clone().unwrap().address.as_str(), FACTORY_CONTRACT_ADDRESS.clone());
         let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, &token_amount,
-         None)?;
+         None, true)?;
         assert_eq!(swap_result.result.return_amount, Uint128::from(116667u128));
         assert_eq!(swap_result.lp_fee_amount, Uint128::from(46666u128));
         assert_eq!(swap_result.shade_dao_fee_amount, Uint128::from(3333u128));
@@ -570,7 +570,7 @@ pub mod tests_calculation_price_and_fee {
         let is_user_whitelist = is_address_in_whitelist(deps.as_mut().as_ref().storage, &address_a)?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-            Some(is_user_whitelist))?;
+            Some(is_user_whitelist), true)?;
         assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
         assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
         Ok(())

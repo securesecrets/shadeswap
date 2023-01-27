@@ -53,10 +53,10 @@ pub mod amm_pairs_lib{
     }
 
     pub fn create_amm_settings(
-        lp_fee_nom: u8,
-        lp_fee_denom: u16,
-        shade_fee_nom: u8,
-        shade_fee_denom: u16,
+        lp_fee_nom: u64,
+        lp_fee_denom: u64,
+        shade_fee_nom: u64,
+        shade_fee_denom: u64,
         shade_dao_address: &Addr
     ) -> AMMSettings
     {

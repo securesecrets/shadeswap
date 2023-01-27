@@ -85,8 +85,8 @@ pub fn fee_info(deps: Deps) -> StdResult<FeeInfo> {
     };
 
     //set dao address
-    shade_dao_address = if let Some(amm_s) = amm_settings.clone() {
-        amm_s.shade_dao_address.address
+    shade_dao_address = if let Some(amm_settings) = &amm_settings {
+        amm_settings.shade_dao_address.address.clone()
     } else {
         // if no address is given then this address is used
         Addr::unchecked("")

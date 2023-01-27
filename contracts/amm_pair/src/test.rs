@@ -383,7 +383,7 @@ pub mod tests_calculation_price_and_fee {
     #[test]
     fn assert_initial_swap_with_token_success_with_no_shadedao_fee() -> StdResult<()>
     {     
-        let custom_fee: Option<CustomFee> = Some(CustomFee { shade_dao_fee: Fee{ nom: 0u8, denom: 0u16 }, lp_fee: Fee{ nom: 1u8, denom: 1u16 } });
+        let custom_fee: Option<CustomFee> = Some(CustomFee { shade_dao_fee: Fee{ nom: 0u64, denom: 0u64 }, lp_fee: Fee{ nom: 1u64, denom: 1u64 } });
         let mut deps = mock_dependencies(&[]);
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
         let token_pair = mk_token_pair_test_calculation_price_fee();

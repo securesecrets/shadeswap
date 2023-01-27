@@ -560,7 +560,7 @@ pub mod tests {
                                     amount_1: Uint128::new(101),
                                     total_liquidity: Uint128::new(100),
                                     contract_version: 1,
-                                    fee_info: FeeInfo{ shade_dao_address: Addr::unchecked("".to_string()), lp_fee: Fee{ nom: 2u8, denom: 100u16 }, shade_dao_fee: Fee{ nom: 2u8, denom: 100u16 } },
+                                    fee_info: FeeInfo{ shade_dao_address: Addr::unchecked("".to_string()), lp_fee: Fee{ nom: 2u64, denom: 100u64 }, shade_dao_fee: Fee{ nom: 2u64, denom: 100u64 } },
                                 
                                 },
                                 ).unwrap()))

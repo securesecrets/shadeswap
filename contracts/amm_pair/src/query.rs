@@ -142,7 +142,7 @@ pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount, send
         ));
     }
 
-    let pool_balances = deposit.pair.query_balances(
+    let mut pool_balances = deposit.pair.query_balances(
         deps,
         env.contract.address.to_string(),
         config.viewing_key.0.clone(),
@@ -154,7 +154,7 @@ pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount, send
 
     let new_deposit =
         if execute_sslp_virtual_swap.is_some() && execute_sslp_virtual_swap.unwrap() {
-            lp_virtual_swap(
+            let swap_return = lp_virtual_swap(
                 deps,
                 &env,
                 sender,
@@ -166,7 +166,19 @@ pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount, send
                 pair_contract_pool_liquidity,
                 pool_balances,
                 None,
-            )?
+            )?;
+
+            //after swap goes through, update pool sizes as if swap was executed
+            if let Some(swap_info) = swap_return.swap_info {
+                if swap_info.index_of_input_token == 0 {
+                    pool_balances[0] = swap_info.new_input_pool;
+                    pool_balances[1] = swap_info.new_output_pool;
+                } else {
+                    pool_balances[0] = swap_info.new_output_pool;
+                    pool_balances[1] = swap_info.new_input_pool;
+                }
+            }
+            swap_return.output
         } else {
             deposit.clone()
         };

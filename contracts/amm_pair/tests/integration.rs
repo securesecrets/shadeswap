@@ -719,9 +719,11 @@ pub fn test_sslp_with_two_virtual_providers() {
     // GENERATE TOKEN PAIRS + FACTORY + STAKING 
     let reward_contract = generate_snip20_contract(&mut router, "RWD".to_string(),"RWD".to_string(),18).unwrap();    
     let token_0_contract = generate_snip20_contract(&mut router, "ETH".to_string(),"ETH".to_string(),18).unwrap();    
+    let token_1_contract = generate_snip20_contract(&mut router, "BTC".to_string(),"BTC".to_string(), 6).unwrap();    
  
     // MINT AND DEPOSIT FOR LIQUIDITY
     mint_deposit_snip20(&mut router,&token_0_contract,&owner_addr,Uint128::new(10000000000u128), &owner_addr);
+    mint_deposit_snip20(&mut router,&token_1_contract,&owner_addr,Uint128::new(10000000000u128), &owner_addr);
     let admin_contract = init_admin_contract(&mut router, &owner_addr).unwrap();
     let lp_contract_info = router.store_code(snip20_lp_token_contract_store());
     let staking_contract_info = router.store_code(staking_contract_store());
@@ -729,8 +731,9 @@ pub fn test_sslp_with_two_virtual_providers() {
     let amm_pairs_info = router.store_code(amm_contract_store());
     roll_blockchain(&mut router, 1).unwrap();
     
-    let pair = create_token_pair_with_native(
-        &convert_to_contract_link(&token_0_contract)
+    let pair = create_token_pair(
+        &convert_to_contract_link(&token_0_contract),
+        &convert_to_contract_link(&token_1_contract),
     );
 
     let factory_link = SContract { 
@@ -804,11 +807,21 @@ pub fn test_sslp_with_two_virtual_providers() {
         Uint128::new(100000000000u128), 
         &owner_addr
     );
+    mint_deposit_snip20(
+        &mut router, 
+        &token_1_contract, 
+        &owner_addr, 
+        Uint128::new(100000000000u128), 
+        &owner_addr
+    );
     roll_blockchain(&mut router, 1).unwrap();
 
-    let pair = create_token_pair_with_native(
-        &convert_to_contract_link(&token_0_contract));
+    let pair = create_token_pair(
+        &convert_to_contract_link(&token_0_contract),
+        &convert_to_contract_link(&token_1_contract),
+    );
     increase_allowance(&mut router, &token_0_contract, Uint128::new(10000000000000u128), &amm_pair_contract.address, &owner_addr).unwrap();
+    increase_allowance(&mut router, &token_1_contract, Uint128::new(10000000000000u128), &amm_pair_contract.address, &owner_addr).unwrap();
     roll_blockchain(&mut router, 1).unwrap(); 
 
     // ASSERT EXCEPTION
@@ -826,7 +839,7 @@ pub fn test_sslp_with_two_virtual_providers() {
         owner_addr.to_owned(),
         &amm_pair_contract,
         &add_liqudity_msg,
-        &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(100000000u128) }]
+        &[]
     );
     assert!(result.is_err());
     
@@ -846,7 +859,7 @@ pub fn test_sslp_with_two_virtual_providers() {
         owner_addr.to_owned(),
         &amm_pair_contract,
         &add_liqudity_msg,
-        &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(100000000u128) }]
+        &[]
     ).unwrap();
     roll_blockchain(&mut router, 1).unwrap();
 
@@ -897,14 +910,14 @@ pub fn test_sslp_with_two_virtual_providers() {
         owner_addr.to_owned(),
         &amm_pair_contract,
         &add_liqudity_msg,
-        &[Coin{ denom: "uscrt".to_string(), amount: Uint128::new(1000000u128) }]
+        &[]
     ).unwrap();
 
     roll_blockchain(&mut router, 1).unwrap();
     // ASSERT POOL LIQUIDITY
     let total_liquidity: (Uint128, Uint128, Uint128) = get_pair_liquidity_pool_balance(&mut router,&amm_pair_contract);
-    assert_eq!(total_liquidity.0, Uint128::new(147995300u128));
-    assert_eq!(total_liquidity.1, Uint128::new(99500150u128));
+    assert_eq!(total_liquidity.0, Uint128::new(133779264u128));
+    assert_eq!(total_liquidity.1, Uint128::new(100006689u128));
     assert_eq!(total_liquidity.2, Uint128::new(200000000u128));
 
     // *** user 2 add sslp liqidity without staking
@@ -933,7 +946,7 @@ pub fn test_sslp_with_two_virtual_providers() {
     roll_blockchain(&mut router, 1).unwrap();
     let remove_msg = to_binary(&InvokeMsg::RemoveLiquidity { 
         from: Some(owner_addr.to_string()),
-        single_sided_withdraw_type: Some(TokenType::NativeToken { denom: "uscrt".to_string() }),
+        single_sided_withdraw_type: Some(TokenType::CustomToken { contract_addr: token_0_contract.address, token_code_hash: token_0_contract.code_hash } ),
         single_sided_expected_return: None,
     }).unwrap();
     

@@ -490,7 +490,7 @@ pub mod tests_calculation_price_and_fee {
             Uint128::new(4950000000),
             [Uint128::new(4949993721), Uint128::new(4950007236)],
             None
-        )?;
+        )?.output;
         assert_eq!(result.amount_0, Uint128::new(50000u128));
         assert_eq!(result.amount_1, Uint128::new(50000u128));
         // update offer
@@ -536,7 +536,7 @@ pub mod tests_calculation_price_and_fee {
             Uint128::new(4946700000),
            [Uint128::new(4949983721), Uint128::new(4950000236)],
             None
-        )?;
+        )?.output;
         assert_eq!(result.amount_0, Uint128::new(45000u128));
         assert_eq!(result.amount_1, Uint128::new(44500u128));
         // update offer

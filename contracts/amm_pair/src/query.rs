@@ -153,7 +153,9 @@ pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount, send
     let fee_info = fee_info(deps)?;
 
     let new_deposit =
-        if execute_sslp_virtual_swap.is_some() && execute_sslp_virtual_swap.unwrap() {
+        if let Some(false) = execute_sslp_virtual_swap {
+            deposit.clone()
+        } else {
             lp_virtual_swap(
                 deps,
                 &env,
@@ -167,8 +169,6 @@ pub fn estimated_liquidity(deps: Deps, env: Env, deposit: &TokenPairAmount, send
                 pool_balances,
                 None,
             )?
-        } else {
-            deposit.clone()
         };
 
     let lp_tokens = calculate_lp_tokens(&new_deposit, pool_balances, pair_contract_pool_liquidity)?;

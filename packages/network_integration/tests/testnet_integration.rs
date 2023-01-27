@@ -403,6 +403,7 @@ fn run_testnet() -> Result<()> {
             },
             expected_return: None,
             staking: None,
+            execute_sslp_virtual_swap: None,
         },
         &NetContract {
             label: "".to_string(),
@@ -1304,6 +1305,7 @@ fn run_testnet() -> Result<()> {
                 },
                 expected_return: None,
                 staking: Some(true),
+                execute_sslp_virtual_swap: None,
             },
             &NetContract {
                 label: "".to_string(),
@@ -1390,6 +1392,7 @@ fn run_testnet() -> Result<()> {
                     },
                     expected_return: None,
                     staking: Some(false),
+                    execute_sslp_virtual_swap: None,
                 },
                 &NetContract {
                     label: "".to_string(),
@@ -1585,6 +1588,7 @@ fn run_testnet() -> Result<()> {
                 amount_1: Uint128::new(10000000000),
             },
             sender: Addr::unchecked(account.clone()),
+            execute_sslp_virtual_swap: None,
         };
         let estimated_lp_token: AMMPairQueryMsgResponse = query(
             &NetContract {
@@ -1714,7 +1718,8 @@ fn run_testnet() -> Result<()> {
                     amount_0: Uint128::from(1000u64),
                     amount_1: Uint128::from(1000u64)
                 },
-                sender: Addr::unchecked(account)
+                sender: Addr::unchecked(account),
+                execute_sslp_virtual_swap: None,
             },
         )?,
         AMMPairQueryMsgResponse::GetEstimatedLiquidity { .. }
@@ -2077,6 +2082,7 @@ fn run_testnet() -> Result<()> {
             },
             expected_return: None,
             staking: Some(true),
+            execute_sslp_virtual_swap: None,
         },
         &NetContract {
             label: "".to_string(),
@@ -2313,6 +2319,7 @@ fn run_testnet() -> Result<()> {
                 },
                 expected_return: None,
                 staking: Some(false),
+                execute_sslp_virtual_swap: None,
             },
             &NetContract {
                 label: "".to_string(),

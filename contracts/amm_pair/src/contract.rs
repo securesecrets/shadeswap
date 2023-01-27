@@ -136,7 +136,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
                 deposit,
                 expected_return,
                 staking,
-            } => add_liquidity(deps, env, &info, deposit, expected_return, staking),
+                execute_sslp_virtual_swap,
+            } => add_liquidity(deps, env, &info, deposit, expected_return, staking, execute_sslp_virtual_swap),
             ExecuteMsg::SetCustomPairFee { custom_fee } => {
                 //Don't allow for custom fee with invalid zeros
                 if custom_fee.as_ref().is_some()
@@ -433,8 +434,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 query::swap_simulation(deps, env, offer, exclude_fee)
             }
             QueryMsg::GetShadeDaoInfo {} => query::shade_dao_info(deps),
-            QueryMsg::GetEstimatedLiquidity { deposit, sender } => {
-                query::estimated_liquidity(deps, env, &deposit, sender)
+            QueryMsg::GetEstimatedLiquidity { deposit, sender, execute_sslp_virtual_swap } => {
+                query::estimated_liquidity(deps, env, &deposit, sender, execute_sslp_virtual_swap)
             }
             QueryMsg::GetConfig {} => {
                 let config = config_r(deps.storage).load()?;

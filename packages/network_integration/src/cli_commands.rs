@@ -1027,6 +1027,7 @@ pub mod amm_pair_lib {
                 },
                 expected_return: expected_return,
                 staking: staking,
+                execute_sslp_virtual_swap: None,
             },
             &pair_contract,
             account_name,

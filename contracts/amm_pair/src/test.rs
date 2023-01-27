@@ -249,7 +249,7 @@ pub mod tests {
         config_w(deps.as_mut().storage).save(&_config)?;
         let amount = Uint128::new(1000u128);
         let result = estimated_liquidity(deps.as_ref(), env, 
-            &mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount), Addr::unchecked("random_address".to_string()));
+            &mk_token_pair_amount("TOKEN_A", CUSTOM_TOKEN_2,amount, amount), Addr::unchecked("random_address".to_string()), None);
         match result.unwrap_err() {
             e =>  assert_eq!(e, StdError::generic_err(
                 "The provided tokens dont match those managed by the contract.",
@@ -679,7 +679,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(10000u128)
             },
             Some(Uint128::from(10000001u128)),
-            None
+            None,
+            None,
         );
 
         assert!(add_liquidity_with_err.is_err());
@@ -737,7 +738,7 @@ pub mod tests_calculation_price_and_fee {
             amount_1: Uint128::from(0u128)
         };
 
-        let estimated_lp_bin = estimated_liquidity(deps.as_ref(), mock_env(), &deposit, Addr::unchecked("random_address".to_string())).unwrap();
+        let estimated_lp_bin = estimated_liquidity(deps.as_ref(), mock_env(), &deposit, Addr::unchecked("random_address".to_string()), Some(true)).unwrap();
         let msg = from_binary::<QueryMsgResponse>(&estimated_lp_bin).unwrap();
         let estimated_lp = match msg {
             QueryMsgResponse::GetEstimatedLiquidity { lp_token, total_lp_token: _ } => lp_token,
@@ -750,7 +751,8 @@ pub mod tests_calculation_price_and_fee {
             &mock_info,
             deposit,
             None,
-            None
+            None,
+            Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -776,7 +778,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(100u128)
             },
             None,
-            None
+            None,
+            None,
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -805,7 +808,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(0u128)
             },
             None,
-            None
+            None,
+            Some(true)
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let sslp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -835,7 +839,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(50u128)
             },
             None,
-            None
+            None,
+            Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let imbalanced_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -888,7 +893,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(10u128)
             },
             None,
-            None
+            None,
+            Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let imbalanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -903,7 +909,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(0u128)
             },
             None,
-            None
+            None,
+            Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let sslp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -918,7 +925,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(55u128)
             },
             None,
-            None
+            None,
+            None,
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
         let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
@@ -949,7 +957,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(100000u128)
             },
             Some(Uint128::from(10000000u128)),
-            None
+            None,
+            Some(true),
         )?;       
         Ok(())
     }
@@ -975,7 +984,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(100000u128)
             },
             Some(Uint128::from(9999999u128)),
-            None
+            None,
+            Some(true),
         )?;       
         Ok(())
     }
@@ -997,7 +1007,8 @@ pub mod tests_calculation_price_and_fee {
                 amount_1: Uint128::from(100000u128)
             },
             None,
-            None
+            None,
+            Some(true),
         )?;       
 
         Ok(())

@@ -609,6 +609,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 expected_return: None,
 
                                 staking: None,
+                                execute_sslp_virtual_swap: None,
                             },
                             &NetContract {
                                 label: "".to_string(),
@@ -683,6 +684,7 @@ fn deploy_fresh() -> serde_json::Result<()> {
                                 },
                                 expected_return: None,
                                 staking: None,
+                                execute_sslp_virtual_swap: None,
                             },
                             &NetContract {
                                 label: "".to_string(),

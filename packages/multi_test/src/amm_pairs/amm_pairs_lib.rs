@@ -118,7 +118,8 @@ pub mod amm_pairs_lib{
                             amount_1
             ), 
             expected_return: expected_return, 
-            staking: staking 
+            staking: staking,
+            execute_sslp_virtual_swap: None,
         };
 
         let _  = router.execute_contract(

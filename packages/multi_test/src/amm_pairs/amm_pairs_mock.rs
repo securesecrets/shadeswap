@@ -135,7 +135,7 @@ pub mod amm_pairs_mock {
                     return to_binary(&response);
                 }
                 QueryMsg::GetShadeDaoInfo {} => to_binary(""),
-                QueryMsg::GetEstimatedLiquidity {deposit:_, sender } => to_binary(""),
+                QueryMsg::GetEstimatedLiquidity { .. } => to_binary(""),
             },
             BLOCK_SIZE,
         )
@@ -150,11 +150,7 @@ pub mod amm_pairs_mock {
     ) -> StdResult<Response> {
         pad_response_result(
             match msg {
-                ExecuteMsg::AddLiquidityToAMMContract {
-                    deposit: _,
-                    expected_return: _,
-                    staking: _,
-                } => Ok(Response::new()),
+                ExecuteMsg::AddLiquidityToAMMContract { .. } => Ok(Response::new()),
                 ExecuteMsg::SwapTokens {
                     offer: _,
                     expected_return: _,

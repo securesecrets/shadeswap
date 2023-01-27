@@ -271,7 +271,7 @@ pub mod tests {
         let swap_result = calculate_swap_result(deps.as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee,
             &config,
             &mk_custom_token_amount(amount, &wrong_pair), 
-            None);
+            None, true);
             
         match swap_result.unwrap_err() {
             e =>  assert_eq!(e, StdError::generic_err(
@@ -313,7 +313,7 @@ pub mod tests_calculation_price_and_fee {
     use cosmwasm_std::{Decimal, from_binary};
 
     
-    use shadeswap_shared::amm_pair::QueryMsg;
+    use shadeswap_shared::amm_pair::{QueryMsg, FeeInfo};
     use shadeswap_shared::core::{CustomFee, Fee, TokenPairAmount, TokenPair};
     use shadeswap_shared::msg::amm_pair::QueryMsgResponse;
     use crate::operations::lp_virtual_swap;
@@ -371,12 +371,11 @@ pub mod tests_calculation_price_and_fee {
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
-        let expected_amount: u128 = 1666;
         let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-             Some(true));
-        assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
+             Some(true), true);
+        assert_eq!(Uint128::from(2000u128), swap_result?.result.return_amount);
         Ok(())
     }
 
@@ -389,12 +388,11 @@ pub mod tests_calculation_price_and_fee {
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
-        let expected_amount: u128 = 1666;
         let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-             Some(true));
-        assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
+             Some(true), true);
+        assert_eq!(Uint128::from(2000u128), swap_result?.result.return_amount);
         Ok(())
     }
 
@@ -407,11 +405,11 @@ pub mod tests_calculation_price_and_fee {
         let token_pair = mk_token_pair_test_calculation_price_fee();
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
-        let expected_amount: u128 = 1167;
+        let expected_amount: u128 = 1400;
         let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-             None);
+             None, true);
         assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
         Ok(())
     }
@@ -427,12 +425,11 @@ pub mod tests_calculation_price_and_fee {
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, custom_fee, Some(LP_TOKEN.to_string()))?;           
         let offer_amount: u128 = 2000;
         let env = mock_env();
-        let expected_amount: u128 = 1517;
         let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, 
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-         None);
-        assert_eq!(Uint128::from(expected_amount), swap_result?.result.return_amount);
+         None, true);
+        assert_eq!(Uint128::from(1820u128), swap_result?.result.return_amount);
         Ok(())
     }
 
@@ -448,11 +445,11 @@ pub mod tests_calculation_price_and_fee {
         assert_eq!(config.factory_contract.clone().unwrap().address.as_str(), FACTORY_CONTRACT_ADDRESS.clone());
         let fee_info = query::fee_info(deps.as_ref())?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config, &token_amount,
-         None)?;
-        assert_eq!(swap_result.result.return_amount, Uint128::from(116667u128));
-        assert_eq!(swap_result.lp_fee_amount, Uint128::from(46666u128));
-        assert_eq!(swap_result.shade_dao_fee_amount, Uint128::from(3333u128));
-        assert_eq!(swap_result.price, "58.3335".to_string());
+         None, true)?;
+        assert_eq!(swap_result.result.return_amount, Uint128::from(140000u128));
+        assert_eq!(swap_result.lp_fee_amount, Uint128::from(56000u128));
+        assert_eq!(swap_result.shade_dao_fee_amount, Uint128::from(4000u128));
+        assert_eq!(swap_result.price, "70".to_string());
         Ok(())
     }
 
@@ -564,7 +561,6 @@ pub mod tests_calculation_price_and_fee {
         let config = make_init_config_test_calculate_price_fee(deps.as_mut(), token_pair, None,Some(LP_TOKEN.to_string()))?;         
         let offer_amount: u128 = 2000;
         let env = mock_custom_env(FACTORY_CONTRACT_ADDRESS);
-        let expected_amount: u128 = 1666;     
         let _expected_lp_fee: u128 = 40;      
         let address_a = Addr::unchecked("TESTA".to_string());
         add_whitelist_address(deps.as_mut().storage, address_a.clone())?;    
@@ -572,8 +568,8 @@ pub mod tests_calculation_price_and_fee {
         let is_user_whitelist = is_address_in_whitelist(deps.as_mut().as_ref().storage, &address_a)?;
         let swap_result = calculate_swap_result(deps.as_mut().as_ref(),&env, fee_info.lp_fee, fee_info.shade_dao_fee, &config,
             &mk_custom_token_amount_test_calculation_price_fee(Uint128::from(offer_amount), config.pair.clone()), 
-            Some(is_user_whitelist))?;
-        assert_eq!(Uint128::from(expected_amount), swap_result.result.return_amount);
+            Some(is_user_whitelist), true)?;
+        assert_eq!(Uint128::from(2000u128), swap_result.result.return_amount);
         assert_eq!(Uint128::zero(), swap_result.lp_fee_amount);
         Ok(())
     }
@@ -702,8 +698,8 @@ pub mod tests_calculation_price_and_fee {
             Some(testing_str_to_token_type(CUSTOM_TOKEN_1)),
             None,
         ).unwrap();
-        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
-        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(5).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(6).unwrap().value).unwrap();
         
         assert!(withdraw0 > Uint128::from(100u32));
         assert_eq!(withdraw1, Uint128::zero());
@@ -716,8 +712,8 @@ pub mod tests_calculation_price_and_fee {
             Some(testing_str_to_token_type(CUSTOM_TOKEN_2)),
             None,
         ).unwrap();
-        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
-        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(5).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(6).unwrap().value).unwrap();
         
         assert_eq!(withdraw0, Uint128::zero());
         assert!(withdraw1 > Uint128::from(100u32));
@@ -755,7 +751,7 @@ pub mod tests_calculation_price_and_fee {
             Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
-        let lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+        let lp_tokens_received = Uint128::from_str(&response.attributes.get(5).unwrap().value).unwrap();
 
         assert_eq!(lp_tokens_received, estimated_lp);
         assert!(lp_tokens_received > Uint128::zero());
@@ -781,8 +777,9 @@ pub mod tests_calculation_price_and_fee {
             None,
             None,
         );
-        let response = add_result.expect("Unwrap of add liquidity response failed");
-        let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+        let response = add_result.unwrap();
+
+        let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(5).unwrap().value).unwrap();
 
         let withdraw_result = remove_liquidity(
             deps.as_mut(),
@@ -792,8 +789,8 @@ pub mod tests_calculation_price_and_fee {
             None,
             None,
         ).unwrap();
-        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
-        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(5).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(6).unwrap().value).unwrap();
 
         assert_eq!(withdraw0, Uint128::from(100u32));
         assert_eq!(withdraw1, Uint128::from(100u32));
@@ -812,7 +809,7 @@ pub mod tests_calculation_price_and_fee {
             Some(true)
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
-        let sslp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+        let sslp_tokens_received = Uint128::from_str(&response.attributes.get(5).unwrap().value).unwrap();
 
         let withdraw_result = remove_liquidity(
             deps.as_mut(),
@@ -822,8 +819,8 @@ pub mod tests_calculation_price_and_fee {
             None,
             None,
         ).unwrap();
-        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
-        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(5).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(6).unwrap().value).unwrap();
 
         assert!(withdraw0 < Uint128::from(100u32));
         assert!(withdraw1 < Uint128::from(100u32));
@@ -843,7 +840,7 @@ pub mod tests_calculation_price_and_fee {
             Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
-        let imbalanced_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+        let imbalanced_tokens_received = Uint128::from_str(&response.attributes.get(5).unwrap().value).unwrap();
 
         //test sslp withdraw slippage limit works
         let withdraw_expect_err = remove_liquidity(
@@ -865,8 +862,8 @@ pub mod tests_calculation_price_and_fee {
             None,
             None,
         ).unwrap();
-        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(3).unwrap().value).unwrap();
-        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(4).unwrap().value).unwrap();
+        let withdraw0 = Uint128::from_str(&withdraw_result.attributes.get(5).unwrap().value).unwrap();
+        let withdraw1 = Uint128::from_str(&withdraw_result.attributes.get(6).unwrap().value).unwrap();
 
         assert!(withdraw0 < Uint128::from(100u32));
         assert!(withdraw1 < Uint128::from(100u32));
@@ -897,7 +894,7 @@ pub mod tests_calculation_price_and_fee {
             Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
-        let imbalanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+        let imbalanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(5).unwrap().value).unwrap();
 
         let add_result = add_liquidity(
             deps.as_mut(),
@@ -913,7 +910,7 @@ pub mod tests_calculation_price_and_fee {
             Some(true),
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
-        let sslp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+        let sslp_tokens_received = Uint128::from_str(&response.attributes.get(5).unwrap().value).unwrap();
 
         let add_result= add_liquidity(
             deps.as_mut(),
@@ -929,7 +926,7 @@ pub mod tests_calculation_price_and_fee {
             None,
         );
         let response = add_result.expect("Unwrap of add liquidity response failed");
-        let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(3).unwrap().value).unwrap();
+        let balanced_lp_tokens_received = Uint128::from_str(&response.attributes.get(5).unwrap().value).unwrap();
         
         assert!(balanced_lp_tokens_received > imbalanced_lp_tokens_received);
         assert!(imbalanced_lp_tokens_received > sslp_tokens_received);
@@ -953,10 +950,10 @@ pub mod tests_calculation_price_and_fee {
             &mock_info,
             TokenPairAmount{
                 pair: token_pair.clone(),
-                amount_0: Uint128::from(10000u128),
-                amount_1: Uint128::from(100000u128)
+                amount_0: Uint128::from(100u128),
+                amount_1: Uint128::from(100u128)
             },
-            Some(Uint128::from(10000000u128)),
+            Some(Uint128::from(10u128)),
             None,
             Some(true),
         )?;       
@@ -980,10 +977,10 @@ pub mod tests_calculation_price_and_fee {
             &mock_info,
             TokenPairAmount{
                 pair: token_pair.clone(),
-                amount_0: Uint128::from(10000u128),
-                amount_1: Uint128::from(100000u128)
+                amount_0: Uint128::from(1000u128),
+                amount_1: Uint128::from(1000u128)
             },
-            Some(Uint128::from(9999999u128)),
+            Some(Uint128::from(99u128)),
             None,
             Some(true),
         )?;       
@@ -1003,8 +1000,8 @@ pub mod tests_calculation_price_and_fee {
             &mock_info,
             TokenPairAmount{
                 pair: token_pair.clone(),
-                amount_0: Uint128::from(10000u128),
-                amount_1: Uint128::from(100000u128)
+                amount_0: Uint128::from(100u128),
+                amount_1: Uint128::from(100u128)
             },
             None,
             None,

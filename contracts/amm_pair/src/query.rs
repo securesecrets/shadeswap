@@ -60,6 +60,7 @@ pub fn swap_simulation(deps: Deps, env: Env, offer: TokenAmount, exclude_fee: Op
         &config,
         &offer,
         exclude_fee,
+        false
     )?;
     let simulation_result = QueryMsgResponse::SwapSimulation {
         total_fee_amount: swap_result.total_fee_amount,

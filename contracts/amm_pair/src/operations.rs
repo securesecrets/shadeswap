@@ -204,6 +204,7 @@ pub fn swap(
         &config,
         &offer,
         Some(is_user_whitelist),
+        true
     )?;
 
     // check for the slippage expected value compare to actual value
@@ -296,15 +297,6 @@ pub fn swap(
         response = response.add_submessage(sub_msg);
     }
 
-    let (token_in_addr, token_in_denom) = match config.pair.get_token(input_token_index).expect("Failed to find input token") {
-        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
-        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
-    };
-    let (token_out_addr, token_out_denom) = match output_token {
-        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
-        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
-    };
-
     Ok(response
         .add_messages(messages)
         .add_attributes(vec![
@@ -313,10 +305,8 @@ pub fn swap(
             Attribute::new("lp_fee_amount", swap_result.lp_fee_amount),
             Attribute::new("total_fee_amount", swap_result.total_fee_amount),
             Attribute::new("shade_dao_fee_amount", swap_result.shade_dao_fee_amount),
-            Attribute::new("token_in_addr", token_in_addr),
-            Attribute::new("token_in_denom", token_in_denom),
-            Attribute::new("token_out_addr", token_out_addr),
-            Attribute::new("token_out_denom", token_out_denom),
+            Attribute::new("token_in_key", &config.pair.get_token(input_token_index).expect("Failed to find input token").unique_key()),
+            Attribute::new("token_out_key", output_token.unique_key()),
             Attribute::new("shade_dao_fee_amount", swap_result.shade_dao_fee_amount),
         ])
         .set_data(to_binary(&ExecuteMsgResponse::SwapResult {
@@ -332,7 +322,7 @@ pub fn swap(
 // Set staking contract within the config
 pub fn set_staking_contract(
     storage: &mut dyn Storage,
-    staking_contract: Option<Contract>,
+    staking_contract: Option<Contract>
 ) -> StdResult<Response> {
     let mut config = config_w(storage).load()?;
 
@@ -353,6 +343,7 @@ pub fn calculate_swap_result(
     config: &Config,
     offer: &TokenAmount,
     exclude_fee: Option<bool>,
+    amount_transfered: bool //If the offer.amount has already been sent
 ) -> StdResult<SwapInfo> {
     if !config.pair.contains(&offer.token) {
         return Err(StdError::generic_err(format!(
@@ -361,12 +352,16 @@ pub fn calculate_swap_result(
         )));
     }
 
-    let amount = Uint128::from(offer.amount);
     let tokens_pool = calculate_token_pool_balance(deps, env, config, offer)?;
-    let token_in_pool = tokens_pool[0];
+    let mut token_in_pool = tokens_pool[0];
     let token_out_pool = tokens_pool[1];
 
-    let swap_return_before_fee = calculate_price(amount, token_in_pool, token_out_pool)?;
+    if amount_transfered {
+        // Subtract offer.amount as the balance would have already been increased.
+        token_in_pool = token_in_pool.checked_sub(offer.amount)?;
+    }
+    let swap_return_before_fee = calculate_price(offer.amount, token_in_pool, token_out_pool)?;
+    
 
     let mut lp_fee_amount = Uint128::zero();
     let mut shade_dao_fee_amount = Uint128::zero();
@@ -396,7 +391,7 @@ pub fn calculate_swap_result(
         shade_dao_fee_amount,
         total_fee_amount,
         result: result_swap,
-        price: Decimal::from_ratio(final_swap_return, amount).to_string(),
+        price: Decimal::from_ratio(final_swap_return, offer.amount).to_string(),
     })
 }
 
@@ -460,6 +455,7 @@ pub fn lp_virtual_swap(
                     &config,
                     &offer,
                     Some(is_user_whitelist),
+                    true
                 )?;
                 if let Some(msgs) = messages {
                     if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != "" {
@@ -494,6 +490,7 @@ pub fn lp_virtual_swap(
                     &config,
                     &offer,
                     Some(is_user_whitelist),
+                    true
                 )?;
                 if let Some(msgs) = messages {
                     if !swap.shade_dao_fee_amount.is_zero() && shade_dao_address.to_string() != "" {
@@ -569,6 +566,7 @@ pub fn remove_liquidity(
                 &config,
                 &offer,
                 Some(false),
+                true
             )?;
             amount_in = Some(pool_withdrawn[1]);
             swap_info = Some(swap.clone());
@@ -597,6 +595,7 @@ pub fn remove_liquidity(
                 &config,
                 &offer,
                 Some(false),
+                true
             )?;
             amount_in = Some(pool_withdrawn[0]);
             swap_info = Some(swap.clone());
@@ -636,15 +635,6 @@ pub fn remove_liquidity(
         },
     )?);
 
-    let (token0_addr, token0_denom) = match &config.pair.0 {
-        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
-        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
-    };
-    let (token1_addr, token1_denom) = match &config.pair.1 {
-        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
-        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
-    };
-
     let response = Response::new()
         .add_messages(pair_messages)
         .add_attributes(vec![
@@ -654,10 +644,8 @@ pub fn remove_liquidity(
                 "refund_assets",
                 format!("{}, {}", &config.pair.0, &config.pair.1),
             ),
-            Attribute::new("token0_addr", token0_addr),
-            Attribute::new("token0_denom", token0_denom),
-            Attribute::new("token1_addr", token1_addr),
-            Attribute::new("token1_denom", token1_denom),
+            Attribute::new("token0_key", &config.pair.0.unique_key()),
+            Attribute::new("token1_key", &config.pair.1.unique_key()),
             Attribute::new("refund_amount0", pool_withdrawn[0]),
             Attribute::new("refund_amount1", pool_withdrawn[1]),
         ]);

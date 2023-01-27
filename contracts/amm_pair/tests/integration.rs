@@ -903,8 +903,8 @@ pub fn test_sslp_with_two_virtual_providers() {
     roll_blockchain(&mut router, 1).unwrap();
     // ASSERT POOL LIQUIDITY
     let total_liquidity: (Uint128, Uint128, Uint128) = get_pair_liquidity_pool_balance(&mut router,&amm_pair_contract);
-    assert_eq!(total_liquidity.0, Uint128::new(100000000u128) + Uint128::new(32434983u128));
-    assert_eq!(total_liquidity.1, Uint128::new(99996756u128));
+    assert_eq!(total_liquidity.0, Uint128::new(147995300u128));
+    assert_eq!(total_liquidity.1, Uint128::new(99500150u128));
     assert_eq!(total_liquidity.2, Uint128::new(200000000u128));
 
     // *** user 2 add sslp liqidity without staking

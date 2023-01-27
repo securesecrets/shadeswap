@@ -509,12 +509,49 @@ fn run_testnet() -> Result<()> {
     }
 
     print_header("\n\t 1. - BUY 100 sSHD Initiating sSCRT to sSHD Swap ");
+
+    let simulation_query: AMMPairQueryMsgResponse = query(
+        &NetContract {
+            label: "".to_string(),
+            id: "".to_string(),
+            address: amm_pair_1.address.to_string(),
+            code_hash: "".to_string(),
+        },
+        AMMPairQueryMsg::SwapSimulation {
+            offer: TokenAmount {
+                token: TokenType::CustomToken {
+                    contract_addr: Addr::unchecked(scrt_token.clone().address),
+                    token_code_hash: scrt_token.clone().code_hash,
+                },
+                amount: Uint128::new(100000),
+            },
+            exclude_fee: None,
+        },
+        None,
+    )
+    .unwrap();
+
+    let mut test_amount = Uint128::zero();
+
+    if let AMMPairQueryMsgResponse::SwapSimulation {
+        total_fee_amount,
+        lp_fee_amount,
+        shade_dao_fee_amount,
+        result,
+        price,
+    } = simulation_query
+    {
+        test_amount = result.return_amount;
+    } else {
+        panic!("Swap simulation could not be parsed")
+    }
+
     let old_scrt_balance = get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string());
     let old_shd_token_balance = get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string());
     handle(
         &snip20::ExecuteMsg::Send {
             recipient: router_contract.address.to_string(),
-            amount: Uint128::new(100),
+            amount: Uint128::new(100000),
             msg: Some(
                 to_binary(&RouterInvokeMsg::SwapTokensForExact {
                     expected_return: Some(Uint128::new(10)),
@@ -541,8 +578,12 @@ fn run_testnet() -> Result<()> {
     .unwrap();
 
     assert_eq!(
+        get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
+        (old_shd_token_balance + test_amount)
+    );
+    assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
-        (old_scrt_balance - Uint128::new(100))
+        (old_scrt_balance - Uint128::new(100000))
     );
 
     assert_eq!(
@@ -560,10 +601,6 @@ fn run_testnet() -> Result<()> {
             VIEW_KEY.to_string()
         ),
         Uint128::new(0)
-    );
-    assert_eq!(
-        get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
-        (old_shd_token_balance + Uint128::new(90))
     );
 
     {
@@ -726,7 +763,7 @@ fn run_testnet() -> Result<()> {
     );
     assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
-        old_scrt_balance + Uint128::new(2226)
+        old_scrt_balance + Uint128::new(2225)
     );
 
     print_header("\n\t 4 - SELL 36500 sSHD Initiating sSHD to sSCRT Swap ");
@@ -784,7 +821,7 @@ fn run_testnet() -> Result<()> {
     );
     assert_eq!(
         get_balance(&scrt_token, account.to_string(), VIEW_KEY.to_string()),
-        old_scrt_balance + Uint128::new(32486)
+        old_scrt_balance + Uint128::new(32485)
     );
 
     print_header("\n\t 5 - BUY 25000 sSHD Initiating sSCRT to sSHD Swap ");
@@ -822,7 +859,7 @@ fn run_testnet() -> Result<()> {
 
     assert_eq!(
         get_balance(&shd_token, account.to_string(), VIEW_KEY.to_string()),
-        old_shd_token_balance + Uint128::new(22250)
+        old_shd_token_balance + Uint128::new(22251)
     );
 
     assert_eq!(
@@ -997,7 +1034,7 @@ fn run_testnet() -> Result<()> {
         price,
     } = estimated_price_query
     {
-        assert_eq!(price, "0.89".to_string());
+        assert_eq!(price, "0.9".to_string());
     }
 
     print_header("\n\tGet LP Token for AMM Pair");
@@ -1349,10 +1386,10 @@ fn run_testnet() -> Result<()> {
                 "\n\tLP Token Address {}",
                 liquidity_token.address.to_string()
             );
-            print_header("\n\tLP Token Liquidity - (5449999878");
+            print_header("\n\tLP Token Liquidity - (5449995639");
             print_header(&("\n\tLP Token 0 Amount - ".to_owned() + &amount_0.to_string()));
             print_header(&("\n\tLP Token 1 Amount - ".to_owned() + &amount_1.to_string()));
-            assert_eq!(total_liquidity, Uint128::new(5449999878u128));
+            assert_eq!(total_liquidity, Uint128::new(5449995639u128));
 
             let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
                 permit: new_permit.clone(),
@@ -1998,7 +2035,7 @@ fn run_testnet() -> Result<()> {
         }),
         arbitrage_contract: None,
         lp_token_decimals: 18u8,
-        lp_token_custom_label: Some("THIS IS A TEST".to_string()),
+        lp_token_custom_label: Some("THIS IS A TEST 2".to_owned() + &factory_contract.address.to_string()),
     };
     // CREATE AMM PAIR
     let amm_pair_contract = init(
@@ -2367,7 +2404,7 @@ fn run_testnet() -> Result<()> {
                 account.to_string(),
                 VIEW_KEY.to_string()
             ),
-            Uint128::new(19999996822)
+            Uint128::new(19999980000)
         );
 
         let old_liquidity = (get_lp_liquidity(&amm_pair_contract.address.to_string())
@@ -2407,7 +2444,7 @@ fn run_testnet() -> Result<()> {
                 account.to_string(),
                 VIEW_KEY.to_string()
             ),
-            Uint128::new(10000000000)
+            Uint128::new(9999983178)
         );
 
         // ASSERT LP TOKEN - 9999996822
@@ -2421,11 +2458,11 @@ fn run_testnet() -> Result<()> {
         // ASSERT BALANCE USDT adn ETH TOKEN + 9999996822
         assert_eq!(
             get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
-            Uint128::new(old_usdt_balance.u128() + 10000002616)
+            Uint128::new(old_usdt_balance.u128() + 10000006822)
         );
         assert_eq!(
             get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
-            Uint128::new(old_eth_balance.u128() + 9999993166)
+            Uint128::new(old_eth_balance.u128() + 9999997371)
         );
         println!("\n\tUnstake 5000000000LP TOKEN");
     }

@@ -297,15 +297,6 @@ pub fn swap(
         response = response.add_submessage(sub_msg);
     }
 
-    let (token_in_addr, token_in_denom) = match config.pair.get_token(input_token_index).expect("Failed to find input token") {
-        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
-        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
-    };
-    let (token_out_addr, token_out_denom) = match output_token {
-        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
-        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
-    };
-
     Ok(response
         .add_messages(messages)
         .add_attributes(vec![
@@ -314,10 +305,8 @@ pub fn swap(
             Attribute::new("lp_fee_amount", swap_result.lp_fee_amount),
             Attribute::new("total_fee_amount", swap_result.total_fee_amount),
             Attribute::new("shade_dao_fee_amount", swap_result.shade_dao_fee_amount),
-            Attribute::new("token_in_addr", token_in_addr),
-            Attribute::new("token_in_denom", token_in_denom),
-            Attribute::new("token_out_addr", token_out_addr),
-            Attribute::new("token_out_denom", token_out_denom),
+            Attribute::new("token_in_key", &config.pair.get_token(input_token_index).expect("Failed to find input token").unique_key()),
+            Attribute::new("token_out_key", output_token.unique_key()),
             Attribute::new("shade_dao_fee_amount", swap_result.shade_dao_fee_amount),
         ])
         .set_data(to_binary(&ExecuteMsgResponse::SwapResult {
@@ -369,10 +358,9 @@ pub fn calculate_swap_result(
 
     if amount_transfered {
         // Subtract offer.amount as the balance would have already been increased.
-        
-        token_in_pool -= offer.amount;
+        token_in_pool = token_in_pool.checked_sub(offer.amount)?;
     }
-    let swap_return_before_fee = calculate_price(offer.amount, token_in_pool - offer.amount, token_out_pool)?;
+    let swap_return_before_fee = calculate_price(offer.amount, token_in_pool, token_out_pool)?;
     
 
     let mut lp_fee_amount = Uint128::zero();
@@ -647,15 +635,6 @@ pub fn remove_liquidity(
         },
     )?);
 
-    let (token0_addr, token0_denom) = match &config.pair.0 {
-        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
-        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
-    };
-    let (token1_addr, token1_denom) = match &config.pair.1 {
-        TokenType::CustomToken { contract_addr, token_code_hash } => (contract_addr.to_string(), "".to_string()),
-        TokenType::NativeToken { denom } => ("".to_string(), denom.clone()),
-    };
-
     let response = Response::new()
         .add_messages(pair_messages)
         .add_attributes(vec![
@@ -665,10 +644,8 @@ pub fn remove_liquidity(
                 "refund_assets",
                 format!("{}, {}", &config.pair.0, &config.pair.1),
             ),
-            Attribute::new("token0_addr", token0_addr),
-            Attribute::new("token0_denom", token0_denom),
-            Attribute::new("token1_addr", token1_addr),
-            Attribute::new("token1_denom", token1_denom),
+            Attribute::new("token0_key", &config.pair.0.unique_key()),
+            Attribute::new("token1_key", &config.pair.1.unique_key()),
             Attribute::new("refund_amount0", pool_withdrawn[0]),
             Attribute::new("refund_amount1", pool_withdrawn[1]),
         ]);

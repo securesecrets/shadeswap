@@ -1386,10 +1386,10 @@ fn run_testnet() -> Result<()> {
                 "\n\tLP Token Address {}",
                 liquidity_token.address.to_string()
             );
-            print_header("\n\tLP Token Liquidity - (5449999878");
+            print_header("\n\tLP Token Liquidity - (5449995639");
             print_header(&("\n\tLP Token 0 Amount - ".to_owned() + &amount_0.to_string()));
             print_header(&("\n\tLP Token 1 Amount - ".to_owned() + &amount_1.to_string()));
-            assert_eq!(total_liquidity, Uint128::new(5449999411u128));
+            assert_eq!(total_liquidity, Uint128::new(5449995639u128));
 
             let get_stake_lp_token_info = StakingQueryMsg::WithPermit {
                 permit: new_permit.clone(),
@@ -2035,7 +2035,7 @@ fn run_testnet() -> Result<()> {
         }),
         arbitrage_contract: None,
         lp_token_decimals: 18u8,
-        lp_token_custom_label: Some("THIS IS A TEST".to_string()),
+        lp_token_custom_label: Some("THIS IS A TEST 2".to_owned() + &factory_contract.address.to_string()),
     };
     // CREATE AMM PAIR
     let amm_pair_contract = init(
@@ -2296,7 +2296,7 @@ fn run_testnet() -> Result<()> {
 
         assert_eq!(
             get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
-            Uint128::new(old_eth_balance.u128() + 8900)
+            Uint128::new(old_eth_balance.u128() + 8901)
         );
         assert_eq!(
             get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
@@ -2404,7 +2404,7 @@ fn run_testnet() -> Result<()> {
                 account.to_string(),
                 VIEW_KEY.to_string()
             ),
-            Uint128::new(19999996821)
+            Uint128::new(19999980000)
         );
 
         let old_liquidity = (get_lp_liquidity(&amm_pair_contract.address.to_string())
@@ -2444,7 +2444,7 @@ fn run_testnet() -> Result<()> {
                 account.to_string(),
                 VIEW_KEY.to_string()
             ),
-            Uint128::new(9999999999)
+            Uint128::new(9999983178)
         );
 
         // ASSERT LP TOKEN - 9999996822
@@ -2458,11 +2458,11 @@ fn run_testnet() -> Result<()> {
         // ASSERT BALANCE USDT adn ETH TOKEN + 9999996822
         assert_eq!(
             get_balance(&usdt_token, account.to_string(), VIEW_KEY.to_string()),
-            Uint128::new(old_usdt_balance.u128() + 10000002616)
+            Uint128::new(old_usdt_balance.u128() + 10000006822)
         );
         assert_eq!(
             get_balance(&eth_token, account.to_string(), VIEW_KEY.to_string()),
-            Uint128::new(old_eth_balance.u128() + 9999993166)
+            Uint128::new(old_eth_balance.u128() + 9999997371)
         );
         println!("\n\tUnstake 5000000000LP TOKEN");
     }

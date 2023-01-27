@@ -731,7 +731,9 @@ pub fn add_liquidity(
     let pair_contract_pool_liquidity = query::total_supply(deps.as_ref(), &config.lp_token)?;
 
     let new_deposit = 
-        if execute_sslp_virtual_swap.is_some() && execute_sslp_virtual_swap.unwrap() {
+        if let Some(false) = execute_sslp_virtual_swap {
+            deposit.clone()
+        } else {
             let swap_return = lp_virtual_swap(
                 deps.as_ref(),
                 &env,
@@ -757,8 +759,6 @@ pub fn add_liquidity(
                 }
             }
             swap_return.output
-        } else {
-            deposit.clone()
         };
 
     let lp_tokens = calculate_lp_tokens(&new_deposit, pool_balances, pair_contract_pool_liquidity)?;

@@ -715,8 +715,12 @@ fn try_deposit(deps: DepsMut, env: Env, info: &MessageInfo) -> StdResult<Respons
     let sender_address = deps.api.addr_canonicalize(info.sender.as_str())?;
 
     let account_balance = BalancesStore::load(deps.storage, &info.sender);
-    if let Some(account_balance) = account_balance.checked_add(raw_amount) {
-        BalancesStore::save(deps.storage, &info.sender, account_balance)?;
+    // Here, the account_balance should be saved to the BalanceStore. Instead, the raw_amount is being saved.
+    // The impact of this is that should the user's balance be zero beforehand, this goes unnoticed.
+    // Once a user should try to deposit while in possession of a nonzero balance, though, their initial funds are permanently lost.
+    // All that's left of their balance is the amount of their latest deposit.
+    if let Some(_account_balance) = account_balance.checked_add(raw_amount) {
+        BalancesStore::save(deps.storage, &info.sender, raw_amount)?;
     } else {
         return Err(StdError::generic_err(
             "This deposit would overflow your balance",

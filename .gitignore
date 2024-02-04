@@ -24,7 +24,7 @@ contracts/hackatom/hash.txt
 
 *.pyc
 __pycache__/
-compiled
+# compiled
 logs
 Cargo.lock
 libraries/

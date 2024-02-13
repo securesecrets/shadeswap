@@ -35,4 +35,4 @@ query-authentication = { git = "https://github.com/securesecrets/query-authentic
 chrono = { version = "=0.4.19" }
 secret-multi-test = { git = "https://github.com/securesecrets/secret-plus-utils", version = "0.13.4" }
 # shadeswap-derive-canonize = { path = "../shadeswap_derive_canonize" }
-
+getrandom = { version = "0.2", features = ["js"] } # Prevents wasm from freaking out when running make
